@@ -1,7 +1,7 @@
 HALATION FREEWARE LICENSE
 Version 1.0
 
-Copyright © 2026 Halation.
+Copyright © 2026 Sylphera.
 All rights reserved.
 
 This license applies to the Halation software application ("Halation"),
@@ -85,6 +85,13 @@ ownership rights or intellectual property rights in Halation are
 transferred to you.
 
 All rights not expressly granted are reserved.
+
+This License also covers official first-party Halation materials,
+including branding, logos, documentation, official screenshots and
+first-party assets. These materials are proprietary and may not be
+reused to present an unofficial product or distribution as Halation.
+This does not alter or relicense third-party content: any third-party
+material identified in THIRD_PARTY.md retains its original license.
 
 6. THIRD-PARTY COMPONENTS
 

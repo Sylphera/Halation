@@ -99,6 +99,8 @@ Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulk
 
 ## Legal
 
+[Privacy](PRIVACY.md)
+
 Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. The license governs use of Halation itself, including restrictions on modification and redistribution.
 
 Use the Downloader only for content that is yours or that you have permission to download. yt-dlp, FFmpeg, Upscayl (upscayl-bin and its models), SPAN/ncnn, the Cutout model and RIFE are separate projects, downloaded separately at run time, each under its own license. Bundled fonts and libraries and the example photos are listed in [THIRD_PARTY.md](THIRD_PARTY.md); their own licenses remain unchanged.
