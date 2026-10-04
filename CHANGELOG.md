@@ -1,0 +1,29 @@
+# Changelog
+
+## 1.0.1
+
+### Added
+- Full Spanish interface localization.
+- Language selection before the first-run Welcome flow.
+- Manual Sessions with Save, Save As and Open Session.
+- Crash recovery with Recover / Discard on the next launch.
+- Automatic saving every 3 minutes for saved Sessions when changes are pending.
+- Persistent Profiles section in Cover Test.
+
+### Changed
+- Tools now start clean after a normal restart instead of restoring temporary work automatically.
+- Explicitly saved presets, defaults, Settings, Library data and Profiles remain persistent.
+- Session and recovery state are now separated from permanent preferences.
+
+### Fixed
+- Corrected Halation's license label from MIT to Proprietary Freeware.
+- Fixed Session restoration consistency in Title Intro.
+- Fixed alignment of the global top-right control island after adding Session controls.
+
+## 1.0.0
+
+- First stable release of Halation, incorporating the visually approved final beta polish.
+- Added the Welcome onboarding flow with identity and profile setup, the Aurora Veil background, and a final ready state with a continuous transition into Home.
+- Improved Cover Test previews and native preview fullscreen controls, including Grade and Upscale.
+- Added SPAN image and video upscaling with a short video preview.
+- Refined UI shadows and background composition continuity while preserving Home's Auralis background.

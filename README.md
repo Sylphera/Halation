@@ -7,7 +7,7 @@
 
 <h3 align="center">High-quality multimedia tools. One local workspace.</h3>
 
-<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.0.0">Halation 1.0 · v1.0.0</a></p>
+<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.0.1">Halation 1.0.1 · v1.0.1</a></p>
 
 <p align="center">
 Create, process, enhance and export images, video and audio with fast, focused tools that work independently or together.
@@ -80,7 +80,7 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 
 ## Install
 
-The current stable release is [Halation 1.0.0](https://github.com/Sylphera/Halation/releases/tag/v1.0.0). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
+The current stable release is [Halation 1.0.1](https://github.com/Sylphera/Halation/releases/tag/v1.0.1). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
 
 - `Halation_<version>_x64-setup.exe` installs for the current user, without administrator rights. Running a newer setup over an installed version updates it in place and keeps your presets, settings and shortcuts.
 - `Halation_<version>_x64-portable.exe` runs without installing.
