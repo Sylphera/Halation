@@ -7,7 +7,7 @@
 
 <h3 align="center">High-quality multimedia tools. One local workspace.</h3>
 
-<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.0.2">Halation 1.0.2 · v1.0.2</a></p>
+<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.0.3">Halation 1.0.3 · v1.0.3</a></p>
 
 <p align="center">
 Create, process, enhance and export images, video and audio with fast, focused tools that work independently or together.
@@ -41,7 +41,6 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 <td width="50%" valign="top"><img src="docs/screenshots/upscale.jpg" alt="Upscale — Video preview"><br><b>Upscale</b><br><sub>AI image and video upscaling at ×2 or ×4.</sub></td>
 </tr>
 <tr>
-<td width="50%" valign="top"><img src="docs/screenshots/intro.jpg" alt="Title Intro"><br><b>Title Intro</b><br><sub>Animated titles with transparency, ready for your editor.</sub></td>
 <td width="50%" valign="top"><img src="docs/screenshots/framegrab.jpg" alt="Frame Capture"><br><b>Frame Capture</b><br><sub>Exact frames from video, with the best of each scene suggested.</sub></td>
 </tr>
 <tr>
@@ -62,7 +61,6 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 
 - **Audio Visualizer**: audio and an image become an audio-reactive MP4 (H.264 or VP9, AAC or Opus, on the GPU when available) for YouTube, Shorts, square and more. Waveform with draggable clip markers, export queue.
 - **Grade**: 38 filters plus adjustments, optical and texture effects and text layers, in two layer tabs with drag to reorder and multi-select. Exports at the original resolution or preset sizes up to 3000 px, also in batches.
-- **Title Intro**: animated titles, intros and watermarks with transparency (ProRes 4444, WebM VP9, PNG sequence) to place over a video in CapCut, DaVinci Resolve or Premiere. 8 materials, entrance / hold / exit animations on a timeline, 10 included presets and your own.
 - **Frame Capture**: exact frames of a video at full resolution, the sharpest frame of each scene suggested, a queue of frames, and a round trip with Grade, the Audio Visualizer and the Library.
 - **AI Interpolate**: a video's frame rate ×2, ×4 or up to a target (30 to 144 fps) with RIFE, a before / after preview side by side, and an H.264 MP4 with the original audio.
 - **Background Remover**: Automatic (the Cutout model), Magic wand and Background brush, with soft edge, contract / expand and edge colour cleanup; PNG, WebP or the mask.
@@ -80,7 +78,7 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 
 ## Install
 
-The current stable release is [Halation 1.0.2](https://github.com/Sylphera/Halation/releases/tag/v1.0.2). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
+The current stable release is [Halation 1.0.3](https://github.com/Sylphera/Halation/releases/tag/v1.0.3). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
 
 - `Halation_<version>_x64-setup.exe` installs for the current user, without administrator rights. Running a newer setup over an installed version updates it in place and keeps your presets, settings and shortcuts.
 - `Halation_<version>_x64-portable.exe` runs without installing.

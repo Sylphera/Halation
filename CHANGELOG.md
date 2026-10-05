@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3
+
+- Corrected Grade upload-control alignment in smaller windows and Cover Test Profiles scrolling.
+- Removed Title Intro and decorative interface shadows.
+- Prevented exposed edges during tool transitions while preserving their timing.
+- Made SoundCloud previews dark by default and centered Spotify and SoundCloud controls.
+
 ## 1.0.2
 
 - Fixed a Sessions and recovery performance regression, restoring responsive tools and smooth navigation during processing.
