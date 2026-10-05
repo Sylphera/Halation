@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2
+
+- Fixed a Sessions and recovery performance regression, restoring responsive tools and smooth navigation during processing.
+- Made Background Remover detection and mask editing more responsive.
+- Improved Grade image loading and Upscale media loading and preparation.
+- Smoothed tool transitions through shadow reuse and composition, with better sequencing of Home and interface reveals.
+- Fixed temporary media URL cleanup and reduced retained image memory.
+
 ## 1.0.1
 
 ### Added
