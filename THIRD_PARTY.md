@@ -1,6 +1,8 @@
 # Third-party software
 
-Halation includes or links the following third-party work. Each keeps its own license.
+Halation © 2026 Sylphera, under the [Halation Freeware License](LICENSE). It includes or links the following third-party work; each keeps its own license and belongs to its authors.
+
+Halation is not affiliated with, endorsed by or sponsored by YouTube, Spotify, SoundCloud or any other site it can read links from. Their names and logos belong to their owners and are used only to identify those services.
 
 ## Fonts (SIL Open Font License 1.1)
 
@@ -17,6 +19,9 @@ Bundled in `app/dist/fonts` as WOFF2 subsets (Latin), taken from the Fontsource 
 | JetBrains Mono | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
 | Inter | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
 | Archivo (variable, width and weight) | Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) |
+| Figtree | Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree) |
+| Roboto | Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic) |
+| Bricolage Grotesque (the HALATION wordmark, converted to outlines) | Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage) |
 
 The full text of the SIL Open Font License 1.1 is at the end of this file.
 
@@ -27,6 +32,8 @@ The full text of the SIL Open Font License 1.1 is at the end of this file.
 | [Mediabunny](https://github.com/Vanilagy/mediabunny) 1.60.0 by Vanilagy and contributors | MPL-2.0 | `app/dist/mediabunny.js` (unmodified minified ES module build; source at https://github.com/Vanilagy/mediabunny) |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.30.0, Copyright (c) Microsoft Corporation | MIT | `app/dist/onnxruntime.js` (`ort.webgpu.bundle.min.mjs` without its source-map line; runs Cutout's model) |
 | [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses) |
+| [GSAP](https://gsap.com) 3.15.0 and its Flip plugin, Copyright 2026 GreenSock | [GSAP Standard License](https://gsap.com/standard-license) | `app/dist/gsap.min.js`, `app/dist/Flip.min.js` (unmodified) |
+| [React](https://react.dev) and React DOM 19 with Scheduler, Copyright (c) Meta Platforms, Inc. and affiliates | MIT | Bundled in `app/dist/atmosphere.js` (the window background); the notices are kept in `atmosphere.js.LEGAL.txt` |
 
 ## Tools downloaded at run time (not included)
 
@@ -34,12 +41,20 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 
 | Tool | License | Used for |
 |---|---|---|
-| [upscayl-bin](https://github.com/upscayl/upscayl-ncnn) and the Upscayl models (upscayl-standard-4x, digital-art-4x, ultrasharp-4x, upscayl-lite-4x) | AGPL-3.0 (upscayl-ncnn); models as published by Upscayl | Upscale |
+| [upscayl-bin](https://github.com/upscayl/upscayl-ncnn) and the [Upscayl](https://github.com/upscayl/upscayl) models upscayl-standard-4x, digital-art-4x and upscayl-lite-4x | AGPL-3.0 (upscayl-ncnn and the Upscayl repository the models are published in) | Upscale |
+| ultrasharp-4x ("Sharp"): [4x-UltraSharp](https://openmodeldb.info/models/4x-UltraSharp) by Kim2091, as published by Upscayl | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): results made with it are for non-commercial use | Upscale (Sharp) |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Unlicense | Downloader |
-| ONNX Runtime Web's WebAssembly (`ort-wasm-simd-threaded.asyncify.wasm`, 1.30.0) and [U²-Net](https://github.com/xuebinqin/U-2-Net) (Xuebin Qin et al.; the ONNX export published by [rembg](https://github.com/danielgatis/rembg)) | MIT (ONNX Runtime); Apache-2.0 (U²-Net) | Cutout (removing the background) |
-| [FFmpeg](https://ffmpeg.org) builds from [yt-dlp/FFmpeg-Builds](https://github.com/yt-dlp/FFmpeg-Builds) | GPL-3.0 | Downloader, video upscaling and frame interpolation (media conversion) |
+| ONNX Runtime Web's WebAssembly (`ort-wasm-simd-threaded.asyncify.wasm`, 1.30.0) and [SAM 2.1](https://github.com/facebookresearch/sam2) Base+ (Meta; Meta's checkpoint exported to ONNX by `app/scripts/sam21-export.py`, licence file beside it) | MIT (ONNX Runtime); Apache-2.0 (SAM 2) | Cutout and Remove Background |
+| [FFmpeg](https://ffmpeg.org) builds from [yt-dlp/FFmpeg-Builds](https://github.com/yt-dlp/FFmpeg-Builds) | GPL-3.0 | Downloader, video upscaling, frame interpolation and Converter (media conversion) |
+| [Pandoc](https://pandoc.org) builds from [jgm/pandoc](https://github.com/jgm/pandoc/releases) | GPL-2.0-or-later | Converter (Markdown, HTML, EPUB, LaTeX, Org, DocBook; DOCX, ODT and RTF to them) |
+| [LibreOffice](https://www.libreoffice.org), the official Windows installer unpacked without installing it, or the user's own install | MPL-2.0 (parts LGPL-3.0 and others, listed in its own license files) | Converter (Office and OpenDocument files, CSV, PDF from documents) |
+| [PDFium](https://pdfium.googlesource.com/pdfium/) builds from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) (chromium/7881) | BSD-3-Clause and Apache-2.0 | Converter (PDF pages to pictures) |
 | [SPAN ncnn Vulkan](https://github.com/tntwise/span-ncnn-vulkan), including spanx2_ch52 and spanx4_ch52 | AGPL-3.0 (runner); model licenses as distributed by the upstream project | Video Upscale |
 | [RIFE ncnn Vulkan](https://github.com/nihui/rife-ncnn-vulkan), with the rife-v4.6 model | [MIT](https://github.com/nihui/rife-ncnn-vulkan/blob/master/LICENSE) (runner); model licenses as distributed upstream | AI Interpolate |
+| [ONNX Runtime](https://github.com/microsoft/onnxruntime) 1.24.4 with DirectML (`onnxruntime.dll` from the Microsoft.ML.OnnxRuntime.DirectML package), Copyright (c) Microsoft Corporation | MIT | Vocal Remover (runs the model on the GPU or the CPU) |
+| [DirectML](https://github.com/microsoft/DirectML) 1.15.4 (`DirectML.dll` from the Microsoft.AI.DirectML package), Copyright (c) Microsoft Corporation | [Microsoft DirectML License](https://www.nuget.org/packages/Microsoft.AI.DirectML/1.15.4/License) (redistributable) | Vocal Remover (GPU) |
+| UVR-MDX-NET Inst HQ4 model by [Ultimate Vocal Remover](https://github.com/Anjok07/ultimatevocalremovergui) (Anjok07, aufr33) | MIT (MDX-Net code); UVR asks apps that use its models for credit | Vocal Remover (separating vocals and instrumental) |
+| [HTDemucs](https://github.com/facebookresearch/demucs) (`htdemucs`, checkpoint 955717e8) by Meta Platforms, Inc. and affiliates, converted to ONNX for Halation (`app/scripts/htdemucs-export.py`) | MIT (code); Meta publishes the weights with no separate license. Their training data includes MUSDB18-HQ, licensed for non-commercial use only; check it before using results commercially | Vocal Remover (4 stems: drums, bass, other, vocals) |
 
 ## Intro images
 
@@ -72,8 +87,15 @@ Direct dependencies of `app/src-tauri`:
 | percent-encoding | MIT OR Apache-2.0 |
 | ureq, native-tls | MIT OR Apache-2.0 |
 | zip | MIT |
+| image, tiff (Converter: pictures) | MIT OR Apache-2.0; MIT |
+| webp (Converter: WebP with loss; libwebp-sys builds libwebp, BSD-3-Clause) | MIT OR Apache-2.0 |
+| pdfium-render (Converter: PDF pages, through the downloaded PDFium library) | MIT OR Apache-2.0 |
+| flate2, tar (unpacking PDFium and Pandoc downloads) | MIT OR Apache-2.0 |
 | winreg | MIT |
 | windows-sys | MIT OR Apache-2.0 |
+| ort (ONNX Runtime bindings, loaded at run time) | MIT OR Apache-2.0 |
+| rustfft | MIT OR Apache-2.0 |
+| sha2 | MIT OR Apache-2.0 |
 
 Every crate compiled into the Windows build (from `cargo metadata --filter-platform x86_64-pc-windows-msvc`):
 
@@ -87,6 +109,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | autocfg | 1.5.1 | Apache-2.0 OR MIT |
 | base64 | 0.22.1 | MIT OR Apache-2.0 |
 | base64 | 0.23.1 | MIT OR Apache-2.0 |
+| base64ct | 1.8.3 | Apache-2.0 OR MIT |
 | bit-set | 0.8.0 | Apache-2.0 OR MIT |
 | bit-vec | 0.8.0 | Apache-2.0 OR MIT |
 | bitflags | 1.3.2 | MIT/Apache-2.0 |
@@ -96,7 +119,9 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | brotli-decompressor | 5.0.3 | BSD-3-Clause/MIT |
 | bs58 | 0.5.1 | MIT/Apache-2.0 |
 | bumpalo | 3.20.3 | MIT OR Apache-2.0 |
+| bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT |
 | byteorder | 1.5.0 | Unlicense OR MIT |
+| byteorder-lite | 0.1.0 | Unlicense OR MIT |
 | bytes | 1.12.1 | MIT |
 | camino | 1.2.6 | MIT OR Apache-2.0 |
 | cargo-platform | 0.1.9 | MIT OR Apache-2.0 |
@@ -106,7 +131,9 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | cfb | 0.7.3 | MIT |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | chrono | 0.4.45 | MIT OR Apache-2.0 |
+| color_quant | 1.1.0 | MIT |
 | cookie | 0.18.2 | MIT OR Apache-2.0 |
+| cookie_store | 0.22.1 | MIT OR Apache-2.0 |
 | cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
 | crc32fast | 1.5.2 | MIT OR Apache-2.0 |
 | crossbeam-channel | 0.5.17 | MIT OR Apache-2.0 |
@@ -122,6 +149,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | defmt | 1.1.1 | MIT OR Apache-2.0 |
 | defmt-macros | 1.1.1 | MIT OR Apache-2.0 |
 | defmt-parser | 1.0.0 | MIT OR Apache-2.0 |
+| der | 0.8.2 | Apache-2.0 OR MIT |
 | deranged | 0.5.8 | MIT OR Apache-2.0 |
 | derive_more | 2.1.1 | MIT |
 | derive_more-impl | 2.1.1 | MIT |
@@ -129,6 +157,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | dirs | 6.0.0 | MIT OR Apache-2.0 |
 | dirs-sys | 0.5.0 | MIT OR Apache-2.0 |
 | displaydoc | 0.2.7 | MIT OR Apache-2.0 |
+| document-features | 0.2.12 | MIT OR Apache-2.0 |
 | dom_query | 0.27.0 | MIT |
 | dpi | 0.1.2 | Apache-2.0 AND MIT |
 | dtoa | 1.0.11 | MIT OR Apache-2.0 |
@@ -137,11 +166,14 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | dtor-proc-macro | 0.0.6 | Apache-2.0 OR MIT |
 | dunce | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
 | dyn-clone | 1.0.20 | MIT OR Apache-2.0 |
+| either | 1.19.0 | MIT OR Apache-2.0 |
 | embed-resource | 3.0.11 | MIT |
 | equivalent | 1.0.2 | Apache-2.0 OR MIT |
 | erased-serde | 0.4.10 | MIT OR Apache-2.0 |
 | fastrand | 2.5.0 | Apache-2.0 OR MIT |
+| fax | 0.2.7 | MIT |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 |
+| filetime | 0.2.29 | MIT OR Apache-2.0 |
 | find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 |
 | fnv | 1.0.7 | Apache-2.0 / MIT |
@@ -151,13 +183,16 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | generic-array | 0.14.7 | MIT |
 | getrandom | 0.3.4 | MIT OR Apache-2.0 |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 |
+| gif | 0.14.2 | MIT OR Apache-2.0 |
 | glob | 0.3.4 | MIT OR Apache-2.0 |
+| half | 2.7.1 | MIT OR Apache-2.0 |
 | hashbrown | 0.12.3 | MIT OR Apache-2.0 |
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | heck | 0.5.0 | MIT OR Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
 | html5ever | 0.38.0 | MIT OR Apache-2.0 |
 | http | 1.5.0 | MIT OR Apache-2.0 |
+| httparse | 1.10.1 | MIT OR Apache-2.0 |
 | ico | 0.5.0 | MIT |
 | icu_collections | 2.3.0 | Unicode-3.0 |
 | icu_locale_core | 2.3.0 | Unicode-3.0 |
@@ -169,37 +204,54 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | ident_case | 1.0.1 | MIT/Apache-2.0 |
 | idna | 1.1.0 | MIT OR Apache-2.0 |
 | idna_adapter | 1.2.2 | Apache-2.0 OR MIT |
+| image | 0.25.10 | MIT OR Apache-2.0 |
+| image-webp | 0.2.4 | MIT OR Apache-2.0 |
 | indexmap | 1.9.3 | Apache-2.0 OR MIT |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT |
 | infer | 0.19.0 | MIT |
+| itertools | 0.15.0 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | jiff | 0.2.37 | Unlicense OR MIT |
 | jiff-core | 0.1.1 | Unlicense OR MIT |
 | jiff-tzdb | 0.1.8 | Unlicense OR MIT |
 | jiff-tzdb-platform | 0.1.3 | Unlicense OR MIT |
+| jobserver | 0.1.35 | MIT OR Apache-2.0 |
 | json-patch | 3.0.1 | MIT/Apache-2.0 |
 | jsonptr | 0.6.3 | MIT OR Apache-2.0 |
 | keyboard-types | 0.7.0 | MIT OR Apache-2.0 |
 | libc | 0.2.189 | MIT OR Apache-2.0 |
+| libwebp-sys | 0.9.6 | MIT |
+| libloading | 0.9.0 | ISC |
 | litemap | 0.8.3 | Unicode-3.0 |
+| litrs | 1.0.0 | MIT OR Apache-2.0 |
 | lock_api | 0.4.14 | MIT OR Apache-2.0 |
 | log | 0.4.34 | MIT OR Apache-2.0 |
 | markup5ever | 0.38.0 | MIT OR Apache-2.0 |
+| maybe-owned | 0.3.4 | MIT OR Apache-2.0 |
+| matrixmultiply | 0.3.11 | MIT/Apache-2.0 |
 | memchr | 2.8.3 | Unlicense OR MIT |
 | memmap2 | 0.9.11 | MIT OR Apache-2.0 |
 | mime | 0.3.17 | MIT OR Apache-2.0 |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
 | mio | 1.2.3 | MIT |
+| moxcms | 0.8.1 | BSD-3-Clause OR Apache-2.0 |
 | muda | 0.19.3 | Apache-2.0 OR MIT |
 | native-tls | 0.2.18 | MIT OR Apache-2.0 |
+| ndarray | 0.17.2 | MIT OR Apache-2.0 |
 | new_debug_unreachable | 1.0.6 | MIT |
+| num-complex | 0.4.6 | MIT OR Apache-2.0 |
 | num-conv | 0.2.2 | MIT OR Apache-2.0 |
+| num-integer | 0.1.47 | MIT OR Apache-2.0 |
 | num-traits | 0.2.19 | MIT OR Apache-2.0 |
 | once_cell | 1.21.4 | MIT OR Apache-2.0 |
 | option-ext | 0.2.0 | MPL-2.0 |
+| ort | 2.0.0-rc.12 | MIT OR Apache-2.0 |
+| ort-sys | 2.0.0-rc.12 | MIT OR Apache-2.0 |
 | parking_lot | 0.12.5 | MIT OR Apache-2.0 |
 | parking_lot_core | 0.9.12 | MIT OR Apache-2.0 |
+| pdfium-render | 0.9.4 | MIT OR Apache-2.0 |
+| pem-rfc7468 | 1.0.0 | Apache-2.0 OR MIT |
 | percent-encoding | 2.3.2 | MIT OR Apache-2.0 |
 | phf | 0.13.1 | MIT |
 | phf_codegen | 0.13.1 | MIT |
@@ -207,15 +259,22 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | phf_macros | 0.13.1 | MIT |
 | phf_shared | 0.13.1 | MIT |
 | pin-project-lite | 0.2.17 | Apache-2.0 OR MIT |
+| piston-float | 1.0.1 | MIT |
 | plist | 1.10.1 | MIT |
 | png | 0.17.16 | MIT OR Apache-2.0 |
+| png | 0.18.1 | MIT OR Apache-2.0 |
 | potential_utf | 0.1.6 | Unicode-3.0 |
 | powerfmt | 0.2.0 | MIT OR Apache-2.0 |
 | precomputed-hash | 0.1.1 | MIT |
+| primal-check | 0.3.4 | MIT OR Apache-2.0 |
 | proc-macro2 | 1.0.107 | MIT OR Apache-2.0 |
+| pxfm | 0.1.30 | BSD-3-Clause OR Apache-2.0 |
+| qoi | 0.4.1 | MIT/Apache-2.0 |
+| quick-error | 2.0.1 | MIT/Apache-2.0 |
 | quick-xml | 0.42.0 | MIT |
 | quote | 1.0.47 | MIT OR Apache-2.0 |
 | raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
+| rawpointer | 0.2.1 | MIT/Apache-2.0 |
 | ref-cast | 1.0.27 | MIT OR Apache-2.0 |
 | ref-cast-impl | 1.0.27 | MIT OR Apache-2.0 |
 | regex | 1.13.1 | MIT OR Apache-2.0 |
@@ -224,6 +283,8 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | rfd | 0.17.2 | MIT |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
+| rustfft | 6.4.1 | MIT OR Apache-2.0 |
+| rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
 | same-file | 1.0.6 | Unlicense/MIT |
 | schannel | 0.1.29 | MIT |
 | schemars | 0.8.22 | MIT |
@@ -255,6 +316,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | socket2 | 0.6.5 | MIT OR Apache-2.0 |
 | softbuffer | 0.4.8 | MIT OR Apache-2.0 |
 | stable_deref_trait | 1.2.1 | MIT OR Apache-2.0 |
+| strength_reduce | 0.2.4 | MIT OR Apache-2.0 |
 | string_cache | 0.9.0 | MIT OR Apache-2.0 |
 | string_cache_codegen | 0.6.1 | MIT OR Apache-2.0 |
 | strsim | 0.11.1 | MIT |
@@ -262,6 +324,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | syn | 3.0.6 | MIT OR Apache-2.0 |
 | synstructure | 0.14.0 | MIT |
 | tao | 0.35.3 | Apache-2.0 |
+| tar | 0.4.46 | MIT OR Apache-2.0 |
 | tauri | 2.11.6 | Apache-2.0 OR MIT |
 | tauri-build | 2.6.3 | Apache-2.0 OR MIT |
 | tauri-codegen | 2.6.3 | Apache-2.0 OR MIT |
@@ -271,12 +334,13 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | tauri-runtime-wry | 2.11.4 | Apache-2.0 OR MIT |
 | tauri-utils | 2.9.3 | Apache-2.0 OR MIT |
 | tauri-winres | 0.3.6 | MIT |
-| tauri-winrt-notification | 0.7.3 | MIT OR Apache-2.0 |
+| tauri-winrt-notification | 0.8.1 | MIT OR Apache-2.0 |
 | tendril | 0.5.1 | MIT OR Apache-2.0 |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
 | thiserror-impl | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror-impl | 2.0.21 | MIT OR Apache-2.0 |
+| tiff | 0.11.3 | MIT |
 | time | 0.3.55 | MIT OR Apache-2.0 |
 | time-core | 0.1.9 | MIT OR Apache-2.0 |
 | time-macros | 0.2.32 | MIT OR Apache-2.0 |
@@ -292,7 +356,9 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | tracing | 0.1.44 | MIT |
 | tracing-attributes | 0.1.31 | MIT |
 | tracing-core | 0.1.36 | MIT |
+| transpose | 0.2.3 | MIT OR Apache-2.0 |
 | tray-icon | 0.24.2 | MIT OR Apache-2.0 |
+| typed-path | 0.12.3 | MIT OR Apache-2.0 |
 | typeid | 1.0.3 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
 | unic-char-property | 0.9.0 | MIT/Apache-2.0 |
@@ -302,57 +368,78 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | unic-ucd-version | 0.9.0 | MIT/Apache-2.0 |
 | unicode-ident | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 |
-| ureq | 2.12.1 | MIT OR Apache-2.0 |
+| ureq | 3.4.2 | MIT OR Apache-2.0 |
+| ureq-proto | 0.6.4 | MIT OR Apache-2.0 |
 | url | 2.5.8 | MIT OR Apache-2.0 |
 | urlpattern | 0.3.0 | MIT |
+| utf16string | 0.2.0 | MIT OR Apache-2.0 |
+| utf8-zero | 0.8.1 | MIT OR Apache-2.0 |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
 | uuid | 1.26.1 | Apache-2.0 OR MIT |
+| vecmath | 1.0.0 | MIT |
 | version_check | 0.9.5 | MIT/Apache-2.0 |
 | vswhom | 0.1.0 | MIT |
 | vswhom-sys | 0.1.3 | MIT |
 | walkdir | 2.5.0 | Unlicense/MIT |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
+| webp | 0.3.1 | MIT OR Apache-2.0 |
+| webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 |
 | webview2-com | 0.38.2 | MIT |
 | webview2-com-macros | 0.8.1 | MIT |
 | webview2-com-sys | 0.38.2 | MIT |
+| weezl | 0.1.12 | MIT OR Apache-2.0 |
 | winapi-util | 0.1.11 | Unlicense OR MIT |
 | window-vibrancy | 0.6.0 | Apache-2.0 OR MIT |
 | windows | 0.61.3 | MIT OR Apache-2.0 |
+| windows | 0.62.2 | MIT OR Apache-2.0 |
 | windows-collections | 0.2.0 | MIT OR Apache-2.0 |
+| windows-collections | 0.3.2 | MIT OR Apache-2.0 |
 | windows-core | 0.61.2 | MIT OR Apache-2.0 |
+| windows-core | 0.62.2 | MIT OR Apache-2.0 |
 | windows-future | 0.2.1 | MIT OR Apache-2.0 |
+| windows-future | 0.3.2 | MIT OR Apache-2.0 |
 | windows-implement | 0.60.2 | MIT OR Apache-2.0 |
 | windows-interface | 0.59.3 | MIT OR Apache-2.0 |
 | windows-link | 0.1.3 | MIT OR Apache-2.0 |
 | windows-link | 0.2.1 | MIT OR Apache-2.0 |
 | windows-numerics | 0.2.0 | MIT OR Apache-2.0 |
+| windows-numerics | 0.3.1 | MIT OR Apache-2.0 |
 | windows-result | 0.3.4 | MIT OR Apache-2.0 |
+| windows-result | 0.4.1 | MIT OR Apache-2.0 |
 | windows-strings | 0.4.2 | MIT OR Apache-2.0 |
+| windows-strings | 0.5.1 | MIT OR Apache-2.0 |
 | windows-sys | 0.59.0 | MIT OR Apache-2.0 |
 | windows-sys | 0.60.2 | MIT OR Apache-2.0 |
 | windows-sys | 0.61.2 | MIT OR Apache-2.0 |
 | windows-targets | 0.52.6 | MIT OR Apache-2.0 |
 | windows-targets | 0.53.5 | MIT OR Apache-2.0 |
 | windows-threading | 0.1.0 | MIT OR Apache-2.0 |
+| windows-threading | 0.2.1 | MIT OR Apache-2.0 |
 | windows-version | 0.1.7 | MIT OR Apache-2.0 |
 | windows_x86_64_msvc | 0.52.6 | MIT OR Apache-2.0 |
 | windows_x86_64_msvc | 0.53.1 | MIT OR Apache-2.0 |
 | winnow | 0.7.15 | MIT |
 | winnow | 1.0.4 | MIT |
 | winreg | 0.55.0 | MIT |
+| winreg | 0.56.0 | MIT |
 | writeable | 0.6.4 | Unicode-3.0 |
 | wry | 0.55.1 | Apache-2.0 OR MIT |
 | yoke | 0.8.3 | Unicode-3.0 |
 | yoke-derive | 0.8.3 | Unicode-3.0 |
+| zerocopy | 0.8.61 | BSD-2-Clause OR Apache-2.0 OR MIT |
+| zerocopy-derive | 0.8.61 | BSD-2-Clause OR Apache-2.0 OR MIT |
 | zerofrom | 0.1.8 | Unicode-3.0 |
 | zerofrom-derive | 0.1.8 | Unicode-3.0 |
+| zeroize | 1.9.0 | Apache-2.0 OR MIT |
 | zerotrie | 0.2.5 | Unicode-3.0 |
 | zerovec | 0.11.8 | Unicode-3.0 |
 | zerovec-derive | 0.11.6 | Unicode-3.0 |
-| zip | 2.4.2 | MIT |
+| zip | 8.6.0 | MIT |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
 | zopfli | 0.8.3 | Apache-2.0 |
+| zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib |
+| zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib |
 
 ## SIL Open Font License 1.1
 
@@ -491,3 +578,47 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## MIT License (ONNX Runtime Web, React)
+
+Copyright (c) Microsoft Corporation (ONNX Runtime). Copyright (c) Meta Platforms, Inc. and affiliates (React, React DOM, Scheduler).
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## BSD 3-Clause License (libwebp)
+
+Converter's WebP output is made by libwebp, compiled into Halation (crate `libwebp-sys`).
+
+Copyright (c) 2010, Google Inc. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+  * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in
+    the documentation and/or other materials provided with the
+    distribution.
+
+  * Neither the name of Google nor the names of its contributors may
+    be used to endorse or promote products derived from this software
+    without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

@@ -10,7 +10,7 @@ Some features use the network when you use them:
 
 - **Downloader and URL analysis** contact the relevant services to read metadata, find matching media and download video, audio or artwork. This can include Spotify or Apple metadata and YouTube searches.
 - **Profile discovery and Cover Test** query public profiles, reference artists, feeds and images from services such as YouTube, Spotify and SoundCloud. Profile discovery can also query search providers and MusicBrainz, including during onboarding. When opened, Cover Test may refresh saved profiles, references and feeds.
-- **Optional components** are downloaded when a feature needs them or you install them through Settings. Engines and models come from their upstream hosts, including GitHub and jsDelivr. Once installed, they process your media locally.
+- **Optional components** are downloaded when a feature needs them or you install them through Settings. Engines and models come from their upstream hosts, including GitHub, jsDelivr and NuGet. Once installed, they process your media locally. Vocal Remover runs on the GPU through Microsoft DirectML, a Windows component whose own license says it may collect diagnostic data and send it to Microsoft under Microsoft's privacy statement.
 
 ## Third-party services
 

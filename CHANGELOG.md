@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+- Converter: images, audio, video, documents, spreadsheets, presentations and PDF pages into the formats each file can become, one file or a whole folder, with a preview and per-group choices in batches.
+- Vocal Remover: vocals and instrumental with UVR-MDX-NET Inst HQ4, or four stems (drums, bass, other, vocals) with HTDemucs, on the GPU (DirectML) or the CPU, with a mixer per song (mute, solo, volume) and export to WAV, FLAC or MP3.
+- Downloader: whole albums and Open Folder.
+
+### Changed
+- Background Remover and Cutout now run on SAM 2.1 Base+: Automatic, the wand and the brush share one promptable mask, the subject first and the background only refining it.
+- Tools open Library files that live outside the Halation folder.
+- License 1.1: no commercial promise for outputs of third-party models, a third-party services clause for Downloader, and the licences of Converter's and Vocal Remover's components in THIRD_PARTY.md.
+- Auralis on Home shows a wider, zoomed-out field.
+
+### Fixed
+- Black edges during the Home entrance wave.
+
 ## 1.0.3
 
 - Corrected Grade upload-control alignment in smaller windows and Cover Test Profiles scrolling.

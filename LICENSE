@@ -1,5 +1,5 @@
 HALATION FREEWARE LICENSE
-Version 1.0
+Version 1.1
 
 Copyright © 2026 Sylphera.
 All rights reserved.
@@ -29,10 +29,21 @@ Halation does not claim ownership of your images, videos, audio,
 projects, exports or other output solely because Halation was used to
 create or process them.
 
-Subject to the rights of any third parties and applicable law, you may
-use, publish, distribute, license, sell, monetize and commercially
-exploit your outputs without paying royalties or license fees to
-Halation.
+Halation charges no royalties or license fees for your outputs. Subject
+to the rights of any third parties and applicable law, you may use,
+publish, distribute, license, sell, monetize and commercially exploit
+outputs that are made with Halation's own features.
+
+This License makes no promise about outputs made with third-party models
+or tools that Halation downloads and runs (for example, upscaling,
+interpolation, background removal, stem separation, format conversion and download
+engines). Those outputs are subject to the license of the model or tool
+used, listed in THIRD_PARTY.md, and you must check and follow it. Some
+of these licenses do not allow commercial use: the "Sharp" upscaling
+model (4x-UltraSharp by Kim2091, CC BY-NC-SA 4.0) is for non-commercial
+use only. Vocal Remover's 4-stem model (HTDemucs by Meta, MIT) was
+trained on data that includes MUSDB18-HQ, which is licensed for
+non-commercial use; check it before using its results commercially.
 
 You are responsible for ensuring that you have the necessary rights to
 any content that you import into or process with Halation.
@@ -101,7 +112,22 @@ software, libraries, models, codecs, fonts or other components.
 Those components are not licensed under the Halation Freeware License
 unless explicitly stated otherwise.
 
-Their respective copyright notices and license terms continue to apply.
+Their respective copyright notices and license terms continue to apply,
+including any restriction they place on the results they produce
+(see section 2).
+
+Third-party services. The Downloader and other features can read links
+and public information from third-party websites and services, such as
+YouTube, Spotify and SoundCloud, using separately downloaded tools such
+as yt-dlp. Halation is not affiliated with, endorsed by or sponsored by
+any of these services; their names and logos belong to their owners and
+are used only to identify them. You may download or process only content
+that is yours or that you have the right or permission to download, and
+you are solely responsible for complying with copyright law and with the
+terms of each service. Halation is not designed to circumvent DRM and does
+not download DRM-protected content (for example, Spotify's audio is never
+obtained from Spotify). You must not use Halation to bypass protection
+measures or to obtain content in breach of the rights of others.
 
 7. UPDATES AND SERVICES
 
@@ -163,4 +189,4 @@ This License constitutes the terms under which Halation is provided to
 you, except where separate written terms have been expressly agreed.
 
 By installing or using Halation, you acknowledge that you have read and
-accepted these terms.
+accepted these terms.

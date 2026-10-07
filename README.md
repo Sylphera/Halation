@@ -7,7 +7,7 @@
 
 <h3 align="center">High-quality multimedia tools. One local workspace.</h3>
 
-<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.0.3">Halation 1.0.3 · v1.0.3</a></p>
+<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.1.0">Halation 1.1.0 · v1.1.0</a></p>
 
 <p align="center">
 Create, process, enhance and export images, video and audio with fast, focused tools that work independently or together.
@@ -63,9 +63,11 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 - **Grade**: 38 filters plus adjustments, optical and texture effects and text layers, in two layer tabs with drag to reorder and multi-select. Exports at the original resolution or preset sizes up to 3000 px, also in batches.
 - **Frame Capture**: exact frames of a video at full resolution, the sharpest frame of each scene suggested, a queue of frames, and a round trip with Grade, the Audio Visualizer and the Library.
 - **AI Interpolate**: a video's frame rate ×2, ×4 or up to a target (30 to 144 fps) with RIFE, a before / after preview side by side, and an H.264 MP4 with the original audio.
-- **Background Remover**: Automatic (the Cutout model), Magic wand and Background brush, with soft edge, contract / expand and edge colour cleanup; PNG, WebP or the mask.
+- **Background Remover**: Automatic, Magic wand and Background brush on SAM 2.1 (one promptable mask: the subject first, the background only refines it), with soft edge, contract / expand and edge colour cleanup; PNG, WebP or the mask.
+- **Vocal Remover**: vocals and instrumental (UVR-MDX-NET Inst HQ4) or four stems (HTDemucs: drums, bass, other, vocals), on the GPU through DirectML or on the CPU, with a mixer per song and export to WAV, FLAC or MP3.
+- **Converter**: images, audio, video, documents, spreadsheets, presentations and PDF pages into the formats each file can become, one file or a whole folder.
 - **Upscale**: images at ×2 or ×4 with Photo, Digital art / cover, Sharp or Fast models and a zoomable Before/After view. Video uses SPAN ch52 via ncnn/Vulkan at ×2 or ×4, preserving aspect ratio and source FPS. SDR constant-frame-rate video exports as H.264 MP4 with source audio (copy or AAC). Short temporal Before/After previews; progress and cancellation through Jobs.
-- **Downloader**: the video, the audio or the largest cover of a link (Spotify song links are matched on YouTube and tagged with Spotify's metadata), with a queue.
+- **Downloader**: the video, the audio or the largest cover of a link (Spotify song links are matched on YouTube and tagged with Spotify's metadata), whole albums to choose songs from, with a queue.
 - **Cover Test**: preview release artwork in YouTube, Spotify and SoundCloud layouts, including feeds, artist profiles and release views. Compare with reference artists, edit fictional titles and other metadata to try out a release, and export the preview as PNG at ×1 or ×2. Screenshots here use synthetic artists and fixture data.
 - **Library**: your own sections, linked PC folders, favourites and tags, with exports and downloads from the tools collected together. Optional packs add grain, paper, light leaks, shapes and frames; Library items can be opened in other tools.
 
@@ -78,7 +80,7 @@ Halation brings focused image, video and audio tools into one desktop workspace.
 
 ## Install
 
-The current stable release is [Halation 1.0.3](https://github.com/Sylphera/Halation/releases/tag/v1.0.3). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
+The current stable release is [Halation 1.1.0](https://github.com/Sylphera/Halation/releases/tag/v1.1.0). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
 
 - `Halation_<version>_x64-setup.exe` installs for the current user, without administrator rights. Running a newer setup over an installed version updates it in place and keeps your presets, settings and shortcuts.
 - `Halation_<version>_x64-portable.exe` runs without installing.
@@ -90,7 +92,9 @@ Some tools need optional components, downloaded on demand to `Documents\Halation
 - **yt-dlp** for downloads and **FFmpeg** for media conversion and video processing.
 - **upscayl-bin and the Upscayl models** for image upscaling; an existing [Upscayl](https://upscayl.org) installation can also be used.
 - **SPAN ch52 models and the ncnn/Vulkan runner** for Video Upscale.
-- **The Cutout model** for automatic background removal.
+- **The Cutout model** (SAM 2.1 Base+) for background removal.
+- **ONNX Runtime with DirectML and the HQ4 / HTDemucs models** for Vocal Remover.
+- **Pandoc, LibreOffice and PDFium** for Converter's documents and PDF pages.
 - **RIFE** for AI Interpolate.
 
 Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulkan when available and can run on the CPU.
@@ -99,6 +103,6 @@ Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulk
 
 [Privacy](PRIVACY.md)
 
-Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. The license governs use of Halation itself, including restrictions on modification and redistribution.
+Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. Outputs made with third-party models follow those models' licenses (for example, the "Sharp" upscaling model is non-commercial). The license governs use of Halation itself, including restrictions on modification and redistribution.
 
-Use the Downloader only for content that is yours or that you have permission to download. yt-dlp, FFmpeg, Upscayl (upscayl-bin and its models), SPAN/ncnn, the Cutout model and RIFE are separate projects, downloaded separately at run time, each under its own license. Bundled fonts and libraries and the example photos are listed in [THIRD_PARTY.md](THIRD_PARTY.md); their own licenses remain unchanged.
+Use the Downloader only for content that is yours or that you have permission to download. yt-dlp, FFmpeg, Upscayl (upscayl-bin and its models), SPAN/ncnn, the Cutout model, RIFE, ONNX Runtime, DirectML, the Vocal Remover models, Pandoc, LibreOffice and PDFium are separate projects, downloaded separately at run time, each under its own license. Bundled fonts and libraries and the example photos are listed in [THIRD_PARTY.md](THIRD_PARTY.md); their own licenses remain unchanged.
