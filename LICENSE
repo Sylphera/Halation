@@ -36,14 +36,18 @@ outputs that are made with Halation's own features.
 
 This License makes no promise about outputs made with third-party models
 or tools that Halation downloads and runs (for example, upscaling,
-interpolation, background removal, stem separation, format conversion and download
-engines). Those outputs are subject to the license of the model or tool
-used, listed in THIRD_PARTY.md, and you must check and follow it. Some
-of these licenses do not allow commercial use: the "Sharp" upscaling
-model (4x-UltraSharp by Kim2091, CC BY-NC-SA 4.0) is for non-commercial
-use only. Vocal Remover's 4-stem model (HTDemucs by Meta, MIT) was
-trained on data that includes MUSDB18-HQ, which is licensed for
-non-commercial use; check it before using its results commercially.
+interpolation, background removal, stem separation, format conversion
+and download engines). Halation makes no grant or representation
+concerning rights arising from third-party models, tools, model weights,
+training data or their applicable terms. Any restrictions that apply
+independently of this License remain in effect, and you are responsible
+for checking them before using an output. THIRD_PARTY.md lists these
+components and their terms. For example, the "Sharp" upscaling model
+(4x-UltraSharp by Kim2091, CC BY-NC-SA 4.0) is for non-commercial use
+only, and Vocal Remover's 4-stem model runs HTDemucs code by Meta (MIT)
+with a checkpoint trained on data that includes MUSDB18-HQ, which is
+licensed for non-commercial use; check it before using its results
+commercially.
 
 You are responsible for ensuring that you have the necessary rights to
 any content that you import into or process with Halation.

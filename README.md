@@ -16,8 +16,10 @@ Create, process, enhance and export images, video and audio with fast, focused t
 <p align="center">Local by default. No account, no cloud, no watermark.</p>
 
 <p align="center">
-<a href="https://github.com/Sylphera/Halation/releases/latest"><b>Download for Windows</b></a> &nbsp;·&nbsp; Windows 10 and 11 &nbsp;·&nbsp; Freeware
+<a href="https://github.com/Sylphera/Halation/releases/latest"><b>Download for Windows</b></a> &nbsp;·&nbsp; Windows 10 and 11 &nbsp;·&nbsp; Freeware &nbsp;·&nbsp; Closed source
 </p>
+
+<p align="center"><sub>Halation is proprietary, closed-source freeware. This repository publishes its releases and documentation; it contains no source code.</sub></p>
 
 <p align="center"><img src="docs/screenshots/home.jpg" alt="Halation Home"></p>
 
@@ -90,9 +92,9 @@ The current stable release is [Halation 1.1.0](https://github.com/Sylphera/Halat
 - `Halation_<version>_x64-setup.exe` installs for the current user, without administrator rights. Running a newer setup over an installed version updates it in place and keeps your presets, settings and shortcuts.
 - `Halation_<version>_x64-portable.exe` runs without installing.
 
-Halation 1.1.0 and later check these releases for updates a few seconds after starting and whenever you choose **Check for updates**. A new version is offered with its notes; the installed copy downloads the signed setup, verifies it and updates in place, while the portable copy opens the release page. Choose whether it asks, only shows the update in Activity, or never checks by itself in **Settings → About → Updates**. The check reads `latest.json` from this repository's releases, so GitHub receives the request and your IP address ([Privacy](PRIVACY.md)).
+Halation 1.1.0 and later check these releases for updates a few seconds after starting and whenever you choose **Check for updates**. A new version is offered with its notes; the installed copy downloads the setup, verifies its updater signature and updates in place, while the portable copy opens the release page. Choose whether it asks, only shows the update in Activity, or never checks by itself in **Settings → About → Updates**. The check reads `latest.json` from this repository's releases, so GitHub receives the request and your IP address ([Privacy](PRIVACY.md)).
 
-Windows 10 or 11 with WebView2. No account or cloud service is required. The builds are currently not code-signed, so SmartScreen may warn on first launch: **More info → Run anyway**.
+Windows 10 or 11 with WebView2. No account or cloud service is required. The updater signature is Halation's own check, not Windows code signing: the builds are currently not Authenticode-signed, so SmartScreen may warn on first launch: **More info → Run anyway**.
 
 Some tools need optional components, downloaded on demand to `Documents\Halation\Tools` or managed from **Settings → Modules**. They are separate from the installer:
 
@@ -110,6 +112,6 @@ Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulk
 
 [Privacy](PRIVACY.md)
 
-Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. Outputs made with third-party models follow those models' licenses (for example, the "Sharp" upscaling model is non-commercial). The license governs use of Halation itself, including restrictions on modification and redistribution.
+Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. Halation makes no grant or representation concerning rights arising from third-party models, tools, model weights, training data or their applicable terms; any restrictions that apply independently of the license remain in effect, and you are responsible for checking them before using an output (for example, the "Sharp" upscaling model is non-commercial, and the HTDemucs checkpoint was trained on data licensed for non-commercial use). The license governs use of Halation itself, including restrictions on modification and redistribution.
 
 Use the Downloader only for content that is yours or that you have permission to download. yt-dlp, FFmpeg, Upscayl (upscayl-bin and its models), SPAN/ncnn, the Cutout model, RIFE, ONNX Runtime, DirectML, the Vocal Remover models, Pandoc, LibreOffice and PDFium are separate projects, downloaded separately at run time, each under its own license. Bundled fonts and libraries and the example photos are listed in [THIRD_PARTY.md](THIRD_PARTY.md); their own licenses remain unchanged.
