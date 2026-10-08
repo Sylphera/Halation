@@ -6,12 +6,17 @@
 - Converter: images, audio, video, documents, spreadsheets, presentations and PDF pages into the formats each file can become, one file or a whole folder, with a preview and per-group choices in batches.
 - Vocal Remover: vocals and instrumental with UVR-MDX-NET Inst HQ4, or four stems (drums, bass, other, vocals) with HTDemucs, on the GPU (DirectML) or the CPU, with a mixer per song (mute, solo, volume) and export to WAV, FLAC or MP3.
 - Downloader: whole albums and Open Folder.
+- Updates: Halation checks the public releases, downloads the signed setup in Activity, and installs it after saving the session and restarting, or when it closes. Settings → About → Updates sets how it asks; What's new shows the notes after an update. The portable copy opens the release page.
 
 ### Changed
 - Background Remover and Cutout now run on SAM 2.1 Base+: Automatic, the wand and the brush share one promptable mask, the subject first and the background only refining it.
 - Tools open Library files that live outside the Halation folder.
 - License 1.1: no commercial promise for outputs of third-party models, a third-party services clause for Downloader, and the licences of Converter's and Vocal Remover's components in THIRD_PARTY.md.
 - Auralis on Home shows a wider, zoomed-out field.
+- Tools in a new order, by what they start from; the Home toolbar and the activity island simplified.
+- Vocal Remover: the 4-stem model rebuilt for DirectML (stems-v4), so 4 stems on the GPU match the CPU; the first export asks about the folder.
+- Converter: each format says its quality, settings and what it is for.
+- Background Remover: Automatic proposes one subject and does not read the same picture again.
 
 ### Fixed
 - Black edges during the Home entrance wave.

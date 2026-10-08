@@ -80,6 +80,7 @@ Direct dependencies of `app/src-tauri`:
 |---|---|
 | tauri, tauri-build | Apache-2.0 OR MIT |
 | tauri-plugin-single-instance | Apache-2.0 OR MIT |
+| tauri-plugin-updater (updates: checks the public releases, verifies the signed setup) | Apache-2.0 OR MIT |
 | tauri-winrt-notification | MIT OR Apache-2.0 |
 | serde, serde_json | MIT OR Apache-2.0 |
 | rfd | MIT |
@@ -104,8 +105,11 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
 | aho-corasick | 1.1.5 | Unlicense OR MIT |
 | alloc-no-stdlib | 2.0.4 | BSD-3-Clause |
+| alloc-no-stdlib | 3.0.0 | BSD-3-Clause |
 | alloc-stdlib | 0.2.4 | BSD-3-Clause |
+| alloc-stdlib | 0.3.0 | BSD-3-Clause |
 | anyhow | 1.0.104 | MIT OR Apache-2.0 |
+| atomic-waker | 1.1.2 | Apache-2.0 OR MIT |
 | autocfg | 1.5.1 | Apache-2.0 OR MIT |
 | base64 | 0.22.1 | MIT OR Apache-2.0 |
 | base64 | 0.23.1 | MIT OR Apache-2.0 |
@@ -116,7 +120,9 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | bitflags | 2.13.2 | MIT OR Apache-2.0 |
 | block-buffer | 0.10.4 | MIT OR Apache-2.0 |
 | brotli | 8.0.4 | BSD-3-Clause AND MIT |
+| brotli | 9.0.0 | BSD-3-Clause AND MIT |
 | brotli-decompressor | 5.0.3 | BSD-3-Clause/MIT |
+| brotli-decompressor | 6.0.1 | BSD-3-Clause/MIT |
 | bs58 | 0.5.1 | MIT/Apache-2.0 |
 | bumpalo | 3.20.3 | MIT OR Apache-2.0 |
 | bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT |
@@ -129,6 +135,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | cargo_toml | 0.22.3 | Apache-2.0 OR MIT |
 | cc | 1.5.1 | MIT OR Apache-2.0 |
 | cfb | 0.7.3 | MIT |
+| cfb | 0.14.0 | MIT |
 | cfg-if | 1.0.5 | MIT OR Apache-2.0 |
 | chrono | 0.4.45 | MIT OR Apache-2.0 |
 | color_quant | 1.1.0 | MIT |
@@ -139,10 +146,9 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | crossbeam-channel | 0.5.17 | MIT OR Apache-2.0 |
 | crossbeam-utils | 0.8.23 | MIT OR Apache-2.0 |
 | crypto-common | 0.1.7 | MIT OR Apache-2.0 |
-| cssparser | 0.36.0 | MPL-2.0 |
-| cssparser-macros | 0.6.1 | MPL-2.0 |
-| ctor | 0.8.0 | Apache-2.0 OR MIT |
-| ctor-proc-macro | 0.0.7 | Apache-2.0 OR MIT |
+| cssparser | 0.37.0 | MPL-2.0 |
+| cssparser-macros | 0.7.1 | MPL-2.0 |
+| ctor | 1.0.13 | Apache-2.0 OR MIT |
 | darling | 0.24.1 | MIT |
 | darling_core | 0.24.1 | MIT |
 | darling_macro | 0.24.1 | MIT |
@@ -158,12 +164,10 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | dirs-sys | 0.5.0 | MIT OR Apache-2.0 |
 | displaydoc | 0.2.7 | MIT OR Apache-2.0 |
 | document-features | 0.2.12 | MIT OR Apache-2.0 |
-| dom_query | 0.27.0 | MIT |
+| dom_query | 0.28.0 | MIT |
 | dpi | 0.1.2 | Apache-2.0 AND MIT |
 | dtoa | 1.0.11 | MIT OR Apache-2.0 |
 | dtoa-short | 0.3.5 | MPL-2.0 |
-| dtor | 0.3.0 | Apache-2.0 OR MIT |
-| dtor-proc-macro | 0.0.6 | Apache-2.0 OR MIT |
 | dunce | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
 | dyn-clone | 1.0.20 | MIT OR Apache-2.0 |
 | either | 1.19.0 | MIT OR Apache-2.0 |
@@ -173,14 +177,22 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | fastrand | 2.5.0 | Apache-2.0 OR MIT |
 | fax | 0.2.7 | MIT |
 | fdeflate | 0.3.7 | MIT OR Apache-2.0 |
-| filetime | 0.2.29 | MIT OR Apache-2.0 |
+| filetime | 0.2.29 | MIT/Apache-2.0 |
 | find-msvc-tools | 0.1.14 | MIT OR Apache-2.0 |
 | flate2 | 1.1.10 | MIT OR Apache-2.0 |
 | fnv | 1.0.7 | Apache-2.0 / MIT |
 | foldhash | 0.2.0 | Zlib |
 | fontdb | 0.24.0 | MIT |
 | form_urlencoded | 1.2.2 | MIT OR Apache-2.0 |
+| futures-channel | 0.3.34 | MIT OR Apache-2.0 |
+| futures-core | 0.3.34 | MIT OR Apache-2.0 |
+| futures-io | 0.3.34 | MIT OR Apache-2.0 |
+| futures-macro | 0.3.34 | MIT OR Apache-2.0 |
+| futures-sink | 0.3.34 | MIT OR Apache-2.0 |
+| futures-task | 0.3.34 | MIT OR Apache-2.0 |
+| futures-util | 0.3.34 | MIT OR Apache-2.0 |
 | generic-array | 0.14.7 | MIT |
+| getrandom | 0.2.17 | MIT OR Apache-2.0 |
 | getrandom | 0.3.4 | MIT OR Apache-2.0 |
 | getrandom | 0.4.3 | MIT OR Apache-2.0 |
 | gif | 0.14.2 | MIT OR Apache-2.0 |
@@ -190,9 +202,14 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | hashbrown | 0.17.1 | MIT OR Apache-2.0 |
 | heck | 0.5.0 | MIT OR Apache-2.0 |
 | hex | 0.4.3 | MIT OR Apache-2.0 |
-| html5ever | 0.38.0 | MIT OR Apache-2.0 |
+| html5ever | 0.39.0 | MIT OR Apache-2.0 |
 | http | 1.5.0 | MIT OR Apache-2.0 |
+| http-body | 1.1.0 | MIT |
+| http-body-util | 0.1.5 | MIT |
 | httparse | 1.10.1 | MIT OR Apache-2.0 |
+| hyper | 1.11.1 | MIT |
+| hyper-rustls | 0.27.10 | Apache-2.0 OR ISC OR MIT |
+| hyper-util | 0.1.21 | MIT |
 | ico | 0.5.0 | MIT |
 | icu_collections | 2.3.0 | Unicode-3.0 |
 | icu_locale_core | 2.3.0 | Unicode-3.0 |
@@ -209,6 +226,8 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | indexmap | 1.9.3 | Apache-2.0 OR MIT |
 | indexmap | 2.14.2 | Apache-2.0 OR MIT |
 | infer | 0.19.0 | MIT |
+| infer | 0.22.0 | MIT |
+| ipnet | 2.12.2 | MIT OR Apache-2.0 |
 | itertools | 0.15.0 | MIT OR Apache-2.0 |
 | itoa | 1.0.18 | MIT OR Apache-2.0 |
 | jiff | 0.2.37 | Unlicense OR MIT |
@@ -217,21 +236,24 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | jiff-tzdb-platform | 0.1.3 | Unlicense OR MIT |
 | jobserver | 0.1.35 | MIT OR Apache-2.0 |
 | json-patch | 3.0.1 | MIT/Apache-2.0 |
+| json-patch | 4.2.0 | MIT/Apache-2.0 |
 | jsonptr | 0.6.3 | MIT OR Apache-2.0 |
+| jsonptr | 0.7.1 | MIT OR Apache-2.0 |
 | keyboard-types | 0.7.0 | MIT OR Apache-2.0 |
 | libc | 0.2.189 | MIT OR Apache-2.0 |
-| libwebp-sys | 0.9.6 | MIT |
 | libloading | 0.9.0 | ISC |
+| libwebp-sys | 0.9.6 | MIT |
 | litemap | 0.8.3 | Unicode-3.0 |
 | litrs | 1.0.0 | MIT OR Apache-2.0 |
 | lock_api | 0.4.14 | MIT OR Apache-2.0 |
 | log | 0.4.34 | MIT OR Apache-2.0 |
-| markup5ever | 0.38.0 | MIT OR Apache-2.0 |
-| maybe-owned | 0.3.4 | MIT OR Apache-2.0 |
+| markup5ever | 0.39.0 | MIT OR Apache-2.0 |
 | matrixmultiply | 0.3.11 | MIT/Apache-2.0 |
+| maybe-owned | 0.3.4 | MIT OR Apache-2.0 |
 | memchr | 2.8.3 | Unlicense OR MIT |
 | memmap2 | 0.9.11 | MIT OR Apache-2.0 |
 | mime | 0.3.17 | MIT OR Apache-2.0 |
+| minisign-verify | 0.2.5 | MIT |
 | miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
 | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 |
 | mio | 1.2.3 | MIT |
@@ -280,11 +302,16 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | regex | 1.13.1 | MIT OR Apache-2.0 |
 | regex-automata | 0.4.18 | MIT OR Apache-2.0 |
 | regex-syntax | 0.8.11 | MIT OR Apache-2.0 |
+| reqwest | 0.13.5 | MIT OR Apache-2.0 |
 | rfd | 0.17.2 | MIT |
+| ring | 0.17.14 | Apache-2.0 AND ISC |
 | rustc-hash | 2.1.3 | Apache-2.0 OR MIT |
 | rustc_version | 0.4.1 | MIT OR Apache-2.0 |
 | rustfft | 6.4.1 | MIT OR Apache-2.0 |
+| rustls | 0.23.45 | Apache-2.0 OR ISC OR MIT |
 | rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
+| rustls-platform-verifier | 0.7.1 | MIT OR Apache-2.0 |
+| rustls-webpki | 0.103.15 | ISC |
 | same-file | 1.0.6 | Unlicense/MIT |
 | schannel | 0.1.29 | MIT |
 | schemars | 0.8.22 | MIT |
@@ -292,7 +319,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | schemars | 1.2.2 | MIT |
 | schemars_derive | 0.8.22 | MIT |
 | scopeguard | 1.2.0 | MIT OR Apache-2.0 |
-| selectors | 0.36.1 | MPL-2.0 |
+| selectors | 0.38.0 | MPL-2.0 |
 | semver | 1.0.28 | MIT OR Apache-2.0 |
 | serde | 1.0.229 | MIT OR Apache-2.0 |
 | serde-untagged | 0.1.9 | MIT OR Apache-2.0 |
@@ -311,6 +338,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | shlex | 2.0.1 | MIT OR Apache-2.0 |
 | simd-adler32 | 0.3.10 | MIT |
 | siphasher | 1.0.4 | MIT OR Apache-2.0 |
+| slab | 0.4.12 | MIT |
 | slotmap | 1.1.1 | Zlib |
 | smallvec | 1.16.2 | MIT OR Apache-2.0 |
 | socket2 | 0.6.5 | MIT OR Apache-2.0 |
@@ -320,8 +348,10 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | string_cache | 0.9.0 | MIT OR Apache-2.0 |
 | string_cache_codegen | 0.6.1 | MIT OR Apache-2.0 |
 | strsim | 0.11.1 | MIT |
+| subtle | 2.6.1 | BSD-3-Clause |
 | syn | 2.0.119 | MIT OR Apache-2.0 |
 | syn | 3.0.6 | MIT OR Apache-2.0 |
+| sync_wrapper | 1.0.2 | Apache-2.0 |
 | synstructure | 0.14.0 | MIT |
 | tao | 0.35.3 | Apache-2.0 |
 | tar | 0.4.46 | MIT OR Apache-2.0 |
@@ -329,12 +359,15 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | tauri-build | 2.6.3 | Apache-2.0 OR MIT |
 | tauri-codegen | 2.6.3 | Apache-2.0 OR MIT |
 | tauri-macros | 2.6.3 | Apache-2.0 OR MIT |
+| tauri-plugin | 2.7.1 | Apache-2.0 OR MIT |
 | tauri-plugin-single-instance | 2.4.5 | Apache-2.0 OR MIT |
+| tauri-plugin-updater | 2.10.1 | Apache-2.0 OR MIT |
 | tauri-runtime | 2.11.3 | Apache-2.0 OR MIT |
 | tauri-runtime-wry | 2.11.4 | Apache-2.0 OR MIT |
-| tauri-utils | 2.9.3 | Apache-2.0 OR MIT |
+| tauri-utils | 2.10.1 | Apache-2.0 OR MIT |
 | tauri-winres | 0.3.6 | MIT |
 | tauri-winrt-notification | 0.8.1 | MIT OR Apache-2.0 |
+| tempfile | 3.27.0 | MIT OR Apache-2.0 |
 | tendril | 0.5.1 | MIT OR Apache-2.0 |
 | thiserror | 1.0.69 | MIT OR Apache-2.0 |
 | thiserror | 2.0.21 | MIT OR Apache-2.0 |
@@ -347,31 +380,34 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | tinystr | 0.8.4 | Unicode-3.0 |
 | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT |
 | tokio | 1.53.1 | MIT |
+| tokio-rustls | 0.26.6 | MIT OR Apache-2.0 |
+| tokio-util | 0.7.19 | MIT |
 | toml | 0.9.12+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml | 1.1.6+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml_datetime | 0.7.5+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml_datetime | 1.1.1+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml_parser | 1.1.3+spec-1.1.0 | MIT OR Apache-2.0 |
 | toml_writer | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 |
+| tower | 0.5.3 | MIT |
+| tower-http | 0.6.11 | MIT |
+| tower-layer | 0.3.3 | MIT |
+| tower-service | 0.3.3 | MIT |
 | tracing | 0.1.44 | MIT |
 | tracing-attributes | 0.1.31 | MIT |
 | tracing-core | 0.1.36 | MIT |
 | transpose | 0.2.3 | MIT OR Apache-2.0 |
 | tray-icon | 0.24.2 | MIT OR Apache-2.0 |
+| try-lock | 0.2.5 | MIT |
 | typed-path | 0.12.3 | MIT OR Apache-2.0 |
 | typeid | 1.0.3 | MIT OR Apache-2.0 |
 | typenum | 1.20.1 | MIT OR Apache-2.0 |
-| unic-char-property | 0.9.0 | MIT/Apache-2.0 |
-| unic-char-range | 0.9.0 | MIT/Apache-2.0 |
-| unic-common | 0.9.0 | MIT/Apache-2.0 |
-| unic-ucd-ident | 0.9.0 | MIT/Apache-2.0 |
-| unic-ucd-version | 0.9.0 | MIT/Apache-2.0 |
 | unicode-ident | 1.0.26 | (MIT OR Apache-2.0) AND Unicode-3.0 |
 | unicode-segmentation | 1.13.3 | MIT OR Apache-2.0 |
+| untrusted | 0.9.0 | ISC |
 | ureq | 3.4.2 | MIT OR Apache-2.0 |
 | ureq-proto | 0.6.4 | MIT OR Apache-2.0 |
 | url | 2.5.8 | MIT OR Apache-2.0 |
-| urlpattern | 0.3.0 | MIT |
+| urlpattern | 0.6.0 | MIT |
 | utf16string | 0.2.0 | MIT OR Apache-2.0 |
 | utf8-zero | 0.8.1 | MIT OR Apache-2.0 |
 | utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
@@ -381,6 +417,8 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | vswhom | 0.1.0 | MIT |
 | vswhom-sys | 0.1.3 | MIT |
 | walkdir | 2.5.0 | Unlicense/MIT |
+| want | 0.3.1 | MIT |
+| web-time | 1.1.0 | MIT OR Apache-2.0 |
 | web_atoms | 0.2.6 | MIT OR Apache-2.0 |
 | webp | 0.3.1 | MIT OR Apache-2.0 |
 | webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 |
@@ -434,6 +472,7 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | zerotrie | 0.2.5 | Unicode-3.0 |
 | zerovec | 0.11.8 | Unicode-3.0 |
 | zerovec-derive | 0.11.6 | Unicode-3.0 |
+| zip | 4.6.1 | MIT |
 | zip | 8.6.0 | MIT |
 | zlib-rs | 0.6.8 | Zlib |
 | zmij | 1.0.23 | MIT |
