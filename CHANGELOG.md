@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- Updated Halation branding and application icons.
+- Unified save/export locations, remembered manual folders, and added Show in folder.
+
 ## 1.1.0
 
 ### Added
