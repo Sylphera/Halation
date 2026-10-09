@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/halation-logo-on-dark.svg">
-    <img src="docs/brand/halation-logo-on-light.svg" alt="HALATION" width="480">
-  </picture>
+  <img src="docs/brand/halation-logo.svg" alt="HALATION" width="144">
 </p>
 
 <h3 align="center">High-quality multimedia tools. One local workspace.</h3>
