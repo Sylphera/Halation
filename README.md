@@ -1,114 +1,151 @@
-<p align="center">
-  <img src="docs/brand/halation-logo.svg" alt="HALATION" width="144">
+<div align="center">
+
+<img src="docs/brand/halation-logo.svg" alt="Halation" width="120">
+
+# Halation
+
+### A local multimedia workspace for images, video and audio.
+
+Create, process, enhance and export without bouncing between a dozen apps.
+
+**No account. No cloud processing. No watermark.**
+
+<p>
+  <a href="https://github.com/Sylphera/Halation/releases/latest"><b>Download</b></a>
+  ·
+  <a href="https://github.com/Sylphera/Halation/releases">Releases</a>
+  ·
+  <a href="PRIVACY.md">Privacy</a>
+  ·
+  <a href="LICENSE">License</a>
 </p>
 
-<h3 align="center">High-quality multimedia tools. One local workspace.</h3>
+![Latest release](https://img.shields.io/github/v/release/Sylphera/Halation?style=flat-square&label=release)
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white)
+![Freeware](https://img.shields.io/badge/license-freeware-8A8A8A?style=flat-square)
 
-<p align="center"><a href="https://github.com/Sylphera/Halation/releases/tag/v1.1.0">Halation 1.1.0 · v1.1.0</a></p>
+</div>
 
-<p align="center">
-Create, process, enhance and export images, video and audio with fast, focused tools that work independently or together.
-</p>
+<div align="center">
+  <table>
+    <tr>
+      <td colspan="2">
+        <img src="docs/screenshots/home.jpg" alt="Halation Home">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%">
+        <img src="docs/screenshots/grade.jpg" alt="Grade">
+      </td>
+      <td width="50%">
+        <img src="docs/screenshots/visualizer.jpg" alt="Audio Visualizer">
+      </td>
+    </tr>
+    <tr>
+      <td width="50%">
+        <img src="docs/screenshots/removebg.jpg" alt="Background Remover">
+      </td>
+      <td width="50%">
+        <img src="docs/screenshots/upscale.jpg" alt="Upscale">
+      </td>
+    </tr>
+  </table>
+  <sub>One workspace, focused tools. Use one or move between them with <i>Send to…</i>.</sub>
+</div>
 
-<p align="center">Local by default. No account, no cloud, no watermark.</p>
+## What Halation is
 
-<p align="center">
-<a href="https://github.com/Sylphera/Halation/releases/latest"><b>Download for Windows</b></a> &nbsp;·&nbsp; Windows 10 and 11 &nbsp;·&nbsp; Freeware &nbsp;·&nbsp; Closed source
-</p>
+Halation is a Windows desktop app built around small, focused creative tools that work independently but share the same files, jobs, exports and workspace.
 
-<p align="center"><sub>Halation is proprietary, closed-source freeware. This repository publishes its releases and documentation; it contains no source code.</sub></p>
+There is no required workflow. Open a tool, do one thing, export — or keep moving through the app when a project needs more.
 
-<p align="center"><img src="docs/screenshots/home.jpg" alt="Halation Home"></p>
+- **Local by default.** Your media is processed on your PC.
+- **Modular.** Heavy engines and AI models are optional and installed only when a feature needs them.
+- **Connected when useful.** Send results between tools without forcing everything into one giant editor.
+- **Made to stay out of the way.** Recent files, exports, presets and linked folders live together in one workspace.
 
-## Why Halation
+## Tools
 
-Halation brings focused image, video and audio tools into one desktop workspace. Make a quick edit, prepare an export, or combine tools for a larger project, with your files and results close at hand.
+| | Tool | What it does |
+| --- | --- | --- |
+| ↓ | **Downloader** | Download video, audio or artwork from a link, with queue support. |
+| ⇄ | **Converter** | Convert images, audio, video, documents, spreadsheets, presentations and PDF pages. |
+| ♫ | **Vocal Remover** | Split a song into vocals/instrumental or four stems, on GPU or CPU. |
+| ◫ | **Audio Visualizer** | Turn audio and artwork into an audio-reactive video for widescreen, square, Shorts and more. |
+| ◉ | **Grade** | Apply looks, adjustments, effects and text layers to images, then export at full or preset sizes. |
+| ◩ | **Cover Test** | Preview artwork in YouTube, Spotify and SoundCloud-style layouts before release. |
+| ✦ | **Background Remover** | Cut out a subject automatically or refine the mask by hand. |
+| ⤢ | **Upscale** | AI image and video upscaling at ×2 or ×4, with before/after previews. |
+| ◴ | **AI Interpolate** | Increase video frame rate with RIFE, up to 144 fps. |
+| ▣ | **Frame Capture** | Extract exact full-resolution frames and surface strong frames from each scene. |
+| ≡ | **Library** | Keep exports, favourites, tags and linked folders together. |
 
-- **Modular by design.** Every tool works fully on its own. There is no required workflow: use Halation as a complete workspace or open just one tool. *Send to…* connects tools when it helps.
-- **Local by default.** Processing runs on your PC, without an account, cloud processing or watermarks.
-- **Install only what you need.** Heavy processing engines and AI models are optional, independent components, installed separately only when a function needs them.
+<details>
+<summary><b>More about the tools</b></summary>
+<br>
 
-## The tools
+- **Downloader** can save video, audio or the largest available artwork from supported links. Spotify song links are matched to YouTube and tagged with Spotify metadata.
+- **Converter** handles single files or folders and exposes the formats each input can become.
+- **Vocal Remover** supports UVR-MDX-NET Inst HQ4 for vocals/instrumental and HTDemucs for drums, bass, other and vocals, with WAV, FLAC and MP3 export.
+- **Audio Visualizer** exports H.264 or VP9 video with AAC or Opus audio, includes clip markers and uses GPU encoding when available.
+- **Grade** includes 38 filters plus adjustments, optical/texture effects, text layers, reordering and batch export.
+- **Cover Test** includes feed, profile and release-style previews with editable fictional metadata and reference artists.
+- **Background Remover** uses SAM 2.1 with automatic and manual refinement tools, edge cleanup and PNG/WebP/mask export.
+- **Upscale** offers multiple image models and SPAN ch52 video upscaling through ncnn/Vulkan.
+- **AI Interpolate** uses RIFE for ×2, ×4 or target frame-rate interpolation with side-by-side preview.
+- **Frame Capture** extracts exact frames, suggests sharp frames by scene and can send results into Grade, Visualizer or Library.
+- **Library** collects exports and downloads, supports custom sections, linked folders, favourites, tags and optional creative packs.
 
-<table>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/downloader.jpg" alt="Downloader"><br><b>Downloader</b><br><sub>Download video, audio or artwork from a link.</sub></td>
-<td width="50%" valign="top"><img src="docs/screenshots/convert.jpg" alt="Converter"><br><b>Converter</b><br><sub>Turn images, audio, video, documents and PDF pages into other formats.</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/stems.jpg" alt="Vocal Remover"><br><b>Vocal Remover</b><br><sub>Split a song into vocals and instrumental, or four stems.</sub></td>
-<td width="50%" valign="top"><img src="docs/screenshots/visualizer.jpg" alt="Audio Visualizer"><br><b>Audio Visualizer</b><br><sub>Turn audio and an image into an audio-reactive video.</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/grade.jpg" alt="Grade"><br><b>Grade</b><br><sub>Looks, effects and text layers for images.</sub></td>
-<td width="50%" valign="top"><img src="docs/screenshots/covertest.jpg" alt="Cover Test"><br><b>Cover Test</b><br><sub>Preview artwork in YouTube, Spotify and SoundCloud layouts.</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/removebg.jpg" alt="Background Remover"><br><b>Background Remover</b><br><sub>Cut out a subject automatically or by hand.</sub></td>
-<td width="50%" valign="top"><img src="docs/screenshots/upscale.jpg" alt="Upscale — Video preview"><br><b>Upscale</b><br><sub>AI image and video upscaling at ×2 or ×4.</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/interp.jpg" alt="AI Interpolate"><br><b>AI Interpolate</b><br><sub>Smoother motion: ×2, ×4 or up to 144 fps.</sub></td>
-<td width="50%" valign="top"><img src="docs/screenshots/framegrab.jpg" alt="Frame Capture"><br><b>Frame Capture</b><br><sub>Exact frames from video, with the best of each scene suggested.</sub></td>
-</tr>
-<tr>
-<td width="50%" valign="top"><img src="docs/screenshots/library.jpg" alt="Library"><br><b>Library</b><br><sub>Keep exports, favourites and linked folders together.</sub></td>
-<td width="50%"></td>
-</tr>
-</table>
+</details>
 
-<sub>Example photos by Alex Shuper, Fukuro, Paweł Czerwiński and Vladimir Fedotov on Unsplash.</sub>
+## Shared workspace
 
-## In detail
-
-### Tools
-
-- **Downloader**: the video, the audio or the largest cover of a link (Spotify song links are matched on YouTube and tagged with Spotify's metadata), whole albums to choose songs from, with a queue.
-- **Converter**: images, audio, video, documents, spreadsheets, presentations and PDF pages into the formats each file can become, one file or a whole folder.
-- **Vocal Remover**: vocals and instrumental (UVR-MDX-NET Inst HQ4) or four stems (HTDemucs: drums, bass, other, vocals), on the GPU through DirectML or on the CPU, with a mixer per song and export to WAV, FLAC or MP3.
-- **Audio Visualizer**: audio and an image become an audio-reactive MP4 (H.264 or VP9, AAC or Opus, on the GPU when available) for YouTube, Shorts, square and more. Waveform with draggable clip markers, export queue.
-- **Grade**: 38 filters plus adjustments, optical and texture effects and text layers, in two layer tabs with drag to reorder and multi-select. Exports at the original resolution or preset sizes up to 3000 px, also in batches.
-- **Cover Test**: preview release artwork in YouTube, Spotify and SoundCloud layouts, including feeds, artist profiles and release views. Compare with reference artists, edit fictional titles and other metadata to try out a release, and export the preview as PNG at ×1 or ×2. Screenshots here use synthetic artists and fixture data.
-- **Background Remover**: Automatic, Magic wand and Background brush on SAM 2.1 (one promptable mask: the subject first, the background only refines it), with soft edge, contract / expand and edge colour cleanup; PNG, WebP or the mask.
-- **Upscale**: images at ×2 or ×4 with Photo, Digital art / cover, Sharp or Fast models and a zoomable Before/After view. Video uses SPAN ch52 via ncnn/Vulkan at ×2 or ×4, preserving aspect ratio and source FPS. SDR constant-frame-rate video exports as H.264 MP4 with source audio (copy or AAC). Short temporal Before/After previews; progress and cancellation through Jobs.
-- **AI Interpolate**: a video's frame rate ×2, ×4 or up to a target (30 to 144 fps) with RIFE, a before / after preview side by side, and an H.264 MP4 with the original audio.
-- **Frame Capture**: exact frames of a video at full resolution, the sharpest frame of each scene suggested, a queue of frames, and a round trip with Grade, the Audio Visualizer and the Library.
-- **Library**: your own sections, linked PC folders, favourites and tags, with exports and downloads from the tools collected together. Optional packs add grain, paper, light leaks, shapes and frames; Library items can be opened in other tools.
-
-### Across the workspace
-
-- **Cutout and Crop**: shared editing tools for removing backgrounds and framing images.
-- **Send to…**: pass a result to another tool when you want to continue working on it.
-- **Home**: open tools from their shortcuts, reopen recent files, or use one drop zone for everything. Keyboard shortcuts are available with `?`.
-- **Files and settings**: presets, looks, projects, exports and settings are plain files in `Documents\Halation`. English interface, with Spanish translations where available.
+**Cutout and Crop** are shared editing tools. **Send to…** moves results between compatible tools. Home gives you shortcuts, recent files and one drop zone for media. Presets, looks, projects, exports and settings remain plain files under `Documents\Halation`.
 
 ## Install
 
-The current stable release is [Halation 1.1.0](https://github.com/Sylphera/Halation/releases/tag/v1.1.0). Download it from the release page, or get the [latest stable release](https://github.com/Sylphera/Halation/releases/latest):
+Halation currently targets **Windows 10 and 11** and requires WebView2.
 
-- `Halation_<version>_x64-setup.exe` installs for the current user, without administrator rights. Running a newer setup over an installed version updates it in place and keeps your presets, settings and shortcuts.
-- `Halation_<version>_x64-portable.exe` runs without installing.
+Download the latest stable build from [Releases](https://github.com/Sylphera/Halation/releases/latest):
 
-Halation 1.1.0 and later check these releases for updates a few seconds after starting and whenever you choose **Check for updates**. A new version is offered with its notes; the installed copy downloads the setup, verifies its updater signature and updates in place, while the portable copy opens the release page. Choose whether it asks, only shows the update in Activity, or never checks by itself in **Settings → About → Updates**. The check reads `latest.json` from this repository's releases, so GitHub receives the request and your IP address ([Privacy](PRIVACY.md)).
+- `Halation_<version>_x64-setup.exe` — installs for the current user without administrator rights.
+- `Halation_<version>_x64-portable.exe` — runs without installation.
 
-Windows 10 or 11 with WebView2. No account or cloud service is required. The updater signature is Halation's own check, not Windows code signing: the builds are currently not Authenticode-signed, so SmartScreen may warn on first launch: **More info → Run anyway**.
+Updating an installed copy keeps your presets, settings and shortcuts. Halation 1.1.0 and later can check this repository for updates from **Settings → About → Updates**.
 
-Some tools need optional components, downloaded on demand to `Documents\Halation\Tools` or managed from **Settings → Modules**. They are separate from the installer:
+> [!NOTE]
+> Current builds are not Authenticode-signed, so Windows SmartScreen may warn the first time you run Halation. Choose **More info → Run anyway** if you downloaded it from this repository.
 
-- **yt-dlp** for downloads and **FFmpeg** for media conversion and video processing.
-- **upscayl-bin and the Upscayl models** for image upscaling; an existing [Upscayl](https://upscayl.org) installation can also be used.
-- **SPAN ch52 models and the ncnn/Vulkan runner** for Video Upscale.
-- **The Cutout model** (SAM 2.1 Base+) for background removal.
-- **ONNX Runtime with DirectML and the HQ4 / HTDemucs models** for Vocal Remover.
-- **Pandoc, LibreOffice and PDFium** for Converter's documents and PDF pages.
-- **RIFE** for AI Interpolate.
+### Optional modules
 
-Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulkan when available and can run on the CPU.
+Most of Halation works without downloading every processing engine up front. Features install their dependencies on demand to `Documents\Halation\Tools`, or you can manage them from **Settings → Modules**.
 
-## Legal
+| Module | Used for |
+| --- | --- |
+| yt-dlp + FFmpeg | Downloads, conversion and media processing |
+| Upscayl + models | Image upscaling |
+| SPAN + ncnn/Vulkan | Video upscaling |
+| SAM 2.1 Base+ | Background removal |
+| ONNX Runtime + DirectML + HQ4/HTDemucs | Vocal separation |
+| Pandoc + LibreOffice + PDFium | Documents and PDF conversion |
+| RIFE | Video interpolation |
 
-[Privacy](PRIVACY.md)
+Image and video upscaling require a Vulkan-capable GPU. AI Interpolate uses Vulkan when available and can also run on CPU.
 
-Halation is proprietary freeware, not open-source software. It is free to use for personal and commercial purposes under the [Halation Freeware License](LICENSE). You retain your rights in the work you create or process with Halation, and may use your outputs personally or commercially without royalties to Halation, subject to third-party rights and applicable law. Halation makes no grant or representation concerning rights arising from third-party models, tools, model weights, training data or their applicable terms; any restrictions that apply independently of the license remain in effect, and you are responsible for checking them before using an output (for example, the "Sharp" upscaling model is non-commercial, and the HTDemucs checkpoint was trained on data licensed for non-commercial use). The license governs use of Halation itself, including restrictions on modification and redistribution.
+## Local-first by design
 
-Use the Downloader only for content that is yours or that you have permission to download. yt-dlp, FFmpeg, Upscayl (upscayl-bin and its models), SPAN/ncnn, the Cutout model, RIFE, ONNX Runtime, DirectML, the Vocal Remover models, Pandoc, LibreOffice and PDFium are separate projects, downloaded separately at run time, each under its own license. Bundled fonts and libraries and the example photos are listed in [THIRD_PARTY.md](THIRD_PARTY.md); their own licenses remain unchanged.
+Halation does not require an account or a Halation cloud service. Processing is local except where a feature inherently talks to a third-party service or downloads an optional component.
+
+The updater reads `latest.json` from this repository's releases, so GitHub receives that request and your IP address. See [Privacy](PRIVACY.md) for details.
+
+## License & third-party software
+
+Halation is **proprietary, closed-source freeware**. This repository publishes releases and documentation; it does not contain the application source code.
+
+You may use Halation for personal or commercial work under the [Halation Freeware License](LICENSE), and Halation does not claim ownership of your outputs. Third-party tools, models and model weights retain their own terms, which may impose separate restrictions.
+
+Use Downloader only for content you own or have permission to download. yt-dlp, FFmpeg, Upscayl, SPAN/ncnn, SAM 2.1, RIFE, ONNX Runtime, DirectML, the vocal-removal models, Pandoc, LibreOffice and PDFium are separate projects. Bundled libraries, fonts and example-photo credits are listed in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+<div align="center">
+  <sub>Halation is freeware for Windows. Built to make the useful part fast.</sub>
+</div>
