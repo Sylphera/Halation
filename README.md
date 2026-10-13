@@ -70,8 +70,7 @@ Halation supports **Windows 10 and 11** and requires WebView2.
 
 Download the latest stable release from **[Releases](https://github.com/Sylphera/Halation/releases/latest)**.
 
-- `Halation_<version>_x64-setup.exe` installs for the current user without administrator rights.
-- `Halation_<version>_x64-portable.exe` runs without installation.
+`Halation_<version>_x64-setup.exe` installs for the current user without administrator rights.
 
 > [!NOTE]
 > Current builds are not Authenticode-signed, so Windows SmartScreen may warn on first launch. If the file came from this repository, choose **More info → Run anyway**.
