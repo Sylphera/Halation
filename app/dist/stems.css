@@ -1,0 +1,137 @@
+/* Vocal Remover, as Java drew it: Songs (a numbered list, a large Drop below) · the mixer (the song, one lane per stem,
+   the player, the two models and Separate / All) · Export (format, rate, the tracks) with the legal notes at the bottom.
+   Three windows the height of the view, as in Cover Test. */
+body{padding:4px 18px 24px}
+.work{display:grid;grid-template-columns:260px minmax(0,1fr) 290px;gap:16px;max-width:1720px;height:calc(100vh - 28px);min-height:600px;margin:0 auto}
+@media (max-width:1150px){.work{grid-template-columns:240px minmax(0,1fr);height:auto}.export{grid-column:1 / -1}.queue,.mixer{min-height:600px}}
+@media (max-width:760px){.work{grid-template-columns:minmax(0,1fr)}}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+
+/* a window: a header, a body that scrolls, a footer; the parts split by lines */
+.win{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;border:1px solid var(--line-soft);border-radius:var(--r-lg);background:var(--surface);box-shadow:inset 0 1px 0 var(--edge)}
+.win-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;min-height:48px;padding:10px 16px;border-bottom:1px solid var(--line-soft)}
+.win-h h2{margin:0;font-size:13.5px;font-weight:600}
+.win-b{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;padding:14px 16px;overflow:auto}
+.win-f{display:flex;flex-direction:column;gap:10px;flex:none;padding:12px 16px;border-top:1px solid var(--line-soft)}
+/* Songs: the list, then Drop */
+.queue .win-b{gap:6px;padding:8px}
+.queue #qEmpty{padding:4px 8px;color:var(--text-3)}
+.dropmore{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;flex:none;min-height:200px;margin:0 10px 10px;padding:18px 12px;border:1.5px dashed var(--line-strong);border-radius:var(--r);background:var(--panel);text-align:center;cursor:pointer}
+.dropmore:hover,.dropmore:focus-visible,body.dragging .dropmore{border-color:var(--accent);box-shadow:inset 0 0 0 999px var(--state-hover)}
+.dropmore .big{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--raised);color:var(--text);box-shadow:inset 0 1px 0 var(--edge)}
+.dropmore b{font-size:13.5px;font-weight:600}
+.dropmore small{color:var(--text-3);font-size:11.5px}
+.dropmore[aria-disabled="true"]{opacity:.5;cursor:default}
+/* a song: its number, state and name; the one in the mixer is the open tab, joined to it by the accent edge */
+.qlist{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.qlist:empty{display:none}
+.qrow{position:relative;display:grid;grid-template-columns:16px 18px minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 8px;border:1px solid transparent;border-radius:var(--r-sm);cursor:pointer}
+.qrow .no{color:var(--text-3);font:500 11px var(--mono);text-align:right}
+.qrow[aria-current="true"]::before{content:"";position:absolute;left:-1px;top:8px;bottom:8px;width:3px;border-radius:var(--r-pill);background:var(--accent)}
+.qrow[aria-current="true"] .no{color:var(--accent)}
+.qrow:hover{background:var(--state-hover)}
+.qrow[aria-current="true"]{border-color:var(--line);background:var(--raised)}
+.qrow[draggable="true"]{cursor:grab}
+.qrow.over{box-shadow:inset 0 2px 0 var(--accent)}
+.qrow .st{display:grid;place-items:center;color:var(--text-3)}
+.qrow .st .i{width:14px;height:14px}
+.qrow[data-state="done"] .st{color:var(--ok)}
+.qrow[data-state="error"] .st{color:var(--danger)}
+.qrow[data-state="running"] .st{color:var(--accent)}
+.qrow .nm{min-width:0}
+.qrow .nm b{display:block;overflow:hidden;font-size:12.5px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.qrow .nm span{display:block;overflow:hidden;color:var(--text-3);font-size:11.5px;text-overflow:ellipsis;white-space:nowrap}
+.qrow[data-state="error"] .nm span{color:var(--danger)}
+.qrow .rm{opacity:0}
+.qrow:hover .rm,.qrow .rm:focus-visible{opacity:1}
+.qrow .bar{position:absolute;left:8px;right:8px;bottom:2px;height:2px}
+
+/* the mixer: empty, the three steps of the tool; with a song, its header, the player, the lanes and the facts */
+.stage{display:flex;flex-direction:column;flex:1;min-height:0}
+.mixer .stage-empty{flex:1;min-height:0;margin:12px;gap:14px}
+.legal{margin:0;color:var(--text-3)}
+.song{display:flex;flex-direction:column;flex:1;min-height:0}
+.info{justify-content:flex-start;gap:12px;min-height:64px}
+.info .ico{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:var(--r-sm);background:var(--raised);color:var(--text-2)}
+.info .nm{flex:1;min-width:0}
+.info b{display:block;overflow:hidden;font-size:13.5px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.info .nm span{display:block;color:var(--text-2);font-size:12px}
+.info .status{flex:none;max-width:45%;margin:0;overflow:hidden;font-size:11.5px;text-overflow:ellipsis;white-space:nowrap}
+/* the player: play, position, time, Original / Separated */
+.transport{display:flex;align-items:center;gap:12px;flex:none;min-width:0;padding:10px 16px;border-top:1px solid var(--line-soft)}
+.transport .ab{flex:none}
+.transport .ab .tab{min-height:24px;padding:2px 10px;font-size:11.5px}
+.transport input[type=range]{flex:1;min-width:80px}
+.transport output{min-width:84px;color:var(--text-2);font-size:12px;text-align:right}
+
+/* a lane: name, Mute / Solo, volume and export on the left, the waveform filling the rest; a skeleton covers what is
+   not separated yet and recedes with transform */
+/* the lanes together in the middle of the stage (auto margins around the group: centred, none when they overflow) */
+.lanes{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;padding:12px;overflow:auto}
+.lanes>:first-child{margin-top:auto}
+.lanes>:last-child{margin-bottom:auto}
+.lane{display:grid;grid-template-columns:230px minmax(0,1fr);flex:0 0 auto;height:76px;overflow:hidden;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--panel);box-shadow:inset 0 1px 0 var(--edge)}
+.lane-h{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:8px 14px 8px 14px;border-right:1px solid var(--line-soft)}
+.lane-t{display:flex;align-items:center;gap:6px;min-width:0}
+.lane-t .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--wave-c)}
+.lane-t b{flex:1;min-width:0;overflow:hidden;font-size:12.5px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.lane-v{display:flex;align-items:center;gap:8px}
+.lane-v input{flex:1;min-width:0}
+.lane-v output{min-width:52px;color:var(--text-3);font-size:11px;text-align:right}
+.ms{width:26px;height:24px;border:1px solid var(--line);border-radius:var(--r-xs);background:transparent;color:var(--text-2);font:600 11px var(--mono);cursor:pointer}
+.ms:hover{background:var(--state-hover)}
+.ms[data-ms="mute"][aria-pressed="true"]{border-color:var(--warn-line);background:var(--warn-dim);color:var(--warn)}
+.ms[data-ms="solo"][aria-pressed="true"]{border-color:var(--accent-line);background:var(--accent-dim);color:var(--accent)}
+.lane.quiet .wave canvas,.lanes.orig .wave canvas{opacity:.35}
+.wave{position:relative;min-height:0;overflow:hidden;background:var(--viewer);cursor:pointer}
+.wave canvas{position:absolute;inset:0;width:100%;height:100%}
+.wave .cover{position:absolute;inset:0;border-radius:0;will-change:transform}
+.wave .head{position:absolute;top:0;bottom:0;left:0;width:2px;background:var(--text-strong);opacity:.8;pointer-events:none;will-change:transform}
+[data-track="vocals"]{--wave-c:var(--accent)}
+[data-track="instrumental"]{--wave-c:var(--text-2)}
+[data-track="drums"]{--wave-c:var(--warn)}
+[data-track="bass"]{--wave-c:var(--info)}
+[data-track="other"]{--wave-c:var(--fx)}
+
+/* the facts of the song in one short line under the lanes */
+.facts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;flex:none;padding:0 16px 8px}
+.stats{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0}
+.stats div{display:flex;align-items:baseline;gap:6px;min-width:0}
+.stats dt{color:var(--text-3);font-size:11px}
+.stats dd{margin:0;font:500 11.5px var(--mono);white-space:nowrap}
+.facts #songNote{flex-basis:100%}
+
+/* the setup under the player: the two models side by side, then Separate (this song) and All */
+.setup{display:flex;flex-direction:column;gap:12px;flex:none;padding:14px 16px 16px;border-top:1px solid var(--line-soft)}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mopt{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--field);color:var(--text);text-align:left;cursor:pointer}
+.mopt:hover{box-shadow:inset 0 0 0 999px var(--state-hover)}
+.mopt[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.mopt b{font-size:13.5px;font-weight:600}
+.mhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+.mtag{color:var(--text-2);font-size:11.5px;font-weight:500;font-style:normal}
+.mopt[aria-checked="true"] .mtag{color:var(--accent)}
+.mopt small{color:var(--text-3);font-size:11px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips i{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border:1px solid var(--line-soft);border-radius:var(--r-pill);color:var(--text-2);font-size:11px;font-weight:500;font-style:normal}
+.chips i::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--wave-c)}
+.engine{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:10px 12px;border:1px solid var(--warn-line);border-radius:var(--r);background:var(--warn-dim)}
+.engine .note{flex:1;min-width:200px}
+.engine .prog,.engine .status{flex-basis:100%}
+.engine .status:empty{display:none}
+.runrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.runrow .btn{height:38px;border-radius:var(--r)}
+.runrow #cancelBtn{grid-column:1 / -1;height:32px}
+
+/* Export: format, rate, the tracks (each with its own export, the mix, Export all); the legal notes at the bottom */
+.outs{display:flex;flex-direction:column;gap:10px;padding:10px 12px;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--panel)}
+.olist{display:flex;flex-direction:column;gap:2px}
+.orow{display:flex;align-items:center;gap:8px;min-height:30px}
+.orow .dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--wave-c)}
+.orow b{flex:1;font-size:12.5px;font-weight:500}
+.orow .dl{width:28px;height:26px;padding:0}
+.orow .dl .i{width:14px;height:14px}
+.outs #exportBtn{width:100%}
+.legalbox{gap:8px}
+.credit,.runs{margin:0;color:var(--text-3);font-size:11.5px}
+.dropmore small.bad{color:var(--danger)}

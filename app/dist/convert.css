@@ -1,0 +1,103 @@
+/* Converter. Empty: the drop zone and a button per kind of file (the dialog opens filtered to it). With files: two
+   columns, the preview (one file) or the list (several) on the left, the panel on the right: the file, Convert to as a
+   list with the recommended output first, Save to, and Convert, whose fill is the progress. */
+body{padding:4px 18px 24px}
+.work{max-width:1100px;margin:0 auto}
+.mono{font-family:var(--mono)}
+.spacer{flex:1}
+/* empty */
+.start{display:flex;flex-direction:column;justify-content:center;gap:16px;max-width:980px;min-height:calc(100vh - 36px);margin:0 auto}
+#drop{min-height:min(52vh,480px);background:var(--surface)}
+.kinds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kind{display:flex;align-items:center;gap:16px;min-width:0;min-height:92px;padding:18px 20px;border:1px solid var(--line-soft);border-radius:var(--r-lg);background:var(--surface);color:var(--text);text-align:left;cursor:pointer;box-shadow:inset 0 1px 0 var(--edge)}
+.kind:hover{border-color:var(--line-strong);box-shadow:inset 0 0 0 999px var(--state-hover)}
+.kind:focus-visible{outline:2px solid var(--text-3);outline-offset:2px}
+.kind .ic{flex:none;display:grid;place-items:center;width:46px;height:46px;border:1px solid var(--line-soft);border-radius:var(--r-sm);background:var(--bg);color:var(--text-2)}
+.kind .ic .i{width:21px;height:21px}
+.kind span:last-child{min-width:0}
+.kind b{display:block;font-size:14px;font-weight:600}
+.kind small{display:block;margin-top:5px;color:var(--text-3);font-family:var(--mono);font-size:11px;line-height:1.5}
+/* with files */
+.stage{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr);align-items:stretch;gap:12px;min-height:calc(100vh - 36px)}
+.preview{flex:1;display:grid;place-items:center;min-height:320px;overflow:hidden;border:1px solid var(--line-soft);border-radius:var(--r-sm);background:var(--bg)}
+.preview img,.preview video{display:block;max-width:100%;max-height:calc(100vh - 110px);object-fit:contain}
+.preview .page{background:var(--n-50);box-shadow:0 0 0 1px var(--line)}
+.preview .icon{display:flex;flex-direction:column;align-items:center;gap:10px;width:min(600px,92%);padding:24px;color:var(--text-2);text-align:center}
+.preview .icon .i{width:64px;height:64px;stroke-width:1.2}
+.preview .icon b{color:var(--text);font-size:15px;font-weight:600}
+.preview .icon small{font-family:var(--mono);font-size:11.5px}
+.player{display:flex;align-items:center;gap:12px;width:100%;margin-top:6px;padding:8px 16px 8px 8px;border:1px solid var(--line-soft);border-radius:var(--r-pill);background:var(--surface)}
+.player .play{flex:none;width:36px;height:36px;padding:0;justify-content:center;border-radius:50%}
+.player .play .i{width:16px;height:16px}
+.player .wave{flex:1;min-width:0;height:44px;cursor:pointer;touch-action:none}
+.player .time{flex:none;color:var(--text-2);font-size:11.5px}
+.side .head{display:flex;align-items:center;gap:12px;min-width:0}
+.thumb{flex:none;display:grid;place-items:center;width:48px;height:48px;overflow:hidden;border:1px solid var(--line-soft);border-radius:var(--r-sm);background:var(--bg);color:var(--text-2);box-shadow:inset 0 1px 0 var(--edge)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .i{width:20px;height:20px}
+.meta{flex:1;min-width:0}
+.meta b{display:block;overflow:hidden;font-size:14px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.meta span{display:block;margin-top:2px;overflow:hidden;color:var(--text-2);font-size:12.5px;text-overflow:ellipsis;white-space:nowrap}
+.cant{color:var(--warn)}
+/* Convert to: the outputs as a list */
+#choices{display:flex;flex-direction:column;gap:6px}
+#choices .gchoice+.gchoice{margin-top:8px}
+.to{margin:2px 0 0;color:var(--text-2);font-size:12px;font-weight:600}
+.outs{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;border:0}
+.out{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:var(--r-sm);background:var(--field);cursor:pointer}
+.out:hover{border-color:var(--line-strong)}
+.out:has(input:checked){border-color:var(--accent-line);background:var(--accent-dim)}
+.out:has(input:disabled){cursor:default;opacity:.6}
+.out input{accent-color:var(--accent);margin:0}
+.out b{font-size:13px;font-weight:600}
+.otext{display:flex;flex-direction:column;gap:2px;min-width:0}
+.otext small{color:var(--text-3);font-size:11.5px;line-height:1.35}
+.out:has(input:checked) .otext small{color:var(--text-2)}
+.out .rec{margin-left:auto;padding:1px 8px;border:1px solid var(--accent-line);border-radius:var(--r-pill);color:var(--accent);font-size:11px}
+.more{margin-top:2px}
+.more summary{padding:6px 2px;color:var(--text-2);font-size:12px;cursor:pointer}
+.more .outs{margin-top:4px}
+.conseq{min-height:1.2em;margin:0}
+.f.pick{display:grid;grid-template-columns:72px minmax(0,1fr);align-items:center;gap:12px}
+.f.pick select{width:100%;min-width:0}
+/* several files: one choice per kind, as chips */
+.gchoice{display:flex;flex-direction:column;gap:6px}
+.gchoice h3{margin:0;font-size:12.5px;font-weight:600}
+.chips .outs{flex-direction:row;flex-wrap:wrap;gap:6px}
+.chips .out{position:relative;padding:5px 10px;border-radius:var(--r-pill)}
+.chips .out input{position:absolute;opacity:0;pointer-events:none}
+/* Convert: wide, its fill is the progress */
+.go{display:flex;gap:8px}
+.btn.wide{position:relative;flex:1;justify-content:center;height:40px;overflow:hidden}
+.btn.wide .fill{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.btn.wide .fill i{display:block;width:100%;height:100%;background:var(--prog-fill);opacity:.35;transform:translateX(calc((var(--v,0) - 1) * 100%))}
+.btn.wide.running{pointer-events:none}
+.btn.wide .lbl{position:relative;display:inline-flex;align-items:center;gap:8px;color:inherit;font-size:inherit}
+.need{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.need .note{flex:1;min-width:180px;color:var(--warn)}
+.need .prog{flex-basis:100%}
+.done{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sizes{color:var(--text-2);font-size:12px}
+/* the list of several files */
+.batch{display:flex;flex-direction:column;gap:10px}
+.batch h2{margin:0;font-size:13.5px;font-weight:600}
+#groups{display:flex;flex-direction:column;gap:12px}
+.group h3{margin:0 0 4px;color:var(--text-2);font-size:12px;font-weight:600}
+.files{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.files li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px;padding:7px 0;border-top:1px solid var(--line-soft)}
+.files li:first-child{border-top:0}
+.files .nm{overflow:hidden;font-size:12.5px;text-overflow:ellipsis;white-space:nowrap}
+.files .nm small{margin-left:8px;color:var(--text-3);font-size:11.5px}
+.files .st{display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:12px;white-space:nowrap}
+.files .st .btn{height:24px;padding:0 6px}
+.files .err{grid-column:1/-1;margin:0;color:var(--danger);font-size:12px}
+.files .prog{grid-column:1/-1;height:3px}
+.files li.failed .st{color:var(--danger)}
+.files li.done .st{color:var(--ok)}
+.cantSome{margin:0;color:var(--warn)}
+@media (max-width:860px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:0}
+  .preview{min-height:280px}
+  .kinds{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

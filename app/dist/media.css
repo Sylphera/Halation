@@ -1,0 +1,46 @@
+/* The shared media dialogs of the main window: Crop and Cutout (shell-crop.js, shell-cutdlg.js). */
+.modal.media{display:flex;flex-direction:column;gap:12px;width:min(1180px,calc(100% - 48px));height:min(800px,calc(100% - 48px));padding:14px 16px 16px}
+.modal.media:not([open]){display:none}
+.mhead{display:flex;align-items:center;gap:12px;min-width:0}
+.mhead h2{margin:0;font-size:15px;white-space:nowrap}
+.mhead .note{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbody{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:14px;min-height:0}
+.mside{display:flex;flex-direction:column;gap:14px;min-width:0;overflow-y:auto;padding:2px}
+.mside .need{align-self:flex-start;height:auto;min-height:22px;margin:0;padding:3px 10px;white-space:normal}
+.mside .note.mono.bad{color:var(--warn)}
+.modal.media .macts{align-items:center}
+
+/* Crop: the picture moves under a fixed frame; outside the frame is shaded */
+.cstage{position:relative;overflow:hidden;border-radius:var(--r);background:var(--media);cursor:grab;touch-action:none;user-select:none}
+.cstage.panning{cursor:grabbing}
+.cstage img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;pointer-events:none}
+.cframe{position:absolute;left:0;top:0;box-shadow:0 0 0 1px var(--text),0 0 0 9999px var(--crop-shade);pointer-events:none}
+.cframe .g3{position:absolute;inset:0;opacity:0;transition:opacity var(--t);
+  background:linear-gradient(90deg,transparent calc(33.33% - .5px),var(--guide-grid) calc(33.33% - .5px),var(--guide-grid) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.67% - .5px),var(--guide-grid) calc(66.67% - .5px),var(--guide-grid) calc(66.67% + .5px),transparent calc(66.67% + .5px)),
+             linear-gradient(0deg,transparent calc(33.33% - .5px),var(--guide-grid) calc(33.33% - .5px),var(--guide-grid) calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.67% - .5px),var(--guide-grid) calc(66.67% - .5px),var(--guide-grid) calc(66.67% + .5px),transparent calc(66.67% + .5px))}
+.cframe.grid .g3{opacity:1}
+.cframe b{position:absolute;display:none;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:3px;background:var(--text);box-shadow:0 0 0 1px var(--guide-shade);pointer-events:auto}
+.cframe.free b{display:block}
+.cframe b[data-h=n]{left:50%;top:0;cursor:ns-resize}.cframe b[data-h=s]{left:50%;top:100%;cursor:ns-resize}
+.cframe b[data-h=e]{left:100%;top:50%;cursor:ew-resize}.cframe b[data-h=w]{left:0;top:50%;cursor:ew-resize}
+.cframe b[data-h=ne]{left:100%;top:0;cursor:nesw-resize}.cframe b[data-h=sw]{left:0;top:100%;cursor:nesw-resize}
+.cframe b[data-h=nw]{left:0;top:0;cursor:nwse-resize}.cframe b[data-h=se]{left:100%;top:100%;cursor:nwse-resize}
+
+/* Cutout: before / after with the comparator, brush on the result */
+.kstage{position:relative;overflow:hidden;border-radius:var(--r);background:var(--media);touch-action:none;user-select:none}
+.kstage .cmp{position:absolute;inset:0}
+.kstage[data-bg=checker] .cmp .layer.after>.matte{background:repeating-conic-gradient(var(--checker-a) 0 25%,var(--checker-b) 0 50%) 0 0/20px 20px}
+.kstage[data-bg=black] .cmp .layer.after>.matte{background:var(--matte-dark)}
+.kstage[data-bg=white] .cmp .layer.after>.matte{background:var(--matte-light)}
+.kstage[data-bg=color] .cmp .layer.after>.matte{background:var(--k-color)}
+.kstage.brush,.kstage.brush .cmp{cursor:none}
+.kstage .ring{position:absolute;left:0;top:0;border-radius:50%;box-shadow:0 0 0 1px var(--text),0 0 0 2px var(--guide-shade);pointer-events:none}
+.kstage .busy{position:absolute;inset:0;display:grid;place-items:center;background:var(--busy-dim)}
+.bgs{display:flex;gap:6px;align-items:center}
+.bgs button{width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer}
+.bgs button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
+.bgs [data-bg=checker]{background:repeating-conic-gradient(var(--checker-a) 0 25%,var(--checker-b) 0 50%) 0 0/10px 10px}
+.bgs [data-bg=black]{background:var(--matte-dark)}
+.bgs [data-bg=white]{background:var(--matte-light)}
+.bgs input[type=color]{width:30px;height:30px}
+@media (max-width:900px){.mbody{grid-template-columns:minmax(0,1fr)}.mside{max-height:40vh}}

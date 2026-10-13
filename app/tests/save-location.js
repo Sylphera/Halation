@@ -1,0 +1,110 @@
+// Focused destination-policy integration checks. No screenshots or video capture.
+const assert = require('assert/strict'), fs = require('fs'), os = require('os'), path = require('path');
+const { serve, launch, openApp, until } = require('./common');
+const { createHost } = require('./host');
+(async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'halation-save-')), host = createHost(root);
+  const server = serve(), browser = await launch();
+  let app;
+  try {
+    app = await openApp(browser, server, host);
+    const { page } = app;
+    await page.evaluate(() => __hal.ready);
+    assert.equal(await page.locator('#saveLocationChoice').isVisible(), false, 'no startup onboarding');
+    const manual = path.join(root, 'Album'), other = path.join(root, 'Other'); fs.mkdirSync(manual); fs.mkdirSync(other);
+    host.setSaveDestination(path.join(manual, 'first.png'));
+    await page.evaluate(() => { window.cancelFirst = __hal.saveOutput(new Blob(['cancel']), 'cancel-first.png'); });
+    await page.locator('#saveLocationChoice').waitFor({state:'visible'});
+    await page.locator('#saveLocationChoice [value=cancel]').click();
+    assert.equal(await page.evaluate(()=>cancelFirst),null);
+    assert.equal(host.log.filter(x=>x[0]==='dialog').length,0);
+    await page.evaluate(() => { window.result = __hal.saveOutput(new Blob(['image']), 'first.png'); });
+    await page.locator('#saveLocationChoice').waitFor({state:'visible'});
+    assert.equal(await page.locator('#saveLocationChoice input:checked').inputValue(), 'ask-every-time');
+    await page.locator('#saveLocationChoice [value=continue]').click();
+    const first = await page.evaluate(() => result);
+    assert.equal(first, path.join(manual,'first.png'));
+    const state = () => JSON.parse(fs.readFileSync(path.join(host.base,'Settings','app.json')));
+    assert.equal(state().settings.saveMode,'ask-every-time'); assert.equal(state().settings.saveLocationChosen,true);
+    assert.equal(state().exportLocation.lastManualDirectory, manual);
+    // A different tool role shares the directory, through the real streaming bridge.
+    const streamed = await page.evaluate(async () => { const s = await __hal.exportOpen('visualizer.webm',true); s.write(new Uint8Array([1,2,3]),0); return s.close(); });
+    assert.equal(path.dirname(streamed),manual);
+    assert.deepEqual([...fs.readFileSync(streamed)],[1,2,3]);
+    assert.equal(host.log.filter(x=>x[0]==='dialog').at(-1)[2],manual);
+    const retry = await page.evaluate(async () => {
+      let sink = await __hal.exportOpen('retry.webm'); const selected=sink.path;
+      await sink.abort(); sink=await sink.reopen();
+      sink.write(new Uint8Array([7]),0); await sink.close(); return selected;
+    });
+    assert.equal(fs.readFileSync(retry)[0],7);
+    assert.equal(host.log.filter(x=>x[0]==='dialog'&&x[1]==='retry.webm').length,1,'codec retry reuses the selected destination');
+    await app.tab('grade'); await app.appReady('grade');
+    await app.gFrame().evaluate(async () => {
+      const c = document.createElement('canvas'); c.width=16; c.height=16;
+      c.getContext('2d').fillRect(0,0,16,16);
+      const b = await new Promise(r=>c.toBlob(r));
+      await __halApp.loadImage(new File([b],'actual-grade.png',{type:'image/png'}));
+    });
+    const gradeDialogs = host.log.filter(x=>x[0]==='dialog').length;
+    await app.grade.locator('#outSize').selectOption('1080');
+    await app.grade.locator('#exportBtn').click();
+    assert(await until(()=>host.log.filter(x=>x[0]==='dialog').length>gradeDialogs,15000));
+    assert(await until(()=>fs.existsSync(path.join(manual,'actual-grade.png')),15000));
+    assert.equal(host.log.filter(x=>x[0]==='dialog').at(-1)[2],manual,'actual Grade UI shares Visualizer streaming directory');
+    await until(async()=>!await app.grade.locator('#exportBtn').isDisabled());
+    assert(await until(async()=>await page.locator('#procIsland .isl-act').textContent()==='Show in folder'));
+    const reveals=host.log.filter(x=>x[0]==='reveal_path').length;
+    await page.locator('#procIsland .isl-act').click();
+    assert(await until(()=>host.log.filter(x=>x[0]==='reveal_path').length>reveals));
+    assert.equal(host.log.filter(x=>x[0]==='reveal_path').at(-1)[1].path,path.join(manual,'actual-grade.png'));
+    assert.equal(host.log.filter(x=>x[0]==='open_path').length,0);
+    const libraryWrites = host.log.filter(x=>x[0]==='library_write').length;
+    await page.evaluate(p=>{window.versionTest=(async()=>{const i=await __shell.library.add(p,{type:'export'});return __shell.library.version(i,'crop');})();},path.join(manual,'actual-grade.png'));
+    await page.locator('#cropDlg').waitFor({state:'visible'});
+    await page.locator('#cropApply').click();
+    const version = await page.evaluate(()=>versionTest);
+    assert.equal(path.dirname(version),manual,'Library versions use the central manual directory');
+    assert.equal(host.log.filter(x=>x[0]==='library_write').length,libraryWrites,'Library version no longer bypasses destination policy');
+    const staged = await page.evaluate(()=>__hal.tempFile(new Blob(['staged download']),'staged.mp3'));
+    const downloaded=await page.evaluate(p=>__hal.exportLocation.copy(p,'download.mp3','audio'),staged);
+    assert.equal(path.dirname(downloaded),manual);
+    assert.equal(fs.readFileSync(downloaded,'utf8'),'staged download');
+    host.setSaveDestination(null);
+    assert.equal(await page.evaluate(() => __hal.saveOutput(new Blob(['cancel']), 'cancel.png')),null);
+    assert.equal(state().exportLocation.lastManualDirectory,manual);
+    // A chosen destination alone, or a failure before completion, never commits the new directory.
+    host.setSaveDestination(path.join(other,'failed.png'));
+    const unwritten = await page.evaluate(() => __hal.exportLocation.destination('failed.png','upscaled'));
+    assert.equal(unwritten,path.join(other,'failed.png')); assert.equal(state().exportLocation.lastManualDirectory,manual);
+    await page.evaluate(p => __hal.exportLocation.success(p), unwritten);
+    assert.equal(state().exportLocation.lastManualDirectory,manual);
+    // Settings changes take effect on the next export, without a tool-specific override.
+    await app.tab('settings');
+    await page.locator('input[name=saveMode][value=halation-folder]').check();
+    assert(await until(()=>state().settings.saveMode==='halation-folder'));
+    const dialogs=host.log.filter(x=>x[0]==='dialog').length;
+    const managed=await page.evaluate(()=>__hal.saveOutput(new Blob(['managed']),'cutout.png','cutout'));
+    assert.equal(path.dirname(managed),host.dir('Exports','Cutouts'));
+    assert.equal(host.log.filter(x=>x[0]==='dialog').length,dialogs);
+    assert.equal(state().exportLocation.folderExplanationShown,true);
+    assert.match(await page.locator('#toast').textContent(),/cutout.png.*Halation Folder/);
+    await page.locator('#toast button').click();
+    assert.equal(host.log.filter(x=>x[0]==='reveal_path').at(-1)[1].path,managed);
+    assert.equal(host.log.filter(x=>x[0]==='open_path').length,0);
+    await page.locator('[data-open=base]').first().click();
+    assert.equal(host.log.filter(x=>x[0]==='open_folder').at(-1)[1].which,'base');
+    await page.evaluate(()=>__hal.saveOutput(new Blob(['next']),'next.png'));
+    assert.doesNotMatch(await page.locator('#toast').textContent(),/to Halation Folder/);
+    await page.reload(); await page.evaluate(()=>__hal.ready);
+    assert.equal(await page.evaluate(()=>__hal.settings().saveMode),'halation-folder');
+    assert.equal(await page.locator('#saveLocationChoice').isVisible(),false);
+    await page.evaluate(()=>__hal.exportLocation.setMode('ask-every-time'));
+    fs.rmdirSync(other); // Remembered missing folder falls back to normal platform location.
+    const m=state(); m.exportLocation.lastManualDirectory=other; fs.writeFileSync(path.join(host.base,'Settings','app.json'),JSON.stringify(m));
+    await page.evaluate(()=>__hal.saveOutput(new Blob(['fallback']),'fallback.png'));
+    assert.equal(host.log.filter(x=>x[0]==='dialog').at(-1)[2],null);
+    assert.equal(app.errors.length,0,app.errors.join('\n'));
+    console.log('PASS save-location: onboarding, persistence, shared directory, cancel/failure, streaming, Settings, managed feedback, reveal, restart, missing-folder fallback');
+  } finally { if(app) await app.page.close(); await browser.close(); server.close(); }
+})().catch(e=>{console.error(e);process.exitCode=1;});

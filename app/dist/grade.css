@@ -1,0 +1,123 @@
+/* Grade layout. Components and colours come from ui.css and tokens.css.
+   Three columns that scroll on their own: library (left), image and export (centre, never scrolls away), layers (right).
+   Filter layers are marked in lavender, effect and adjustment layers in pink. */
+html,body{height:100%;background:transparent}
+body{padding:0}
+.work{display:grid;grid-template-columns:330px minmax(0,1fr) 340px;gap:14px;height:100%;padding:0 14px}
+.work>*{min-width:0;min-height:0}
+.lib,.rack{overflow-y:auto;padding:4px 2px 18px}
+@media (max-width:1150px){.work{grid-template-columns:290px minmax(0,1fr) 300px;gap:10px;padding:0 10px}}
+.center{display:flex;flex-direction:column;gap:10px;padding:4px 0 14px}
+/* the toolbar floats apart from the picture, as its own bubble */
+.toolbar{flex:none;display:flex;align-items:center;gap:8px;min-width:0;padding:6px 8px;border:1px solid var(--line-soft);border-radius:var(--r-pill);background:var(--surface);box-shadow:inset 0 1px 0 var(--edge)}
+.toolbar .sep{flex:1}
+.bezel{flex:1;min-height:180px;display:flex;align-items:center;justify-content:center;padding:10px;border-radius:var(--r-lg);background:transparent;container-type:size}
+.bezel:fullscreen{width:100%;height:100%;min-height:0;padding:16px;background:var(--media)}
+.stage{position:relative;aspect-ratio:var(--ar,1);width:min(100cqw, calc(100cqh * var(--arn,1)));overflow:hidden;border-radius:var(--r-xs);background:var(--media);box-shadow:0 0 0 1px var(--line-soft)}
+.stage canvas{display:block;width:100%;height:100%}
+.tag{position:absolute;top:10px;padding:3px 10px;border-radius:var(--r-pill);font-size:11px;pointer-events:none}
+.tag.orig{left:10px;background:var(--scrim);color:var(--text-strong)}
+.tag.draft{top:auto;right:10px;bottom:10px;left:10px;background:var(--scrim);color:var(--text-strong);text-align:center}
+.stage-empty{position:absolute;inset:0;z-index:2;min-height:0;border:0;border-radius:0}
+.stage-empty .btnrow{justify-content:center}
+.nogl{padding:40px 20px;color:var(--text-2);text-align:center}
+.kbd{font-family:var(--mono);font-size:10.5px;color:var(--text-3)}
+
+.card-h{padding:0}
+.row{display:flex;flex-wrap:wrap;align-items:end;gap:10px}
+.row>.f{flex:1;min-width:120px}
+.src{display:flex;align-items:center;gap:10px;min-width:0;max-width:340px;padding:4px 12px 4px 4px;border-radius:var(--r-pill);background:var(--panel);cursor:pointer}
+.src:hover{box-shadow:inset 0 0 0 999px var(--state-hover)}
+.src img{flex:none;width:26px;height:26px;border-radius:50%;object-fit:cover;background:var(--raised)}
+.src div{min-width:0}
+.src b{display:none}
+.src span{display:block;overflow:hidden;color:var(--text-2);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+/* export block at the foot of the centre column */
+/* fields as wide as their longest option (never cut); they wrap to a second row when the column is narrow */
+.export{flex:none;display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-end;gap:10px 12px;padding:12px 14px}
+.export>.f{flex:1 1 auto;min-width:max-content}
+.export>#exportBtn{flex:none;margin-left:auto}
+.export .acts{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.export .status{flex:1;min-width:160px}
+.export .framing{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.export .cropout{margin-left:auto;font-family:var(--mono);font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text-3)}
+/* a cut-out shows over a checkerboard */
+.stage.cut canvas{background:repeating-conic-gradient(var(--checker-a) 0 25%,var(--checker-b) 0 50%) 0 0/16px 16px}
+
+/* layers */
+.lhead{display:flex;align-items:center;gap:8px}
+.lhead h2{flex:1}
+.ltab{position:relative;z-index:1;flex:1 1 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0 6px;min-height:28px;padding:4px 10px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--text-2);font-size:12.5px;font-weight:600;line-height:1.2;text-align:center;overflow-wrap:break-word;cursor:pointer}
+.ltab:hover{color:var(--text)}
+.ltab[aria-selected="true"]{color:var(--text)}
+.ltab .n{font-size:11px;color:var(--text-2)}
+.ltools{display:flex;align-items:center;gap:6px;min-height:26px}
+.ltools .sp{flex:1;font-size:12px;color:var(--text-3)}
+.selbar{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;border-radius:var(--r);background:var(--raised);box-shadow:inset 0 0 0 1px var(--accent-line);font-size:12px}
+.selbar b{flex:1;font-weight:600;color:var(--accent);white-space:nowrap}
+.list.layers{gap:4px}
+/* a saved look: name and count on one line, its buttons wrap below when the column is narrow */
+#lookList .item{flex-wrap:wrap;row-gap:6px}
+#lookList .item b{flex:1 1 55%}
+.layer{position:relative;border-radius:var(--r);background:var(--raised);box-shadow:inset 3px 0 0 var(--accent)}
+#listE .layer{box-shadow:inset 3px 0 0 var(--fx)}
+.layer.sel{background:var(--accent-dim);outline:1px solid var(--accent-line);outline-offset:-1px}
+.layer.dragging{z-index:3;box-shadow:inset 3px 0 0 var(--accent),0 0 0 1px var(--line),inset 0 1px 0 var(--edge)}
+.layer.off .lname,.layer.off .lamt{opacity:.5}
+.lrow{display:flex;align-items:center;gap:4px;min-width:0;height:38px;padding:0 4px 0 6px;cursor:pointer}
+.grip{display:grid;place-items:center;flex:none;width:18px;height:28px;border:0;border-radius:var(--r-xs);background:transparent;color:var(--text-3);cursor:grab;touch-action:none}
+.grip:active{cursor:grabbing}
+.grip:hover,.grip:focus-visible{color:var(--text)}
+.grip svg{width:10px;height:16px;fill:currentColor}
+.lname{flex:1;min-width:0;overflow:hidden;font-size:12.5px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.lamt{display:flex;align-items:center;gap:6px;flex:none}
+.lamt input[type=range]{width:64px;height:16px}
+#listE .lamt input[type=range]::-webkit-slider-runnable-track,#listE .lparams input[type=range]::-webkit-slider-runnable-track{background:linear-gradient(90deg,var(--fx) var(--p,0%),var(--line) var(--p,0%))}
+.lamt output{width:36px;font-size:11px;text-align:right;cursor:ew-resize;user-select:none}
+.lamt .numedit{width:52px;margin:0}
+.ib{display:grid;place-items:center;flex:none;width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--text-2);cursor:pointer}
+.ib:hover{background:var(--state-press);color:var(--text)}
+.ib .i{width:15px;height:15px}
+.ib.on{color:var(--accent)}
+#listE .ib.on{color:var(--fx)}
+.lparams{display:flex;flex-direction:column;gap:11px;padding:10px 12px 12px 30px;border-top:1px solid var(--line)}
+.lkind{margin:0;font-size:11.5px;color:var(--text-2)}
+.lmenu{position:absolute;right:4px;top:36px;z-index:20;min-width:150px}
+.empty{margin:4px 4px 8px}
+
+.card>.tabs{margin-bottom:2px}
+.pane{padding:4px 0 2px}
+.pane .chips{margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{position:relative;display:flex;flex-direction:column;gap:5px;padding:5px;border:1px solid transparent;border-radius:12px;background:var(--raised);text-align:left;cursor:pointer}
+.tile:hover{border-color:var(--line-strong)}
+.tile .thw{display:block;border-radius:var(--r-sm)}
+.tile canvas{display:block;width:100%;aspect-ratio:1;border-radius:var(--r-sm);background:var(--media)}
+.tile span{overflow:hidden;padding:0 2px 2px;font-size:11.5px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.tile i{position:absolute;top:9px;right:9px;padding:0 6px;border-radius:var(--r-pill);background:var(--accent);color:var(--on-accent);font-family:var(--mono);font-size:10px;font-style:normal}
+.tacts{position:absolute;left:5px;right:5px;top:5px;display:flex;align-items:center;justify-content:center;gap:10px;aspect-ratio:1;border-radius:var(--r-sm);background:var(--scrim);opacity:0;transition:opacity var(--t)}
+.tile:hover .tacts,.tile:focus-within .tacts{opacity:1}
+@media (hover:none){.tacts{align-items:flex-end;justify-content:flex-end;gap:6px;padding:6px;background:transparent;opacity:1}}
+.tact{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:var(--raised);color:var(--text);cursor:pointer}
+.tact .i{width:16px;height:16px}
+.tact:hover{background:var(--accent);color:var(--on-accent)}
+.tact.rem:hover{background:var(--danger);color:var(--on-accent)}
+.acc+.acc{margin-top:8px}
+.acc>summary small{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--text-3)}
+.acc{background:var(--bg)}
+.acc-body{display:flex;flex-direction:column;gap:6px;padding:0 8px 8px}
+.tool[open]{box-shadow:inset 0 0 0 1px var(--fx-line)}
+.tool>summary b{display:block;font-size:13px;font-weight:600}
+.tool>summary small{display:block;font-size:11.5px;color:var(--text-2)}
+.tool-body{display:flex;flex-direction:column;gap:11px;padding:6px 11px 12px;border-top:1px solid var(--line)}
+.colorrow{display:flex;align-items:center;gap:10px}
+.colorrow code{font-size:12px;color:var(--text-2)}
+.batch{margin-top:12px}
+.batch h2{margin:0;font-size:13.5px;font-weight:600}
+.batch .row>.f{min-width:150px}
+.blist{margin:0;overflow-wrap:anywhere;font-size:12px;color:var(--text-2)}
+.menu{display:flex;flex-direction:column;padding:6px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 1px var(--line),inset 0 1px 0 var(--edge)}
+.menu button{display:flex;align-items:center;gap:8px;padding:7px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-size:12.5px;text-align:left;cursor:pointer}
+.menu button:hover,.menu button:focus-visible{background:var(--raised)}
+.menu button.warn{color:var(--danger)}
+.menu .i{width:14px;height:14px}

@@ -1,0 +1,171 @@
+name: Build for Windows
+
+# Runs by hand, or on a push whose commit message contains [build].
+# Builds the NSIS installer and the portable executable and publishes both as a GitHub release tagged v<version>
+# (a pre-release when the version has a suffix such as -beta.1).
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, '[build]') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri -> target
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./app/src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Install Tauri CLI
+        working-directory: app
+        run: npm ci
+
+      - name: Check release versions and frontend syntax
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs'), vm = require('vm'), assert = require('assert'), cp = require('child_process');
+          const version = JSON.parse(fs.readFileSync('app/src-tauri/tauri.conf.json', 'utf8')).version;
+          assert.equal(JSON.parse(fs.readFileSync('app/package.json', 'utf8')).version, version);
+          const lock = JSON.parse(fs.readFileSync('app/package-lock.json', 'utf8'));
+          assert.equal(lock.version, version);
+          assert.equal(lock.packages[''].version, version);
+          const cargo = fs.readFileSync('app/src-tauri/Cargo.toml', 'utf8');
+          assert.equal(/^version = "([^"]+)"/m.exec(cargo)[1], version);
+          const cargoLock = fs.readFileSync('app/src-tauri/Cargo.lock', 'utf8');
+          assert.equal(/name = "halation"\r?\nversion = "([^"]+)"/.exec(cargoLock)[1], version);
+          for (const file of fs.readdirSync('app/dist').filter(file => file.endsWith('.js'))) {
+            const source = fs.readFileSync(`app/dist/${file}`, 'utf8');
+            cp.execFileSync(process.execPath, ['--input-type=module', '--check'], { input: source });
+          }
+          console.log('Release version ' + version + ' is consistent; frontend syntax checks passed.');
+          NODE
+
+      - name: Check Rust
+        working-directory: app/src-tauri
+        run: cargo check --locked
+
+      - name: Run Clippy
+        working-directory: app/src-tauri
+        run: cargo clippy --locked --all-targets
+
+      - name: Run Rust tests
+        working-directory: app/src-tauri
+        run: cargo test --locked
+
+      # The setup is signed for the updater (docs/UPDATES.md): the private key is the TAURI_SIGNING_PRIVATE_KEY secret;
+      # its public half is in tauri.conf.json. Local builds leave tauri.updater.conf.json out and sign nothing.
+      - name: Build installer
+        working-directory: app
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          test -n "$TAURI_SIGNING_PRIVATE_KEY" || { echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing (docs/UPDATES.md)"; exit 1; }
+          npx tauri build --config src-tauri/tauri.updater.conf.json
+
+      - name: Collect installer and portable executable
+        id: files
+        shell: bash
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          setup="app/src-tauri/target/release/bundle/nsis/Halation_${v}_x64-setup.exe"
+          test -f "$setup" || { ls app/src-tauri/target/release/bundle/nsis; exit 1; }
+          mkdir -p dist-release
+          cp "$setup" "$setup.sig" dist-release/
+          cp app/src-tauri/target/release/halation.exe "dist-release/Halation_${v}_x64-portable.exe"
+          # Release notes: the section of CHANGELOG.md for this version (the release, and the updater's notes)
+          awk -v v="## $v" '$0 == v {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          test -s notes.md || echo "Halation $v" > notes.md
+          # latest.json: what installed copies read (plugins.updater.endpoints: the public releases' latest)
+          node -e '
+            const fs = require("fs"), [v, sig] = process.argv.slice(1);
+            const name = `Halation_${v}_x64-setup.exe`;
+            fs.writeFileSync("dist-release/latest.json", JSON.stringify({
+              version: v, notes: fs.readFileSync("notes.md", "utf8").trim(), pub_date: new Date().toISOString(),
+              platforms: { "windows-x86_64": { signature: fs.readFileSync(sig, "utf8").trim(), url: `https://github.com/Sylphera/Halation/releases/download/v${v}/${name}` } }
+            }, null, 2));
+          ' "$v" "dist-release/Halation_${v}_x64-setup.exe.sig"
+          ls -la dist-release
+
+      # The portable executable is the file users run directly; its embedded icon must be the current one
+      - name: Check the portable icon
+        shell: bash
+        run: node app/scripts/exe-icon.js "dist-release/Halation_${{ steps.version.outputs.version }}_x64-portable.exe" app/src-tauri/icons/icon.ico
+
+      - name: Check final native binary, license and Sessions
+        shell: pwsh
+        run: |
+          $binary = Resolve-Path "dist-release/Halation_${{ steps.version.outputs.version }}_x64-portable.exe"
+          $version = '${{ steps.version.outputs.version }}'
+          $setup = Resolve-Path "dist-release/Halation_${version}_x64-setup.exe"
+          foreach ($file in @($binary, $setup)) {
+            $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($file)
+            if ($info.ProductName -ne 'Halation' -or $info.ProductVersion -ne $version -or $info.FileVersion -ne $version) { throw "Incorrect native version metadata: $file" }
+          }
+          node app/scripts/release-smoke.js "$binary" "$version"
+          if ($LASTEXITCODE -ne 0) { throw 'Final embedded asset checks failed' }
+          # Launch health is independent of a remote-debugging endpoint. A failure reports the exit code.
+          $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $env:RUNNER_TEMP 'halation-release-webview'
+          $process = Start-Process -FilePath $binary -WindowStyle Hidden -PassThru
+          try {
+            if ($process.WaitForExit(15000)) { throw "Final executable exited during launch: $($process.ExitCode)" }
+            $webviews = @(Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.ParentProcessId -eq $process.Id })
+            if (!$webviews.Count) { throw 'Final executable did not start a WebView2 process' }
+            Write-Host 'PASS final executable remains running and started WebView2'
+          } finally {
+            if (!$process.HasExited) { Stop-Process -Id $process.Id }
+          }
+          & 'C:\Program Files\7-Zip\7z.exe' x "dist-release/Halation_${{ steps.version.outputs.version }}_x64-setup.exe" "-o$env:RUNNER_TEMP\halation-installer-check" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect installer' }
+          $installed = @(Get-ChildItem "$env:RUNNER_TEMP\halation-installer-check" -Recurse -File -Filter halation.exe)
+          if ($installed.Count -ne 1) { throw 'Installer must contain exactly one Halation executable' }
+          node app/scripts/installer-parity.js "$($installed[0].FullName)" "$binary"
+          if ($LASTEXITCODE -ne 0) { throw 'Installer executable does not match the verified portable binary' }
+
+      - name: Upload build
+        uses: actions/upload-artifact@v6
+        with:
+          name: Halation
+          path: |
+            dist-release/*.exe
+            dist-release/*.sig
+            dist-release/latest.json
+          if-no-files-found: error
+
+      - name: Publish release
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # notes.md: written by "Collect installer and portable executable"
+          flags=""
+          case "$VERSION" in *-*) flags="--prerelease" ;; esac
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            gh release upload "v$VERSION" dist-release/*.exe dist-release/*.sig dist-release/latest.json --clobber
+          else
+            gh release create "v$VERSION" dist-release/*.exe dist-release/*.sig dist-release/latest.json --target "$GITHUB_SHA" --title "Halation $VERSION" --notes-file notes.md $flags
+          fi

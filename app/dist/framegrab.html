@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frame Capture</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="framegrab.css">
+<script src="i18n.js"></script><script src="common.js"></script><script src="icons.js"></script><script src="gsap.min.js"></script><script src="Flip.min.js"></script><script src="motion.js"></script><script src="imgops.js"></script>
+</head>
+<body>
+<main class="fg">
+  <section class="fg-main" data-i18n-aria-label="fg.view">
+    <header class="fg-top">
+      <span class="fg-src" id="srcInfo" hidden><span class="i" data-icon="film"></span><b id="srcName"></b><span class="mono" id="srcMeta"></span></span>
+      <span class="spacer"></span>
+      <span class="origin" id="origin" hidden><span id="originText"></span><button class="btn sm ghost" id="originCancel" data-icon="x"><span data-i18n="fg.originCancel"></span></button></span>
+      <button class="btn sm" id="openBtn" data-icon="folder-open"><span data-i18n="fg.open"></span></button>
+      <input type="file" id="videoIn" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v" hidden>
+    </header>
+
+    <section class="card engine" id="engine" hidden>
+      <div class="card-h"><h2 data-i18n="fg.engine"></h2><span class="badge-warn" data-i18n="dl.engineMissing"></span></div>
+      <p class="note" data-i18n="fg.engineNote"></p>
+      <div class="acts"><button class="btn primary" id="installBtn" data-icon="hard-drive-download"><span data-i18n="fg.install"></span></button></div>
+      <div class="prog" id="installProg" hidden><i id="installBar"></i></div>
+      <p class="status" id="installStatus"></p>
+    </section>
+
+    <div class="fg-preview" id="previewWorkspace">
+    <div class="fg-stage" id="stage">
+      <canvas id="view"></canvas>
+      <div class="fg-crop" id="crop" hidden><div class="fg-cframe" id="cropFrame" tabindex="0" role="group" data-i18n-title="fg.cropTip" data-i18n-aria-label="fg.cropTip"></div></div>
+      <span class="fg-badge mono" id="frameBadge" hidden></span>
+      <output class="fg-perf mono" id="perfOv" hidden></output>
+      <div class="emptyzone fg-empty" id="empty" role="button" tabindex="0">
+        <span class="big" data-icon="film"></span>
+        <b data-i18n="fg.empty.title"></b>
+        <p data-i18n="fg.empty.note"></p>
+        <div class="btnrow"><button class="btn primary" id="browseBtn" data-icon="upload"><span data-i18n="common.browse"></span></button></div>
+      </div>
+    </div>
+
+    <div class="fg-transport" id="transport">
+      <button class="btn icon" id="prevBtn" data-icon="skip-back" data-i18n-title="fg.prevTip" data-i18n-aria-label="fg.prevTip"></button>
+      <button class="btn icon primary" id="playBtn" data-icon="play" data-i18n-title="fg.play" data-i18n-aria-label="fg.play"></button>
+      <button class="btn icon" id="nextBtn" data-icon="skip-forward" data-i18n-title="fg.nextTip" data-i18n-aria-label="fg.nextTip"></button>
+      <output class="mono" id="timeOut">00:00.00</output>
+      <span class="n mono" id="frameOut"></span>
+      <span class="fg-sound"><button class="btn icon" id="muteBtn" data-icon="volume-2" aria-pressed="false" disabled></button><input type="range" data-def="0.8" id="vol" min="0" max="1" step="0.01" value="0.8" data-i18n-aria-label="fg.volume" disabled></span>
+      <span class="spacer"></span>
+      <span class="hint" data-i18n="fg.keysHint"></span>
+      <button class="btn icon" id="perfBtn" data-icon="gauge" aria-pressed="false" data-i18n-title="fg.perfTip" data-i18n-aria-label="fg.perfTip"></button>
+      <button class="btn sm" id="sharpBtn" data-icon="focus" data-i18n-title="fg.sharpTip"><span data-i18n="fg.sharp"></span></button>
+      <button class="btn sm" id="addBtn" data-icon="list-plus" data-i18n-title="fg.addTip"><span data-i18n="fg.add"></span></button>
+      <button class="btn icon" id="fsBtn" data-icon="maximize" aria-pressed="false" data-i18n-title="fg.maximize" data-i18n-aria-label="fg.maximize"></button>
+    </div>
+    <div class="fg-timeline" id="timeline" role="slider" tabindex="0" aria-valuemin="0" data-i18n-aria-label="fg.timeline">
+      <canvas id="strip"></canvas>
+      <div class="ticks" id="ticks"></div>
+      <span class="head" id="head"><i></i></span>
+    </div>
+    </div>
+  </section>
+
+  <aside class="fg-side">
+    <section class="card">
+      <div class="card-h"><h2 data-i18n="fg.queue"></h2><span class="n" id="cntQueue"></span></div>
+      <p class="hint" id="queueHint" data-i18n="fg.queueNote"></p>
+      <div class="fg-queue" id="queue"></div>
+      <div class="fg-qacts" id="queueActs" hidden><button class="btn sm ghost" id="selAll" data-icon="check"><span data-i18n="fg.selAll"></span></button><button class="btn sm ghost" id="selNone" data-icon="square"><span data-i18n="fg.selNone"></span></button></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2 data-i18n="fg.capture"></h2></div>
+      <div class="fg-layout"><span class="lbl note" data-i18n="fg.layout"></span>
+        <div class="tabs" id="layout" role="radiogroup" data-i18n-aria-label="fg.layout">
+          <button class="tab" role="radio" data-layout="orig" aria-checked="false" aria-selected="false" data-i18n="fg.layoutOrig"></button>
+          <button class="tab" role="radio" data-layout="16:9" aria-checked="true" aria-selected="true">16:9</button>
+          <button class="tab" role="radio" data-layout="9:16" aria-checked="false" aria-selected="false">9:16</button>
+          <button class="tab" role="radio" data-layout="1:1" aria-checked="false" aria-selected="false">1:1</button>
+          <button class="tab" role="radio" data-layout="4:5" aria-checked="false" aria-selected="false">4:5</button>
+        </div></div>
+      <div class="radios" id="dests" role="radiogroup" data-i18n-aria-label="fg.dest"></div>
+      <div class="acts fg-go"><button class="btn primary" id="captureBtn" data-icon="image-plus"><span id="captureText"></span></button></div>
+      <p class="status" id="status" role="status"></p>
+      <div class="fg-results" id="results"></div>
+    </section>
+  </aside>
+  <div class="fg-loading" id="loading" role="status" hidden><div class="busynote" id="loadingWin"><b data-i18n="common.loading"></b><p data-i18n="fg.loadingNote"></p><div class="prog indet"><i></i></div></div></div>
+</main>
+
+<script type="module" src="framegrab.js"></script>
+</body></html>

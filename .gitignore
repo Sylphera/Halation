@@ -1,0 +1,12 @@
+node_modules/
+target/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# halation-preview: worktree, exe, profiles and caches (docs/PREVIEW.md)
+.tools/preview/
+
+# Raw performance traces (summaries stay in docs/performance/**/*.md)
+docs/performance*/**/*.json
+docs/performance*/**/*.jsonl
+docs/performance*/**/*.log
+review/

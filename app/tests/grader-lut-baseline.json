@@ -1,0 +1,805 @@
+{
+  "base": "edf8a82",
+  "sourceSHA256": "f2fcc8de28f8fcc4744112b59a4ddad192a390b1d2172e5e5a92ca0f2c67036c",
+  "size": 33,
+  "samples": [
+    {
+      "look": "nocturno",
+      "parameters": {
+        "temp": -0.55,
+        "tint": 0.04,
+        "con": 0.28,
+        "sat": 0.72,
+        "sh": -0.1,
+        "hi": -0.15,
+        "sTone": [
+          "#0b2d6e",
+          0.45
+        ],
+        "hTone": [
+          "#a8d8ff",
+          0.22
+        ],
+        "lift": 0.03
+      },
+      "hash": "21bf2768b18146098c60d777dca88f23ff399f95424a9362a541fce180838994"
+    },
+    {
+      "look": "hielo",
+      "parameters": {
+        "temp": -0.45,
+        "exp": 0.18,
+        "con": 0.12,
+        "sat": 0.5,
+        "sTone": [
+          "#2d5f91",
+          0.35
+        ],
+        "hTone": [
+          "#d2f4ff",
+          0.35
+        ],
+        "lift": 0.06
+      },
+      "hash": "24e4918b8107435cb030666aff396da2a29102b112a8c916ea828a5579d5bd7f"
+    },
+    {
+      "look": "medianoche",
+      "parameters": {
+        "temp": -0.7,
+        "exp": -0.25,
+        "con": 0.45,
+        "crush": 0.05,
+        "sat": 0.8,
+        "sTone": [
+          "#0a1150",
+          0.6
+        ],
+        "hTone": [
+          "#7b95ff",
+          0.3
+        ]
+      },
+      "hash": "1c27116ba75b8ff21cb7dad8e984da3fd363fc8858c422fb1146aa50ab90a76c"
+    },
+    {
+      "look": "polaroid",
+      "parameters": {
+        "temp": -0.35,
+        "tint": 0.02,
+        "con": 0.08,
+        "sat": 0.8,
+        "lift": 0.06,
+        "cap": 0.03,
+        "sTone": [
+          "#16306e",
+          0.38
+        ],
+        "hTone": [
+          "#e2f3ff",
+          0.24
+        ],
+        "curve": {
+          "m": [
+            [
+              0,
+              0.03
+            ],
+            [
+              0.3,
+              0.27
+            ],
+            [
+              0.7,
+              0.74
+            ],
+            [
+              1,
+              0.98
+            ]
+          ]
+        }
+      },
+      "hash": "0221f55c998e45256c80d42b79e3c13b5ff7bb78d77e498c01143989c63ef265"
+    },
+    {
+      "look": "acero",
+      "parameters": {
+        "sat": 0.25,
+        "temp": -0.35,
+        "con": 0.22,
+        "lift": 0.03,
+        "sTone": [
+          "#1c2a3a",
+          0.3
+        ]
+      },
+      "hash": "b94f61af55c929a55add55025d6f37e64e903b19741ddafe328855dcd8acfaeb"
+    },
+    {
+      "look": "violeta",
+      "parameters": {
+        "temp": -0.25,
+        "tint": 0.35,
+        "con": 0.3,
+        "crush": 0.03,
+        "sat": 1.05,
+        "sTone": [
+          "#1b0640",
+          0.55
+        ],
+        "hTone": [
+          "#dcc2ff",
+          0.3
+        ]
+      },
+      "hash": "cdfd03bca7610e0f7c723127804dd2672531f19e7bf7139633aceb05761ce1fe"
+    },
+    {
+      "look": "ultravioleta",
+      "parameters": {
+        "con": 0.15,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#04010d"
+            ],
+            [
+              0.45,
+              "#3a1c91"
+            ],
+            [
+              0.8,
+              "#9f86ff"
+            ],
+            [
+              1,
+              "#f4eeff"
+            ]
+          ],
+          "amt": 0.88
+        }
+      },
+      "hash": "d6db77ae63a6b0221fba9b2cbe77f1bab8668cfc5665383ff3a93e7d17bc0f9a"
+    },
+    {
+      "look": "synth",
+      "parameters": {
+        "tint": 0.2,
+        "con": 0.25,
+        "sat": 1.15,
+        "sTone": [
+          "#1c0b5c",
+          0.5
+        ],
+        "hTone": [
+          "#ff66d6",
+          0.28
+        ]
+      },
+      "hash": "09d0be3fe6b0601f74389711bdc25bdfcab60b6d3020994f45598669309daf30"
+    },
+    {
+      "look": "sangre",
+      "parameters": {
+        "con": 0.3,
+        "crush": 0.04,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#060001"
+            ],
+            [
+              0.5,
+              "#720814"
+            ],
+            [
+              0.85,
+              "#e3323d"
+            ],
+            [
+              1,
+              "#ffd9d2"
+            ]
+          ],
+          "amt": 0.8
+        }
+      },
+      "hash": "610dd413af45dfb62b9751633e1e3982adc292754e1074c935fc87605a0d4c67"
+    },
+    {
+      "look": "neonrojo",
+      "parameters": {
+        "temp": 0.35,
+        "tint": 0.28,
+        "con": 0.38,
+        "sat": 1.2,
+        "sTone": [
+          "#2d0008",
+          0.5
+        ],
+        "hTone": [
+          "#ff4d5f",
+          0.3
+        ],
+        "hue": -6
+      },
+      "hash": "ce2c1efc592ea3a5b1bc57f254868e5ac9545be0489413b8024acc45ca899822"
+    },
+    {
+      "look": "ambar",
+      "parameters": {
+        "temp": 0.5,
+        "tint": 0.05,
+        "con": 0.15,
+        "sat": 1.05,
+        "lift": 0.03,
+        "sTone": [
+          "#2e1606",
+          0.35
+        ],
+        "hTone": [
+          "#ffd08e",
+          0.28
+        ]
+      },
+      "hash": "5d3d19f8bc57b867ad482b09dba6897492786fa183276a6c97027e1a436c0cd9"
+    },
+    {
+      "look": "sepia",
+      "parameters": {
+        "con": 0.1,
+        "lift": 0.04,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#1b1007"
+            ],
+            [
+              0.5,
+              "#7c5636"
+            ],
+            [
+              1,
+              "#f4e4c6"
+            ]
+          ],
+          "amt": 0.92
+        }
+      },
+      "hash": "9a30c404f681fff464c01c393ef9d7686dcba5ceab5d7a32bcc42ef0e321a421"
+    },
+    {
+      "look": "bn",
+      "parameters": {
+        "bw": [
+          0.3,
+          0.59,
+          0.11
+        ],
+        "con": 0.22
+      },
+      "hash": "d0a8599c5d8415930985d74e261f85706f6ed036685faef362f698aff9f57aa6"
+    },
+    {
+      "look": "noir",
+      "parameters": {
+        "bw": [
+          0.4,
+          0.45,
+          0.15
+        ],
+        "con": 0.6,
+        "crush": 0.06,
+        "exp": -0.08
+      },
+      "hash": "718176420307a1840fd5895b7cdca285c0656e0788e5d5f6a930fc9102d0e3ae"
+    },
+    {
+      "look": "plata",
+      "parameters": {
+        "bw": [
+          0.25,
+          0.6,
+          0.15
+        ],
+        "con": -0.18,
+        "lift": 0.1,
+        "cap": 0.04,
+        "exp": 0.1
+      },
+      "hash": "17d101f1416a585d6b667f7d6ecd2fee6a45d3115442d323fd97e7be763268cd"
+    },
+    {
+      "look": "bnnoche",
+      "parameters": {
+        "bw": [
+          0.1,
+          0.3,
+          0.6
+        ],
+        "con": 0.48,
+        "crush": 0.04
+      },
+      "hash": "455faf744c3a6461e5d43c1423c2b1b461de06ed94b3a4e13ed816b47c40b02a"
+    },
+    {
+      "look": "portra",
+      "parameters": {
+        "temp": 0.18,
+        "tint": -0.03,
+        "sat": 0.9,
+        "lift": 0.04,
+        "sTone": [
+          "#3b2a1f",
+          0.2
+        ],
+        "hTone": [
+          "#ffe3c4",
+          0.22
+        ],
+        "curve": {
+          "m": [
+            [
+              0,
+              0.04
+            ],
+            [
+              0.25,
+              0.23
+            ],
+            [
+              0.75,
+              0.8
+            ],
+            [
+              1,
+              0.97
+            ]
+          ]
+        }
+      },
+      "hash": "38c4316e0f8a60c13d5c0f394f10205d50d2c2cdff52545dedbd5d3dfb6d52de"
+    },
+    {
+      "look": "fuji",
+      "parameters": {
+        "temp": -0.12,
+        "tint": -0.12,
+        "con": 0.12,
+        "sat": 0.9,
+        "lift": 0.04,
+        "sTone": [
+          "#0f3b37",
+          0.35
+        ],
+        "hTone": [
+          "#f2fff2",
+          0.12
+        ]
+      },
+      "hash": "2752697e8e627c70753d91df0070ba8038a3a5bbcb409a62cb0a515d9fe5ffdf"
+    },
+    {
+      "look": "teal",
+      "parameters": {
+        "con": 0.25,
+        "sat": 1.05,
+        "vib": 0.2,
+        "sTone": [
+          "#0b4d5c",
+          0.5
+        ],
+        "hTone": [
+          "#ffb26e",
+          0.32
+        ]
+      },
+      "hash": "9c3c947fb1ac1f58bbd3f7a175f015a467845b2ba6c9a8b97115e6b08e371db7"
+    },
+    {
+      "look": "bleach",
+      "parameters": {
+        "sat": 0.35,
+        "con": 0.55,
+        "crush": 0.03,
+        "lift": 0.02,
+        "exp": 0.05,
+        "temp": -0.05
+      },
+      "hash": "b30b91311b5b1d5cd01d2d18d3400223e140d6bf8d700e730b55b1198302b240"
+    },
+    {
+      "look": "cross",
+      "parameters": {
+        "con": 0.2,
+        "sat": 1.15,
+        "curve": {
+          "r": [
+            [
+              0,
+              0.04
+            ],
+            [
+              0.5,
+              0.56
+            ],
+            [
+              1,
+              1
+            ]
+          ],
+          "g": [
+            [
+              0,
+              0
+            ],
+            [
+              0.5,
+              0.52
+            ],
+            [
+              1,
+              0.96
+            ]
+          ],
+          "b": [
+            [
+              0,
+              0.2
+            ],
+            [
+              0.5,
+              0.45
+            ],
+            [
+              1,
+              0.8
+            ]
+          ]
+        }
+      },
+      "hash": "292794b403c1533b305ef14b856bc352b7812b82b3791abc4ec0bbb9e5c6a686"
+    },
+    {
+      "look": "faded",
+      "parameters": {
+        "lift": 0.14,
+        "cap": 0.06,
+        "con": -0.1,
+        "sat": 0.75,
+        "temp": -0.05
+      },
+      "hash": "28ba4b59692498bd75ba95c4a3c8b8f8525d8c83726e644e5ed82d426f845d83"
+    },
+    {
+      "look": "profundo",
+      "parameters": {
+        "exp": -0.35,
+        "con": 0.45,
+        "crush": 0.08,
+        "sat": 0.8,
+        "sh": -0.3,
+        "temp": -0.1
+      },
+      "hash": "02ed6d00dd9b2ab121be51598e5de6e4475ba850cf9a255ec96128b471fe657f"
+    },
+    {
+      "look": "humo",
+      "parameters": {
+        "lift": 0.18,
+        "con": -0.3,
+        "sat": 0.5,
+        "temp": -0.08,
+        "cap": 0.05
+      },
+      "hash": "c52cc19c154c4fc6ba85cd67b84750a17c9c22bb60714ab6f8caca49700904c4"
+    },
+    {
+      "look": "mate",
+      "parameters": {
+        "exp": -0.2,
+        "lift": 0.09,
+        "cap": 0.12,
+        "con": 0.12,
+        "sat": 0.7
+      },
+      "hash": "a65fe6da9d0e72d2810d6a48b2395a5ffc00666bb65bee6f5ddec85746418b00"
+    },
+    {
+      "look": "matrix",
+      "parameters": {
+        "tint": -0.45,
+        "temp": -0.1,
+        "con": 0.3,
+        "sat": 0.8,
+        "sTone": [
+          "#001f0c",
+          0.45
+        ],
+        "hTone": [
+          "#bfffd4",
+          0.22
+        ]
+      },
+      "hash": "e16a163cc80fb7ae8c4aa36df2c94ae022cdb4783b3820bcc607e8ce98739acc"
+    },
+    {
+      "look": "esmeralda",
+      "parameters": {
+        "tint": -0.3,
+        "temp": -0.3,
+        "exp": -0.15,
+        "con": 0.35,
+        "crush": 0.05,
+        "sat": 0.7,
+        "sTone": [
+          "#03302f",
+          0.55
+        ],
+        "hTone": [
+          "#aee9dc",
+          0.18
+        ]
+      },
+      "hash": "170771567e80cddc4513c7a52ac6f601a5e9292137eab1ca3dcc8aaec149b55c"
+    },
+    {
+      "look": "sueno",
+      "parameters": {
+        "lift": 0.05,
+        "con": -0.05,
+        "sat": 0.9,
+        "exp": 0.1
+      },
+      "hash": "23ffde8120106548da71af552cbce483fb8d702fb0095435e7780f1bcdbc9997"
+    },
+    {
+      "look": "halo",
+      "parameters": {
+        "con": 0.15
+      },
+      "hash": "f659728d6a2b7c0d7ac0f7ec57dcb1261a57740e7f095b003412d9ca4e06b5ec"
+    },
+    {
+      "look": "etereo",
+      "parameters": {
+        "exp": 0.3,
+        "sat": 0.45,
+        "lift": 0.08,
+        "temp": -0.15,
+        "hTone": [
+          "#e9f6ff",
+          0.25
+        ]
+      },
+      "hash": "24d42c304edd5072b40a3f050d2a5c5dcdf0ec532779f7de13c19aca2c424694"
+    },
+    {
+      "look": "destellos",
+      "parameters": {
+        "con": 0.1
+      },
+      "hash": "e11935328e423cc06f6ffe80c7bcaba84af96e0e0487a4a086a1f819f802b8f7"
+    },
+    {
+      "look": "vhs",
+      "parameters": {
+        "sat": 0.85,
+        "con": 0.1,
+        "lift": 0.06,
+        "tint": 0.05
+      },
+      "hash": "d760347448c4a2e7d8362932b5a09c2c290b4e09b0b0a53c8565a5de01f2aa3b"
+    },
+    {
+      "look": "ccd",
+      "parameters": {
+        "temp": -0.2,
+        "con": 0.25,
+        "sat": 1.1,
+        "exp": 0.1,
+        "hTone": [
+          "#e2f1ff",
+          0.18
+        ]
+      },
+      "hash": "9a56f64ede4c89bba076f6ffbc19d64f881c7c407abe1f596a56c502757cf2bc"
+    },
+    {
+      "look": "trama",
+      "parameters": {
+        "con": 0.2,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#02101f"
+            ],
+            [
+              0.5,
+              "#2a80c0"
+            ],
+            [
+              1,
+              "#e8f8ff"
+            ]
+          ],
+          "amt": 1
+        }
+      },
+      "hash": "98e9cc2bf832d38830c7668e86d552bfebdbb7f55ff5e3602a197186cd5d9782"
+    },
+    {
+      "look": "glitch",
+      "parameters": {
+        "con": 0.2,
+        "sat": 1.1
+      },
+      "hash": "31b0514172171f81eb3108421e22c92715e9321094ad688913200c6d3943810a"
+    },
+    {
+      "look": "dcian",
+      "parameters": {
+        "con": 0.15,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#021119"
+            ],
+            [
+              1,
+              "#90f1ff"
+            ]
+          ],
+          "amt": 1
+        }
+      },
+      "hash": "47ce84a9d719b0ccfa7703d55a91d800132a8963a21216fbf0ece421cd5b09ee"
+    },
+    {
+      "look": "dviol",
+      "parameters": {
+        "con": 0.15,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#0b0421"
+            ],
+            [
+              1,
+              "#caa9ff"
+            ]
+          ],
+          "amt": 1
+        }
+      },
+      "hash": "bc9cfb9db252a0f3142de8c389d35edc5ced3e9765202e534198ff08dc9ad169"
+    },
+    {
+      "look": "drojo",
+      "parameters": {
+        "con": 0.15,
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#130002"
+            ],
+            [
+              1,
+              "#ff6b6b"
+            ]
+          ],
+          "amt": 1
+        }
+      },
+      "hash": "0744ffce32d6a02ef17a360c821feafc63e5b849a686c618685f96ee4974171e"
+    },
+    {
+      "name": "identity",
+      "parameters": {},
+      "hash": "e27aff62cf556bb12a24aa9e0c0553be40c1e808579240a64d7fc2ba797e6812"
+    },
+    {
+      "name": "adjust-extremes",
+      "parameters": {
+        "exp": 1.7,
+        "con": 0.9,
+        "sh": -0.7,
+        "hi": 0.8,
+        "lift": 0.1,
+        "crush": 0.12,
+        "cap": 0.18,
+        "temp": -0.8,
+        "tint": 0.7,
+        "sat": 1.8,
+        "vib": 0.8,
+        "hue": 65,
+        "sTone": [
+          "#ff1493",
+          0.7
+        ],
+        "hTone": [
+          "#00aaff",
+          0.8
+        ]
+      },
+      "hash": "792db7a4ce7c6dcd6aa8818206acf1da907713843b31f0a8256941b8eaf3977c"
+    },
+    {
+      "name": "negative-contrast-gamma",
+      "parameters": {
+        "con": -0.65,
+        "gamma": 1.4,
+        "exp": -1.6,
+        "sat": 0.4
+      },
+      "hash": "518eba68f8ca2b8f83a170c587a13ac5870422d36b8eba23d829470a904f4b5f"
+    },
+    {
+      "name": "curves-map-bw",
+      "parameters": {
+        "curve": {
+          "m": [
+            [
+              0,
+              0.08
+            ],
+            [
+              0.4,
+              0.3
+            ],
+            [
+              1,
+              0.97
+            ]
+          ],
+          "r": [
+            [
+              0,
+              0
+            ],
+            [
+              0.5,
+              0.7
+            ],
+            [
+              1,
+              1
+            ]
+          ]
+        },
+        "gmap": {
+          "stops": [
+            [
+              0,
+              "#001122"
+            ],
+            [
+              0.6,
+              "#9854fe"
+            ],
+            [
+              1,
+              "#ffffff"
+            ]
+          ],
+          "amt": 0.65
+        },
+        "bw": [
+          0.2,
+          0.3,
+          0.5
+        ],
+        "hue": -87
+      },
+      "hash": "bc37b36ddbd3d592dc8fc0508fcfab362c617ff21a56bdf4f39a7f1a72789bae"
+    }
+  ]
+}

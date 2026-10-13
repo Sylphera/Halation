@@ -1,0 +1,123 @@
+/* Halation design tokens. Every interface colour lives here; the rest of the CSS only uses these variables.
+   Rebrand: pure black window, #050504 bubbles, greys in wide steps for contrast; muted accents (periwinkle leads) so it
+   is never flat black and white, and a pale blue that only lives in the atmosphere behind the interface (atmosphere.js). */
+:root{
+  color-scheme: dark;
+
+  /* Neutrals: near-neutral with a faint warm bias, from pure black to off-white */
+  --n-1000:#000;
+  --n-950:#050504; --n-900:#0b0b0a; --n-850:#121211; --n-800:#1b1b19; --n-700:#2a2a27; --n-600:#3e3e3a;
+  --n-500:#6d6d67; --n-400:#908f89; --n-300:#b5b5af; --n-200:#d7d7d2; --n-100:#eaeae6; --n-50:#f5f5f2;
+
+  /* Accents: muted, never neon; solid, tinted background (~15 %) and border. Periwinkle leads (sliders, switches,
+     selection, focus, progress); the others each keep one job (states and effects) */
+  --lavender:#a3a8dc; --lavender-dim:rgba(163,168,220,.15); --lavender-line:rgba(163,168,220,.55);
+  --red:#df7a70;      --red-dim:rgba(223,122,112,.13);      --red-line:rgba(223,122,112,.55);
+  --mint:#83c7a3;     --mint-dim:rgba(131,199,163,.14);     --mint-line:rgba(131,199,163,.55);
+  --amber:#d9ae6a;    --amber-dim:rgba(217,174,106,.14);    --amber-line:rgba(217,174,106,.55);
+  --cyan:#82b5d6;     --cyan-dim:rgba(130,181,214,.14);     --cyan-line:rgba(130,181,214,.55);
+  --pink:#d593b1;     --pink-dim:rgba(213,147,177,.14);     --pink-line:rgba(213,147,177,.55);
+
+  /* Roles */
+  --bg:var(--n-1000);           /* window, behind the atmosphere */
+  --surface:var(--n-950);       /* bubbles: the dock, a tool's panels and toolbar */
+  --welcome-surface-low:#0a0a0a;
+  --welcome-surface-mid:#121212;
+  --welcome-surface-high:#171717;
+  --panel:var(--n-900);         /* cards and sections, menus and dialogs */
+  --raised:var(--n-800);        /* raised controls, hover */
+  --field:var(--n-1000);        /* text fields and selects */
+  --line:var(--n-700);
+  --line-strong:var(--n-600);
+  --disabled:var(--n-500);
+  --text:var(--n-50);
+  --text-strong:var(--n-100);
+  --text-2:var(--n-300);
+  --text-3:var(--n-400);
+  --icon:var(--n-200);
+
+  --accent:var(--lavender); --accent-dim:var(--lavender-dim); --accent-line:var(--lavender-line);
+  --on-accent:var(--n-950);     /* text on a solid accent */
+  --primary:var(--n-50);        /* the one filled button of a view: white */
+  --primary-hover:#fff;
+  --on-primary:var(--n-950);
+  --fill:var(--accent);         /* slider fill and a switch that is on */
+  --danger:var(--red); --danger-dim:var(--red-dim); --danger-line:var(--red-line);
+  --ok:var(--mint); --ok-dim:var(--mint-dim); --ok-line:var(--mint-line);
+  --warn:var(--amber); --warn-dim:var(--amber-dim); --warn-line:var(--amber-line);
+  --info:var(--cyan); --info-dim:var(--cyan-dim); --info-line:var(--cyan-line);
+  --fx:var(--pink); --fx-dim:var(--pink-dim); --fx-line:var(--pink-line);
+
+  /* State layers: a light veil over the element on hover and press */
+  --state-hover:rgba(245,245,242,.06);
+  --state-press:rgba(245,245,242,.1);
+  --scrim:rgba(0,0,0,.72);      /* labels over images and video */
+  --backdrop:rgba(0,0,0,.66);   /* behind dialogs */
+
+  /* Bubbles: a hairline border and a lit top edge; see ui.css .card */
+  --line-soft:rgba(255,255,250,.075);   /* a bubble's border */
+  --edge:rgba(255,255,250,.08);         /* the light on a bubble's top edge */
+  --glass:rgba(5,5,4,.62);              /* a bubble over the moving Home atmosphere (blurred behind) */
+
+  /* Atmosphere (atmosphere.js): greys with a pale blue in the light; Home is lit, the tools almost black */
+  --atmo:#b9c8e6;
+  --media:#000;                 /* letterbox behind the preview canvas */
+  --viewer:var(--n-950);        /* Upscale: behind a still picture, around its own aspect ratio */
+  --checker-a:#2a2a27; --checker-b:#1b1b19;   /* behind transparent previews and cut-out pictures */
+  --matte-dark:#000; --matte-light:#fff;      /* Cutout: plain backgrounds to judge the edge on */
+  --crop-shade:rgba(0,0,0,.66);                /* Crop: the picture outside the frame */
+  --bg-select:#3d7dff;                         /* Remove Background: what counts as background (drawn at half opacity) */
+  --fg-select:var(--ok);                       /* Remove Background: the points and strokes that mark the subject */
+  --guide-shade:rgba(0,0,0,.45);        /* the dark edge that keeps those lines visible on light pictures */
+  --guide-grid:rgba(245,245,242,.4);    /* thirds over the shared Crop dialog */
+
+  /* Type */
+  --ui:"Inter","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+
+
+  /* Shape and motion */
+  --r-xs:6px; --r-sm:8px; --r:10px; --r-lg:14px; --r-bubble:20px; --r-pill:999px;
+  --gap-frame:8px;
+
+  /* Motion (docs/MOTION.md). Four tokens: everything that moves settles on a critically damped spring (no visible
+     bounce); the durations are the time it takes to settle, a ceiling, not a timing. */
+  --spring:320ms;        /* the interface: menus, tabs, pills, lists, accordions, dialogs, press release */
+  --place:300ms;         /* changing place: centered tool entrances and going back */
+  --fade:140ms;          /* what only fades: exits, veils, reduced motion */
+  --stagger:28ms;        /* between the items of a group that arrive together */
+  /* the spring as a CSS curve (the same one motion.js computes for GSAP) */
+  --ease:linear(0, 0.0575 4.2%, 0.1802 8.3%, 0.3206 12.5%, 0.4549 16.7%, 0.5727 20.8%, 0.6709 25%, 0.7499 29.2%, 0.812 33.3%, 0.86 37.5%, 0.8965 41.7%, 0.9239 45.8%, 0.9444 50%, 0.9596 54.2%, 0.9707 58.3%, 0.9789 62.5%, 0.9848 66.7%, 0.9891 70.8%, 0.9922 75%, 0.9944 79.2%, 0.996 83.3%, 0.9972 87.5%, 0.998 91.7%, 0.9986 95.8%, 1);
+  --press-scale:0.97;
+  --depth-blur:6px;      /* a place that recedes goes out of focus */
+  --skel-shine:rgba(245,245,242,.06);   /* the light that crosses a skeleton */
+  --skel-block:rgba(245,245,242,.045);  /* a skeleton's blocks */
+  --prog-fill:linear-gradient(90deg,rgba(163,168,220,.45),rgba(206,209,238,.95));
+  --busy-dim:rgba(0,0,0,.32);   /* over the picture a tool is working on */
+  --glow-dock:rgba(255,255,255,.08);       /* the light that follows the pointer along the dock */
+  --glow-dock-edge:rgba(255,255,255,.42);  /* …and lights the dock's edge near it */
+  --glow-press:rgba(255,255,255,.22);   /* the light that follows the pointer on a primary button */
+  --t:var(--spring) var(--ease);
+
+  /* Platforms (Cover Test): the colours of YouTube, Spotify and SoundCloud's own pages, only inside the views that
+     recreate them (covertest.css); never the interface's */
+  --yt-bg:#0f0f0f; --yt-text:#f1f1f1; --yt-text-2:#aaaaaa; --yt-chip:rgba(255,255,255,.1); --yt-chip-on:#f1f1f1; --yt-chip-on-text:#0f0f0f;
+  --yt-line:rgba(255,255,255,.2); --yt-field:#121212; --yt-field-line:#303030; --yt-player:#000;
+  --yt-bg-light:#fff; --yt-text-light:#0f0f0f; --yt-text-2-light:#606060; --yt-chip-light:rgba(0,0,0,.05); --yt-chip-on-light:#0f0f0f; --yt-chip-on-text-light:#fff;
+  --yt-line-light:rgba(0,0,0,.1); --yt-field-light:#fff; --yt-field-line-light:#d3d3d3;
+  --yt-brand:#ff0033; --yt-badge:rgba(0,0,0,.8); --yt-badge-text:#fff; --yt-skel:rgba(255,255,255,.08); --yt-skel-light:rgba(0,0,0,.07);
+  --sp-bg:#121212; --sp-base:#000; --sp-card:#181818; --sp-card-hover:#282828; --sp-text:#fff; --sp-text-2:#b3b3b3; --sp-brand:#1ed760; --sp-on-brand:#000;
+  --sp-fade:rgba(18,18,18,.6); --sp-bar:rgba(255,255,255,.3); --sp-skel:rgba(255,255,255,.07);
+  --sc-bg:#fff; --sc-text:#333; --sc-text-2:#999; --sc-line:#f2f2f2; --sc-brand:#ff5500; --sc-on-brand:#fff; --sc-wave:#ccc; --sc-wave-hero:rgba(255,255,255,.75);
+  --sc-frame:#f2f2f2; --sc-nav-bg:#333; --sc-nav-text:#ccc; --sc-nav-field:#e5e5e5;
+  --sc-box:#000; --sc-box-text:#fff; --sc-box-text-2:#ccc; --sc-hero-a:#4b4f58; --sc-hero-b:#a59a8c; --sc-skel:rgba(0,0,0,.07);
+  --sc-profile-bg-dark:#111; --sc-profile-raised-dark:#303030; --sc-profile-muted-dark:#999; --sc-profile-wave-dark:#bcbcbc;
+  --sc-profile-support:#105ba6; --sc-profile-support-line:rgba(255,255,255,.08); --sc-profile-link:#66a9ff;
+  --sc-track-hero:#f8f8f8; --sc-track-hero-dark:#000; --sc-track-card-dark:#222; --sc-track-outline-dark:#3c3c3c; --sc-track-muted-dark:#888;
+  --sc-bg-dark:#121212; --sc-text-dark:#e5e5e5; --sc-text-2-dark:#999; --sc-line-dark:#262626; --sc-wave-dark:#555; --sc-skel-dark:rgba(255,255,255,.08);
+  --pf-frame:#000; --pf-frame-line:rgba(255,255,255,.14);
+  --br-frame:#202124; --br-bar:#35363a; --br-field:#202124; --br-text:#e8eaed; --br-text-2:#9aa0a6;
+  --sp-hero-shade:rgba(0,0,0,.45); --sp-verified:#4cb3ff;
+  --sp-search-bg:#1f1f1f; --sp-artist-verified:#b8edc1;
+  --sp-home-filter-bg:#281b1d; --sp-home-chip:rgba(255,255,255,.1);
+}

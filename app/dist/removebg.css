@@ -1,0 +1,50 @@
+/* Remove Background: the picture on the left with its tools bar, the three tools and the common panel on the right */
+body{padding:4px 18px 24px}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;max-width:1400px;margin:0 auto;align-items:start}
+@media (max-width:1000px){.work{grid-template-columns:minmax(0,1fr)}}
+.monitor{display:flex;flex-direction:column;gap:10px;min-width:0}
+.bar{display:flex;align-items:center;gap:6px;min-width:0}
+.bar .modes{flex:none}
+.tabs .tab{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.tabs .tab .i{width:14px;height:14px}
+.spacer{flex:1}
+.bezel{display:flex;justify-content:center;padding:10px;border-radius:var(--r-lg);background:transparent}
+.stage{position:relative;width:100%;min-height:360px;height:66vh;overflow:hidden;border-radius:var(--r-xs);background:var(--viewer);touch-action:none;user-select:none}
+.stage-empty{position:absolute;inset:0;min-height:0;border:0;border-radius:0}
+/* the result over the chosen backdrop (its own layer: a canvas's background is not repainted when it changes); the
+   blue selection on top of it */
+.stage[data-bg=checker] .cmp .layer.after>.matte{background:repeating-conic-gradient(var(--checker-a) 0 25%,var(--checker-b) 0 50%) 0 0/20px 20px}
+.stage[data-bg=black] .cmp .layer.after>.matte{background:var(--matte-dark)}
+.stage[data-bg=white] .cmp .layer.after>.matte{background:var(--matte-light)}
+.stage[data-bg=color] .cmp .layer.after>.matte{background:var(--k-color)}
+.stage.mask .cmp .layer.after>.matte{background:var(--matte-dark)}
+.stage[data-mode=wand] .cmp{cursor:crosshair}
+.stage[data-mode=brush] .cmp{cursor:none}
+.stage .cmp.panning{cursor:grabbing}
+.stage .ring{position:absolute;left:0;top:0;border-radius:50%;box-shadow:0 0 0 1px var(--text),0 0 0 2px var(--guide-shade);pointer-events:none}
+.stage .ring.fg{border:1px dashed var(--text)}
+.stage .busy{position:absolute;inset:0;display:grid;place-items:center;background:var(--busy-dim)}
+.info{display:flex;align-items:center;gap:12px;min-width:0;padding:10px;border:1px solid var(--line-soft);border-radius:var(--r-bubble);background:var(--surface);box-shadow:inset 0 1px 0 var(--edge)}
+.info img{flex:none;width:46px;height:46px;border-radius:var(--r-sm);object-fit:cover;background:var(--raised)}
+.info div{min-width:0}
+.info b{display:block;overflow:hidden;font-size:13px;text-overflow:ellipsis;white-space:nowrap}
+.info span{display:block;color:var(--text-2);font-size:12px}
+.rack{display:flex;flex-direction:column;gap:10px;min-width:0}
+.opts{display:flex;flex-direction:column;gap:12px}
+.tool .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brushopts{display:flex;flex-direction:column;gap:12px}
+.lbl{display:block;margin-bottom:6px}
+.bgs{display:flex;gap:6px;align-items:center}
+.bgs button{width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer}
+.bgs button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
+.bgs [data-bg=checker]{background:repeating-conic-gradient(var(--checker-a) 0 25%,var(--checker-b) 0 50%) 0 0/10px 10px}
+.bgs [data-bg=black]{background:var(--matte-dark)}
+.bgs [data-bg=white]{background:var(--matte-light)}
+.bgs input[type=color]{width:30px;height:30px}
+/* how the tool is used: the two kinds of prompt, with the colours of their dots on the picture */
+.how{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;padding:0;list-style:none;font-size:12.5px}
+.how li{display:flex;align-items:center;gap:8px}
+.how li::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1.5px var(--text)}
+.how li.fg::before{background:var(--fg-select)}
+.how li.bg::before{background:var(--bg-select)}
+.how li.bg{color:var(--text-2)}

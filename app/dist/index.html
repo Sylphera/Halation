@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title data-i18n="app.name"></title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="media.css">
+<link rel="stylesheet" href="libpanel.css">
+<script src="i18n.js"></script><script src="render-budget.js"></script><script src="common.js"></script>
+<script src="icons.js"></script>
+<script src="gsap.min.js"></script><script src="Flip.min.js"></script><script src="motion.js"></script>
+<script src="soft-light.js"></script>
+<script src="modules.js"></script>
+<script src="imgops.js"></script>
+<script src="compare.js"></script>
+</head>
+<body class="booting">
+<!-- while the app starts: its shape, until it is there (shell.js enterApp) -->
+<div class="bootsk" id="bootSkel" aria-hidden="true"><div class="sk bsk-rail"></div><div class="bsk-main"><div class="sk bsk-logo"></div><div class="sk bsk-word"></div><div class="sk bsk-note"></div><div class="sk bsk-tools"></div></div></div>
+<script src="blue-noise.js"></script><script src="auralis.js"></script><script src="atmosphere.js"></script>
+<nav class="rail bubble" data-i18n-aria-label="shell.sections">
+  <span class="rail-pill" id="railPill" aria-hidden="true"></span>
+  <!-- tabs built from the module registry (modules.js, shell.js buildRail) -->
+  <div class="rail-tabs" id="railTop" role="tablist" aria-orientation="vertical"></div>
+  <span class="spacer"></span>
+  <div class="rail-tabs" id="railBottom" role="tablist" aria-orientation="vertical"></div>
+</nav>
+
+<div class="frame">
+<div class="panel">
+<header class="head">
+  <h1 id="pageTitle"></h1>
+  <span class="sync" id="sync" hidden><i></i><span id="syncText"></span></span>
+  <span class="backto" id="backTo" hidden><button class="btn sm primary" id="backToBtn" data-icon="corner-up-left" data-i18n-title="send.backToTip"><span id="backToText"></span></button><button class="btn sm ghost icon" id="backToX" data-icon="x" data-i18n-title="send.backDismiss" data-i18n-aria-label="send.backDismiss"></button></span>
+  <span class="spacer"></span>
+  <!-- One processes surface: its quiet header expands into the tray below. -->
+  <div class="island" id="procIsland" role="status" aria-live="polite" data-state="rest" data-placed="0">
+    <span class="isl-bg"></span>
+    <div class="isl-head">
+    <button class="isl-in" id="procBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="procTray">
+      <span class="isl-mark"><svg class="isl-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="trk" cx="10" cy="10" r="7.5"/><circle class="arc" cx="10" cy="10" r="7.5"/></svg><i class="isl-core"></i></span>
+      <span class="isl-th"></span><span class="isl-text"><span class="isl-tick"><b class="isl-t"></b><span class="isl-s"></span></span></span><span class="isl-p"></span><span class="isl-n"></span>
+    </button>
+    <span class="isl-acts"><button class="btn sm ghost icon isl-reveal" type="button" data-icon="folder-open" tabindex="-1"></button><button class="btn sm ghost icon isl-hold" type="button" data-icon="pause" tabindex="-1"></button><button class="btn sm ghost icon isl-x" type="button" data-icon="x" tabindex="-1"></button></span>
+    <button class="btn sm ghost isl-act" type="button" hidden></button>
+    <span class="pmenuwrap isl-menu"><button class="btn sm ghost icon" id="procMore" type="button" data-icon="ellipsis" aria-haspopup="menu" aria-expanded="false" data-i18n-title="proc.more" data-i18n-aria-label="proc.more"></button>
+        <span class="menu" id="procMenu" role="menu" hidden><button role="menuitem" type="button" data-menu="queued" data-i18n="proc.cancelQueued"></button><button role="menuitem" type="button" data-menu="finished" data-i18n="proc.clearFinished"></button></span></span>
+    </div>
+    <div class="ptray" id="procTray" role="dialog" aria-modal="false" tabindex="-1" data-i18n-aria-label="proc.title" hidden>
+    <div class="pcounts" id="procCounts"></div>
+    <div class="plist" id="procList" role="listbox" data-i18n-aria-label="proc.title"></div>
+    <footer class="pfoot"><button class="btn sm ghost" id="procCancelAll" type="button" hidden></button></footer>
+  </div>
+  <div class="toolbox" id="toolbox">
+  <span class="tb-bg" aria-hidden="true"></span>
+  <button class="btn ghost icon" id="keysBtn" data-icon="keyboard" aria-haspopup="dialog" data-i18n-title="keys.open" data-i18n-aria-label="keys.open"></button>
+  <button class="btn ghost icon" id="openBase" data-icon="folder-open" data-i18n-title="shell.openBaseTip" data-i18n-aria-label="shell.openBase"></button>
+  <div class="langwrap">
+    <button class="btn ghost icon" id="langBtn" data-icon="globe" aria-haspopup="menu" aria-expanded="false" data-i18n-title="shell.language" data-i18n-aria-label="shell.language"></button>
+    <div class="menu" id="langMenu" role="menu" hidden>
+      <button role="menuitemradio" data-lang="en" data-i18n="lang.en"></button>
+      <button role="menuitemradio" data-lang="es" data-i18n="lang.es"></button>
+    </div>
+  </div>
+  <div class="langwrap" id="sessionWrap">
+    <button class="btn ghost icon" id="sessionBtn" data-icon="save" aria-haspopup="menu" aria-expanded="false" data-i18n-title="session.save" data-i18n-aria-label="session.save"></button>
+    <div class="menu" id="sessionMenu" role="menu" hidden>
+      <button role="menuitem" data-session="save" data-i18n="session.save"></button>
+      <button role="menuitem" data-session="saveAs" data-i18n="session.saveAs"></button>
+      <button role="menuitem" data-session="open" data-i18n="session.open"></button>
+    </div>
+  </div>
+  </div>
+  </div>
+</header>
+
+<main class="views" id="views">
+  <div class="toolsk" id="toolSkel" role="status" hidden></div>
+  <section class="view page" id="v-home" data-i18n-aria-label="tab.home">
+    <div class="page-in wide home">
+      <div class="hero"><span class="hero-mark"><img class="logo" src="img/halation-mark.svg" alt="Halation" width="573" height="282" draggable="false"></span><svg class="word" viewBox="0 -80 760.2 82" aria-hidden="true"><path d="M61.62 0V-78H86.89V0ZM0 0V-78H25.27V0ZM18.88 -31.2V-47.27H74.88V-31.2ZM103.21 0 137.69 -78H170.45L204.77 0H177.47L154.38 -62.52H153.44L130.2 0ZM122.71 -13.83V-27.3H188.39V-13.83ZM221.09 0V-78H246.36V0ZM225.45 0V-16.31H285.51V0ZM296.68 0 331.16 -78H363.92L398.24 0H370.94L347.85 -62.52H346.92L323.67 0ZM316.18 -13.83V-27.3H381.86V-13.83ZM435.93 0V-78H461.2V0ZM410.5 -61.69V-78H486.63V-61.69ZM504.51 0V-78H529.94V0ZM596.8 1.65Q585.88 1.65 577.14 -0.95Q568.41 -3.55 562.32 -8.63Q556.24 -13.71 553.04 -21.27Q549.84 -28.84 549.84 -38.65Q549.84 -52.59 555.85 -61.63Q561.86 -70.67 572.7 -75.16Q583.54 -79.65 597.74 -79.65Q608.66 -79.65 617.31 -77.11Q625.97 -74.57 632.06 -69.49Q638.14 -64.41 641.34 -56.79Q644.54 -49.16 644.54 -39.12Q644.54 -28.95 641.18 -21.27Q637.83 -13.59 631.51 -8.51Q625.19 -3.43 616.38 -0.89Q607.56 1.65 596.8 1.65ZM597.74 -14.06Q604.76 -14.06 609.36 -16.72Q613.96 -19.38 616.22 -24.76Q618.48 -30.14 618.48 -38.29Q618.48 -46.92 616.07 -52.59Q613.65 -58.26 608.89 -61.16Q604.13 -64.05 596.96 -64.05Q590.09 -64.05 585.41 -61.28Q580.73 -58.5 578.39 -52.95Q576.05 -47.39 576.05 -39.12Q576.05 -32.85 577.38 -28.13Q578.7 -23.4 581.43 -20.27Q584.16 -17.14 588.22 -15.6Q592.28 -14.06 597.74 -14.06ZM664.44 0V-78H698.29L734.95 -25.17H735.27V-78H760.23V0H728.4L689.71 -54.6H689.4V0Z"/></svg><p class="note" data-i18n="home.tagline"></p></div>
+      <div class="hcards" id="hcards"></div>
+      <div class="homecols">
+        <!-- the drop target: a song opens in the Audio Visualizer; an image asks, right here, where it goes -->
+        <div class="homedrop" id="homeDrop" role="button" tabindex="0" data-i18n-aria-label="home.drop">
+          <div class="hd-idle">
+            <span class="hd-ic" data-icon="upload"></span>
+            <span class="hd-tx"><b data-i18n="home.drop"></b><small data-i18n="home.dropSub"></small></span>
+          </div>
+          <div class="hd-choice" id="homeChoice" hidden>
+            <span class="hd-thumb" id="homeChoiceThumb"></span>
+            <span class="hd-tx"><b id="homeChoiceName"></b><small data-i18n="home.dropWhere"></small></span>
+            <span class="hd-acts" id="homeChoiceActs">
+              <button class="btn sm" data-to="grade" data-icon="palette"><span data-i18n="tab.grade"></span></button>
+              <button class="btn sm" data-to="upscale" data-icon="image-up"><span data-i18n="tab.upscale"></span></button>
+              <button class="btn sm" data-to="cover" data-icon="audio-lines"><span data-i18n="home.asCoverShort"></span></button>
+              <button class="btn sm" data-to="cutout" data-icon="scissors"><span data-i18n="home.cutShort"></span></button>
+              <button class="btn sm ghost icon" data-to="cancel" data-icon="x" data-i18n-title="common.cancel" data-i18n-aria-label="common.cancel"></button>
+            </span>
+          </div>
+          <p class="sr" data-i18n="home.dropNote"></p>
+          <input type="file" id="homeIn" accept="image/*,audio/*,.mp3,.wav,.flac,.m4a,.aac,.ogg,.opus" hidden>
+        </div>
+        <section class="card">
+          <div class="card-h"><h2><span data-i18n="home.recent"></span> <span class="n" id="cntRecent"></span></h2><button class="btn sm ghost" id="recentClear" data-icon="x" hidden><span data-i18n="home.clearRecent"></span></button></div>
+          <div class="rgrid" id="recent"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section class="view page" id="v-library" data-i18n-aria-label="tab.library">
+    <div class="page-in wide paged">
+      <!-- the tabs are filters over one index (services.js libdata); the view is libpanel.js -->
+      <div class="pbar">
+        <nav class="tabs pnav" id="libNav" role="tablist" data-i18n-aria-label="tab.library">
+          <button class="tab" role="tab" data-tab="all"><span data-i18n="lib.tab.all"></span></button>
+          <button class="tab" role="tab" data-tab="assets"><span data-i18n="lib.tab.assets"></span></button>
+          <button class="tab" role="tab" data-tab="presets"><span data-i18n="lib.tab.presets"></span></button>
+          <button class="tab" role="tab" data-tab="exports"><span data-i18n="lib.tab.exports"></span></button>
+        </nav>
+        <button class="btn sm ghost icon" id="libRefresh" data-icon="refresh-cw" data-i18n-title="lib.refreshTip" data-i18n-aria-label="lib.refresh"></button>
+        <button class="btn sm" id="libAdd" data-icon="plus"><span data-i18n="lib.add"></span></button>
+      </div>
+      <div class="pbody">
+        <div id="libPanel"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view page" id="v-settings" data-i18n-aria-label="tab.settings">
+    <div class="page-in paged">
+      <!-- the sections of the page as tabs at the top: a click scrolls to one, the one in view is selected (shell.js pageNav).
+           Each section shows what a user touches; the rest waits behind its own "Advanced" (docs/SETTINGS_SPEC.md) -->
+      <div class="pbar">
+        <nav class="tabs pnav" id="setNav" role="tablist" data-i18n-aria-label="tab.settings">
+          <button class="tab" role="tab" data-sec="sg-general" data-i18n="set.g.general"></button>
+          <button class="tab" role="tab" data-sec="sg-you" data-i18n="set.g.you"></button>
+          <button class="tab" role="tab" data-sec="sg-files" data-i18n="set.g.files"></button>
+          <button class="tab" role="tab" data-sec="sg-processing" data-i18n="set.g.processing"></button>
+          <button class="tab" role="tab" data-sec="sg-tools" data-i18n="set.g.tools"></button>
+          <button class="tab" role="tab" data-sec="sg-storage" data-i18n="set.g.storage"></button>
+          <button class="tab" role="tab" data-sec="sg-about" data-i18n="set.g.about"></button>
+        </nav>
+        <div class="set-search">
+          <span class="set-search-icon" data-icon="search" aria-hidden="true"></span>
+          <input type="search" id="setSearch" autocomplete="off" data-i18n-placeholder="set.search" data-i18n-aria-label="set.search" aria-controls="setSearchResults" aria-expanded="false">
+          <button class="btn sm ghost icon" id="setSearchClear" data-icon="x" data-i18n-title="common.clear" data-i18n-aria-label="common.clear" hidden></button>
+          <div class="bubble set-search-results" id="setSearchResults" data-i18n-aria-label="set.searchResults" hidden></div>
+        </div>
+        <button class="btn sm ghost" id="setReset" data-icon="rotate-ccw"><span data-i18n="set.reset"></span></button>
+      </div>
+      <div class="pbody">
+      <section class="card" id="sg-general">
+        <h2 data-i18n="set.g.general"></h2>
+        <label class="f setlang"><span data-i18n="set.language"></span><select id="setLanguage"><option value="en" data-i18n="lang.en"></option><option value="es" data-i18n="lang.es"></option></select></label>
+        <label class="tog" for="setReduceMotion"><span data-i18n="set.reduceMotion"></span><input type="checkbox" id="setReduceMotion"></label>
+        <label class="tog" for="setShowProcesses"><span data-i18n="set.showProcesses"></span><input type="checkbox" id="setShowProcesses"></label>
+        <label class="tog" for="setNotifyDone"><span data-i18n="set.notifyDone"></span><input type="checkbox" id="setNotifyDone"></label>
+        <p class="note" data-i18n="set.notifyDoneNote"></p>
+        <details class="adv" data-adv="general"><summary data-i18n="set.advanced"></summary>
+          <p class="note" data-i18n="set.reduceMotionNote"></p>
+          <div class="acts"><button class="btn" id="testNotify" data-icon="info"><span data-i18n="set.testNotify"></span></button></div>
+          <p class="note" id="notifyResult"></p>
+        </details>
+      </section>
+      <section class="card" id="sg-you">
+        <h2 data-i18n="set.g.you"></h2>
+        <label class="f"><span data-i18n="set.artistName"></span><input type="text" id="setArtistName" maxlength="80" data-i18n-placeholder="set.artistNamePh"></label>
+        <p class="note" data-i18n="set.artistNote"></p>
+        <div class="grid2 links" id="setLinks"></div>
+        <div class="acts"><button class="btn" id="setFind" data-icon="search"><span data-i18n="set.findLinks"></span></button></div>
+        <p class="note" data-i18n="set.linksNote"></p>
+      </section>
+      <section class="card" id="sg-files">
+        <h2 data-i18n="set.g.files"></h2>
+        <h3 data-i18n="save.setting"></h3>
+        <div class="radios">
+          <label class="radio"><input type="radio" name="saveMode" value="ask-every-time"><span><b data-i18n="save.ask"></b><small data-i18n="save.askNote"></small></span></label>
+          <label class="radio"><input type="radio" name="saveMode" value="halation-folder"><span><b data-i18n="save.folder"></b><small data-i18n="save.folderNote"></small></span></label>
+        </div>
+        <div class="row exprow"><b data-i18n="save.folder"></b><code id="setExportsPath"></code><button class="btn sm" data-open="base" data-i18n="save.openFolder"></button></div>
+        <details class="adv" data-adv="files"><summary data-i18n="set.advanced"></summary>
+          <div class="grid2">
+            <label class="f"><span data-i18n="set.videoName"></span><input type="text" id="setVideoName" maxlength="120" spellcheck="false"></label>
+            <label class="f"><span data-i18n="set.imageName"></span><input type="text" id="setImageName" maxlength="120" spellcheck="false"></label>
+          </div>
+          <p class="note" data-i18n="set.namingNote"></p>
+          <p class="note mono" id="namePreview"></p>
+        </details>
+      </section>
+      <section class="card" id="sg-processing">
+        <h2 data-i18n="set.g.processing"></h2>
+        <label class="f"><span data-i18n="set.proc.mode"></span><select id="setProcMode"><option value="quiet" data-i18n="set.proc.quiet"></option><option value="balanced" data-i18n="set.proc.balanced"></option><option value="fast" data-i18n="set.proc.fast"></option></select></label>
+        <p class="note" id="setProcModeNote"></p>
+        <label class="tog" for="setProcGpu"><span data-i18n="set.proc.gpu"></span><input type="checkbox" id="setProcGpu"></label>
+        <p class="note" id="setProcGpuNote" data-i18n="set.proc.gpuNote"></p>
+        <label class="f"><span data-i18n="set.proc.stems"></span><select id="setProcStems"><option value="auto" data-i18n="set.proc.stems.auto"></option><option value="cpu" data-i18n="set.proc.stems.cpu"></option></select></label>
+        <p class="note" data-i18n="set.proc.stemsNote"></p>
+        <details class="adv" data-adv="processing"><summary data-i18n="set.advanced"></summary>
+          <div class="grid3">
+            <label class="f"><span data-i18n="set.proc.cpu"></span><select id="setLimCpu" data-lim="cpu"></select></label>
+            <label class="f"><span data-i18n="set.proc.gpuN"></span><select id="setLimGpu" data-lim="gpu"></select></label>
+            <label class="f"><span data-i18n="set.proc.net"></span><select id="setLimNet" data-lim="net"></select></label>
+          </div>
+          <label class="f"><span data-i18n="set.proc.minimized"></span><select id="setProcMin"><option value="continue" data-i18n="set.proc.min.continue"></option><option value="pause" data-i18n="set.proc.min.pause"></option></select></label>
+          <div class="codecs" id="codecs"></div>
+        </details>
+      </section>
+      <section class="card" id="sg-tools">
+        <h2 data-i18n="set.g.tools"></h2>
+        <p class="note" data-i18n="set.modulesNote"></p>
+        <div class="mods" id="modules"></div>
+        <h3 data-i18n="set.components"></h3>
+        <div class="rows comps" id="tools"></div>
+        <div class="prog" id="toolsProg" hidden><i id="toolsBar"></i></div>
+        <p class="status" id="toolsStatus"></p>
+        <details class="adv" data-adv="tools"><summary data-i18n="set.advanced"></summary>
+          <p class="note" data-i18n="set.toolsNote"></p>
+          <div class="acts"><button class="btn" id="updateEngine" data-icon="refresh-cw"><span data-i18n="set.updateEngine"></span></button><button class="btn ghost" data-open="tools" data-icon="folder-open"><span data-i18n="set.openTools"></span></button></div>
+        </details>
+      </section>
+      <section class="card" id="sg-storage">
+        <div class="card-h"><h2 data-i18n="set.g.storage"></h2><button class="btn sm" id="clearCache" data-icon="eraser"><span data-i18n="set.cleanNow"></span></button></div>
+        <p class="total" id="storageTotal"></p>
+        <div class="sbars" id="storageBars"></div>
+        <label class="f cachelim"><span data-i18n="set.budget"></span><select id="setBudget"><option value="2048">2 GB</option><option value="4096">4 GB</option><option value="8192">8 GB</option><option value="16384">16 GB</option><option value="32768">32 GB</option></select></label>
+        <p class="note" data-i18n="set.budgetNote"></p>
+        <details class="adv" data-adv="storage"><summary data-i18n="set.advanced"></summary>
+          <p class="note" data-i18n="set.storageNote"></p>
+          <div class="rows sizes" id="storageApp"></div>
+          <h3 data-i18n="set.st.user"></h3>
+          <p class="note" data-i18n="set.st.userNote"></p>
+          <div class="rows sizes" id="storageUser"></div>
+        </details>
+      </section>
+      <section class="card" id="sg-about">
+        <h2 data-i18n="set.g.about"></h2>
+        <div class="about"><img class="logo" src="img/halation-mark.svg" alt="Halation" width="573" height="282"><p class="note" id="about"></p>
+          <div class="acts"><button class="btn sm" id="licenseBtn" data-legal="license" data-i18n="set.license"></button><button class="btn sm" id="noticesBtn" data-legal="notices" data-i18n="set.notices"></button></div></div>
+        <h3 data-i18n="set.upd"></h3>
+        <label class="f setupd"><span data-i18n="set.upd.notify"></span><select id="setUpdates"><option value="ask" data-i18n="set.upd.ask"></option><option value="activity" data-i18n="set.upd.activity"></option><option value="off" data-i18n="set.upd.off"></option></select></label>
+        <label class="tog" for="setWhatsNew"><span data-i18n="set.upd.whatsNew"></span><input type="checkbox" id="setWhatsNew"></label>
+        <div class="acts"><button class="btn sm" id="updCheck" data-icon="refresh-cw"><span data-i18n="set.upd.check"></span></button><button class="btn sm primary" id="updAction" hidden></button></div>
+        <p class="note" id="updStatus" role="status"></p>
+        <h3 data-i18n="set.folders"></h3>
+        <p class="note" data-i18n="set.foldersNote"></p>
+        <div class="rows" id="folders"></div>
+        <h3 data-i18n="set.previous"></h3>
+        <p class="note" id="migration" data-i18n="common.loading"></p>
+      </section>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<dialog class="modal" id="saveLocationChoice" aria-labelledby="saveLocationTitle">
+  <form method="dialog">
+    <h2 id="saveLocationTitle" data-i18n="save.title"></h2>
+    <p class="note" data-i18n="save.intro"></p>
+    <div class="radios">
+      <label class="radio"><input type="radio" name="initialSaveMode" value="ask-every-time" checked><span><b data-i18n="save.askRecommended"></b><small data-i18n="save.askNote"></small></span></label>
+      <label class="radio"><input type="radio" name="initialSaveMode" value="halation-folder"><span><b data-i18n="save.folder"></b><small data-i18n="save.folderNote"></small></span></label>
+    </div>
+    <p class="note" data-i18n="save.changeAnytime"></p>
+    <div class="macts"><button class="btn" value="cancel" data-i18n="common.cancel"></button><button class="btn primary" value="continue" data-i18n="save.continue"></button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="modal">
+  <form method="dialog">
+    <h2 id="mTitle"></h2>
+    <p class="note" id="mText"></p>
+    <input type="text" id="mInput" maxlength="80" autocomplete="off">
+    <p class="merr" id="mErr"></p>
+    <div class="macts"><button class="btn" id="mCancel" value="cancel" formnovalidate data-i18n="common.cancel"></button><button class="btn" id="mAlt" value="alt" hidden></button><button class="btn primary" id="mOk" value="ok"></button></div>
+  </form>
+</dialog>
+<dialog class="modal upd" id="updDlg" aria-labelledby="uTitle">
+  <form method="dialog">
+    <h2 id="uTitle"></h2>
+    <p class="note" id="uSub"></p>
+    <div class="upd-notes" id="uNotes"></div>
+    <div class="macts" id="uActs"></div>
+  </form>
+</dialog>
+<dialog class="welcome-flow" id="welcome" aria-labelledby="wTitle" data-phase="seed">
+  <div class="wl-veil" aria-hidden="true"><canvas class="wl-background"></canvas></div>
+  <div class="wl-object">
+    <div class="bubble wl-surface" aria-hidden="true"></div>
+    <div class="wl-brand">
+      <img class="wl-mark" src="img/halation-mark.svg" alt="Halation" width="573" height="282" draggable="false">
+      <span class="wl-wordmark" aria-hidden="true">HALATION</span>
+    </div>
+    <form id="wForm" novalidate>
+      <div class="wl-body">
+        <div class="wl-heading"><h1 id="wTitle" data-i18n="welcome.introTitle"></h1><p id="wText" data-i18n="welcome.introText"></p></div>
+        <div class="wl-identity" id="wLanguage" hidden>
+          <div class="radios" role="radiogroup" aria-labelledby="wTitle">
+            <label class="radio"><input type="radio" name="welcomeLanguage" value="en"><span><b lang="en" data-i18n="welcome.languageEnglish"></b></span></label>
+            <label class="radio"><input type="radio" name="welcomeLanguage" value="es"><span><b lang="es" data-i18n="welcome.languageSpanish"></b></span></label>
+          </div>
+          <p class="wl-status" id="wLanguageStatus" role="status" hidden></p>
+        </div>
+        <div id="wIntro">
+          <p class="wl-description" data-i18n="welcome.introNote"></p>
+          <div class="wl-concepts" aria-hidden="true"><span data-i18n="welcome.create"></span><i></i><span data-i18n="welcome.refine"></span><i></i><span data-i18n="welcome.release"></span></div>
+        </div>
+        <div class="wl-identity" id="wIdentity" hidden>
+          <label class="sr" for="wName" data-i18n="set.artistName"></label>
+          <input type="text" id="wName" maxlength="80" autocomplete="off" spellcheck="false" data-i18n-placeholder="welcome.namePh">
+          <p class="wl-later" data-i18n="welcome.identityNote"></p>
+          <p class="wl-status" id="wStatus" role="status" hidden></p>
+        </div>
+        <div class="findlist wl-profiles" id="wProfiles" aria-live="polite" hidden></div>
+      </div>
+      <div class="wl-footer">
+        <div class="wl-progress" id="wProgress" role="img" data-i18n-aria-label="welcome.step1"><span aria-current="step"></span><span></span><span></span></div>
+        <div class="wl-actions"><button type="button" class="btn ghost" id="wSkip" data-i18n="welcome.skipSetup"></button><button type="submit" class="btn primary" id="wOk" data-i18n="welcome.getStarted"></button></div>
+      </div>
+    </form>
+  </div>
+</dialog>
+<dialog class="modal packsdlg" id="packsDlg" data-i18n-aria-label="set.packs">
+  <form method="dialog">
+    <h2 data-i18n="set.packs"></h2>
+    <p class="note" data-i18n="set.packsNote"></p>
+    <div class="rows comps" id="packs"></div>
+    <div class="macts"><button class="btn" value="close" data-i18n="common.close"></button></div>
+  </form>
+</dialog>
+<dialog class="modal welcome find" id="findDlg" data-i18n-aria-label="find.title">
+  <form method="dialog">
+    <h2 data-i18n="find.title"></h2>
+    <p class="note" id="findText"></p>
+    <div class="findlist" id="findList" aria-live="polite"></div>
+    <p class="note wl-later" data-i18n="find.later"></p>
+    <div class="macts"><button class="btn primary" id="findDone" value="done" data-i18n="find.done"></button></div>
+  </form>
+</dialog>
+<dialog class="modal libpick" id="libPick" data-i18n-aria-label="lib.choose">
+  <div class="keys-h"><h2 data-i18n="lib.choose"></h2><button class="btn ghost icon" id="libPickClose" data-icon="x" data-i18n-aria-label="common.close"></button></div>
+  <div id="libPickBody"></div>
+</dialog>
+<dialog class="modal keys" id="keys" data-i18n-aria-label="keys.title">
+  <div class="keys-h"><h2 data-i18n="keys.title"></h2><button class="btn ghost icon" id="keysClose" data-icon="x" data-i18n-aria-label="common.close"></button></div>
+  <div class="keys-body" id="keysBody"></div>
+</dialog>
+<dialog class="modal keys legal" id="legalDlg" aria-labelledby="legalTitle">
+  <div class="keys-h"><h2 id="legalTitle"></h2><button class="btn ghost icon" id="legalClose" data-icon="x" data-i18n-aria-label="common.close"></button></div>
+  <pre class="legal-body" id="legalBody" tabindex="0"></pre>
+</dialog>
+<dialog class="modal media" id="cropDlg" data-i18n-aria-label="crop.title">
+  <div class="mhead"><h2 id="cropTitle"></h2><span class="note mono" id="cropInfo"></span><span class="spacer"></span><button class="btn ghost icon" id="cropClose" data-icon="x" data-i18n-aria-label="common.close" data-i18n-title="common.close"></button></div>
+  <div class="mbody">
+    <div class="cstage" id="cropStage"><img id="cropImg" alt="" draggable="false">
+      <div class="cframe" id="cropFrame"><i class="g3" aria-hidden="true"></i><b data-h="n"></b><b data-h="s"></b><b data-h="e"></b><b data-h="w"></b><b data-h="ne"></b><b data-h="nw"></b><b data-h="se"></b><b data-h="sw"></b></div>
+    </div>
+    <aside class="mside">
+      <div class="f" id="cropCanvas" hidden><div class="tabs" role="radiogroup" id="cropMode" data-i18n-aria-label="crop.canvas">
+        <button class="tab" role="radio" data-mode="crop" aria-checked="true" id="cropModeCrop"></button>
+        <button class="tab" role="radio" data-mode="canvas" aria-checked="false" data-i18n="crop.changeCanvas"></button>
+      </div><div class="chips" id="cropFormats" hidden></div></div>
+      <p class="badge-info need" id="cropNeed" hidden></p>
+      <div class="f" id="cropRatioRow"><span data-i18n="crop.ratio"></span><div class="chips" id="cropRatios"></div></div>
+      <div class="f"><div class="fl"><label for="cropZoom" data-i18n="crop.zoom"></label><output id="oCropZoom"></output></div><input type="range" data-def="1" id="cropZoom" min="1" max="8" step="0.01" value="1"></div>
+      <div class="f"><div class="fl"><label for="cropRot" data-i18n="crop.rotate"></label><output id="oCropRot"></output></div><input type="range" data-def="0" id="cropRot" min="-45" max="45" step="0.1" value="0" data-i18n-title="common.dblReset"></div>
+      <label class="tog" for="cropGrid"><span data-i18n="crop.grid"></span><input type="checkbox" id="cropGrid" checked></label>
+      <p class="note mono" id="cropOut"></p>
+      <p class="hint" data-i18n="crop.hint"></p>
+    </aside>
+  </div>
+  <div class="macts"><button class="btn ghost" id="cropReset" data-icon="rotate-ccw"><span data-i18n="crop.reset"></span></button><span class="spacer"></span><button class="btn" id="cropCancel" data-i18n="common.cancel"></button><button class="btn primary" id="cropApply" data-i18n="common.apply"></button></div>
+</dialog>
+<dialog class="modal media" id="cutDlg" data-i18n-aria-label="cut.title">
+  <div class="mhead"><h2 data-i18n="cut.title"></h2><span class="note mono" id="cutInfo"></span><span class="spacer"></span><button class="btn ghost icon" id="cutClose" data-icon="x" data-i18n-aria-label="common.close" data-i18n-title="common.close"></button></div>
+  <div class="mbody">
+    <div class="kstage" id="cutStage" data-bg="checker">
+      <div class="cmp" id="cutCmp">
+        <div class="layer before"><img id="cutBefore" alt="" draggable="false"></div>
+        <div class="layer after"><div class="matte"></div><canvas id="cutView"></canvas></div>
+        <div class="div" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" data-i18n-aria-label="up.cmpDivider"><span class="knob" data-icon="chevrons-left-right"></span></div>
+        <span class="lbl b" data-i18n="up.before"></span><span class="lbl a" data-i18n="up.after"></span>
+        <span class="zoom"></span>
+      </div>
+      <span class="ring" id="cutRing" hidden></span>
+      <div class="busy skel" id="cutBusy" hidden><div class="busynote"><span id="cutBusyText"></span><div class="prog indet"><i id="cutBusyBar"></i></div></div></div>
+    </div>
+    <aside class="mside">
+      <div class="f"><span data-i18n="cut.tool"></span><div class="tabs" role="radiogroup" id="cutTools" data-i18n-aria-label="cut.tool">
+        <button class="tab" role="radio" data-tool="compare" aria-checked="true" data-i18n="cut.compare"></button>
+        <button class="tab" role="radio" data-tool="add" aria-checked="false" data-i18n="cut.add"></button>
+        <button class="tab" role="radio" data-tool="remove" aria-checked="false" data-i18n="cut.remove"></button>
+      </div></div>
+      <div class="f"><div class="fl"><label for="cutSize" data-i18n="cut.size"></label><output id="oCutSize"></output></div><input type="range" data-def="60" id="cutSize" min="2" max="400" step="1" value="60"></div>
+      <p class="caption" data-i18n="cut.edge"></p>
+      <div class="f"><div class="fl"><label for="cutFeather" data-i18n="cut.feather"></label><output id="oCutFeather"></output></div><input type="range" data-def="0" id="cutFeather" min="0" max="20" step="0.5" value="0" data-i18n-title="common.dblReset"></div>
+      <div class="f"><div class="fl"><label for="cutShift" data-i18n="cut.shift"></label><output id="oCutShift"></output></div><input type="range" data-def="0" id="cutShift" min="-20" max="20" step="0.5" value="0" data-i18n-title="common.dblReset"></div>
+      <p class="caption" data-i18n="cut.bg"></p>
+      <div class="bgs" role="group" id="cutBgs" data-i18n-aria-label="cut.bg">
+        <button data-bg="checker" aria-pressed="true" data-i18n-title="cut.bg.checker" data-i18n-aria-label="cut.bg.checker"></button><button data-bg="black" aria-pressed="false" data-i18n-title="cut.bg.black" data-i18n-aria-label="cut.bg.black"></button><button data-bg="white" aria-pressed="false" data-i18n-title="cut.bg.white" data-i18n-aria-label="cut.bg.white"></button><input type="color" id="cutColor" data-i18n-title="cut.bg.color" data-i18n-aria-label="cut.bg.color">
+      </div>
+      <p class="status" id="cutStatus" role="status"></p>
+      <p class="hint" data-i18n="cut.hint"></p>
+    </aside>
+  </div>
+  <div class="macts"><button class="btn ghost" id="cutUndo" data-icon="undo-2"><span data-i18n="grade.undo"></span></button><button class="btn ghost" id="cutReset" data-icon="rotate-ccw"><span data-i18n="cut.reset"></span></button><span class="spacer"></span><button class="btn" id="cutCancel" data-i18n="common.cancel"></button><button class="btn primary" id="cutApply" data-i18n="common.apply"></button></div>
+</dialog>
+<div class="dropzone" id="dropzone" hidden data-i18n="shell.dropAny"></div>
+<div class="menu choose" id="imgChoice" role="menu" hidden>
+  <p class="choose-h" id="imgChoiceName"></p>
+  <button role="menuitem" data-to="grade"><span data-i18n="home.to.grade"></span></button>
+  <button role="menuitem" data-to="upscale"><span data-i18n="home.to.upscale"></span></button>
+  <button role="menuitem" data-to="cover"><span data-i18n="home.to.cover"></span></button>
+  <button role="menuitem" data-to="cutout"><span data-i18n="home.to.cutout"></span></button>
+</div>
+
+<script src="encoder.js"></script>
+<script src="welcome-background.js"></script>
+<script src="shell.js"></script>
+<script src="export-location.js"></script>
+<script src="jobs.js"></script>
+<script src="processes.js"></script>
+<script src="libpanel.js"></script>
+<script src="profile.js"></script>
+<script src="services.js"></script>
+<script src="sessions.js"></script>
+<script src="updates.js"></script>
+<script src="composition-keepalive.js"></script>
+</body>
+</html>
