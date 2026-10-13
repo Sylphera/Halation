@@ -78,7 +78,7 @@ One line per decision in force and why. Add a line for every new decision; remov
 - Reopening (Java, 2026-10-13): Halation and every tool open at their defaults. Interface state (expanded or collapsed
   panels, open sections, active tabs) lives only while the app runs: Settings' "Advanced" sections, the processes tray
   and its groups, the Library's tab and collections column, Grade's look category, Cover Test's platform, view, zoom,
-  distance and left tab. What the user chose on purpose stays: Settings, "Use as default", saved looks and presets,
+  distance and left tab, Background Remover's mode and backdrop, Vocal Remover's A/B switch. What the user chose on purpose stays: Settings, "Use as default", saved looks and presets,
   favourites, the Library's view and sort, and the work a crash brings back.
 - Grade's looks (Java, 2026-10-13): a click previews a look on the picture without a layer; "Add to layers" or a double
   click adds exactly one (docs/GRADE_LOOKS_SPEC.md §2.1).
