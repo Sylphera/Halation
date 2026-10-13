@@ -1,6 +1,6 @@
 # Code signing
 
-Status: **prepared, not active.** Releases are unsigned (Authenticode) until SignPath Foundation accepts the project.
+Status: **parked (2026-10-13).** SignPath Foundation accepts at its discretion and asks for reputation (downloads, stars, coverage); the project is too new. Apply once it has real use. Releases stay unsigned (Authenticode).
 The updater signature (minisign, `docs/UPDATES.md`) is separate and already active.
 
 ## Route

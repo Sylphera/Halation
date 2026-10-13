@@ -16,3 +16,4 @@ Parked ideas only, with a line on how each fits what exists.
 - Cutout: BiRefNet (better edges, MIT) as a second, larger model to choose in Settings → Modules; WebAssembly
   threads (needs the window cross-origin isolated) for the CPU path.
 - Intro: a complete redesign (Java, 2026-09-28), to be specified before any work.
+- Code signing (Authenticode) through SignPath Foundation, once the project has reputation (downloads, stars). Fit: everything is ready in `docs/SIGNING.md` (application answers, README section) and `docs/signing/build-signpath.patch` (CI); `build.yml` is untouched.
