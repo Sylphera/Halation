@@ -17,7 +17,7 @@ Focused tools for the media work between the big apps — no account, no waterma
 
 <p>
   <a href="https://github.com/Sylphera/Halation/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Sylphera/Halation?style=for-the-badge&labelColor=0b0b0a&label=latest&color=a3a8dc"></a>
-  <a href="https://github.com/Sylphera/Halation/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Sylphera/Halation/Halation_x64-setup.exe?style=for-the-badge&labelColor=0b0b0a&label=downloads&color=a3a8dc"></a>
+  <a href="https://github.com/Sylphera/Halation/releases"><img alt="Downloads" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FSylphera%2FHalation%2Fbadges%2Fdownloads.json&style=for-the-badge"></a>
   <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-2a2a27?style=for-the-badge&labelColor=0b0b0a"></a>
   <img alt="11 tools, one app" src="https://img.shields.io/badge/11_tools-one_app-2a2a27?style=for-the-badge&labelColor=0b0b0a">
   <img alt="No account, no watermark" src="https://img.shields.io/badge/no_account_%C2%B7_no_watermark-2a2a27?style=for-the-badge">
