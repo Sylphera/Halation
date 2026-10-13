@@ -1,8 +1,8 @@
 # Fondos propios: Auralis reescrito y nuevo fondo de Welcome
 
-> Estado (13-10-2026): es el código de este repo público; las builds publicadas siguen usando los fondos anteriores
-> desde Halation-source (privado). Auralis v2 no pasó la revisión visual: falta el grain del Auralis actual (es propio), ondas en vez de
-> pliegues, menos intensidad y más gradiente entre zonas fuertes y flojas. Objetivo: idéntico al actual.
+> Estado (13-10-2026): Auralis v3 aprobado visualmente por Java (vídeo lado a lado) e integrado en `app/dist/auralis.js`:
+> superficie de seda por deformación de dominio, grain del Auralis anterior al 50 %. v1 y v2 (pliegues) se descartaron.
+> La migración a este repo es total: la próxima release sale de aquí y Halation-source se elimina.
 
 Requisito para abrir el código (`docs/OPEN_SOURCE.md`). Los dos fondos actuales parten de componentes de 21st.dev sin
 licencia: Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork). Auralis se reescribe con código propio y el mismo

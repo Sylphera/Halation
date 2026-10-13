@@ -39,10 +39,10 @@ que llevó a la retirada de youtube-dl en 2020) cambiado por uno inventado. `.gi
 ## Pendiente de Java antes de publicar
 
 1. **Fondos de 21st.dev** (decisión de Java, 13-10-2026): Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork) vienen de
-   componentes de 21st.dev sin licencia y no están en el repo público. Aquí van la reescritura propia (Auralis v2 en sala
-   limpia y Welcome Cáusticas, `docs/BACKGROUNDS_SPEC.md`), pendiente de que Auralis quede idéntico al actual en un
-   thread aparte. Hasta entonces las builds y releases salen de Halation-source (privado, con los fondos anteriores) y
-   este repo no publica builds ni releases.
+   componentes de 21st.dev sin licencia y no están en el repo público. Aquí van la reescritura propia (Auralis v3 en sala
+   limpia, aprobado por Java el 13-10-2026, y Welcome Cáusticas, `docs/BACKGROUNDS_SPEC.md`). La migración es total: la
+   próxima release sale de este repo cuando Java la decida y Halation-source (privado, con los fondos anteriores) se
+   elimina.
 2. **Regla de autoría**: autorizada por Java el 13-10-2026; está en `CLAUDE.md` y `AGENTS.md` y cubre a cualquier agente
    (Claude Code, Codex u otro).
 3. **`docs/examples/grade.jpg`** (foto de The Weeknd, autor y licencia desconocidos): ya está en las capturas

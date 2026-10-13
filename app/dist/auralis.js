@@ -1,7 +1,8 @@
 // Auralis: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
-// Folded satin under a soft light drifts slowly along a 37° diagonal over a near-black, slightly blue base. The light field is drawn into a small
-// buffer (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size
-// (DPR up to 2) scales it with linear filtering and adds the stationary blue-noise grain and a ±1/255 dither.
+// Silk-like waves drift slowly along a diagonal over a near-black, slightly blue base: a domain-warped surface, lit
+// softly, with a few bright lobes, broad gradients and large dark voids. The light field is drawn into a small buffer
+// (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size (DPR up to
+// 2) scales it with linear filtering and adds a ±1/255 dither and Halation's stationary film grain.
 // window.__auralis.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
 (() => {
 "use strict";
@@ -59,170 +60,244 @@ float snoise(vec3 v){
   return 109.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }`;
 const mod289 = x => x - Math.floor(x * (1 / 289)) * 289, permute = x => mod289((x * 34 + 1) * x);
+// one corner's contribution: offset (cx, cy, cz) from the corner, lattice cell (i, j, k) already wrapped mod 289
+function corner(cx, cy, cz, i, j, k) {
+  const m = .5 - (cx * cx + cy * cy + cz * cz);
+  if (m <= 0) return 0;
+  const p = permute(permute(permute(k) + j) + i);
+  const q = p - 49 * Math.floor(p / 49), xa = Math.floor(q / 7), ya = Math.floor(q - 7 * xa);
+  let a = xa * (2 / 7) + (.5 / 7 - 1), b = ya * (2 / 7) + (.5 / 7 - 1);
+  const h = 1 - Math.abs(a) - Math.abs(b);
+  if (h < -1e-4) { a -= Math.floor(a) * 2 + 1; b -= Math.floor(b) * 2 + 1; }
+  const n = 1.79284291400159 - .85373472095314 * (a * a + b * b + h * h);
+  return m * m * m * m * n * (a * cx + b * cy + h * cz);
+}
+// allocation-free: it runs a few thousand times per measure of the stabiliser
 function snoise(x, y, z) {
   const s = (x + y + z) / 3;
   let i = Math.floor(x + s), j = Math.floor(y + s), k = Math.floor(z + s);
   const t = (i + j + k) / 6, x0 = x - i + t, y0 = y - j + t, z0 = z - k + t;
   const gx = x0 >= y0 ? 1 : 0, gy = y0 >= z0 ? 1 : 0, gz = z0 >= x0 ? 1 : 0;
-  const o1 = [Math.min(gx, 1 - gz), Math.min(gy, 1 - gx), Math.min(gz, 1 - gy)];
-  const o2 = [Math.max(gx, 1 - gz), Math.max(gy, 1 - gx), Math.max(gz, 1 - gy)];
-  const corners = [[x0, y0, z0], [x0 - o1[0] + 1 / 6, y0 - o1[1] + 1 / 6, z0 - o1[2] + 1 / 6],
-    [x0 - o2[0] + 1 / 3, y0 - o2[1] + 1 / 3, z0 - o2[2] + 1 / 3], [x0 - .5, y0 - .5, z0 - .5]];
-  const ox = [0, o1[0], o2[0], 1], oy = [0, o1[1], o2[1], 1], oz = [0, o1[2], o2[2], 1];
+  const i1 = Math.min(gx, 1 - gz), j1 = Math.min(gy, 1 - gx), k1 = Math.min(gz, 1 - gy);
+  const i2 = Math.max(gx, 1 - gz), j2 = Math.max(gy, 1 - gx), k2 = Math.max(gz, 1 - gy);
   i = mod289(i); j = mod289(j); k = mod289(k);
-  let sum = 0;
-  for (let c = 0; c < 4; c++) {
-    const p = permute(permute(permute(k + oz[c]) + j + oy[c]) + i + ox[c]);
-    const q = p - 49 * Math.floor(p / 49), xa = Math.floor(q / 7), ya = Math.floor(q - 7 * xa);
-    let a = xa * (2 / 7) + (.5 / 7 - 1), b = ya * (2 / 7) + (.5 / 7 - 1);
-    const h = 1 - Math.abs(a) - Math.abs(b), sh = h < -1e-4 ? -1 : 0;
-    a += (Math.floor(a) * 2 + 1) * sh; b += (Math.floor(b) * 2 + 1) * sh;
-    const n = 1.79284291400159 - .85373472095314 * (a * a + b * b + h * h), [cx, cy, cz] = corners[c];
-    const m = Math.max(.5 - (cx * cx + cy * cy + cz * cz), 0);
-    sum += m * m * m * m * n * (a * cx + b * cy + h * cz);
-  }
-  return 109 * sum;
+  return 109 * (corner(x0, y0, z0, i, j, k)
+    + corner(x0 - i1 + 1 / 6, y0 - j1 + 1 / 6, z0 - k1 + 1 / 6, i + i1, j + j1, k + k1)
+    + corner(x0 - i2 + 1 / 3, y0 - j2 + 1 / 3, z0 - k2 + 1 / 3, i + i2, j + j2, k + k2)
+    + corner(x0 - .5, y0 - .5, z0 - .5, i + 1, j + 1, k + 1));
 }
 
 /* ===== field ===== */
-// One description of the light, shared by the shader and the CPU estimate. p: centred position in screen heights;
-// t: field seconds. Everything lives in a frame turned 37° (x along the axis, y across it) that slides slowly along
-// its axis; a weak, very slow bend shifts the across coordinate. The folds are lines of constant phase: straight
-// lines (tilted a little steeper than the axis) displaced by a broad wave, which makes the S-curves and lets folds
-// crowd and part, and a finer one, which makes them split and merge. Each fold is a soft ridge of satin with a dark
-// groove beside it and a highlight on its lit flank. Clusters stretched along the axis gather the light, leaving
-// large near-black spaces, and a sheen that follows the folds makes their highlights fade softly at their ends.
-// Every rate is slow (about a hundredth of a unit per second), so the cloth drifts and morphs without popping.
+// One description of the light, shared by the shader and the CPU exposure estimate. p: centred position in screen
+// heights; t: field seconds. A frame turned along the diagonal axis is stretched along it and slides slowly; its
+// coordinates are displaced twice by two-octave noise (domain warping), which bends straight space into broad waves
+// that curve, part and gather. The height h of the warped surface, with a faint ripple across the axis that stacks thin
+// waves around the bright lobes, is lit like silk: a body of the middle colour where h is high, shaded by a soft
+// diffuse light, and a broad sheen of the brightest colour where the surface faces the light. A slow, large mask
+// leaves big near-black voids, so only a few places get really bright and the rest is gradient. Every rate is slow
+// (the clock runs at about a two-hundredth of a unit per second), so the surface drifts and morphs without popping.
 const F = {
-  zoom: 1, angle: 37 * Math.PI / 180, drift: .008, slide: .003,
-  bendScale: .5, bendAmount: .25, bendRate: .009,
-  tilt: .2, folds: 3.2, waveAlong: .65, waveAcross: 1.3, wave: 8, waveRate: .008, detailScale: 2.5, detail: 2.2, detailRate: .012,
-  clusterAlong: .75, clusterAcross: 1.3, clusterRate: .009, low: -.15, high: .6, target: .22, floor: .08,
-  sheenAlong: 1.1, sheenAcross: .45, sheenRate: .012, sheenLow: .3,
-  groove: .45, relief: 1.1, reliefFloor: .4, crest: 6, crestGain: .5, bodyGain: 1.15, vignette: .42
+  angle: .85, along: .38, across: .9, scale: .95, rate: .0055, drift: .5, warp: 1.3, ripple: .12, rippleFreq: 10,
+  normal: .1, sheenPower: 1.6, bodyLow: -.2, bodyHigh: .55, voids: .9, diffuseFloor: .1, bodyGain: 1.1, sheenGain: .45,
+  vignette: .4, target: .054, maxBias: .5, minExposure: .8, maxExposure: 1.25
 };
 const f4 = x => x.toFixed(5);
 const FIELD_GLSL = `
-const float ZOOM=${f4(F.zoom)};
 const vec2 AXIS=vec2(${f4(Math.cos(F.angle))},${f4(Math.sin(F.angle))});
-vec2 axisSpace(vec2 p,float t){return vec2(dot(p,AXIS),dot(p,vec2(-AXIS.y,AXIS.x)))-t*vec2(${f4(F.drift)},${f4(F.slide)});}
-float bend(vec2 a,float t){return snoise(vec3(a*${f4(F.bendScale)},t*${f4(F.bendRate)}))*${f4(F.bendAmount)};}
-float cluster(vec2 a,float t){return snoise(vec3(a*vec2(${f4(F.clusterAlong)},${f4(F.clusterAcross)})+vec2(41.0,-23.0),t*${f4(F.clusterRate)}));}
-// the folds' phase: straight lines across the axis, displaced by a broad wave (S-curves, folds that converge and
-// part) and a finer one (folds that split and merge); a phase step of 2π is one fold
-float foldPhase(vec2 a,float t){
-  return dot(a,vec2(${f4(-Math.sin(F.tilt) * F.folds * 2 * Math.PI)},${f4(Math.cos(F.tilt) * F.folds * 2 * Math.PI)}))+${f4(F.wave)}*snoise(vec3(a*vec2(${f4(F.waveAlong)},${f4(F.waveAcross)}),t*${f4(F.waveRate)}+7.0))
-    +${f4(F.detail)}*snoise(vec3(a*vec2(${f4(F.waveAlong * F.detailScale)},${f4(F.waveAcross * F.detailScale)})+vec2(5.2,1.3),t*${f4(F.detailRate)}+2.1));
-}`;
+vec2 axisSpace(vec2 p,float t){vec2 a=vec2(dot(p,AXIS),dot(p,vec2(-AXIS.y,AXIS.x)))*vec2(${f4(F.along * F.scale)},${f4(F.across * F.scale)});a.x-=t*${f4(F.drift)};return a;}
+float fbm(vec3 p){float s=0.5*snoise(p);p=p*vec3(1.9,1.9,1.2)+vec3(17.1,-9.3,3.7);return s+0.225*snoise(p);}
+// the surface's height at a point of the axis frame
+float height(vec2 a,float t){
+  vec2 q=vec2(fbm(vec3(a,t)),fbm(vec3(a+vec2(5.2,1.3),t)));
+  vec2 w=a+${f4(F.warp)}*vec2(fbm(vec3(a+1.1*q+vec2(1.7,9.2),t*1.3)),fbm(vec3(a+1.1*q+vec2(8.3,2.8),t*1.3)));
+  float h=fbm(vec3(w,t*0.7));
+  return h+${f4(F.ripple)}*sin(w.y*${f4(F.rippleFreq)}+h*3.0);
+}
+float voids(vec2 a,float t){return mix(1.0,smoothstep(-0.45,0.35,snoise(vec3(a*vec2(0.3,0.54)+vec2(3.1,7.7),t*0.6))),${f4(F.voids)});}`;
 const AXIS = [Math.cos(F.angle), Math.sin(F.angle)];
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const axisSpace = (px, py, t) => [px * AXIS[0] + py * AXIS[1] - t * F.drift, py * AXIS[0] - px * AXIS[1] - t * F.slide];
-const bendValue = (ax, ay, t) => snoise(ax * F.bendScale, ay * F.bendScale, t * F.bendRate) * F.bendAmount;
-// the cluster value at a screen position (what the stabiliser measures; the shader evaluates it at the grid's vertices)
-function clusterValue(px, py, t) {
-  const [ax, ay] = axisSpace(px, py, t), by = ay + bendValue(ax, ay, t);
-  return snoise(ax * F.clusterAlong + 41, by * F.clusterAcross - 23, t * F.clusterRate);
+const axisSpace = (px, py, t) => [(px * AXIS[0] + py * AXIS[1]) * F.along * F.scale - t * F.drift, (py * AXIS[0] - px * AXIS[1]) * F.across * F.scale];
+const fbm = (x, y, z) => .5 * snoise(x, y, z) + .225 * snoise(x * 1.9 + 17.1, y * 1.9 - 9.3, z * 1.2 + 3.7);
+function height(ax, ay, t) {
+  const qx = fbm(ax, ay, t), qy = fbm(ax + 5.2, ay + 1.3, t);
+  const wx = ax + F.warp * fbm(ax + 1.1 * qx + 1.7, ay + 1.1 * qy + 9.2, t * 1.3), wy = ay + F.warp * fbm(ax + 1.1 * qx + 8.3, ay + 1.1 * qy + 2.8, t * 1.3);
+  const h = fbm(wx, wy, t * .7);
+  return h + F.ripple * Math.sin(wy * F.rippleFreq + h * 3);
 }
-function foldPhase(px, py, t) {
-  const [ax, ay] = axisSpace(px, py, t), by = ay + bendValue(ax, ay, t);
-  return (by * Math.cos(F.tilt) - ax * Math.sin(F.tilt)) * F.folds * 2 * Math.PI + F.wave * snoise(ax * F.waveAlong, by * F.waveAcross, t * F.waveRate + 7)
-    + F.detail * snoise(ax * F.waveAlong * F.detailScale + 5.2, by * F.waveAcross * F.detailScale + 1.3, t * F.detailRate + 2.1);
+const voids = (ax, ay, t) => 1 - F.voids + F.voids * smoothstep(-.45, .35, snoise(ax * .3 + 3.1, ay * .54 + 7.7, t * .6));
+const L = [.2126, .7152, .0722];
+const DIFFUSE = [-.5, .5, .7].map((v, _, a) => v / Math.hypot(...a)), SHEEN = [-.3, .4, .9].map((v, _, a) => v / Math.hypot(...a));
+// What the light depends on at a screen position: the height, the voids mask, the diffuse shading and the sheen.
+// e: the gradient step in screen heights (1.5 field pixels, as in the shader).
+function surface(px, py, t, e) {
+  const tt = t * F.rate, [ax, ay] = axisSpace(px, py, tt), h = height(ax, ay, tt);
+  const gx = (height(ax + e, ay, tt) - h) / e * F.normal, gy = (height(ax, ay + e, tt) - h) / e * F.normal, n = 1 / Math.hypot(gx, gy, 1);
+  const dot = d => Math.max(0, (-gx * d[0] - gy * d[1] + d[2]) * n);
+  return { h, voids: voids(ax, ay, tt), diffuse: F.diffuseFloor + (1 - F.diffuseFloor) * dot(DIFFUSE), sheen: Math.pow(dot(SHEEN), F.sheenPower) };
+}
+// the light before the base colour: [body (middle colour), sheen (brightest colour)]; bias lowers the body's threshold
+function light(s, bias = 0) {
+  const body = smoothstep(F.bodyLow - bias, F.bodyHigh - bias, s.h) * s.voids;
+  return [body * s.diffuse * F.bodyGain, s.sheen * body * body * F.sheenGain];
 }
 
+/* ===== grain ===== */
+// Halation's film grain from the previous Auralis (its own code, reused as is): two layers of the 128×128 blue noise at
+// 1.35 and 1.7 px, turned off the pixel grid and lightly warped, normalised to a standard deviation of 1; and tpdf(),
+// the triangular ±1 dither. The frame is fixed (0): the grain is stationary.
+const GRAIN_GLSL = `
+vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+
+float snoise(vec2 v) {
+  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  vec2 i  = floor(v + dot(v, C.yy));
+  vec2 x0 = v - i + dot(i, C.xx);
+  vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+  vec4 x12 = x0.xyxy + C.xxzz;
+  x12.xy -= i1;
+  i = mod289(i);
+  vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+  vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+  m = m*m; m = m*m;
+  vec3 x = 2.0 * fract(p * C.www) - 1.0;
+  vec3 h = abs(x) - 0.5;
+  vec3 ox = floor(x + 0.5);
+  vec3 a0 = x - ox;
+  m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+  vec3 g;
+  g.x  = a0.x  * x0.x  + h.x  * x0.y;
+  g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+  return 130.0 * dot(m, g);
+}
+
+/* ---------- hash sin sin() (Hoskins): sin(dot()*43758) pierde
+              precision y deja patrones; esta es uniforme ---------- */
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+/* ruido triangular en [-1, 1]: es el dither correcto, deja el
+   error de cuantizacion sin correlacion con la imagen */
+float tpdf(vec2 px, float seed) {
+  return hash12(px + seed * 1.618) + hash12(px + 57.31 + seed * 2.414) - 1.0;
+}
+
+mat2 rot(float a) {
+  float c = cos(a), s = sin(a);
+  return mat2(c, -s, s, c);
+}
+
+
+/* ---------- grano de pelicula (blue noise real) ----------
+   Textura void-and-cluster 128x128: sin energia en baja frecuencia
+   (ni manchas ni grumos) y distribucion uniforme.
+   - Escala 1.35 px y 1.7 px: grano fino fotografico (semiancho de
+     correlacion ~0.7 px), mas que un pixel pero sin formar manchas.
+   - Interpolacion bilineal al ampliarla: bordes suaves, banda limitada;
+     ningun grano es un evento de 1 pixel.
+   - Rotacion por frame restringida a 20-70 grados (+ k*90): la rejilla
+     de la textura nunca queda alineada con gl_FragCoord.
+   - Dos capas con escalas inconmensurables + warp lento (8 texeles,
+     ~300 px) rompen la repeticion del tile (autocorrelacion 0.32 -> 0.01).
+   Normalizado a desviacion tipica 1 (K = 5.991, medido). */
+const float BN = 128.0;
+float bn(vec2 tc) { return texture2D(u_blue, tc / BN).r - 0.5; }
+
+float filmGrain(vec2 px, float frame) {
+  float r0 = hash12(vec2(frame,  17.0));
+  float r1 = hash12(vec2(frame,  59.0));
+  float r2 = hash12(vec2(frame, 113.0));
+  float r3 = hash12(vec2(frame, 211.0));
+  float r4 = hash12(vec2(frame, 307.0));
+  float r5 = hash12(vec2(frame, 401.0));
+  vec2 w = vec2(snoise(px / 300.0 + r0 * 97.0),
+                snoise(px / 300.0 + r2 * 97.0 + 50.0)) * 8.0;
+  float a1 = 0.35 + r0 * 0.87 + floor(r1 * 4.0) * 1.5707963;
+  float a2 = 0.35 + r2 * 0.87 + floor(r3 * 4.0) * 1.5707963;
+  vec2 o = vec2(r4, r5) * BN;
+  float g1 = bn(rot(a1) * px / 1.35 + o + w);
+  float g2 = bn(rot(a2) * px / 1.7 + o.yx + vec2(31.0, 17.0) + vec2(-w.y, w.x));
+  return (0.85 * g1 + 0.5 * g2) * 5.991;
+}`;
+
 /* ===== shader ===== */
-// Both passes draw a 24×16 grid of the window; the field pass evaluates the clusters at its vertices (they change
-// over about a screen, so interpolating them loses nothing) and the bend and the folds per pixel.
+// Both passes draw a 24×16 grid of the window (one mesh for the field and the presentation).
 const GRID = [24, 16];
 const VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
-const FIELD_VS = `precision highp float;
-attribute vec2 p;uniform vec2 u_resolution;uniform float u_time;varying vec2 v_axis;varying float v_cluster;
-${NOISE_GLSL}
-${FIELD_GLSL}
-void main(){
-  vec2 a=axisSpace(p*0.5*vec2(u_resolution.x/u_resolution.y,1.0)*ZOOM,u_time);
-  v_axis=a;a.y+=bend(a,u_time);v_cluster=cluster(a,u_time);
-  gl_Position=vec4(p,0.0,1.0);
-}`;
-// The field: each fold is a ridge of the phase (0.5 + 0.5 sin), lit like satin by its slope, with a dark groove
-// between ridges and a highlight of the brightest colour on its lit flank. u_bias keeps coverage steady.
+// The field, per pixel of the small target: u_bias moves the body's threshold and u_exposure scales the light (not
+// the base), so the lit share and the mean brightness of the screen stay steady.
 const FIELD_FS = `precision highp float;
-uniform vec2 u_resolution;uniform float u_time;uniform float u_bias;uniform vec3 u_colors[3];uniform float u_dither;
-varying vec2 v_axis;varying float v_cluster;
+uniform vec2 u_resolution;uniform float u_time;uniform float u_bias;uniform float u_exposure;uniform vec3 u_colors[3];uniform float u_dither;
 ${NOISE_GLSL}
 ${FIELD_GLSL}
 float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 void main(){
-  vec2 uv=gl_FragCoord.xy/u_resolution;
-  float t=u_time,e=1.0/u_resolution.y;
-  vec2 a=v_axis;a.y+=bend(a,t);
-  float ph=foldPhase(a,t);
-  vec2 dp=vec2(foldPhase(a+vec2(e,0.0),t)-ph,foldPhase(a+vec2(0.0,e),t)-ph)/e;
-  // folds packed tighter than about three field pixels flatten instead of aliasing
-  float fine=1.0-smoothstep(0.25,0.45,length(dp)*e/6.2831853);
-  float lit=smoothstep(${f4(F.low)},${f4(F.high)},v_cluster+u_bias);
-  // sheen: patches of light that follow the folds (noise in fold space: along the axis × fold number)
-  float sheen=smoothstep(-0.6,0.8,snoise(vec3(a.x*${f4(F.sheenAlong)},ph*${f4(F.sheenAcross / (2 * Math.PI))},t*${f4(F.sheenRate)}+3.0)));
-  lit*=mix(${f4(F.sheenLow)},1.0,sheen);
-  // the cloth: a height of sin(phase) whose slope does not depend on how tightly the folds are packed (deep where
-  // they are wide, shallow where they crowd, flat where they turn back) and grows with the light, so folds and
-  // highlights fade at their ends
-  float relief=${f4(F.relief)}*mix(${f4(F.reliefFloor)},1.0,lit)*fine;
-  vec2 g=cos(ph)*dp*inversesqrt(dot(dp,dp)+${f4((F.folds * Math.PI) ** 2)})*relief;
-  vec3 n=normalize(vec3(-g,1.0));
-  float diffuse=clamp(0.6+0.8*dot(n,normalize(vec3(-0.35,0.55,0.75)))-0.48,0.0,1.0);
-  float crest=pow(max(dot(n,normalize(vec3(-0.2,0.45,1.0))),0.0),${f4(F.crest)});
-  float body=${f4(F.floor)}+${f4(1 - F.floor)}*lit*lit;
-  vec3 col=u_colors[0];
-  col+=u_colors[1]*0.5*body*(0.35+0.65*diffuse)*mix(1.0,${f4(1 - F.groove)}+${f4(F.groove)}*sin(ph),fine)*${f4(F.bodyGain)};
-  col+=u_colors[2]*lit*crest*${f4(F.crestGain)};
+  vec2 uv=gl_FragCoord.xy/u_resolution,p=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
+  float t=u_time*${f4(F.rate)},e=1.5/u_resolution.y;
+  vec2 a=axisSpace(p,t);
+  float h=height(a,t);
+  vec2 g=vec2(height(a+vec2(e,0.0),t)-h,height(a+vec2(0.0,e),t)-h)/e;
+  vec3 n=normalize(vec3(-g*${f4(F.normal)},1.0));
+  float diffuse=max(dot(n,normalize(vec3(-0.5,0.5,0.7))),0.0);
+  float sheen=pow(max(dot(n,normalize(vec3(-0.3,0.4,0.9))),0.0),${f4(F.sheenPower)});
+  float body=smoothstep(${f4(F.bodyLow)}-u_bias,${f4(F.bodyHigh)}-u_bias,h)*voids(a,t);
+  vec3 col=u_colors[0]+u_exposure*(u_colors[1]*body*(${f4(F.diffuseFloor)}+${f4(1 - F.diffuseFloor)}*diffuse)*${f4(F.bodyGain)}+u_colors[2]*sheen*body*body*${f4(F.sheenGain)});
   vec2 v=uv-0.5;v.x*=u_resolution.x/u_resolution.y*0.75;
-  col*=1.0-${f4(F.vignette)}*smoothstep(0.18,0.85,length(v));
+  col*=1.0-${f4(F.vignette)}*smoothstep(0.2,0.85,length(v));
   col+=u_dither*(hash(gl_FragCoord.xy)+hash(gl_FragCoord.xy+17.0)-1.0)/255.0;
   gl_FragColor=vec4(max(col,0.0),1.0);
 }`;
-// Presentation at native pixels: the field scaled up (with the surface scale and navigation refraction), then the
-// stationary grain, a little stronger in the midtones, and a triangular ±1/255 dither from the same blue noise.
+// Presentation at native pixels: the field scaled up (with the surface scale and navigation refraction), the ±1/255
+// triangular dither, then the stationary film grain, a little stronger in the midtones.
 const PRESENT_FS = refraction => `precision highp float;
 uniform sampler2D u_field;uniform sampler2D u_blue;uniform vec2 u_resolution;uniform vec2 u_navigationWave;uniform vec2 u_scale;uniform float u_grain;
 ${refraction}
-float blue(vec2 fc){return texture2D(u_blue,fc/128.0).r;}
+${GRAIN_GLSL}
 void main(){
   vec2 fc=gl_FragCoord.xy;
   vec2 p=(fc-0.5*u_resolution)/u_resolution.y;
   float extent=length(vec2(u_resolution.x/u_resolution.y,1.0)*0.5)+0.12;
   p=navigationRefraction(p/u_scale,u_navigationWave,extent);
   vec3 col=texture2D(u_field,p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5).rgb;
-  float l=dot(col,vec3(0.2126,0.7152,0.0722));
-  float mid=smoothstep(0.004,0.06,l)*(1.0-0.5*smoothstep(0.2,0.5,l));
-  float a=blue(fc),b=blue(fc.yx+vec2(61.0,23.0));
-  col+=(a-0.5)*u_grain*(1.0+0.6*mid)/255.0;
-  col+=(a+b-1.0)/255.0;
-  gl_FragColor=vec4(col,1.0);
+  col+=vec3(tpdf(fc,0.0),tpdf(fc+13.7,0.0),tpdf(fc+41.9,0.0))/255.0;
+  float luma=dot(col,vec3(0.2126,0.7152,0.0722));
+  col+=vec3(filmGrain(fc,0.0))*mix(1.0,1.4,smoothstep(0.0,0.2,luma))*u_grain;
+  gl_FragColor=vec4(max(col,0.0),1.0);
 }`;
 const NO_REFRACTION = "vec2 navigationRefraction(vec2 p,vec2 phases,float extent){return p;}";
 
 /* ===== stabiliser ===== */
-// The lit share of the screen (clusters × sheen × vignette, before shading) is measured on a 24×14 grid of the same field and
-// the bias that brings its mean to the target is found by bisection; the shader's bias follows it with a lag of about
-// a second, so the background never fades out for a stretch nor floods.
+// The surface is broad, so how much of it faces the light on screen swings over minutes. On a 24×14 grid of the same
+// light, the body's threshold bias that brings the screen's mean brightness (Rec. 709 luma, vignette included) to the
+// target is found by bisection; an exposure then closes what the bias's limits leave, within narrow bounds. The shader
+// follows both with a lag of about a second and a half, so the background never fades out for a stretch nor floods.
+// aspect: width / height; fieldHeight: the field target's height in pixels; colors: the three RGB colours.
 const GRID_X = 24, GRID_Y = 14;
-function coverageBias(aspect, t) {
-  const n = new Float32Array(GRID_X * GRID_Y), v = new Float32Array(GRID_X * GRID_Y);
-  for (let y = 0, k = 0; y < GRID_Y; y++) for (let x = 0; x < GRID_X; x++, k++) {
+function stabiliserAt(aspect, t, fieldHeight, colors) {
+  const e = 1.5 / fieldHeight, luma = c => c[0] * L[0] + c[1] * L[1] + c[2] * L[2];
+  const base = luma(colors[0]), mid = luma(colors[1]), bright = luma(colors[2]), samples = [];
+  let fixed = 0;
+  for (let y = 0; y < GRID_Y; y++) for (let x = 0; x < GRID_X; x++) {
     const u = (x + .5) / GRID_X - .5, w = (y + .5) / GRID_Y - .5;
-    const px = u * aspect * F.zoom, py = w * F.zoom, ax = px * AXIS[0] + py * AXIS[1] - t * F.drift;
-    const sheen = smoothstep(-.6, .8, snoise(ax * F.sheenAlong, foldPhase(px, py, t) * F.sheenAcross / (2 * Math.PI), t * F.sheenRate + 3));
-    n[k] = clusterValue(px, py, t);
-    v[k] = (F.sheenLow + (1 - F.sheenLow) * sheen) * (1 - F.vignette * smoothstep(.18, .85, Math.hypot(u * aspect * .75, w)));
+    const vig = 1 - F.vignette * smoothstep(.2, .85, Math.hypot(u * aspect * .75, w));
+    fixed += base * vig; samples.push([surface(u * aspect, w, t, e), vig]);
   }
-  const mean = bias => { let s = 0; for (let k = 0; k < n.length; k++) s += smoothstep(F.low, F.high, n[k] + bias) * v[k]; return s / n.length; };
-  let lo = -.8, hi = .8;
-  for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (mean(mid) < F.target) lo = mid; else hi = mid; }
-  return (lo + hi) / 2;
+  const n = samples.length, goal = F.target - fixed / n;
+  const lit = bias => { let sum = 0; for (const [s, vig] of samples) { const [body, sheen] = light(s, bias); sum += (mid * body + bright * sheen) * vig; } return sum / n; };
+  let lo = -F.maxBias, hi = F.maxBias;
+  for (let i = 0; i < 16; i++) { const m = (lo + hi) / 2; if (lit(m) < goal) lo = m; else hi = m; }
+  const bias = (lo + hi) / 2;
+  return { bias, exposure: Math.min(F.maxExposure, Math.max(F.minExposure, goal / Math.max(1e-4, lit(bias)))) };
 }
 
 /* ===== render ===== */
-const FIELD_EDGE = 320, FIELD_FPS = 15, WAVE_FPS = 60, RESIZE_MS = 160, MAX_DT = .1;
+// GRAIN_UNIT: grain amplitude per unit of settings.grain × review strength; at the defaults (1.25 × 0.5) the grain is
+// half of the previous Auralis film grain at full strength (0.0098).
+const GRAIN_UNIT = .00784, FIELD_EDGE = 320, FIELD_FPS = 15, WAVE_FPS = 60, RESIZE_MS = 160, MAX_DT = .1;
 const DEFAULTS = { colors: ["#020203", "#5d6577", "#b4c4f0"], speed: 1, grain: 1.25 };
 const rgb = c => { const s = String(c).replace("#", ""), h = s.length === 3 ? s.replace(/./g, "$&$&") : s, n = parseInt(h, 16); return isNaN(n) ? [0, 0, 0] : [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
 const decode = b64 => Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
@@ -236,7 +311,7 @@ function create(surface, options = {}) {
   const gl = canvas.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: "low-power" });
   if (!gl) { canvas.hidden = true; return null; }
   const noise = decode(window.__auralisBlueNoise || "");
-  let res = null, time = Number(options.time) || 0, bias = null, biasAt = 0, target = 0, measuredAt = -Infinity, generations = 0, presentations = 0, uploads = 0;
+  let res = null, time = Number(options.time) || 0, bias = 0, exposure = null, exposureTime = 0, target = null, measuredAt = -Infinity, generations = 0, presentations = 0, uploads = 0;
   let last = 0, lastField = -Infinity, lost = false, disposed = false, valid = false, fast = false, resizeTimer = 0;
   let grainStrength = .5, wave = [0, -1], scale = [1, 1];
   const css = { w: Math.max(1, surface.clientWidth || innerWidth), h: Math.max(1, surface.clientHeight || innerHeight) };
@@ -270,14 +345,14 @@ function create(surface, options = {}) {
     r.vertices = mesh.length / 2;
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    r.field = program(FIELD_FS, FIELD_VS); r.present = program(PRESENT_FS(NO_REFRACTION));
+    r.field = program(FIELD_FS); r.present = program(PRESENT_FS(NO_REFRACTION));
     // the refraction variant only while a navigation packet travels: at rest the cheaper program presents
     r.wave = options.refraction ? program(PRESENT_FS(options.refraction)) : r.present;
     r.blue = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, r.blue);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 128, 128, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, noise.length === 16384 ? noise : new Uint8Array(16384).fill(128));
     uploads++;
-    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.REPEAT], [gl.TEXTURE_WRAP_T, gl.REPEAT]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.REPEAT], [gl.TEXTURE_WRAP_T, gl.REPEAT]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     r.target = gl.createTexture(); r.fbo = gl.createFramebuffer();
     r.fw = r.fh = 0;
   }
@@ -320,19 +395,21 @@ function create(surface, options = {}) {
 
   const allowed = () => !lost && !disposed && !!res && budget.visible && budget.focused && host.dataset.rest !== "tool" && !document.body.classList.contains("welcome-active");
   const still = () => budget.reduced || !(settings.speed > 0);
-  // measured four times a field second; a jump in time (first frame, review) takes the bias at once, otherwise it
-  // eases toward the measure over about a second
+  // measured twice a field second; a jump in time (first frame, review) takes the exposure at once, otherwise
+  // it eases toward the measure over about a second and a half
   function stabilise() {
-    const jump = bias === null || Math.abs(time - biasAt) > 1;
-    if (jump || Math.abs(time - measuredAt) >= .25) { target = coverageBias(size.fw / size.fh, time); measuredAt = time; }
-    bias = jump ? target : bias + (target - bias) * (1 - Math.exp(-Math.abs(time - biasAt)));
-    biasAt = time;
+    const jump = exposure === null || Math.abs(time - exposureTime) > 1;
+    if (jump || Math.abs(time - measuredAt) >= .5) { target = stabiliserAt(size.fw / size.fh, time, size.fh, settings.colors.slice(0, 3).map(rgb)); measuredAt = time; }
+    const k = jump ? 1 : 1 - Math.exp(-Math.abs(time - exposureTime) / 1.5);
+    bias = jump ? target.bias : bias + (target.bias - bias) * k;
+    exposure = jump ? target.exposure : exposure + (target.exposure - exposure) * k;
+    exposureTime = time;
   }
   function renderField() {
     const f = res.field;
     gl.bindFramebuffer(gl.FRAMEBUFFER, res.fbo); gl.viewport(0, 0, res.fw, res.fh);
     gl.useProgram(f.p);
-    gl.uniform2f(f.u.u_resolution, res.fw, res.fh); gl.uniform1f(f.u.u_time, time); gl.uniform1f(f.u.u_bias, bias);
+    gl.uniform2f(f.u.u_resolution, res.fw, res.fh); gl.uniform1f(f.u.u_time, time); gl.uniform1f(f.u.u_bias, bias); gl.uniform1f(f.u.u_exposure, exposure);
     gl.uniform3fv(f.u.u_colors, settings.colors.slice(0, 3).flatMap(rgb));
     gl.uniform1f(f.u.u_dither, res.storage === "rgba8" ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, res.vertices);
@@ -346,7 +423,7 @@ function create(surface, options = {}) {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, res.blue);
     gl.uniform1i(q.u.u_field, 0); gl.uniform1i(q.u.u_blue, 1);
     gl.uniform2f(q.u.u_resolution, size.w, size.h); gl.uniform2f(q.u.u_navigationWave, wave[0], wave[1]);
-    gl.uniform2f(q.u.u_scale, scale[0], scale[1]); gl.uniform1f(q.u.u_grain, settings.grain * grainStrength * 5);
+    gl.uniform2f(q.u.u_scale, scale[0], scale[1]); gl.uniform1f(q.u.u_grain, settings.grain * grainStrength * GRAIN_UNIT);
     gl.drawArrays(gl.TRIANGLES, 0, res.vertices);
     presentations++; valid = true;
   }
@@ -409,22 +486,22 @@ function create(surface, options = {}) {
   // Read-only state and review controls (tests and visual review); no product setting.
   canvas.__auralisState = () => ({
     architecture: "tiny-field-blue-noise", state: lost ? "lost" : !allowed() ? "suspended" : still() ? "sleep" : "animate",
-    time, bias, generations, presentations, fieldWidth: size.fw, fieldHeight: size.fh, fieldStorage: res?.storage || null,
+    time, bias, exposure, generations, presentations, fieldWidth: size.fw, fieldHeight: size.fh, fieldStorage: res?.storage || null,
     outputWidth: canvas.width, outputHeight: canvas.height, cssWidth: Math.round(css.w), cssHeight: Math.round(css.h), dpr: size.dpr,
-    dirty: size.dirty, targetFps: FIELD_FPS, fps: fast ? WAVE_FPS : FIELD_FPS, grain: "static-blue-noise", grainStrength,
+    dirty: size.dirty, targetFps: FIELD_FPS, fps: fast ? WAVE_FPS : FIELD_FPS, grain: "static-film-grain", grainStrength,
     grainUpdates: 1, textureUploads: uploads, textures: res ? 2 : 0, framebuffers: res ? 1 : 0, programs: res ? (res.wave === res.present ? 2 : 3) : 0, scale: scale.slice(), wave: wave.slice()
   });
   canvas.__auralisReview = { setGrainStrength(v) { grainStrength = Math.max(0, Math.min(3, Number(v) || 0)); valid = false; sync(true); } };
   const scene = () => res && ({
     renderer: "auralis", width: canvas.width, height: canvas.height, cssWidth: surface.clientWidth, cssHeight: surface.clientHeight,
     bufferWidth: gl.drawingBufferWidth, bufferHeight: gl.drawingBufferHeight, viewport: Array.from(gl.getParameter(gl.VIEWPORT)), dpr: devicePixelRatio,
-    time, frame: generations, grain: settings.grain * grainStrength, bias, colors: settings.colors.slice(0, 3).map(rgb),
+    time, frame: generations, grain: settings.grain * grainStrength, bias, exposure, colors: settings.colors.slice(0, 3).map(rgb),
     resolution: [size.w, size.h], field: [size.fw, size.fh], storage: res.storage
   });
   return {
     canvas, proxy, scene,
     // a controlled draw at a given field time (visual review); the clock carries on from there
-    sceneAt(v = {}) { if (Number.isFinite(v.time)) { time = v.time; bias = null; } if (res && !lost) { readSurface(); draw(true); } return scene(); },
+    sceneAt(v = {}) { if (Number.isFinite(v.time)) { time = v.time; exposure = null; } if (res && !lost) { readSurface(); draw(true); } return scene(); },
     // navigation refraction phases (navigation-refraction section of atmosphere.js)
     wave(phase, previous = -1) { wave = [phase, previous]; if (!allowed() || still()) return; cadence(); if (phase > 0) task.request(); else if (valid) present(); },
     set(next) { Object.assign(settings, next); valid = false; sync(true); },
@@ -438,5 +515,5 @@ function create(surface, options = {}) {
   };
 }
 
-window.__auralis = { create, snoise, clusterValue, foldPhase, coverageBias, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL } };
+window.__auralis = { create, snoise, height, surface, light, stabiliserAt, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL, grain: GRAIN_GLSL } };
 })();
