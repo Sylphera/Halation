@@ -122,15 +122,6 @@ Halation is developed with extensive use of AI coding agents as engineering tool
 
 Product direction, interface decisions, visual acceptance, quality thresholds and release decisions remain human-led. Agent-produced changes are reviewed and tested, with benchmarking where performance is part of the requirement.
 
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-- Committers and reviewers: [Sylphera](https://github.com/Sylphera)
-- Approvers: [Sylphera](https://github.com/Sylphera)
-
-Every release is built by GitHub Actions from this repository and signed only after manual approval. Halation sends nothing over the network unless a feature that needs it is used; see [PRIVACY.md](PRIVACY.md).
-
 ## License
 
 Halation is **free software** under the **[GNU General Public License v3.0 or later](LICENSE)**: you can use it for any purpose, study and change the code, and share it and your changes under the same license. See **[NOTICE.md](NOTICE.md)** for the details, including the permission for the bundled GSAP library. Halation does not claim ownership of your outputs.

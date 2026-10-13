@@ -1,6 +1,6 @@
 # Code signing
 
-Status: **prepared, not active.** The README section is in place; releases stay unsigned (Authenticode) until SignPath Foundation accepts the project.
+Status: **prepared, not active.** Releases are unsigned (Authenticode) until SignPath Foundation accepts the project.
 The updater signature (minisign, `docs/UPDATES.md`) is separate and already active.
 
 ## Route
