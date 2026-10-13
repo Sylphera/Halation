@@ -62,15 +62,17 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 
 ## Example photos (Unsplash License)
 
-`docs/examples/example-1.jpg` … `example-5.jpg` are used only for the README screenshots. The first four are cropped and resized; the fifth preserves the supplied original. They are not part of the app.
+`docs/examples/<tool>.jpg` are used only for the README screenshots. They are cropped and resized from the originals. They are not part of the app.
+`grade.jpg` is the exception: a widely shared still of The Weeknd on stage (After Hours til Dawn Tour), photographer and licence unknown, chosen by the project owner; it is not under the Unsplash License.
 
 | File | Photo by |
 |---|---|
-| example-1.jpg | Alex Shuper on Unsplash ([photo](https://unsplash.com/photos/pGss3gTt5Mk)) |
-| example-2.jpg | Fukuro on Unsplash ([photo](https://unsplash.com/photos/UbpugDwd7aU)) |
-| example-3.jpg | Paweł Czerwiński on Unsplash ([photo](https://unsplash.com/photos/VWVO0g9A3rg)) |
-| example-4.jpg | Vladimir Fedotov on Unsplash ([photo](https://unsplash.com/photos/1sgUgwaKSXg)) |
-| example-5.jpg | Veli Batuhan Aytaç on Unsplash ([photo](https://unsplash.com/photos/YHWPTGp7Cso)) |
+| visualizer.jpg | Ahmed Nishaath on Unsplash ([photo](https://unsplash.com/photos/a-beach-that-has-some-blue-lights-on-it-Ob_fML_x3F0)) |
+| downloader.jpg | Jabari Timothy on Unsplash ([photo](https://unsplash.com/photos/a-person-sitting-on-a-bench-in-front-of-a-city-skyline-rfjwtsgVhk0)) |
+| convert.jpg | Eugene Golovesov on Unsplash ([photo](https://unsplash.com/photos/a-close-up-of-ice-on-a-frozen-surface-U0InyY2hDg4)) |
+| upscale.jpg | Ivan Mani on Unsplash ([photo](https://unsplash.com/photos/an-escalator-with-a-person-walking-down-it-uC0l9MrWXi0)) |
+| removebg.jpg | yang miao on Unsplash ([photo](https://unsplash.com/photos/woman-in-white-fur-dress-XaEhkLdUYGI)) |
+| covertest.jpg | Noah Buscher on Unsplash ([photo](https://unsplash.com/photos/man-in-black-jacket-standing-in-tunnel-3WZkMfh8zsE)) |
 
 ## Rust crates
 
