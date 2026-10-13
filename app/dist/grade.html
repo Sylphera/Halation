@@ -17,8 +17,15 @@
         <button class="tab" role="tab" aria-selected="false" data-tab="mine" data-i18n="grade.mine"></button>
       </div>
       <div class="pane" id="pane-filters">
+        <div class="ltabs fsub" role="tablist" data-i18n-aria-label="grade.filters">
+          <button class="ltab" role="tab" aria-selected="true" data-fsub="all"><span data-i18n="grade.sub.all"></span></button>
+          <button class="ltab" role="tab" aria-selected="false" data-fsub="fav"><span data-i18n="grade.sub.fav"></span> <span class="n" id="cntFav"></span></button>
+          <button class="ltab" role="tab" aria-selected="false" data-fsub="mine"><span data-i18n="grade.sub.mine"></span> <span class="n" id="cntMine"></span></button>
+        </div>
+        <input type="search" id="lookSearch" class="lsearch" data-i18n-placeholder="grade.searchLooks" data-i18n-aria-label="grade.searchLooks">
+        <div class="chips cats" id="chips"></div>
         <div class="f"><div class="fl"><label for="thumbPct" data-i18n="grade.thumbPct"></label><output id="oThumbPct">100 %</output></div><input type="range" data-def="100" id="thumbPct" min="5" max="100" step="5" value="100"><span class="hint" data-i18n="grade.thumbHint"></span></div>
-        <div class="chips" id="chips"></div><div class="grid" id="grid"></div></div>
+        <div class="grid" id="grid"></div><p class="empty" id="gridEmpty" hidden></p></div>
       <div class="pane" id="pane-tools" hidden></div>
       <div class="pane" id="pane-mine" hidden>
         <div class="f"><div class="fl"><label for="lookName" data-i18n="grade.lookSaveLabel"></label></div>
@@ -104,6 +111,13 @@
   <button role="menuitem" data-m="top" data-icon="arrow-up"><span data-i18n="grade.l.toTop"></span></button>
   <button role="menuitem" data-m="bottom" data-icon="arrow-down"><span data-i18n="grade.l.toBottom"></span></button>
   <button role="menuitem" class="warn" data-m="del" data-icon="trash-2"><span data-i18n="common.delete"></span></button>
+</div>
+
+<div class="menu lmenu" id="tmenu" role="menu" hidden>
+  <button role="menuitem" data-tm="rename" data-icon="pencil"><span data-i18n="lib.act.rename"></span></button>
+  <button role="menuitem" data-tm="dup" data-icon="copy"><span data-i18n="grade.l.duplicate"></span></button>
+  <button role="menuitem" data-tm="fav" data-icon="star"><span data-i18n="grade.favShort"></span></button>
+  <button role="menuitem" class="warn" data-tm="del" data-icon="trash-2"><span data-i18n="common.delete"></span></button>
 </div>
 
 <script type="module" src="grade.js"></script>

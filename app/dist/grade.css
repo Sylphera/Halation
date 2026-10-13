@@ -95,11 +95,13 @@ body{padding:0}
 .tile canvas{display:block;width:100%;aspect-ratio:1;border-radius:var(--r-sm);background:var(--media)}
 .tile span{overflow:hidden;padding:0 2px 2px;font-size:11.5px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
 .tile i{position:absolute;top:9px;right:9px;padding:0 6px;border-radius:var(--r-pill);background:var(--accent);color:var(--on-accent);font-family:var(--mono);font-size:10px;font-style:normal}
-.tacts{position:absolute;left:5px;right:5px;top:5px;display:flex;align-items:center;justify-content:center;gap:10px;aspect-ratio:1;border-radius:var(--r-sm);background:var(--scrim);opacity:0;transition:opacity var(--t)}
+/* clicking the picture applies the look; the actions sit in a corner so they never cover it */
+.tacts{position:absolute;left:5px;right:5px;top:5px;display:flex;align-items:flex-end;justify-content:flex-end;gap:3px;padding:4px;aspect-ratio:1;opacity:0;pointer-events:none;transition:opacity var(--t)}
+.tacts .tact{pointer-events:auto}
 .tile:hover .tacts,.tile:focus-within .tacts{opacity:1}
-@media (hover:none){.tacts{align-items:flex-end;justify-content:flex-end;gap:6px;padding:6px;background:transparent;opacity:1}}
-.tact{display:grid;place-items:center;width:34px;height:34px;border:0;border-radius:50%;background:var(--raised);color:var(--text);cursor:pointer}
-.tact .i{width:16px;height:16px}
+@media (hover:none){.tacts{opacity:1}}
+.tact{display:grid;place-items:center;width:22px;height:22px;border:0;border-radius:50%;background:var(--raised);color:var(--text);cursor:pointer}
+.tact .i{width:12px;height:12px}
 .tact:hover{background:var(--accent);color:var(--on-accent)}
 .tact.rem:hover{background:var(--danger);color:var(--on-accent)}
 .acc+.acc{margin-top:8px}
@@ -121,3 +123,20 @@ body{padding:0}
 .menu button:hover,.menu button:focus-visible{background:var(--raised)}
 .menu button.warn{color:var(--danger)}
 .menu .i{width:14px;height:14px}
+
+/* Filters: sub-tabs (All / Favorites / My Looks), search, categories on their own row (All only) */
+.fsub{margin-bottom:10px}
+.fsub .ltab .n{font-size:11px;color:var(--text-2)}
+.lsearch{margin-bottom:10px}
+.pane .chips.cats{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line-soft)}
+.tile .star{position:absolute;top:9px;left:9px;z-index:2;display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:var(--scrim);color:var(--text-strong);opacity:0;cursor:pointer;transition:opacity var(--t)}
+.tile .star .i{width:12px;height:12px}
+.tile:hover .star,.tile:focus-within .star,.tile.fav .star{opacity:1}
+.tile.fav .star{color:var(--accent)}
+.tile.fav .star .i{fill:currentColor}
+@media (hover:none){.tile .star{opacity:1}}
+#gridEmpty{margin:18px 4px;color:var(--text-2);font-size:13px;text-align:center}
+/* an applied look: a dot while it has adjustments, and saving it as a personal look */
+.adot{flex:none;width:7px;height:7px;margin:0 2px;border-radius:50%;background:var(--accent)}
+.mlsave{display:flex;align-items:center;gap:6px}
+.mlsave input{flex:1;min-width:0;height:30px}

@@ -16,3 +16,4 @@ Parked ideas only, with a line on how each fits what exists.
 - Cutout: BiRefNet (better edges, MIT) as a second, larger model to choose in Settings → Modules; WebAssembly
   threads (needs the window cross-origin isolated) for the CPU path.
 - Intro: a complete redesign (Java, 2026-09-28), to be specified before any work.
+- Grade looks v2, parked from docs/GRADE_LOOKS_SPEC.md §10: import/export of looks and third-party `.cube` files (the definition already has a `lut` slot the engine does not read yet); an editor for a look's curves and bands; Grade favourites synced with the Library star.

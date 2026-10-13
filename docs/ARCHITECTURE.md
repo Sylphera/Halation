@@ -121,7 +121,13 @@ Format: file → section: functions.
   `openMenu`, `selectAllLayers` (button and Ctrl+A) · library: `buildGrid`, `buildTools`, `renderLooks`, `saveLook`, `revealFromHome` (API `reveal`: a look or tool brought into view) · controls: `editCrop`, `setCut` ·
   export: `renderToCanvas` (queued exports draw their frozen source, crop, mask and layers, then restore the live
   preview), individual `export-image` jobs in the CPU lane, `frameFromVideo` · persist: `payload`, `applyLookByName` · batch: `runBatch` · main:
-  `boot`. Looks and grader: `grader.js` → data: `LOOKS`, `LOOK` · grading: `grade-color.js makeGrader`, `adjustToGrade`. Thumbnail reads use one WebGL2 pixel-pack buffer/fence, polled without waiting; pending readbacks are discarded/requeued on hidden and invalidated by source changes.
+  `boot`. Looks (docs/GRADE_LOOKS_SPEC.md): `grade-looks.js` (catalogue as data: `CATS2`, `LOOKS2`, `LEGACY_REVS`) ·
+  `grade-color.js` looks v2: `compileLook` (definition → colour function), `buildLookLUT` (33³ RGBA16F, half floats) ·
+  `grader.js` looks section: `ADJ2`, `layerDef`, `defKey`, `lookUniforms`, `finishOf` · `grade.js` gl: `FS.look`,
+  `defLUT` / `cachedLUT` / `trimLUTs` (LRU, `LUT_KEEP`) · library: `buildGrid`, `filterGrid`, `setSub` (All /
+  Favorites / My Looks), `applyEntry` (click replaces), `addEntry` (+ stacks), `toggleFav`, `openTileMenu`,
+  `prepareThumbLUT`, `queueShown`, `pumpThumbs` · layersui: `lookActsHTML`, `saveMyLook` (v2 file, `shim.js` `wrap`).
+  Classic looks: removed; `grade-looks.js CLASSIC` maps their ids to catalogue looks (`grade.js validLayer`) · Adjust and Gradient map layers: `grade-color.js makeGrader`, `adjustToGrade`. Thumbnail reads use one WebGL2 pixel-pack buffer/fence, polled without waiting; pending readbacks are discarded/requeued on hidden and invalidated by source changes.
 - Frame Grab (`framegrab.js`) → view: `previewSize`, `keep` (LRU of decoded frames at preview size, `CACHE_MB`),
   `pageDecoder` (WebCodecs on Mediabunny's packets: keyframe index, keyframes, exact frames forward and back),
   `ffmpegDecoder` (FFmpeg for what the page cannot decode: batches of frames, key pictures), `paint`, `drive`

@@ -46,9 +46,9 @@ exports.run = async (ctx, want, ok, until, sleep) => {
       if (!(await grade.locator("#clearBtn").isDisabled())) { await grade.locator("#clearBtn").click(); await grade.locator("#clearBtn").click(); }
     }
     await grade.locator(".tab[data-tab=filters]").click();
-    for (const id of ["nocturno", "hielo", "medianoche"]) await grade.locator(`.tile[data-look="${id}"]`).click();
+    for (const id of ["nordic", "cine-teal", "golden-hour"]) await grade.locator(`.tile[data-look="${id}"] [data-tact=add]`).click();   // + stacks
     await until(async () => (await grade.locator("#listF .layer").count()) === 3, 5000, 20); await painted(page);
-    ok((await grade.locator('.tile[data-look="nocturno"]').textContent()).includes(L("look.nocturno")), "Look names are translated: " + L("look.nocturno"));
+    ok((await grade.locator('.tile[data-look="nordic"]').textContent()).includes(L("lk.nordic")), "Look names are translated: " + L("lk.nordic"));
     const n = () => grade.locator("#listF .layer").count();
     ok(await n() === 3, "Grade: three stacked filters");
     await grade.locator("#stage").click({ position: { x: 5, y: 5 } }).catch(() => {});
@@ -651,7 +651,7 @@ exports.run = async (ctx, want, ok, until, sleep) => {
     }
     await grade.locator(".tab[data-tab=filters]").click();
     const looks = await grade.locator(".tile").evaluateAll(ts => ts.slice(0, 12).map(t => t.dataset.look));
-    for (const id of looks) await grade.locator(`.tile[data-look="${id}"]`).click();
+    for (const id of looks) await grade.locator(`.tile[data-look="${id}"] [data-tact=add]`).click();
     await grade.locator(".tab[data-tab=tools]").click();
     await grade.locator(".acc").evaluateAll(ds => ds.forEach(d => { d.open = true; }));
     for (let k = 0; k < 8; k++) {
