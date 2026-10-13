@@ -1,0 +1,123 @@
+--- a/.github/workflows/build.yml	2026-10-13 21:20:42.260760216 +0000
++++ b/.github/workflows/build.yml	2026-10-13 21:20:42.280345250 +0000
+@@ -9,6 +9,7 @@
+ 
+ permissions:
+   contents: write
++  actions: read # SignPath reads the unsigned artifact (docs/SIGNING.md)
+ 
+ concurrency:
+   group: build-${{ github.ref }}
+@@ -18,6 +19,9 @@
+   build:
+     if: contains(github.event.head_commit.message, '[build]') || github.event_name == 'workflow_dispatch'
+     runs-on: windows-latest
++    env:
++      # Authenticode signing through SignPath Foundation (docs/SIGNING.md); without the secret the build stays unsigned
++      SIGNPATH: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+     steps:
+       - uses: actions/checkout@v5
+ 
+@@ -75,6 +79,8 @@
+ 
+       # The setup is signed for the updater (docs/UPDATES.md): the private key is the TAURI_SIGNING_PRIVATE_KEY secret;
+       # its public half is in tauri.conf.json. Local builds leave tauri.updater.conf.json out and sign nothing.
++      # With SignPath (docs/SIGNING.md) the build runs in two halves: halation.exe is Authenticode-signed before NSIS
++      # packs it, then the setup is signed and its updater signature is made again over the signed bytes.
+       - name: Build installer
+         working-directory: app
+         shell: bash
+@@ -83,7 +89,92 @@
+           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+         run: |
+           test -n "$TAURI_SIGNING_PRIVATE_KEY" || { echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is missing (docs/UPDATES.md)"; exit 1; }
+-          npx tauri build --config src-tauri/tauri.updater.conf.json
++          if [ "$SIGNPATH" = true ]; then
++            npx tauri build --config src-tauri/tauri.updater.conf.json --no-bundle
++          else
++            npx tauri build --config src-tauri/tauri.updater.conf.json
++          fi
++
++      - name: Upload unsigned executable
++        if: env.SIGNPATH == 'true'
++        id: unsigned-exe
++        uses: actions/upload-artifact@v6
++        with:
++          name: unsigned-exe
++          path: app/src-tauri/target/release/halation.exe
++          if-no-files-found: error
++
++      - name: Sign executable
++        if: env.SIGNPATH == 'true'
++        uses: signpath/github-action-submit-signing-request@v3
++        with:
++          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
++          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
++          project-slug: halation
++          signing-policy-slug: release-signing
++          artifact-configuration-slug: exe
++          github-artifact-id: ${{ steps.unsigned-exe.outputs.artifact-id }}
++          wait-for-completion-timeout-in-seconds: 86400
++          output-artifact-directory: signed-exe
++
++      - name: Build signed installer
++        if: env.SIGNPATH == 'true'
++        working-directory: app
++        shell: bash
++        env:
++          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
++          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
++        run: |
++          cp ../signed-exe/halation.exe src-tauri/target/release/halation.exe
++          npx tauri bundle --config src-tauri/tauri.updater.conf.json --bundles nsis
++
++      - name: Upload unsigned installer
++        if: env.SIGNPATH == 'true'
++        id: unsigned-setup
++        uses: actions/upload-artifact@v6
++        with:
++          name: unsigned-setup
++          path: app/src-tauri/target/release/bundle/nsis/Halation_${{ steps.version.outputs.version }}_x64-setup.exe
++          if-no-files-found: error
++
++      - name: Sign installer
++        if: env.SIGNPATH == 'true'
++        uses: signpath/github-action-submit-signing-request@v3
++        with:
++          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
++          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
++          project-slug: halation
++          signing-policy-slug: release-signing
++          artifact-configuration-slug: setup
++          github-artifact-id: ${{ steps.unsigned-setup.outputs.artifact-id }}
++          wait-for-completion-timeout-in-seconds: 86400
++          output-artifact-directory: signed-setup
++
++      # The updater signature covers the exact bytes users download, so it is made again over the signed setup
++      - name: Replace installer with the signed one
++        if: env.SIGNPATH == 'true'
++        working-directory: app
++        shell: bash
++        env:
++          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
++          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
++        run: |
++          setup="src-tauri/target/release/bundle/nsis/Halation_${{ steps.version.outputs.version }}_x64-setup.exe"
++          cp "../signed-setup/$(basename "$setup")" "$setup"
++          rm -f "$setup.sig"
++          npx tauri signer sign "$setup"
++          test -s "$setup.sig"
++
++      - name: Check Authenticode signatures
++        if: env.SIGNPATH == 'true'
++        shell: pwsh
++        run: |
++          $v = '${{ steps.version.outputs.version }}'
++          foreach ($file in @('app/src-tauri/target/release/halation.exe', "app/src-tauri/target/release/bundle/nsis/Halation_${v}_x64-setup.exe")) {
++            $sig = Get-AuthenticodeSignature $file
++            if ($sig.Status -ne 'Valid') { throw "Not validly signed: $file ($($sig.Status))" }
++            Write-Host "PASS $file signed by $($sig.SignerCertificate.Subject)"
++          }
+ 
+       - name: Collect installer and portable executable
+         id: files
