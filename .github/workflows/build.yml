@@ -94,7 +94,12 @@ jobs:
           setup="app/src-tauri/target/release/bundle/nsis/Halation_${v}_x64-setup.exe"
           test -f "$setup" || { ls app/src-tauri/target/release/bundle/nsis; exit 1; }
           mkdir -p dist-release
-          cp "$setup" "$setup.sig" dist-release/
+          # Two copies of the same setup: Halation_x64-setup.exe is the one people download (the README's download count
+          # reads only this name), Halation_<v>_x64-update.exe the one the updater downloads (latest.json), so updates and
+          # the model releases' downloads stay out of the count
+          cp "$setup" dist-release/Halation_x64-setup.exe
+          cp "$setup" "dist-release/Halation_${v}_x64-update.exe"
+          cp "$setup.sig" "dist-release/Halation_${v}_x64-update.exe.sig"
           mkdir -p dist-check
           cp app/src-tauri/target/release/halation.exe "dist-check/halation.exe"
           # Release notes: the section of CHANGELOG.md for this version (the release, and the updater's notes)
@@ -103,12 +108,12 @@ jobs:
           # latest.json: what installed copies read (plugins.updater.endpoints: the public releases' latest)
           node -e '
             const fs = require("fs"), [v, sig] = process.argv.slice(1);
-            const name = `Halation_${v}_x64-setup.exe`;
+            const name = `Halation_${v}_x64-update.exe`;
             fs.writeFileSync("dist-release/latest.json", JSON.stringify({
               version: v, notes: fs.readFileSync("notes.md", "utf8").trim(), pub_date: new Date().toISOString(),
               platforms: { "windows-x86_64": { signature: fs.readFileSync(sig, "utf8").trim(), url: `https://github.com/Sylphera/Halation/releases/download/v${v}/${name}` } }
             }, null, 2));
-          ' "$v" "dist-release/Halation_${v}_x64-setup.exe.sig"
+          ' "$v" "dist-release/Halation_${v}_x64-update.exe.sig"
           ls -la dist-release
 
       # The executable inside the setup is the file users run; its embedded icon must be the current one
@@ -121,7 +126,7 @@ jobs:
         run: |
           $binary = Resolve-Path dist-check/halation.exe
           $version = '${{ steps.version.outputs.version }}'
-          $setup = Resolve-Path "dist-release/Halation_${version}_x64-setup.exe"
+          $setup = Resolve-Path dist-release/Halation_x64-setup.exe
           foreach ($file in @($binary, $setup)) {
             $info = [Diagnostics.FileVersionInfo]::GetVersionInfo($file)
             if ($info.ProductName -ne 'Halation' -or $info.ProductVersion -ne $version -or $info.FileVersion -ne $version) { throw "Incorrect native version metadata: $file" }
@@ -139,7 +144,7 @@ jobs:
           } finally {
             if (!$process.HasExited) { Stop-Process -Id $process.Id }
           }
-          & 'C:\Program Files\7-Zip\7z.exe' x "dist-release/Halation_${{ steps.version.outputs.version }}_x64-setup.exe" "-o$env:RUNNER_TEMP\halation-installer-check" -y
+          & 'C:\Program Files\7-Zip\7z.exe' x dist-release/Halation_x64-setup.exe "-o$env:RUNNER_TEMP\halation-installer-check" -y
           if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect installer' }
           $installed = @(Get-ChildItem "$env:RUNNER_TEMP\halation-installer-check" -Recurse -File -Filter halation.exe)
           if ($installed.Count -ne 1) { throw 'Installer must contain exactly one Halation executable' }
