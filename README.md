@@ -29,7 +29,7 @@ Focused tools for the media work between the big apps — no account, no waterma
   <table>
     <tr>
       <td colspan="2">
-        <img src="docs/screenshots/showcase.jpg" alt="Halation tools: Downloader, Converter, Vocal Remover, Audio Visualizer, Grade, Cover Test, Background Remover, Upscale, AI Interpolate, Frame Capture and Library">
+        <img src="docs/screenshots/promo.jpg" alt="Halation: Audio Visualizer, Grade, Background Remover, Upscale, Cover Test, Vocal Remover and Library">
       </td>
     </tr>
     <tr>
@@ -48,6 +48,10 @@ Focused tools for the media work between the big apps — no account, no waterma
 > **Halation is proprietary, closed-source freeware.** This repository distributes official builds, documentation and public project assets. The application source code is not published here.
 
 ## Features
+
+<div align="center">
+  <img src="docs/screenshots/showcase.jpg" alt="Halation tools: Downloader, Converter, Vocal Remover, Audio Visualizer, Grade, Cover Test, Background Remover, Upscale, AI Interpolate, Frame Capture and Library">
+</div>
 
 - Download video, audio or artwork from supported links, and convert media, documents and PDF pages.
 - Separate music into vocals/instrumental or four stems, on GPU or CPU.
