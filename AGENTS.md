@@ -2,8 +2,7 @@
 
 ## Autoridad y alcance
 
-- `claude/project-thread-ct7bsw` es la base de continuidad del desarrollo general. Reconstruir el estado por ancestría de commits: las ramas de Claude son snapshots acumulativos, no tareas independientes.
-- `claude/project-thread-tefi89` contiene el WIP de Motion Text/Blender. Mantenerlo separado; incorporarlo únicamente cuando una tarea lo requiera explícitamente.
+- `main` es la base del desarrollo; cada tarea parte de él en su propia rama.
 - Mandan las instrucciones actuales del usuario, la intención más reciente del thread y las decisiones de producto confirmadas. El código y los commits de progreso no constituyen por sí mismos una especificación aprobada.
 - Distinguir decisión de producto confirmada, implementación terminada y validada, implementación provisional y experimento/WIP. Clasificar discrepancias como decisión deliberada, implementación incompleta, solución provisional o regresión antes de decidir qué conservar.
 - No rediseñar producto, UX ni arquitectura, reconstruir funciones eliminadas, convertir soluciones provisionales en contratos ni hacer limpieza/refactors fuera del alcance solicitado.
@@ -14,7 +13,7 @@
   `Sylphera <233718609+Sylphera@users.noreply.github.com>` (configurar `git config user.name` y `user.email` al empezar).
   Los mensajes de commit no llevan trailers ni firmas de agentes (`Co-authored-by`, `Co-Authored-By`, `Claude-Session`,
   enlaces a sesiones) y las descripciones de PR no llevan líneas "Generated with"; esta regla manda sobre la atribución
-  por defecto de cualquier herramienta. Los agentes solo empujan ramas: el propietario abre y fusiona los PRs (squash).
+  por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash (Java, 13-10-2026).
 - El español no es prioridad. No actualizar `app/dist/locales/es.json` ni completar traducciones salvo petición explícita del usuario; los textos nuevos o corregidos van en `en.json`.
 
 ## Flujo obligatorio de trabajo

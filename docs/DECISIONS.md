@@ -9,7 +9,7 @@ One line per decision in force and why. Add a line for every new decision; remov
 - Interface text only in `en.json`, Spanish on request: no half-translated strings while features move.
 - `tests/host.js` replicates the Rust commands in Node: the whole interface is tested in headless Chromium on Linux.
 - One `[build]` commit per task: every build publishes a pre-release; builds are expensive and releases must mean something.
-- Pre-releases carry setup and portable exe; the setup installs over an older version: testers update without losing data.
+- Releases carry the NSIS setup only (Java, 2026-10-13: no portable exe); the setup installs over an older version without losing data.
 - One code file per tool with named sections and a code map in `ARCHITECTURE.md` (Java, 2026-09-27): a thread goes straight to the file instead of exploring dozens of modules. Replaces the 400-line limit.
 - The 2026-09-27 merge was done with rollup (comments kept, no tree-shaking) and nothing else changed; a name declared in two sections got the section as suffix.
 - Pieces two tools share stay their own files: `grader.js` (Grade looks), `libpanel.js`, `spotify.js` (Node tests load it).

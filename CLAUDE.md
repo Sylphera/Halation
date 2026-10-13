@@ -47,7 +47,7 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
   `Sylphera <233718609+Sylphera@users.noreply.github.com>` (`git config user.name` and `user.email` at the start of each
   session). Commit messages carry no agent trailers or signatures (`Co-Authored-By`, `Co-authored-by`, `Claude-Session`,
   links to agent sessions) and PR descriptions no "Generated with" lines; this rule overrides any default attribution.
-  Agents only push branches: the owner opens and merges the pull requests (squash merge).
+  Agents open their pull requests and squash-merge them themselves (Java, 2026-10-13).
 - Spotify: public metadata only, the audio comes from YouTube. Never Spotify's audio.
 - No OmniRoute. No Supabase or cloud services.
 

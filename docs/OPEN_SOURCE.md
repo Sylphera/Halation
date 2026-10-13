@@ -1,7 +1,7 @@
 # Apertura del código (open source)
 
-Halation pasa de freeware cerrado a software libre antes de la migración a Qt Quick. Este documento fija el plan, lo
-que ya está preparado y los pasos que no se pueden deshacer.
+Halation pasó de freeware cerrado a software libre el 13-10-2026, antes de la migración a Qt Quick. Este documento
+recoge las decisiones, lo que se hizo y lo que queda.
 
 ## Decisiones
 
@@ -9,12 +9,12 @@ que ya está preparado y los pasos que no se pueden deshacer.
   sección 7 para combinar con GSAP (licencia propia de GreenSock, no compatible con la GPL sin él).
 - Marca: el nombre "Halation", el logo, el icono y el wordmark quedan fuera de la GPL (`TRADEMARKS.md`). Un fork
   necesita otro nombre e icono.
-- Un solo repositorio: **Sylphera/Halation**. Conserva estrellas, releases (v1.1.0, cutout-sam21-v1, stems-v1,
-  stems-v4) y la URL del actualizador (`releases/latest/download/latest.json`), así que las copias instaladas siguen
-  actualizándose sin cambios.
-- Historial nuevo: el `main` público empieza en un único commit con el árbol de esta rama. El historial privado
+- Un solo repositorio: **Sylphera/Halation**, con el código, los issues y las releases. Conserva las releases de modelos
+  (cutout-sam21-v1, stems-v1, stems-v4), que la app descarga, y la URL del actualizador
+  (`releases/latest/download/latest.json`).
+- Historial nuevo: el `main` público empezó en un único commit ("Halation 1.1.1, open source"). El historial privado
   (175 commits, ~1 GB de `.git`, rutas personales, autores de agentes) no se publica.
-- Halation-source se archiva como privado; no se borra (guarda el historial y, hasta el cambio, el secreto de firma).
+- Halation-source (privado) queda sin uso y lo elimina Java.
 
 ## Qué sale del árbol público
 
@@ -34,35 +34,20 @@ que llevó a la retirada de youtube-dl en 2020) cambiado por uno inventado. `.gi
 - Ajustes → Licencia muestra `NOTICE.md` + la GPL (`system.rs::legal_text`), y el instalador copia `NOTICE.md`.
 - Metadatos: `Cargo.toml` (`license = "GPL-3.0-or-later"`), `package.json`, copyright y publisher de
   `tauri.conf.json`.
-- Llega a los usuarios con la siguiente release; esta tarea no publica build.
+- Llegó a los usuarios con la release 1.1.1, la primera del repo público (solo setup, sin portable; clave del updater
+  nueva, `docs/UPDATES.md`).
 
-## Pendiente de Java antes de publicar
+## Fondos de 21st.dev
 
-1. **Fondos de 21st.dev** (decisión de Java, 13-10-2026): Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork) vienen de
-   componentes de 21st.dev sin licencia y no están en el repo público. Aquí van la reescritura propia (Auralis v3 en sala
-   limpia, aprobado por Java el 13-10-2026, y Welcome Cáusticas, `docs/BACKGROUNDS_SPEC.md`). La migración es total: la
-   próxima release sale de este repo cuando Java la decida y Halation-source (privado, con los fondos anteriores) se
-   elimina.
-2. **Regla de autoría**: autorizada por Java el 13-10-2026; está en `CLAUDE.md` y `AGENTS.md` y cubre a cualquier agente
-   (Claude Code, Codex u otro).
-3. **`docs/examples/grade.jpg`** (foto de The Weeknd, autor y licencia desconocidos): ya está en las capturas
+Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork) venían de componentes de 21st.dev sin licencia y no están en el repo
+público. En su lugar van la reescritura propia en sala limpia: Auralis v3, aprobado por Java el 13-10-2026, y el fondo
+de Welcome Cáusticas (`docs/BACKGROUNDS_SPEC.md`).
+
+## Pendiente
+
+1. **`docs/examples/grade.jpg`** (foto de The Weeknd, autor y licencia desconocidos): ya está en las capturas
    públicas; en un repo libre conviene sustituirla por una foto con licencia clara.
-4. Riesgo conocido, no bloqueante: `spotify-metrics.js` y `profile.js` leen APIs internas de Spotify (pathfinder) y
+2. Riesgo conocido, no bloqueante: `spotify-metrics.js` y `profile.js` leen APIs internas de Spotify (pathfinder) y
    SoundCloud (`client_id` de su web). Con el código público se ve más fácilmente; el riesgo es de ToS (bloqueo o
    carta), no de licencia.
-
-## Pasos de publicación (irreversibles, con confirmación de Java)
-
-1. Fusionar esta rama en `main` de Halation-source (PR que abre y fusiona Java).
-2. Crear el commit único:
-   `git checkout --orphan open-source main && git commit -m "Halation 1.1.1, open source"` con autor
-   `Sylphera <233718609+Sylphera@users.noreply.github.com>`.
-3. En Sylphera/Halation: guardar el `main` actual como rama `legacy-site` y añadir los secretos
-   `TAURI_SIGNING_PRIVATE_KEY` (y la contraseña vacía si se usa).
-4. `git push --force origin open-source:main` en Sylphera/Halation. Los tags y releases existentes no cambian.
-5. Ajustes del repo: descripción, topics, Issues, "Private vulnerability reporting", squash merge por defecto.
-6. Archivar Halation-source. Las ramas sin fusionar (Grade: `claude/grade-looks-spec-6vejsj`) se llevan al repo
-   público como parche sobre el nuevo `main`.
-7. La siguiente versión sale de Sylphera/Halation con un commit `[build]` (el workflow ya publica en el mismo repo y
-   `latest.json` ya apunta ahí). La pre-release 1.2.0-beta.1 no se toca.
-8. Promoción (borradores en la carpeta del proyecto `open-source/`), solo cuando el repo esté publicado.
+3. Promoción (borradores en la carpeta del proyecto `open-source/`).

@@ -36,7 +36,8 @@ Neither removes SmartScreen at once: an OV certificate builds reputation with do
    - Project: Halation, <https://github.com/Sylphera/Halation>
    - Description: local creative workspace for Windows (image, video and audio tools), Tauri 2 + Rust.
    - License: GPL-3.0-or-later. Build: GitHub Actions, `.github/workflows/build.yml`.
-   - Artifacts: `halation.exe` (portable) and the NSIS setup `Halation_<version>_x64-setup.exe`.
+   - Artifacts: the NSIS setup (`Halation_x64-setup.exe`, and `Halation_<version>_x64-update.exe` for the updater) and
+     the `halation.exe` inside it.
    - Maintainer: Sylphera (author, reviewer and approver).
 3. After acceptance, in SignPath:
    - Enable MFA. Add the predefined **GitHub.com** Trusted Build System and link it to the project.
@@ -57,10 +58,10 @@ Without the `SIGNPATH_API_TOKEN` secret the workflow behaves as today. With it:
 
 1. `tauri build --no-bundle` builds `halation.exe`; it is uploaded and signed through
    `signpath/github-action-submit-signing-request@v3`.
-2. The signed exe replaces the built one and `tauri bundle --bundles nsis` packs it, so the installed copy and the
-   portable copy are the same signed file (the existing parity check still holds).
+2. The signed exe replaces the built one and `tauri bundle --bundles nsis` packs it, so the installed exe is the
+   signed file (the existing parity check still holds).
 3. The setup is uploaded and signed; its updater `.sig` is made again with `tauri signer sign` over the signed bytes,
-   because `latest.json` must match the file users download.
+   because `latest.json` must match the file the updater downloads.
 4. `Get-AuthenticodeSignature` must report `Valid` for both files before the release is published.
 
 Waits up to 24 h per approval (`wait-for-completion-timeout-in-seconds: 86400`); GitHub's job limit is 6 h, so approve
