@@ -58,7 +58,7 @@ Format: file → section: functions.
     `renderExports` (filter, ticks: `syncPicked`, select all, remove from list, cut out), `pickFromLibrary`, `mountPanel` ·
     settings (v2: `DEFAULT_SETTINGS`, `TOOL_DEFAULTS`, `migrateSettings` from 0.9.0, `flatSettings` = `__hal.settings()`,
     `setToolDefaults` = a tool's "Use as default", app.json key `toolDefaults`): `renderSettings`, `setSetting`, `setProc` /
-    `renderProcessing` (mode, GPU, limits, minimized), the per-section "Advanced" (`advancedOpen`), `detectCodecs`, Restore defaults (`#setReset`), Artist (`linkFields`, `saveLinks`: settings `artistName`, `links`), `findProfiles` (`webSearch`: `bingResults`, `ddgResults`; `pickProfile`) and `findLinks` ("Are these yours?", `#findDlg`), `welcome` (first start, `firstStart`) ·
+    `renderProcessing` (mode, GPU, limits, minimized), the per-section "Advanced" (`advOpen`: closed at every start, open or closed only during the run), `detectCodecs`, Restore defaults (`#setReset`), Artist (`linkFields`, `saveLinks`: settings `artistName`, `links`), `findProfiles` (`webSearch`: `bingResults`, `ddgResults`; `pickProfile`) and `findLinks` ("Are these yours?", `#findDlg`), `welcome` (first start, `firstStart`) ·
     modules: `renderModules`, `renderStorage`, `install`, `remove` · files: `saveOutput` (exports of any tab), `writeFile`, `routeFiles` / `dropped` (files into tabs), `sendToVisualizer` / `sendToGrade` /
     `sendToUpscale`, `installTool`, `runTool` · closing: `working` (tabs still busy), `closeRequested` (asks,
     flushes the tools, `app_quit`), the minimized memory level (`memory_low`) · sendto ("Send to…"): `sendTargets` (the tools
@@ -125,7 +125,7 @@ Format: file → section: functions.
   `grade-color.js` looks v2: `compileLook` (definition → colour function), `buildLookLUT` (33³ RGBA16F, half floats) ·
   `grader.js` looks section: `ADJ2`, `layerDef`, `defKey`, `lookUniforms`, `finishOf` · `grade.js` gl: `FS.look`,
   `defLUT` / `cachedLUT` / `trimLUTs` (LRU, `LUT_KEEP`) · library: `buildGrid`, `filterGrid`, `setSub` (All /
-  Favorites / My Looks), `applyEntry` (click replaces), `addEntry` (+ stacks), `toggleFav`, `openTileMenu`,
+  Favorites / My Looks), `setPreview` (a click: the look on preview over the picture, `previewLayer`, never in `G.layers`; the bar `#lookBar`), `applyPreview` ("Add to layers", a double click or Enter: one layer on top), `toggleFav`, `openTileMenu`,
   `prepareThumbLUT`, `queueShown`, `pumpThumbs` · layersui: `lookActsHTML`, `saveMyLook` (v2 file, `shim.js` `wrap`).
   Classic looks: removed; `grade-looks.js CLASSIC` maps their ids to catalogue looks (`grade.js validLayer`) · Adjust and Gradient map layers: `grade-color.js makeGrader`, `adjustToGrade`. Thumbnail reads use one WebGL2 pixel-pack buffer/fence, polled without waiting; pending readbacks are discarded/requeued on hidden and invalidated by source changes.
 - Frame Grab (`framegrab.js`) → view: `previewSize`, `keep` (LRU of decoded frames at preview size, `CACHE_MB`),

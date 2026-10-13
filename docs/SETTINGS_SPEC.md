@@ -88,7 +88,7 @@ secciones como tarjetas debajo, la pestaña visible marcada al desplazarse.
   workspace (JOBS_SPEC §6). Avanzado: el desglose por caché.
 - **About:** versión, logo, carpetas, datos de versiones anteriores.
 - **"Advanced":** un `details` por sección (motion.js `details`), cerrado por defecto; su estado abierto / cerrado
-  se recuerda por sección.
+  se recuerda por sección solo durante la ejecución: cada arranque empieza cerrado (DECISIONS, reabrir).
 
 ### 2.1 Configuración dentro de cada herramienta
 
@@ -115,8 +115,7 @@ secciones como tarjetas debajo, la pestaña visible marcada al desplazarse.
     "videoName": "{title}.mp4", "imageName": "{title}.png",
     "processing": { "mode": "balanced", "gpu": true, "minimized": "continue", "limits": null },
     "workspace": { "budgetMB": 8192 },
-    "modules": {},
-    "advancedOpen": {}
+    "modules": {}
   },
   "toolDefaults": {
     "visualizer": { "format": "1920x1080", "fps": "30", "quality": "std", "videoCodec": "auto", "audioCodec": "auto" },

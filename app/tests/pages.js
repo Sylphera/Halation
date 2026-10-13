@@ -172,7 +172,7 @@ const ok = (c, msg) => { console.log((c ? "OK   " : "FAIL ") + msg); if (!c) fai
   await until(async () => /cover\.png/.test(await grade.locator("#imgName").textContent()), 8000);
   await grade.locator(".tab[data-tab=filters]").click();
   const looks = await grade.locator(".tile").evaluateAll(ts => ts.slice(0, 3).map(t => t.dataset.look));
-  for (const id of looks) await grade.locator(`.tile[data-look="${id}"] [data-tact=add]`).click();
+  for (const id of looks) await grade.locator(`.tile[data-look="${id}"]`).dblclick();
   const rows = grade.locator("#listF .layer");
   await until(async () => await rows.count() === 3, 5000, 20);
   await grade.locator("#selAllL").click();

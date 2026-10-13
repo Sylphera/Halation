@@ -21,11 +21,13 @@ const OPEN_IN = { image: "grade", video: "framegrab", audio: "visualizer" };
 const PAGE = 120;
 const store = { get(k, d) { try { const v = localStorage.getItem("hal.lib." + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("hal.lib." + k, JSON.stringify(v)); } catch (e) { /* per viewer only */ } } };
+// the view and the sort are kept; the tab and the collections column are interface state, not kept (DECISIONS: reopening)
+try { localStorage.removeItem("hal.lib.tab"); localStorage.removeItem("hal.lib.cols"); } catch (e) {}
 
 function mount(root, o = {}) {
   const H = window.__shell || HAL(), lib = H.library, picker = o.mode === "picker";
-  const st = { tab: picker ? "all" : store.get("tab", "all"), q: "", types: new Set(), tools: new Set(), sort: picker ? "recent" : store.get("sort", "newest"),
-    view: store.get("view", "grid"), col: null, sel: null, picked: new Set(), shown: PAGE, colsOpen: store.get("cols", null) };
+  const st = { tab: "all", q: "", types: new Set(), tools: new Set(), sort: picker ? "recent" : store.get("sort", "newest"),
+    view: store.get("view", "grid"), col: null, sel: null, picked: new Set(), shown: PAGE, colsOpen: null };
   let secs = [], gen = 0, cards = new Map();   // id → item shown
   root.classList.add("libv", "libv-" + (picker ? "picker" : "page"));
   root.innerHTML = `
@@ -161,7 +163,7 @@ function mount(root, o = {}) {
   }
   function foldCols(on, remember) {
     root.classList.toggle("cols-folded", on);
-    if (remember) { st.colsOpen = !on; store.set("cols", !on); }
+    if (remember) st.colsOpen = !on;   // for this run only, like the tab: both start at their defaults
     paintColHead();
   }
   const wide = () => root.getBoundingClientRect().width >= 1100 - 64;
@@ -457,7 +459,7 @@ function mount(root, o = {}) {
   /* ---------- tabs (the page's), refresh ---------- */
   function setTab(tab) {
     if (!lib.TYPE_OF_TAB.hasOwnProperty(tab)) tab = "all";
-    st.tab = tab; st.shown = PAGE; if (!picker) store.set("tab", tab);
+    st.tab = tab; st.shown = PAGE;
     render();
   }
   let refreshing = null;

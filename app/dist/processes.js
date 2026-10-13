@@ -643,8 +643,7 @@ function listenOutside(on) {
   for (const d of docs) d[on ? "addEventListener" : "removeEventListener"]("pointerdown", outside, true);
 }
 function remember(openNow) {
-  ui.open = openNow;
-  S.invoke("state_set", { key: "ui", value: Object.assign({}, S.st.ui || {}, { processes: { open: ui.open, groupsOpen: ui.groupsOpen } }) }).catch(() => {});
+  ui.open = openNow;   // only for this run: the tray and its groups start closed (DECISIONS: reopening)
 }
 
 /* ---------- actions ---------- */
@@ -793,9 +792,6 @@ function bind() {
   });
   $("#procCancelAll").addEventListener("click", cancelAll);
   $("#procSettings")?.addEventListener("click", () => { close({ restore: false }); S.show("settings"); if (S.settingsSection) S.settingsSection("processing"); });
-  S.invoke("state_get", { key: "ui" }).then(v => {
-    if (v && typeof v === "object") { S.st.ui = v; const p = v.processes || {}; ui.groupsOpen = Array.isArray(p.groupsOpen) ? p.groupsOpen.filter(x => typeof x === "string") : []; if (p.open && S.jobs.list().some(P.isLive)) open(); }
-  }).catch(() => {});
 }
 Object.assign(P, { paintSys, placeTray, openTray: open, closeTray: close, toggleTray: toggle, trayOpen: isOpen, renderTray: render, bindTray: bind });
 })();

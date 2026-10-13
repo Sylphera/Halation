@@ -28,7 +28,7 @@ const DEFAULT_SETTINGS = {
   version: 2, language: "en", reduceMotion: false, showProcesses: true, notifyDone: true, artistName: "", links: {},
   saveMode: null, saveLocationChosen: false, videoName: "{title}.mp4", imageName: "{title}.png",
   processing: { mode: "balanced", gpu: true, minimized: "continue", limits: null, stems: "auto" },
-  workspace: { budgetMB: 8192 }, modules: {}, advancedOpen: {}
+  workspace: { budgetMB: 8192 }, modules: {}
 };
 const TOOL_DEFAULTS = {
   visualizer: { format: "1920x1080", fps: "30", quality: "std", videoCodec: "auto", audioCodec: "auto" },
@@ -93,7 +93,7 @@ const ready = (async () => {
   for (const k of Object.keys(TOOL_DEFAULTS)) st.toolDefaults[k] = Object.assign({}, TOOL_DEFAULTS[k], tds[k] || {});
   st.settings.processing = Object.assign({}, DEFAULT_SETTINGS.processing, st.settings.processing || {});
   st.settings.workspace = Object.assign({}, DEFAULT_SETTINGS.workspace, st.settings.workspace || {});
-  if (!isObj(st.settings.advancedOpen)) st.settings.advancedOpen = {};
+  delete st.settings.advancedOpen;   // interface state is not kept between runs (DECISIONS: reopening)
   if (Array.isArray(fav)) st.favorites = fav.filter(x => typeof x === "string");
   if (names && typeof names === "object") st.fontNames = names;
   if (Array.isArray(ex)) st.exports = ex.filter(e => e && typeof e.path === "string");
@@ -1062,11 +1062,9 @@ document.querySelectorAll("[data-lim]").forEach(sel => sel.addEventListener("cha
   setProc("limits", Object.keys(lim).length ? lim : null); renderProcessing();
 }));
 $("#setBudget").addEventListener("change", e => setSetting("workspace", { ...st.settings.workspace, budgetMB: +e.target.value }));
-// each section's "Advanced": closed by default, remembered open or closed
-document.querySelectorAll("#v-settings details.adv").forEach(d => d.addEventListener("toggle", () => {
-  if (!!st.settings.advancedOpen[d.dataset.adv] === d.open) return;
-  setSetting("advancedOpen", { ...st.settings.advancedOpen, [d.dataset.adv]: d.open });
-}));
+// each section's "Advanced": closed at every start, remembered open or closed only during the run
+const advOpen = {};
+document.querySelectorAll("#v-settings details.adv").forEach(d => d.addEventListener("toggle", () => { advOpen[d.dataset.adv] = d.open; }));
 function renderProcessing() {
   const p = st.settings.processing, caps = S.jobs ? S.jobs.caps() : { cpu: 2, gpu: 2, net: 3 };
   $("#setProcMode").value = p.mode; $("#setProcGpu").checked = p.gpu !== false; $("#setProcMin").value = p.minimized || "continue";
@@ -1456,7 +1454,7 @@ async function renderSettings() {
   $("#setNotifyDone").checked = st.settings.notifyDone !== false;
   $("#setLanguage").value = S.I.lang();
   $("#setBudget").value = String(st.settings.workspace.budgetMB || 8192);
-  document.querySelectorAll("#v-settings details.adv").forEach(d => { d.open = !!st.settings.advancedOpen[d.dataset.adv]; });
+  document.querySelectorAll("#v-settings details.adv").forEach(d => { d.open = !!advOpen[d.dataset.adv]; });
   renderProcessing();
   renderLinks(); renderNamePreview(); markSettings();
   renderCodecs();

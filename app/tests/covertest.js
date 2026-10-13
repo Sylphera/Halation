@@ -312,6 +312,7 @@ const { PICS, THUMB, web, pic, script, txt, YT_ID, SP_ID, ytVideo, channelLockup
   await tab("covertest"); await appReady("covertest");
   const reopen = await E(() => ({ n: window.__ct.covers.length, title: window.__ct.C.fields.title, views: window.__ct.C.fields.views, rel: Object.values(window.__ct.profile.platforms).map(p => p.releases.length), refs: window.__ct.C.refs.length }));
   ok(reopen.n === 3 && reopen.title === "Afterimage" && reopen.views === "2.4M" && reopen.rel.join() === "10,10,10" && reopen.refs === 8, "Reopening Halation: three covers, fields, all eight references and the profile from disk");
+  ok(await E(() => window.__ct.C.platform === "youtube" && window.__ct.C.view.youtube === "channel" && window.__ct.C.leftTab === "cover" && !window.__ct.C.far && window.__ct.C.scale === 1), "Reopening Halation: platform, view, left tab, zoom and distance at their defaults");
   ok(await until(() => E(() => window.__ct.refs.length===8 && window.__ct.refs.every(r=>r.platforms.youtube?.releases.length===2))), "All eight reference artists restore their two cached videos");
   ok(await ct.locator('#cancelSearchBtn').isVisible(), "Reopening retains the action to cancel the active search test");
   await ct.locator('#cancelSearchBtn').click();

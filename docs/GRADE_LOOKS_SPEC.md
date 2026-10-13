@@ -75,17 +75,21 @@ trilineal produce escalones en degradados.
 - **Subpestañas de Filters**: `All`, `Favorites`, `My Looks`. Son pestañas separadas (no chips) y siempre visibles;
   cada una recuerda su scroll y su búsqueda mientras Grade está abierto.
   - `All`: todos los looks incluidos. Debajo del buscador, separada, una fila de chips de categoría (§5) con
-    `Every` (sin filtro) como primera. La categoría elegida persiste en el estado de Grade.
+    `Every` (sin filtro) como primera. Cada vez que Grade se abre vuelve a `Every` (estado de interfaz, DECISIONS).
   - `Favorites`: looks incluidos y personales marcados, en el orden en que se marcaron. Vacía: texto que explica la
     estrella.
   - `My Looks`: los looks personales (§3.3), por nombre. Vacía: texto que explica `Save as My Look`.
   - `Favorites` y `My Looks` no tienen fila de categorías en v1; el buscador sí.
 - Buscador: filtra la subpestaña activa por nombre, categoría y etiquetas del look (§3.1 `tags`). Sin resultados:
   texto vacío.
-- Tile: miniatura, nombre, estrella (visible al pasar/con foco; rellena si es favorito), `+` (añadir encima),
-  `−` y la marca ✓ como hoy. Las tiles de My Looks añaden un menú `⋯`: Rename, Duplicate, Delete, Favorite.
-- **Clic en una tile = aplicar**: sustituye la capa de look seleccionada (o la de arriba si no hay selección); si no
-  hay ninguna capa de look, la añade. `+` apila otro look encima como hoy. *(Decisión por defecto, §11.)*
+- Tile: miniatura, nombre, estrella (visible al pasar/con foco; rellena si es favorito) y la marca ✓ si el look está en
+  Layers (sin contador ni botones `+` / `−`). Las tiles de My Looks añaden un menú `⋯`: Rename, Duplicate, Delete,
+  Favorite.
+- **Clic en una tile = preview** (Java, 2026-10-13): el look se ve en el lienzo encima de los looks de Layers, sin
+  crear capa; la tile queda marcada y aparece sobre la imagen la barra `Preview <nombre> · Cancel · Add to layers`.
+  Otro clic en otra tile cambia la preview; Esc o Cancel la quitan. `Add to layers`, un doble clic o Enter sobre la
+  tile en preview añaden **una** capa encima de las demás. La exportación, el historial y el estado nunca llevan la
+  preview. Abrir una herramienta de Effects quita la preview (una sola cosa a prueba).
 - `Preview strength` (el `thumbPct` actual) sigue igual.
 
 ### 2.2 Panel derecho, capa de look abierta
@@ -295,9 +299,9 @@ Lista cerrada para v1; no se exponen las piezas internas del look.
 
 ### 4.5 Miniaturas
 
-- Mismo `renderStack` que hoy, 160 px. Con la semántica "clic sustituye" (§2.1), la miniatura de cada tile muestra la
-  pila viva **sin** la capa de look que se sustituiría + el look candidato a `Preview strength` (lo que se verá al
-  hacer clic). Para My Looks: con sus `adj` y su `def`.
+- Mismo `renderStack` que hoy, 160 px. La miniatura de cada tile muestra el look candidato a `Preview strength` solo
+  sobre la imagen y sus efectos: las capas de look de Layers no entran, así ajustarlas no recalcula ninguna miniatura.
+  Para My Looks: con sus `adj` y su `def`.
 - Orden de la cola: tiles visibles primero (IntersectionObserver), luego el resto en la misma cola de una en una.
   Tiles ocultas por subpestaña, categoría o búsqueda no se calculan hasta que se muestran.
 - Las LUT de miniaturas pasan por la caché LRU (§4.3): recorrer los ~70 looks no deja 70 texturas vivas.
@@ -470,6 +474,7 @@ Lo que se hizo distinto al implementar, y por qué. El resto se implementó como
 | §7.2 distancia | Umbral fijado en F0 | ΔE OKLab medio ≥ 0.015 del par más cercano de cada categoría. | Fijado con el catálogo de v1. |
 | §4.2 grano | Grano del look | El pase de grano acepta `shadows` (0 = el grano de Tools sin cambios); el ajuste Grain escala el grano del look o añade uno. | El grano de película pesa más en sombras. |
 | §2.1 | Clic en tile | La tile muestra la miniatura entera; `+`, `−` y el menú están en una esquina. | Los botones centrados tapaban la miniatura y recibían el clic. |
+| §2.1, §4.5 | Clic sustituye, `+` apila, contador ×N | Clic = preview sin capa; `Add to layers` / doble clic añade una capa; ✓ sin contador; sin `+` / `−`; miniaturas del look solo. | Java (2026-10-13): «¿es preview o no es preview?», y añadir uno creaba dos capas. |
 | §2.3 | Pestaña Mine | En inglés se llama «Saved». | No confundirla con My Looks. |
 | §3.1 | Campos de `color` | Se añade `map`: mapa de degradado en OKLab (`stops` [posición, color], `amt` mezcla de color, `tone` cuánto sigue la luminosidad al mapa). Va tras zonas y antes de fade. | Looks de diseño (covers, miniaturas) que recolorean la imagen por tonos sin pintarla de un solo color. |
 | §3.1 `intent` | — | Se añaden `creative` (looks de diseño: exentos de piel, primarios, inversiones y escalones de la rampa; deben conservar ≥ 35 % del abanico de tonos), `duotone` (impresión a dos tintas declarada: exenta del abanico de tonos) y `selective` (color selectivo). | Java (2026-10-13): looks intensos como diseño creativo marcado, nunca una capa de un solo color salvo duotonos declarados. |

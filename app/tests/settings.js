@@ -104,7 +104,7 @@ fs.writeFileSync(appFile, JSON.stringify({ settings: {
   ok(await until(async () => (await caps()).gpu === 2, 3000, 30) && await page.locator("#setProcModeNote").textContent() !== quietNote, "Fast: more at once, and the note says so: " + await page.locator("#setProcModeNote").textContent());
   await page.locator("#setProcMode").selectOption("balanced");
   await page.locator('#sg-processing details.adv > summary').click();
-  ok(await until(() => (appState().settings.advancedOpen || {}).processing === true, 3000, 30), "Advanced: open, remembered for Processing");
+  ok(await until(() => page.evaluate(() => document.querySelector("#sg-processing details.adv").open), 3000, 30) && !("advancedOpen" in appState().settings), "Advanced: open for this run, not saved between runs");
   await page.locator("#setLimCpu").selectOption("1");
   ok(await until(async () => (await caps()).cpu === 1, 3000, 30), "Processor jobs at once: 1 → the lane takes one");
   await page.locator("#setLimCpu").selectOption("auto");

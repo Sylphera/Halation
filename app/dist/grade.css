@@ -91,6 +91,12 @@ body{padding:0}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .tile{position:relative;display:flex;flex-direction:column;gap:5px;padding:5px;border:1px solid transparent;border-radius:12px;background:var(--raised);text-align:left;cursor:pointer}
 .tile:hover{border-color:var(--line-strong)}
+.tile.previewing,.tile.previewing:hover{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+/* the look on preview: a bar over the picture, the only way it becomes a layer besides a double click */
+.lookbar{position:absolute;right:0;bottom:12px;left:0;z-index:3;display:flex;align-items:center;gap:8px;width:max-content;max-width:calc(100% - 24px);margin:0 auto;padding:5px 5px 5px 14px;border-radius:var(--r-pill);background:var(--surface)}
+.lookbar .lbtext{display:flex;align-items:baseline;gap:6px;min-width:0;white-space:nowrap}
+.lookbar small{color:var(--text-2);font-size:11px}
+.lookbar b{overflow:hidden;max-width:24ch;font-size:12.5px;font-weight:600;text-overflow:ellipsis}
 .tile .thw{display:block;border-radius:var(--r-sm)}
 .tile canvas{display:block;width:100%;aspect-ratio:1;border-radius:var(--r-sm);background:var(--media)}
 .tile span{overflow:hidden;padding:0 2px 2px;font-size:11.5px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}

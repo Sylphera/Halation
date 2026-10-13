@@ -917,9 +917,11 @@ window.__halApp = {
       const profiles = await HAL.invoke("state_get", { key: "profiles" }).catch(() => null);
       if (Array.isArray(profiles?.references)) C.refs = profiles.references.filter(x => typeof x === "string").slice(0, REFS);
       if (s && typeof s === "object") {
-        for (const k of ["platform", "active", "scale", "far", "mobileView", "leftTab"]) if (s[k] != null) C[k] = s[k];
+        // what the test is about comes back; the platform, view, zoom, distance and left tab start at their defaults
+        // (DECISIONS: reopening)
+        if (s.active != null) C.active = s.active;
         if (typeof s.youtubeArtistInTitle === "boolean") C.youtubeArtistInTitle = s.youtubeArtistInTitle;
-        for (const k of ["view", "dark", "pos", "fields", "query"]) if (s[k] && typeof s[k] === "object") Object.assign(C[k], s[k]);
+        for (const k of ["dark", "pos", "fields", "query"]) if (s[k] && typeof s[k] === "object") Object.assign(C[k], s[k]);
         if (s.searchTest && typeof s.searchTest.query === "string") C.searchTest = { query: s.searchTest.query };
       }
       // views of earlier versions (Up next, Now playing) → the platform's first

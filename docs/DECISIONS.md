@@ -75,6 +75,13 @@ One line per decision in force and why. Add a line for every new decision; remov
   page show above and around them). The sections slide under the box and are cut at its foot. The tabs scroll to a section and follow the scroll, rather than hiding the
   others: everything stays reachable by scrolling and a section is one click away. Restore defaults keeps the language, the artist name and links, and the tools turned
   on or off. Selection is the same everywhere: a count, Select all (what is shown), Clear, then the actions.
+- Reopening (Java, 2026-10-13): Halation and every tool open at their defaults. Interface state (expanded or collapsed
+  panels, open sections, active tabs) lives only while the app runs: Settings' "Advanced" sections, the processes tray
+  and its groups, the Library's tab and collections column, Grade's look category, Cover Test's platform, view, zoom,
+  distance and left tab. What the user chose on purpose stays: Settings, "Use as default", saved looks and presets,
+  favourites, the Library's view and sort, and the work a crash brings back.
+- Grade's looks (Java, 2026-10-13): a click previews a look on the picture without a layer; "Add to layers" or a double
+  click adds exactly one (docs/GRADE_LOOKS_SPEC.md §2.1).
 - Home's drop zone is the one place a file lands on Home (Java, 2026-09-30): centred under the tool bar, big, and an
   image asks where it goes inside the zone itself instead of a menu at the pointer; other views keep the window overlay and menu.
 - The first start asks one thing, the artist name, the default everywhere, and can be skipped (Java, 2026-09-30). With a

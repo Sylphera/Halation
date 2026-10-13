@@ -437,8 +437,8 @@ function requestRender() {
 function draw() {
   if (!gl || !G.srcTex) return;
   const r = cropRect();
-  const d = G.activeDraft ? [up.draftLayer(G.activeDraft)] : [];
-  renderStack(G.showOrig ? [] : ordered(G.layers).concat(d), canvas.width, canvas.height, r.uni, null, G.cut && !G.showOrig ? G.maskTex : null);
+  const d = G.activeDraft ? [up.draftLayer(G.activeDraft)] : [], pv = up.previewLayer ? up.previewLayer() : null;
+  renderStack(G.showOrig ? [] : ordered(pv ? G.layers.concat(pv) : G.layers).concat(d), canvas.width, canvas.height, r.uni, null, G.cut && !G.showOrig ? G.maskTex : null);
   cleanupCaches();
   if (!G.showOrig) up.scheduleThumbs();
 }
@@ -447,6 +447,7 @@ function ordered(list) { return list.filter(isLook).concat(list.filter(l => !isL
 function cleanupCaches() {
   const ids = new Set(G.layers.map(l => l.id));
   if (G.activeDraft) ids.add(up.draftLayer(G.activeDraft).id);
+  const pv = up.previewLayer ? up.previewLayer() : null; if (pv) ids.add(pv.id);
   for (const id in layerLUTs) if (!ids.has(id)) { gl.deleteTexture(layerLUTs[id].tex); delete layerLUTs[id]; }
   for (const k in textTexs) {
     const e = textTexs[k], size = (e.w === canvas.width && e.h === canvas.height) || (e.w === 160 && e.h === 160);
@@ -867,20 +868,25 @@ function entryLayer(key) {
   return { type: "look", id0: L.id0, rev: L.rev, amt: clamp(+L.amt || 100, 0, 100), adj: cleanAdj(L.adj), def: clone(L.def), mine: key.slice(2), on: true };
 }
 const layerKey = L => L.mine && isPersonal(G.looks[L.mine]) ? "u:" + L.mine : !L.def && LOOK2[L.id0] ? "b:" + L.id0 : null;
-// The look layer a tile click replaces: the open one, else the top one (§2.1)
-function targetLook() { return G.layers.find(l => l.id === openId && isLook(l)) || G.layers.filter(isLook).pop() || null; }
+// A tile click previews its look on top of the looks already in Layers; only "Add to layers" makes it a layer (§2.1)
+let previewKey = null, previewL = null;
+function previewLayer() {
+  if (!previewKey) return null;
+  if (!previewL || previewL.key !== previewKey) { const L = entryLayer(previewKey); previewL = L ? Object.assign(L, { id: "preview-" + rid(), key: previewKey }) : null; }
+  return previewL;
+}
 const tileEls = new Map();   // key → { el, cv, wrap, painted: the thumbnail key it shows }
 const tileSeen = new Set();  // keys of tiles on screen: their thumbnails go first
 const tileObs = "IntersectionObserver" in window ? new IntersectionObserver(es => { for (const e of es) { const k = e.target.dataset.key; if (e.isIntersecting) tileSeen.add(k); else tileSeen.delete(k); } }) : null;
 function renderChips() {
   $("#chips").innerHTML = ["every", ...CATS2].map(c => `<button class="chip" aria-pressed="${c === catSel}" data-cat="${esc(c)}">${esc(c === "every" ? t("cat2.every") : cat2Name(c))}</button>`).join("");
 }
-$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; catSel = b.dataset.cat; renderChips(); filterGrid(true); up.schedulePersist(); });
+$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; catSel = b.dataset.cat; renderChips(); filterGrid(true); });
 let tileSeq = 0;
 function tileHTML(key) {
   const n = ++tileSeq, mine = key.startsWith("u:"), name = entryName(key), l = mine ? null : LOOK2[key.slice(2)];
-  return `<div class="tile" role="button" tabindex="0" data-key="${esc(key)}"${l ? ` data-look="${l.id}" data-cat="${l.cat}"` : ""} title="${esc(name)}" aria-label="${esc(t("grade.applyLook", { name }))}"><span class="thw" id="tw-${n}"><canvas width="160" height="160" id="th-${n}"></canvas></span><span class="tn">${esc(name)}</span><i hidden></i>
-    <div class="tacts"><button class="tact" data-tact="add" aria-label="${esc(t("grade.addAnother", { name }))}" title="${esc(t("grade.addShort"))}">${icon("plus")}</button><button class="tact rem" data-tact="rem" aria-label="${esc(t("grade.removeNamed", { name }))}" title="${esc(t("common.remove"))}" hidden>${icon("minus")}</button>${mine ? `<button class="tact" data-tact="menu" aria-haspopup="menu" aria-label="${esc(t("grade.l.more"))}" title="${esc(t("grade.l.more"))}">${icon("ellipsis")}</button>` : ""}</div>
+  return `<div class="tile" role="button" tabindex="0" data-key="${esc(key)}"${l ? ` data-look="${l.id}" data-cat="${l.cat}"` : ""} title="${esc(name)}" aria-label="${esc(t("grade.previewLook", { name }))}" aria-pressed="false"><span class="thw" id="tw-${n}"><canvas width="160" height="160" id="th-${n}"></canvas></span><span class="tn">${esc(name)}</span><i hidden></i>
+    ${mine ? `<div class="tacts"><button class="tact" data-tact="menu" aria-haspopup="menu" aria-label="${esc(t("grade.l.more"))}" title="${esc(t("grade.l.more"))}">${icon("ellipsis")}</button></div>` : ""}
     <button class="star" data-tact="fav" aria-pressed="false" aria-label="${esc(t("grade.fav", { name }))}" title="${esc(t("grade.favShort"))}">${icon("star")}</button></div>`;
 }
 // Every tile exists once; the sub-tab, the category and the search only hide them
@@ -895,6 +901,7 @@ function buildGrid() {
   }
   keys.forEach((k, i) => { const el = tileEls.get(k).el; if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null); });
   renderFavs(); filterGrid(false); renderGridBadges();
+  if (previewKey && !want.has(previewKey)) setPreview(null);
 }
 function matches(key, q) {
   if (!q) return true;
@@ -941,44 +948,47 @@ function toggleFav(key) {
   const s = tileEls.get(key)?.el.querySelector(".star"); if (s && i < 0) M.pop(s);
   up.schedulePersist();
 }
-function applyEntry(key) {
-  const L = entryLayer(key); if (!L) return;
-  const T = targetLook();
-  if (!T) addLayer(L);
-  else {
-    L.id = rid(); G.layers[G.layers.indexOf(T)] = L;
-    if (openId === T.id) openId = L.id;
-    ltab = "F"; changed();
-  }
-  setStatus(t("grade.st.lookApplied2", { name: entryName(key) }));
+function setPreview(key) {
+  if (key && !entryLayer(key)) key = null;
+  if (key === previewKey) return;
+  previewKey = key; previewL = null;
+  if (key && G.activeDraft) document.querySelectorAll(".tool[open]").forEach(o => { o.open = false; });   // one thing on trial at a time
+  for (const [k, e] of tileEls) { const on = k === key; e.el.classList.toggle("previewing", on); e.el.setAttribute("aria-pressed", String(on)); }
+  const bar = $("#lookBar");
+  if (key) { $("#lookBarName").textContent = entryName(key); if (bar.hidden) M.show(bar); }
+  else if (!bar.hidden) M.hide(bar);
+  requestRender();
 }
-function addEntry(key) {
-  const L = entryLayer(key); if (!L) return;
-  addLayer(L); setStatus(t("grade.st.lookAdded", { name: entryName(key), pct: L.amt }));
-}
-function removeEntry(key) {
-  for (let i = G.layers.length - 1; i >= 0; i--) if (G.layers[i].type === "look" && layerKey(G.layers[i]) === key) {
-    G.layers.splice(i, 1); renderLayers(); requestRender(); commit();
-    setStatus(t("grade.st.lookRemoved", { name: entryName(key) })); return;
-  }
+function applyPreview() {
+  const key = previewKey, L = key && entryLayer(key); if (!L) return;
+  setPreview(null); addLayer(L);
+  setStatus(t("grade.st.lookAdded", { name: entryName(key), pct: L.amt }), "ok");
 }
 function renderGridBadges() {
-  const counts = {}; for (const L of G.layers) if (L.type === "look") { const k = layerKey(L); if (k) counts[k] = (counts[k] || 0) + 1; }
+  // ✓: the look is in Layers (once or more); it pops when it goes on
+  const used = new Set(); for (const L of G.layers) if (L.type === "look") { const k = layerKey(L); if (k) used.add(k); }
   for (const [k, e] of tileEls) {
-    const b = e.el.querySelector("i"), rm = e.el.querySelector("[data-tact=rem]");
-    if (b.hidden && counts[k]) { b.hidden = rm.hidden = false; M.pop(b); M.pop(rm); }   // the badge pops when the look goes on
-    b.hidden = !counts[k]; b.textContent = counts[k] > 1 ? "×" + counts[k] : "✓"; rm.hidden = !counts[k];
+    const b = e.el.querySelector("i");
+    if (b.hidden && used.has(k)) { b.hidden = false; M.pop(b); }
+    b.hidden = !used.has(k); b.textContent = "✓";
   }
 }
 $("#grid").addEventListener("click", e => {
   const tile = e.target.closest("[data-key]"); if (!tile) return;
   const key = tile.dataset.key, a = e.target.closest("[data-tact]");
-  if (!a) { applyEntry(key); return; }
+  if (!a) { setPreview(key); return; }
   const act = a.dataset.tact;
-  if (act === "rem") removeEntry(key); else if (act === "add") addEntry(key); else if (act === "fav") toggleFav(key); else if (act === "menu") openTileMenu(key, a);
+  if (act === "fav") toggleFav(key); else if (act === "menu") openTileMenu(key, a);
 });
+// a double click, or Enter on the tile already on preview, adds it
+$("#grid").addEventListener("dblclick", e => { const tile = e.target.closest("[data-key]"); if (tile && !e.target.closest("[data-tact]")) { setPreview(tile.dataset.key); applyPreview(); } });
 $("#grid").addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("tile")) { e.preventDefault(); applyEntry(e.target.dataset.key); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("tile")) { e.preventDefault(); if (e.key === "Enter" && previewKey === e.target.dataset.key) applyPreview(); else setPreview(e.target.dataset.key); }
+});
+$("#lookApply").addEventListener("click", applyPreview);
+$("#lookCancel").addEventListener("click", () => setPreview(null));
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && previewKey && !e.target.closest("input,textarea,select,[role=dialog],dialog") && $("#tmenu").hidden) setPreview(null);
 });
 /* a personal look's menu: rename, duplicate, favourite, delete (the same files the Library shows) */
 let tmenuFor = null;
@@ -1081,9 +1091,9 @@ function scheduleThumbs(delay = 350) {
   clearTimeout(thumbTimer);
   if(window.__ui.away){waitForThumbs();return;}
   thumbTimer = setTimeout(() => {
-    // the look the tiles replace is left out: adjusting it does not change any thumbnail
-    const T = targetLook();
-    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0 && l !== T)) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick + "|" + (T ? T.id : "") + "|" + JSON.stringify(personalNames().map(n => G.looks[n]));
+    // a thumbnail is the look alone over the picture and its effects: the looks in Layers are left out, so adjusting
+    // them changes no thumbnail
+    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0 && !isLook(l))) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick + "|" + JSON.stringify(personalNames().map(n => G.looks[n]));
     if (key !== thumbKey) {
       thumbKey = key;
       // a new picture: the tiles shimmer until their thumbnail is painted
@@ -1128,10 +1138,9 @@ function pumpThumbs() {
   thumbBusy = true;
   if (prepareThumbLUT(thumbQueue[0])) return;
   const S = 160, target = acquire(S, S), uv = cropRect(IMG.centered(srcW, srcH, "1:1")).uni;
-  const id = thumbQueue.shift(), C = entryLayer(id), live = G.layers.filter(l => l.on && l.amt > 0), looks = live.filter(isLook), T = targetLook(), at = T ? looks.indexOf(T) : -1;
+  const id = thumbQueue.shift(), C = entryLayer(id), live = G.layers.filter(l => l.on && l.amt > 0 && !isLook(l));
   C.id = "thumb-" + id;
-  const stackLooks = at >= 0 ? looks.slice(0, at).concat([C], looks.slice(at + 1)) : looks.concat([C]);
-  renderStack(stackLooks.concat(live.filter(l => !isLook(l))), S, S, uv, target);
+  renderStack([C].concat(live), S, S, uv, target);
   // Queue GPU readback, then test its fence without waiting on the main thread.
   const buffer = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
   gl.bufferData(gl.PIXEL_PACK_BUFFER, S * S * 4, gl.STREAM_READ);
@@ -1173,7 +1182,7 @@ function onToolToggle(d) {
     d.dataset.filled = "1";
     document.querySelectorAll(".tool[open]").forEach(o => { if (o !== d) { o.open = false; delete o.dataset.filled; } });
     d.querySelector(".tool-body").innerHTML = toolBodyHTML(key);
-    G.activeDraft = key;
+    G.activeDraft = key; setPreview(null);
     if (key === "text") ensureTextFont(drafts[key]);
   } else { delete d.dataset.filled; if (G.activeDraft === key) G.activeDraft = null; }
   const tag = $("#draftTag");
@@ -1255,7 +1264,7 @@ $("#saveLookBtn").addEventListener("click", () => {
   $("#lookName").focus();
 });
 
-Object.assign(up, { buildGrid, draftLayer, isPersonal, queueThumbs, renderGridBadges, scheduleThumbs, toolBodyHTML });
+Object.assign(up, { buildGrid, draftLayer, previewLayer, setPreview, isPersonal, queueThumbs, renderGridBadges, scheduleThumbs, toolBodyHTML });
 
 /* ===== controls ===== */
 // Crop and Cutout, before/after, keys and the file input
@@ -1437,7 +1446,7 @@ $("#linkBtn").addEventListener("click", () => { if (HAL) HAL.show("downloader");
 /* =================== persistence =================== */
 let dbDoc = null, persistTimer = 0, persistPending = false, writing = false, writeAgain = false, localStamp = 0;
 function setSync(s, text) { $("#sync").dataset.s = s; $("#syncText").textContent = text; if (HAL && HAL.setSync) HAL.setSync("grade", s, text); }
-function payload() { return { looks: clone(G.looks), favs: G.favs.slice(), category: catSel, previewPct: G.thumbPct, current: { layers: clone(G.layers).map(l => { delete l.open; return l; }), crop: clone(G.crop) }, updatedAt: Date.now() }; }
+function payload() { return { looks: clone(G.looks), favs: G.favs.slice(), previewPct: G.thumbPct, current: { layers: clone(G.layers).map(l => { delete l.open; return l; }), crop: clone(G.crop) }, updatedAt: Date.now() }; }
 function validLayer(l) {
   if (!l || typeof l !== "object") return null;
   const base = { id: rid(), on: l.on !== false, amt: clamp(+l.amt || 0, 0, 100) };
@@ -1464,7 +1473,6 @@ function applyPayload(d) {
   if (!d) return;
   if (Number.isFinite(+d.previewPct)) G.thumbPct = clamp(Math.round(+d.previewPct / 5) * 5, 5, 100);
   if (Array.isArray(d.favs)) G.favs = [...new Set(d.favs.filter(k => typeof k === "string" && /^[bu]:/.test(k)).map(k => k.slice(0, 122)))];
-  if (d.category === "every" || CATS2.includes(d.category)) catSel = d.category;
   if (d.looks && typeof d.looks === "object") { G.looks = {}; for (const n in d.looks) if (Array.isArray(d.looks[n])) G.looks[n.slice(0, 120)] = d.looks[n].map(validLayer).filter(Boolean); }
   if (d.current) {
     if (Array.isArray(d.current.layers)) G.layers = d.current.layers.map(validLayer).filter(Boolean);

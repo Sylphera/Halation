@@ -1,4 +1,5 @@
-// Grade looks at runtime (docs/GRADE_LOOKS_SPEC.md §8, §9): a click replaces the look and + stacks, applying every
+// Grade looks at runtime (docs/GRADE_LOOKS_SPEC.md §8, §9): a click previews without a layer, Add to layers or a
+// double click adds one, applying every
 // look twice keeps the LUT textures bounded, dragging an adjustment 200 times uploads no LUT, intensity mixes the whole
 // look (colour and finish passes), Save as My Look writes a self-contained v2 file, and a removed classic look opens as
 // its catalogue replacement.
@@ -28,12 +29,28 @@ const { serve, launch, openApp, until } = require("./common"), { createHost } = 
     const layers = () => f.locator("#listF .layer").evaluateAll(r => r.map(x => x.querySelector(".lname").textContent.trim()));
     const L = id => f.evaluate(id => t("lk." + id), id);
 
-    // a click on the picture replaces the look, + stacks
+    // a click previews (no layer), another click changes the preview, "Add to layers" adds one layer, a double click adds
+    const pv = () => f.evaluate(() => ({ bar: !document.querySelector("#lookBar").hidden, name: document.querySelector("#lookBarName").textContent, on: [...document.querySelectorAll(".tile.previewing")].map(t => t.dataset.look) }));
     await f.locator('.tile[data-look="nordic"]').click();
+    assert.deepEqual(await layers(), [], "A tile click adds no layer");
+    assert.deepEqual(await pv(), { bar: true, name: await L("nordic"), on: ["nordic"] }, "…it is on preview, with the bar over the picture");
     await f.locator('.tile[data-look="cine-teal"]').click();
-    assert.deepEqual(await layers(), [await L("cine-teal")], "A tile click replaces the look");
-    await f.locator('.tile[data-look="slide"] [data-tact=add]').click();
-    assert.deepEqual(await layers(), [await L("slide"), await L("cine-teal")], "+ stacks a second look");
+    assert.deepEqual((await pv()).on, ["cine-teal"], "Another tile changes the preview");
+    assert.deepEqual(await layers(), [], "…still no layer");
+    await f.locator('.tile[data-look="cine-teal"]').click();
+    assert.deepEqual((await pv()).on, ["cine-teal"], "The same tile again keeps it on preview");
+    await f.locator("#lookApply").click();
+    assert.deepEqual(await layers(), [await L("cine-teal")], "Add to layers: one layer");
+    await f.waitForFunction(() => document.querySelector("#lookBar").hidden);
+    assert.deepEqual((await pv()).on, [], "…and the preview ends");
+    assert.equal(await f.locator('.tile[data-look="cine-teal"] > i').textContent(), "✓", "The tile shows ✓");
+    assert.equal(await f.locator(".tile [data-tact=add], .tile [data-tact=rem]").count(), 0, "No + or − on the tiles");
+    await f.locator('.tile[data-look="nordic"]').click();
+    await f.locator("body").press("Escape");
+    await f.waitForFunction(() => document.querySelector("#lookBar").hidden);
+    assert.deepEqual(await layers(), [await L("cine-teal")], "Esc ends the preview without a layer");
+    await f.locator('.tile[data-look="slide"]').dblclick();
+    assert.deepEqual(await layers(), [await L("slide"), await L("cine-teal")], "A double click adds the look on top, once");
 
     // a removed classic look opens as its closest catalogue look
     await f.evaluate(() => __halApp.applyPreset("Old blue"));
@@ -96,6 +113,6 @@ const { serve, launch, openApp, until } = require("./common"), { createHost } = 
     await f.locator("[data-fsub=mine]").click();
     assert(await f.locator('.tile[data-key="u:Warm test"]').isVisible(), "My Looks shows the saved look");
     assert.deepEqual(app.errors, []);
-    console.log("PASS looks replace/stack, bounded LUT textures, adjustments without LUT uploads, whole-look intensity, My Looks v2");
+    console.log("PASS looks preview/add, bounded LUT textures, adjustments without LUT uploads, whole-look intensity, My Looks v2");
   } finally { await browser.close(); server.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

@@ -80,7 +80,7 @@ async function capture(dir) {
   await tab("grade"); await appReady("grade");
   await grade.locator("#imgIn").setInputFiles(fx("cover.png"));
   await until(async () => /cover\.png/.test(await grade.locator("#imgName").textContent()));
-  await grade.locator('.tile[data-look="nordic"]').click();
+  await grade.locator('.tile[data-look="nordic"]').dblclick();
   await grade.locator("#outSize").selectOption("1080"); await grade.locator("#outFmt").selectOption("png");
   await grade.locator("#exportBtn").click();
   const cov = path.join(host.base, "Exports", "Covers", "cover.png");
