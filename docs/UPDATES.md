@@ -6,9 +6,9 @@ Halation 1.1.0 and later update themselves from the public releases (Sylphera/Ha
 
 - `update.rs` uses Tauri's updater plugin. `plugins.updater` in `tauri.conf.json` holds the endpoint
   (`releases/latest/download/latest.json` of Sylphera/Halation) and the public key. The private key is the
-  `TAURI_SIGNING_PRIVATE_KEY` secret of the repository's Actions (Sylphera/Halation once the source is open;
-  Halation-source's before) (no password; `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` stays
-  unset). Losing it means installed copies reject every later setup: keep a copy outside GitHub.
+  `TAURI_SIGNING_PRIVATE_KEY` secret of Sylphera/Halation's Actions, a key made on 2026-10-13 for the first public
+  release (copies of 1.1.0 and earlier, which trusted the old key, are not updated; no password,
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` stays unset). Losing it means installed copies reject every later setup: keep a copy outside GitHub.
 - CI (`build.yml`) builds with `tauri.updater.conf.json` (`createUpdaterArtifacts`), which writes the setup's `.sig`,
   and publishes the same setup twice: `Halation_x64-setup.exe` for people (the README's download count reads only
   this name) and `Halation_<v>_x64-update.exe` (+ `.sig`) for the updater, so updates and the model releases stay out
