@@ -29,7 +29,7 @@ Focused tools for the media work between the big apps — no account, no waterma
   <table>
     <tr>
       <td colspan="2">
-        <img src="docs/screenshots/promo.jpg" alt="Halation: Audio Visualizer, Grade, Background Remover, Upscale, Cover Test, Vocal Remover and Library">
+        <img src="docs/screenshots/promo.jpg" alt="Halation: one local workspace. Home, Send to…, shared Cutout and Crop, Library, presets and looks, GPU or CPU, engines on demand, updates in place, local">
       </td>
     </tr>
     <tr>
