@@ -1,5 +1,6 @@
 // Grade: the whole tab in one ES module.
-import { makeGrader, LOOK, fxDefaults, adjustToGrade, gmapToGrade, catName, FX, groupName, ADJ, GMAP, TEXT, BUILTIN_FONTS, CATS, LOOKS, schemaDefaults } from './grader.js';
+import { makeGrader, CLASSIC, fxDefaults, adjustToGrade, gmapToGrade, FX, groupName, ADJ, GMAP, TEXT, BUILTIN_FONTS, schemaDefaults, ADJ2, CATS2, LOOK2, LOOKS2, cat2Name, cleanAdj, cleanDef, defKey, finishOf, hasAdj, layerDef, look2Name, lookUniforms } from './grader.js';
+import { buildLookLUT } from './grade-color.js';
 
 /* ===== util ===== */
 // Helpers shared by the Grade modules
@@ -18,7 +19,7 @@ const lum = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 // Shared state: image, layers, crop, history, looks
 
 // State several modules read and change
-const G = { img: { name: "", w: 0, h: 0 }, lastSrc: null, srcTex: null, fontsTick: 0, layers: [], crop: { aspect: "orig", p: null }, cut: null, srcBlob: null, hist: [], hi: -1, showOrig: false, systemFonts: [], thumbPct: 100, looks: {}, batchRunning: false, activeDraft: null };
+const G = { img: { name: "", w: 0, h: 0 }, lastSrc: null, srcTex: null, fontsTick: 0, layers: [], crop: { aspect: "orig", p: null }, cut: null, srcBlob: null, hist: [], hi: -1, showOrig: false, systemFonts: [], thumbPct: 100, looks: {}, favs: [], batchRunning: false, activeDraft: null };
 // Functions of higher modules that lower ones call (registered by each module when it loads)
 const up = {};
 
@@ -49,6 +50,35 @@ const FS = {
   out: CROPFN + `uniform vec2 res; uniform sampler2D mask; uniform float useMask;
     void main(){ vec3 c = texture(tex, uv).rgb; c += (hash(uv*res + 3.1) - .5)/255.; o = vec4(c, useMask > .5 ? texture(mask, cropUV(uv)).a : 1.); }`,
   lut: `uniform sampler3D lut; uniform float amt; void main(){ vec3 c = clamp(texture(tex,uv).rgb,0.,1.); vec3 l = texture(lut, c*(32./33.) + .5/33.).rgb; o = vec4(mix(c,l,amt),1.); }`,
+  // A look (docs/GRADE_LOOKS_SPEC.md §4): its LUT (RGBA16F) between the layer's pre-look adjustments (white balance,
+  // exposure, a soft shoulder) and post-look ones in OKLab (contrast, shadows, highlights, fade, saturation)
+  look: `uniform sampler3D lut; uniform float amt; uniform vec3 wb; uniform float pre; uniform float post;
+    uniform float con; uniform float hi; uniform float sh; uniform float sat; uniform float fade;
+    vec3 s2l(vec3 c){ vec3 a = abs(c); return sign(c)*mix(a/12.92, pow((a+.055)/1.055, vec3(2.4)), step(.04045, a)); }
+    vec3 l2s(vec3 c){ vec3 a = abs(c); return sign(c)*mix(a*12.92, 1.055*pow(a, vec3(1./2.4))-.055, step(.0031308, a)); }
+    vec3 toLab(vec3 c){ vec3 l = vec3(dot(c, vec3(.4122214708,.5363325363,.0514459929)), dot(c, vec3(.2119034982,.6806995451,.1073969566)), dot(c, vec3(.0883024619,.2817188376,.6299787005)));
+      l = sign(l)*pow(abs(l), vec3(1./3.));
+      return vec3(dot(l, vec3(.2104542553,.7936177850,-.0040720468)), dot(l, vec3(1.9779984951,-2.4285922050,.4505937099)), dot(l, vec3(.0259040371,.7827717662,-.8086757660))); }
+    vec3 toLin(vec3 L){ vec3 l = vec3(dot(L, vec3(1.,.3963377774,.2158037573)), dot(L, vec3(1.,-.1055613458,-.0638541728)), dot(L, vec3(1.,-.0894841775,-1.2914855480))); l = l*l*l;
+      return vec3(dot(l, vec3(4.0767416621,-3.3077115913,.2309699292)), dot(l, vec3(-1.2684380046,2.6097574011,-.3413193965)), dot(l, vec3(-.0041960863,-.7034186147,1.7076147010))); }
+    bool inG(vec3 c){ return all(greaterThanEqual(c, vec3(-1e-4))) && all(lessThanEqual(c, vec3(1.0001))); }
+    void main(){
+      vec3 c = clamp(texture(tex,uv).rgb, 0., 1.), x = c;
+      if(pre > .5){ x = l2s(s2l(c)*wb); x = mix(x, .82 + .18*tanh((x-.82)/.18), step(.82, x)); x = clamp(x, 0., 1.); }
+      vec3 l = texture(lut, x*(32./33.) + .5/33.).rgb;
+      if(post > .5){
+        vec3 q = toLab(s2l(clamp(l, 0., 1.))); float L = q.x, C = length(q.yz);
+        float g = 1. + con*.9; L = L < .6 ? .6*pow(max(L, 0.)/.6, g) : 1. - .4*pow(max(1.-L, 0.)/.4, g);
+        float u = clamp(L/.7, 0., 1.); L += sh*.09*6.75*u*(1.-u)*(1.-u);
+        float v = clamp((L-.35)/.65, 0., 1.); L += hi*.09*6.75*v*v*(1.-v);
+        L = fade*.1 + L*(1. - fade*.14);
+        float k = 1. + sat*(sat > 0. ? .35 + .65*(1. - smoothstep(0., .2, C)) : 1.);
+        q = vec3(clamp(L, 0., 1.), q.yz*max(k, 0.));
+        vec3 r = toLin(q);
+        if(!inG(r)){ float lo = 0., hi2 = 1.; for(int i = 0; i < 12; i++){ float m = (lo+hi2)*.5; if(inG(toLin(vec3(q.x, q.yz*m)))) lo = m; else hi2 = m; } r = toLin(vec3(q.x, q.yz*lo)); }
+        l = l2s(clamp(r, 0., 1.));
+      }
+      o = vec4(mix(c, l, amt), 1.); }`,
   gauss: `uniform vec2 dir; void main(){ vec3 s = vec3(0.); float tw = 0.; for(int k=-4;k<=4;k++){ float w = exp(-float(k*k)/8.); s += texture(tex, uv + dir*float(k)).rgb*w; tw += w; } o = vec4(s/tw,1.); }`,
   threshold: `uniform float thr; uniform float knee; void main(){ vec3 c = texture(tex,uv).rgb; float l = max(max(c.r,c.g),c.b); o = vec4(c*smoothstep(thr, thr+knee, l),1.); }`,
   combine: `uniform sampler2D fx; uniform sampler2D fx2; uniform float w1; uniform float w2; uniform vec3 tint; uniform float amt; uniform float mode;
@@ -62,9 +92,9 @@ const FS = {
   ghost: `uniform vec2 off; uniform float amt; void main(){ vec3 b = texture(tex,uv).rgb; vec3 g = texture(tex, uv-off).rgb; o = vec4(mix(b, screen(b, g*.9), amt),1.); }`,
   chroma: `uniform float k; uniform float amt; void main(){ vec2 d = uv-.5; vec3 b = texture(tex,uv).rgb; vec3 s = vec3(texture(tex, uv + d*k).r, b.g, texture(tex, uv - d*k).b); o = vec4(mix(b,s,amt),1.); }`,
   rgbshift: `uniform vec2 off; uniform float amt; void main(){ vec3 b = texture(tex,uv).rgb; vec3 s = vec3(texture(tex,uv+off).r, b.g, texture(tex,uv-off).b); o = vec4(mix(b,s,amt),1.); }`,
-  grain: `uniform vec2 res; uniform float size; uniform float amt; uniform float colored;
+  grain: `uniform vec2 res; uniform float size; uniform float amt; uniform float colored; uniform float shadows;
     float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f); float a = hash(i), b = hash(i+vec2(1.,0.)), c = hash(i+vec2(0.,1.)), d = hash(i+vec2(1.,1.)); return mix(mix(a,b,f.x), mix(c,d,f.x), f.y); }
-    void main(){ vec3 c = texture(tex,uv).rgb; vec2 p = uv*res/size; vec3 n = colored > .5 ? vec3(vn(p), vn(p+vec2(17.3,5.1)), vn(p+vec2(41.7,23.9))) : vec3(vn(p)); n -= .5; float l = luma(c); float w = .35 + .65*(1.-abs(l*2.-1.)); o = vec4(c + n*amt*w, 1.); }`,
+    void main(){ vec3 c = texture(tex,uv).rgb; vec2 p = uv*res/size; vec3 n = colored > .5 ? vec3(vn(p), vn(p+vec2(17.3,5.1)), vn(p+vec2(41.7,23.9))) : vec3(vn(p)); n -= .5; float l = luma(c); float w = .35 + .65*(1.-abs(l*2.-1.)); w = mix(w, .3 + .7*(1.-l)*(1.-l*.5), shadows); o = vec4(c + n*amt*w, 1.); }`,
   vignette: `uniform float size; uniform float soft; uniform float amt; uniform float aspect; void main(){ vec2 q = uv-.5; q.x *= aspect; float d = length(q)/(.5*length(vec2(aspect,1.))); float v = smoothstep(size, size+soft, d); o = vec4(texture(tex,uv).rgb*(1.-v*amt),1.); }`,
   halftone: `uniform vec2 res; uniform float cell; uniform float ang; uniform float amt; uniform float mono;
     void main(){ vec2 p = uv*res; float s = sin(ang), c = cos(ang); mat2 R = mat2(c,-s,s,c); mat2 Ri = mat2(c,s,-s,c);
@@ -110,7 +140,7 @@ function program(name) {
 }
 // Prepare only the basic preview passes after the interface has painted. Effects remain lazy.
 function warmPreview() {
-  const names = ["crop", "copy", "out", "lut"];
+  const names = ["crop", "copy", "out", "look"];
   const next = () => {
     if (!names.length || !gl) return;
     const run = () => {
@@ -196,8 +226,31 @@ function uploadLUT(data, old) {
   for (const w of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T, gl.TEXTURE_WRAP_R]) gl.texParameteri(gl.TEXTURE_3D, w, gl.CLAMP_TO_EDGE);
   return tex;
 }
-const lookLUTs = {}, layerLUTs = {}, textTexs = {};
-function lookLUT(look) { return lookLUTs[look.id] || (lookLUTs[look.id] = makeLUT(makeGrader(look.g))); }
+const layerLUTs = {}, textTexs = {};
+// Looks (docs/GRADE_LOOKS_SPEC.md §4.3): one RGBA16F LUT per definition, bounded to the ones the layers use plus the
+// LUT_KEEP most recently used. Built in the LUT worker when it can be prepared ahead (thumbnails), else here.
+const LUT_KEEP = 24, lutCache = new Map();
+function uploadLUT16(data) {
+  const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_3D, tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA16F, N, N, N, 0, gl.RGBA, gl.HALF_FLOAT, data);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  for (const w of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T, gl.TEXTURE_WRAP_R]) gl.texParameteri(gl.TEXTURE_3D, w, gl.CLAMP_TO_EDGE);
+  return tex;
+}
+function cachedLUT(key) { const e = lutCache.get(key); if (!e) return null; lutCache.delete(key); lutCache.set(key, e); return e; }
+function storeLUT(key, bytes) {
+  const had = cachedLUT(key); if (had) return had.tex;
+  const tex = uploadLUT16(bytes); lutCache.set(key, { tex }); trimLUTs(); return tex;
+}
+function trimLUTs() {
+  const used = new Set();
+  for (const L of G.layers) if (L.type === "look") { const d = layerDef(L); if (d) used.add(defKey(d)); }
+  const extra = [...lutCache.keys()].filter(k => !used.has(k));
+  while (extra.length > LUT_KEEP) { const k = extra.shift(); gl.deleteTexture(lutCache.get(k).tex); lutCache.delete(k); }
+}
+function defLUT(def) { const key = defKey(def), e = cachedLUT(key); return e ? e.tex : storeLUT(key, buildLookLUT(def)); }
 function layerLUT(L, gradeParams) {
   const key = JSON.stringify(gradeParams), e = layerLUTs[L.id];
   if (e && e.key === key) return e.tex;
@@ -257,7 +310,7 @@ function applyFx(type, P, a, cur, W, H) {
     }
     case "leak": { const o = out(); pass("leak", { col: hexRGB(P.color), ang: P.angle * Math.PI / 180, size: P.size, amt: P.strength * a, aspect: W / H }, { tex: cur.tex }, o); return done(o); }
     case "vignette": { const o = out(); pass("vignette", { size: P.size, soft: P.soft, amt: P.strength * a, aspect: W / H }, { tex: cur.tex }, o); return done(o); }
-    case "grain": { const o = out(); pass("grain", { res: [W, H], size: Math.max(0.5, px(P.size)), amt: P.strength * a * 0.45, colored: !!P.colored }, { tex: cur.tex }, o); return done(o); }
+    case "grain": { const o = out(); pass("grain", { res: [W, H], size: Math.max(0.5, px(P.size)), amt: P.strength * a * 0.45, colored: !!P.colored, shadows: P.shadows || 0 }, { tex: cur.tex }, o); return done(o); }
     case "dust": { const o = out(); pass("dust", { res: [W, H], u, dens: P.density, scr: P.scratches, amt: a }, { tex: cur.tex }, o); return done(o); }
     case "halftone": { const o = out(); pass("halftone", { res: [W, H], cell: Math.max(2, px(P.size)), ang: P.angle * Math.PI / 180, amt: a, mono: !!P.mono }, { tex: cur.tex }, o); return done(o); }
     case "pixelate": { const o = out(); pass("pixelate", { res: [W, H], cell: Math.max(1, px(P.size)), amt: a }, { tex: cur.tex }, o); return done(o); }
@@ -281,10 +334,15 @@ function lutPass(cur, lut, a, W, H) { const o = acquire(W, H); pass("lut", { amt
 function applyLayer(L, cur, W, H) {
   const a = L.amt / 100;
   if (L.type === "look") {
-    const look = LOOK[L.id0]; if (!look) return cur;
-    cur = lutPass(cur, lookLUT(look), a, W, H);
-    for (const [t, prm] of look.fx || []) cur = applyFx(t, Object.assign(fxDefaults(t), prm), a, cur, W, H);
-    return cur;
+    const def = layerDef(L);
+    if (!def) return cur;
+    // the whole look (colour + finish) at full strength, then one mix with what came in (§4.2)
+    const lut = { tex: defLUT(def), is3d: true }, u = lookUniforms(L.adj), fin = finishOf(def, L.adj);
+    if (!fin.length) { const o = acquire(W, H); pass("look", { ...u, amt: a }, { tex: cur.tex, lut }, o); release(cur); return o; }
+    let x = acquire(W, H); pass("look", { ...u, amt: 1 }, { tex: cur.tex, lut }, x);
+    for (const [t, prm] of fin) x = applyFx(t, prm, 1, x, W, H);
+    if (a >= 1) { release(cur); return x; }
+    const o = acquire(W, H); pass("mixfx", { amt: a }, { tex: cur.tex, fx: x.tex }, o); release(x); release(cur); return o;
   }
   if (L.type === "adjust") return lutPass(cur, layerLUT(L, adjustToGrade(L.p)), a, W, H);
   if (L.type === "gmap") return lutPass(cur, layerLUT(L, gmapToGrade(L.p)), a, W, H);
@@ -466,17 +524,24 @@ async function useFile(file) {
 
 /* =================== G.layers UI =================== */
 function layerName(L) {
-  if (L.type === "look") return [LOOK[L.id0] ? LOOK[L.id0].name : t("grade.kind.filter"), t("grade.kind.filterOf", { cat: LOOK[L.id0] ? catName(LOOK[L.id0].cat) : "" })];
+  if (L.type === "look") {
+    const def = layerDef(L), base = LOOK2[L.id0];
+    if (!def) return [t("grade.kind.filter"), ""];
+    if (L.def) return [L.mine || (base ? look2Name(L.id0) : t("grade.kind.filter")), base ? t("grade.kind.basedOn", { name: look2Name(L.id0) }) : t("grade.kind.mine")];
+    return [look2Name(L.id0), t("grade.kind.lookOf", { cat: cat2Name(def.cat) })];
+  }
   if (L.type === "adjust") return [t("grade.tool.adjust"), t("grade.kind.adjust")];
   if (L.type === "gmap") return [t("grade.tool.gmap"), t("grade.kind.color")];
   if (L.type === "text") return [L.p.text ? t("grade.textLayer", { text: L.p.text }) : t("grade.tool.text"), t("grade.tool.text")];
   return [FX[L.fx].name, t("grade.kind.effectOf", { group: groupName(FX[L.fx].group) })];
 }
-function schemaOf(L) { return L.type === "adjust" ? ADJ : L.type === "gmap" ? GMAP : L.type === "text" ? TEXT : L.type === "fx" ? FX[L.fx].params : []; }
+function schemaOf(L) { return L.type === "adjust" ? ADJ : L.type === "gmap" ? GMAP : L.type === "text" ? TEXT : L.type === "fx" ? FX[L.fx].params : L.type === "look" && layerDef(L) ? ADJ2 : []; }
+// The values a layer's controls edit: a look's adjustments, any other layer's parameters
+const valuesOf = L => L.type === "look" ? (L.adj || (L.adj = {})) : L.p;
 function fmt(p, v) { const st = p.step || 1, d = st < 1 ? (st < 0.1 ? 2 : 1) : 0; return Number(v).toFixed(d) + (p.unit ? " " + p.unit : ""); }
 function ctrlHTML(L, p) {
-  const v = L.p[p.k], id = `p-${L.id}-${p.k}`;
-  if (p.showIf && !p.showIf(L.p)) return "";
+  const P = valuesOf(L), v = p.k in P ? P[p.k] : p.def, id = `p-${L.id}-${p.k}`;
+  if (p.showIf && !p.showIf(P)) return "";
   if (p.type === "toggle") return `<label class="tog" for="${id}"><span>${p.label}</span><input type="checkbox" id="${id}" data-k="${p.k}" ${v ? "checked" : ""}></label>`;
   if (p.type === "color") return `<div class="f"><div class="fl"><label for="${id}">${p.label}</label></div><div class="colorrow"><input type="color" id="${id}" data-k="${p.k}" value="${esc(v)}"><code>${esc(String(v).toUpperCase())}</code></div></div>`;
   if (p.type === "text") return `<div class="f"><div class="fl"><label for="${id}">${p.label}</label></div><input type="text" id="${id}" data-k="${p.k}" value="${esc(v)}" maxlength="60"></div>`;
@@ -528,7 +593,7 @@ function renderLayers() {
   for (const id of [...selected]) if (!G.layers.some(L => L.id === id && inTab(L))) selected.delete(id);
   const nF = G.layers.filter(isLook).length, nE = G.layers.length - nF;
   $("#cntF").textContent = nF ? `(${nF})` : ""; $("#cntE").textContent = nE ? `(${nE})` : "";
-  document.querySelectorAll(".ltab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.ltab === ltab)));
+  document.querySelectorAll(".ltab[data-ltab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.ltab === ltab)));
   const turned = $("#list" + ltab).hidden;
   $("#listF").hidden = ltab !== "F"; $("#listE").hidden = ltab !== "E";
   if (turned) M.enter($("#list" + ltab));
@@ -557,12 +622,38 @@ function layerHTML(L) {
     <div class="lrow" data-act="row" aria-expanded="${open}">
       <button class="grip" data-act="grip" aria-label="${esc(t("grade.l.drag"))}" title="${esc(t("grade.l.drag"))}">${GRIP}</button>
       <button class="ib ${L.on ? "on" : ""}" data-act="eye" aria-label="${esc(hide)}" title="${esc(hide)}">${L.on ? ICON.eye : ICON.eyeoff}</button>
-      <span class="lname" title="${esc(nm + " · " + kind)}">${esc(nm)}</span>
+      <span class="lname" title="${esc(nm + " · " + kind)}">${esc(nm)}</span>${L.type === "look" && hasAdj(L.adj) ? `<span class="adot" title="${esc(t("grade.adjusted"))}"></span>` : ""}
       <span class="lamt"><input type="range" min="0" max="100" step="1" value="${L.amt}" data-def="100" data-act="amt" aria-label="${esc(t("grade.l.amount"))}" style="--p:${L.amt}%"><output data-act="pct" title="${esc(t("grade.l.dragPct"))}">${L.amt} %</output></span>
       <button class="ib" data-act="more" aria-haspopup="menu" aria-label="${esc(t("grade.l.more"))}" title="${esc(t("grade.l.more"))}">${ICON.more}</button>
     </div>
-    ${open ? `<div class="lparams"><p class="lkind">${esc(kind)}</p>${sch.map(p => ctrlHTML(L, p)).join("")}</div>` : ""}
+    ${open ? `<div class="lparams"><p class="lkind">${esc(kind)}</p>${sch.map(p => ctrlHTML(L, p)).join("")}${sch === ADJ2 ? lookActsHTML(L) : ""}</div>` : ""}
   </div>`;
+}
+// Under an applied look's adjustments: reset them, or save the look as it is now as a personal look (§2.2)
+function lookActsHTML(L) {
+  return `<div class="btnrow"><button class="btn sm" data-act="adjreset" ${hasAdj(L.adj) ? "" : "disabled"}>${esc(t("grade.resetAdj"))}</button></div>
+    <div class="mlsave"><input type="text" data-act="mlname" maxlength="60" value="${esc(L.mine || "")}" placeholder="${esc(t("grade.myLookName"))}" aria-label="${esc(t("grade.myLookName"))}"><button class="btn sm primary" data-act="mlsave">${esc(t("grade.saveMyLook"))}</button></div>`;
+}
+function saveMyLook(L, name, input, btn) {
+  name = (name || "").trim();
+  const def = layerDef(L);
+  if (!def) return;
+  const clash = Object.keys(G.looks).find(n => n.toLowerCase() === name.toLowerCase());
+  const err = !name ? t("lib.err.empty") : stem(name) !== name ? t("lib.err.chars") : clash && !isPersonal(G.looks[clash]) ? t("lib.err.taken") : "";
+  if (err) { setStatus(err, "warn"); input.focus(); return; }
+  // replacing a personal look asks once (the button turns into a confirmation for 3 s)
+  if (clash && !btn.dataset.armed) {
+    btn.dataset.armed = "1"; btn.textContent = t("grade.replaceMyLook"); btn.classList.add("warn");
+    setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = t("grade.saveMyLook"); btn.classList.remove("warn"); } }, 3000);
+    return;
+  }
+  if (clash && clash !== name) { delete G.looks[clash]; G.favs = G.favs.map(k => k === "u:" + clash ? "u:" + name : k); }
+  const entry = { type: "look", id0: L.id0, on: true, amt: L.amt, adj: cleanAdj(L.adj), def: cleanDef(def) };
+  if (L.rev || LOOK2[L.id0]) entry.rev = L.rev || LOOK2[L.id0].rev;
+  G.looks[name] = [entry];
+  L.mine = name; L.def = clone(entry.def);
+  up.buildGrid(); renderLooks(); renderLayers(); commit(); up.schedulePersist();
+  setStatus(t("grade.st.myLookSaved", { name }), "ok");
 }
 function findLayer(el) { const box = el.closest(".layer"); return box ? G.layers.find(l => l.id === box.dataset.id) : null; }
 const layersEl = $("#layers");
@@ -582,6 +673,9 @@ layersEl.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b || b.tagName === "INPUT" || b.tagName === "OUTPUT") return;
   const L = findLayer(b); if (!L) return;
   const act = b.dataset.act;
+  if (act === "adjreset") { L.adj = {}; changed(); return; }
+  if (act === "mlsave") { const box = b.closest(".mlsave"), input = box.querySelector("input"); saveMyLook(L, input.value, input, b); return; }
+  if (act === "mlname") return;
   if (act === "eye") { L.on = !L.on; changed(); return; }
   if (act === "more") { openMenu(L, b); return; }
   if (act === "grip") return;
@@ -596,6 +690,19 @@ layersEl.addEventListener("click", e => {
   selected.clear(); anchorId = L.id;
   openId = openId === L.id ? null : L.id;
   renderLayers();
+});
+// A look's row shows a dot while it has adjustments; its Reset follows
+function markAdjusted(L, row) {
+  if (!row) return;
+  const on = hasAdj(L.adj), dot = row.querySelector(".adot"), reset = row.querySelector("[data-act=adjreset]");
+  if (on && !dot) row.querySelector(".lname").insertAdjacentHTML("afterend", `<span class="adot" title="${esc(t("grade.adjusted"))}"></span>`);
+  if (!on && dot) dot.remove();
+  if (reset) reset.disabled = !on;
+}
+// Enter in a look's name field saves it as a personal look
+layersEl.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.target.dataset.act !== "mlname") return;
+  e.preventDefault(); e.target.closest(".mlsave").querySelector("[data-act=mlsave]").click();
 });
 // reorder with the grip: drag, or arrow keys when it has focus
 layersEl.addEventListener("keydown", e => {
@@ -694,12 +801,12 @@ document.addEventListener("keydown", e => {
   if (field || !(inLayers || (e.target.closest && e.target.closest("#layers, #selbar, #ltools")))) return;
   e.preventDefault(); selectAllLayers();
 });
-document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => { ltab = b.dataset.ltab; selected.clear(); renderLayers(); }));
+document.querySelectorAll(".ltab[data-ltab]").forEach(b => b.addEventListener("click", () => { ltab = b.dataset.ltab; selected.clear(); renderLayers(); }));
 function readCtrl(el, L) {
   const k = el.dataset.k, p = schemaOf(L).find(s => s.k === k);
   if (!p) return;
   let v = el.type === "checkbox" ? el.checked : el.type === "range" ? parseFloat(el.value) : el.value;
-  L.p[k] = v;
+  valuesOf(L)[k] = v;
   if (el.type === "range") { el.style.setProperty("--p", ((v - p.min) / (p.max - p.min) * 100) + "%"); el.previousElementSibling.querySelector("output").textContent = fmt(p, v); }
   if (el.type === "color") el.nextElementSibling.textContent = String(v).toUpperCase();
   return p;
@@ -713,6 +820,7 @@ layersEl.addEventListener("change", e => {
   const el = e.target, L = findLayer(el); if (!L) return;
   if (el.dataset.k) {
     readCtrl(el, L);
+    if (L.type === "look") markAdjusted(L, el.closest(".layer"));
     if (L.type === "text" && el.dataset.k === "font") renderLayers();
     if (L.type === "text" && el.dataset.k === "text") { const b = el.closest(".layer").querySelector(".lname"); b.textContent = layerName(L)[0]; }
     requestRender();
@@ -744,54 +852,190 @@ Object.assign(up, { renderLayers });
 // Filters grid, tools and my looks
 
 /* =================== library: filters, tools, my G.looks =================== */
-let catSel = "Todos";
+// Filters (docs/GRADE_LOOKS_SPEC.md §2.1): sub-tabs All / Favorites / My Looks, categories only in All. A tile's key is
+// "b:<id>" (a catalogue look) or "u:<name>" (a personal look: G.looks[name] holds one look layer that carries its def).
+let fsub = "all", catSel = "every";
+const subQuery = { all: "", fav: "", mine: "" }, subScroll = { all: 0, fav: 0, mine: 0 };
+const isPersonal = v => Array.isArray(v) && v.length === 1 && !!v[0] && v[0].type === "look" && !!v[0].def;
+const personalNames = () => Object.keys(G.looks).filter(n => isPersonal(G.looks[n])).sort((a, b) => a.localeCompare(b));
+const entryName = key => key.startsWith("b:") ? look2Name(key.slice(2)) : key.slice(2);
+// The layer a tile applies: a catalogue look at Preview strength, a personal look as it was saved
+function entryLayer(key) {
+  if (key.startsWith("b:")) { const l = LOOK2[key.slice(2)]; return l ? { type: "look", id0: l.id, rev: l.rev, amt: G.thumbPct, adj: {}, on: true } : null; }
+  const v = G.looks[key.slice(2)]; if (!isPersonal(v)) return null;
+  const L = v[0];
+  return { type: "look", id0: L.id0, rev: L.rev, amt: clamp(+L.amt || 100, 0, 100), adj: cleanAdj(L.adj), def: clone(L.def), mine: key.slice(2), on: true };
+}
+const layerKey = L => L.mine && isPersonal(G.looks[L.mine]) ? "u:" + L.mine : !L.def && LOOK2[L.id0] ? "b:" + L.id0 : null;
+// The look layer a tile click replaces: the open one, else the top one (§2.1)
+function targetLook() { return G.layers.find(l => l.id === openId && isLook(l)) || G.layers.filter(isLook).pop() || null; }
+const tileEls = new Map();   // key → { el, cv, wrap, painted: the thumbnail key it shows }
+const tileSeen = new Set();  // keys of tiles on screen: their thumbnails go first
+const tileObs = "IntersectionObserver" in window ? new IntersectionObserver(es => { for (const e of es) { const k = e.target.dataset.key; if (e.isIntersecting) tileSeen.add(k); else tileSeen.delete(k); } }) : null;
 function renderChips() {
-  $("#chips").innerHTML = ["Todos", ...CATS].map(c => `<button class="chip" aria-pressed="${c === catSel}" data-cat="${esc(c)}">${esc(catName(c))}</button>`).join("");
+  $("#chips").innerHTML = ["every", ...CATS2].map(c => `<button class="chip" aria-pressed="${c === catSel}" data-cat="${esc(c)}">${esc(c === "every" ? t("cat2.every") : cat2Name(c))}</button>`).join("");
 }
-$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; catSel = b.dataset.cat; renderChips(); filterGrid(true); });
+$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (!b) return; catSel = b.dataset.cat; renderChips(); filterGrid(true); up.schedulePersist(); });
+let tileSeq = 0;
+function tileHTML(key) {
+  const n = ++tileSeq, mine = key.startsWith("u:"), name = entryName(key), l = mine ? null : LOOK2[key.slice(2)];
+  return `<div class="tile" role="button" tabindex="0" data-key="${esc(key)}"${l ? ` data-look="${l.id}" data-cat="${l.cat}"` : ""} title="${esc(name)}" aria-label="${esc(t("grade.applyLook", { name }))}"><span class="thw" id="tw-${n}"><canvas width="160" height="160" id="th-${n}"></canvas></span><span class="tn">${esc(name)}</span><i hidden></i>
+    <div class="tacts"><button class="tact" data-tact="add" aria-label="${esc(t("grade.addAnother", { name }))}" title="${esc(t("grade.addShort"))}">${icon("plus")}</button><button class="tact rem" data-tact="rem" aria-label="${esc(t("grade.removeNamed", { name }))}" title="${esc(t("common.remove"))}" hidden>${icon("minus")}</button>${mine ? `<button class="tact" data-tact="menu" aria-haspopup="menu" aria-label="${esc(t("grade.l.more"))}" title="${esc(t("grade.l.more"))}">${icon("ellipsis")}</button>` : ""}</div>
+    <button class="star" data-tact="fav" aria-pressed="false" aria-label="${esc(t("grade.fav", { name }))}" title="${esc(t("grade.favShort"))}">${icon("star")}</button></div>`;
+}
+// Every tile exists once; the sub-tab, the category and the search only hide them
 function buildGrid() {
-  $("#grid").innerHTML = LOOKS.map(l => `<div class="tile" role="button" tabindex="0" data-look="${l.id}" data-cat="${l.cat}" title="${esc(l.name)}" aria-label="${esc(t("grade.add", { name: l.name }))}"><span class="thw" id="tw-${l.id}"><canvas width="160" height="160" id="th-${l.id}"></canvas></span><span>${esc(l.name)}</span><i id="bd-${l.id}" hidden></i>
-    <div class="tacts"><button class="tact" data-tact="add" aria-label="${esc(t("grade.addAnother", { name: l.name }))}" title="${esc(t("grade.addShort"))}">${icon("plus")}</button><button class="tact rem" data-tact="rem" id="rm-${l.id}" aria-label="${esc(t("grade.removeNamed", { name: l.name }))}" title="${esc(t("common.remove"))}" hidden>${icon("minus")}</button></div></div>`).join("");
+  const keys = LOOKS2.map(l => "b:" + l.id).concat(personalNames().map(n => "u:" + n)), grid = $("#grid"), want = new Set(keys);
+  for (const [k, e] of tileEls) if (!want.has(k)) { tileObs?.unobserve(e.el); e.el.remove(); tileEls.delete(k); tileSeen.delete(k); }
+  for (const k of keys) if (!tileEls.has(k)) {
+    grid.insertAdjacentHTML("beforeend", tileHTML(k)); const el = grid.lastElementChild;
+    tileEls.set(k, { el, cv: el.querySelector("canvas"), wrap: el.querySelector(".thw"), painted: "" });
+    if (G.lastSrc) M.skeleton(el.querySelector(".thw"), true);
+    tileObs?.observe(el);
+  }
+  keys.forEach((k, i) => { const el = tileEls.get(k).el; if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null); });
+  renderFavs(); filterGrid(false); renderGridBadges();
 }
-function addLook(id) {
-  addLayer({ type: "look", id0: id, amt: G.thumbPct });
-  setStatus(t("grade.st.lookAdded", { name: LOOK[id].name, pct: G.thumbPct }));
+function matches(key, q) {
+  if (!q) return true;
+  const l = key.startsWith("b:") && LOOK2[key.slice(2)];
+  return (entryName(key) + " " + (l ? cat2Name(l.cat) + " " + (l.tags || []).join(" ") : t("grade.sub.mine"))).toLowerCase().includes(q);
 }
-function removeLook(id) {
-  for (let i = G.layers.length - 1; i >= 0; i--) if (G.layers[i].type === "look" && G.layers[i].id0 === id) {
+function shownKeys() {
+  const q = subQuery[fsub].trim().toLowerCase();
+  const keys = fsub === "fav" ? G.favs.filter(k => tileEls.has(k)) : fsub === "mine" ? personalNames().map(n => "u:" + n) : LOOKS2.filter(l => catSel === "every" || l.cat === catSel).map(l => "b:" + l.id);
+  return keys.filter(k => matches(k, q));
+}
+function filterGrid(animate) {
+  const show = shownKeys(), on = new Set(show), tiles = [...tileEls.values()].map(e => e.el), was = new Set(tiles.filter(x => !x.hidden));
+  const mutate = () => { for (const [k, e] of tileEls) { e.el.hidden = !on.has(k); e.el.style.order = fsub === "fav" ? String(show.indexOf(k)) : ""; } };
+  if (animate) { M.flip([...was], mutate); tiles.filter(x => !x.hidden && !was.has(x)).slice(0, 24).forEach((x, i) => M.scaleIn(x, { delay: i * 12 })); }
+  else mutate();
+  $("#chips").hidden = fsub !== "all";
+  const empty = $("#gridEmpty");
+  empty.hidden = show.length > 0;
+  if (!show.length) empty.textContent = t(subQuery[fsub].trim() ? "grade.noResults" : fsub === "fav" ? "grade.emptyFav" : fsub === "mine" ? "grade.emptyMine" : "grade.noResults");
+  const nf = G.favs.filter(k => tileEls.has(k)).length, nm = personalNames().length;
+  $("#cntFav").textContent = nf ? `(${nf})` : ""; $("#cntMine").textContent = nm ? `(${nm})` : "";
+  queueShown();
+}
+function setSub(sub) {
+  if (sub === fsub) return;
+  const lib = document.querySelector(".lib");
+  subScroll[fsub] = lib.scrollTop; fsub = sub;
+  document.querySelectorAll("[data-fsub]").forEach(x => x.setAttribute("aria-selected", String(x.dataset.fsub === sub)));
+  $("#lookSearch").value = subQuery[sub];
+  filterGrid(true);
+  lib.scrollTop = subScroll[sub];
+}
+document.querySelectorAll("[data-fsub]").forEach(b => b.addEventListener("click", () => setSub(b.dataset.fsub)));
+$("#lookSearch").addEventListener("input", e => { subQuery[fsub] = e.target.value; filterGrid(false); });
+/* favourites: catalogue and personal looks, in the order they were marked */
+function renderFavs() {
+  for (const [k, e] of tileEls) { const s = e.el.querySelector(".star"), on = G.favs.includes(k); s.setAttribute("aria-pressed", String(on)); e.el.classList.toggle("fav", on); }
+}
+function toggleFav(key) {
+  const i = G.favs.indexOf(key);
+  if (i >= 0) G.favs.splice(i, 1); else G.favs.push(key);
+  renderFavs(); if (fsub === "fav") filterGrid(true); else filterGrid(false);
+  const s = tileEls.get(key)?.el.querySelector(".star"); if (s && i < 0) M.pop(s);
+  up.schedulePersist();
+}
+function applyEntry(key) {
+  const L = entryLayer(key); if (!L) return;
+  const T = targetLook();
+  if (!T) addLayer(L);
+  else {
+    L.id = rid(); G.layers[G.layers.indexOf(T)] = L;
+    if (openId === T.id) openId = L.id;
+    ltab = "F"; changed();
+  }
+  setStatus(t("grade.st.lookApplied2", { name: entryName(key) }));
+}
+function addEntry(key) {
+  const L = entryLayer(key); if (!L) return;
+  addLayer(L); setStatus(t("grade.st.lookAdded", { name: entryName(key), pct: L.amt }));
+}
+function removeEntry(key) {
+  for (let i = G.layers.length - 1; i >= 0; i--) if (G.layers[i].type === "look" && layerKey(G.layers[i]) === key) {
     G.layers.splice(i, 1); renderLayers(); requestRender(); commit();
-    setStatus(t("grade.st.lookRemoved", { name: LOOK[id].name })); return;
+    setStatus(t("grade.st.lookRemoved", { name: entryName(key) })); return;
   }
 }
-// A category chip: tiles that stay slide to their new place, tiles that come in scale in (a few, staggered)
-function filterGrid(animate) {
-  const tiles = [...document.querySelectorAll(".tile")], was = new Set(tiles.filter(x => !x.hidden));
-  const mutate = () => tiles.forEach(x => { x.hidden = !(catSel === "Todos" || x.dataset.cat === catSel); });
-  if (!animate) return mutate();
-  M.flip([...was], mutate);
-  tiles.filter(x => !x.hidden && !was.has(x)).slice(0, 24).forEach((x, i) => M.scaleIn(x, { delay: i * 12 }));
-}
 function renderGridBadges() {
-  const counts = {}; for (const L of G.layers) if (L.type === "look") counts[L.id0] = (counts[L.id0] || 0) + 1;
-  for (const l of LOOKS) {
-    const b = document.getElementById("bd-" + l.id), rm = document.getElementById("rm-" + l.id); if (!b) continue;
-    if (b.hidden && counts[l.id]) { b.hidden = rm.hidden = false; M.pop(b); M.pop(rm); }   // the badge pops when the filter goes on
-    b.hidden = !counts[l.id]; b.textContent = counts[l.id] > 1 ? "×" + counts[l.id] : "✓"; rm.hidden = !counts[l.id];
+  const counts = {}; for (const L of G.layers) if (L.type === "look") { const k = layerKey(L); if (k) counts[k] = (counts[k] || 0) + 1; }
+  for (const [k, e] of tileEls) {
+    const b = e.el.querySelector("i"), rm = e.el.querySelector("[data-tact=rem]");
+    if (b.hidden && counts[k]) { b.hidden = rm.hidden = false; M.pop(b); M.pop(rm); }   // the badge pops when the look goes on
+    b.hidden = !counts[k]; b.textContent = counts[k] > 1 ? "×" + counts[k] : "✓"; rm.hidden = !counts[k];
   }
 }
 $("#grid").addEventListener("click", e => {
-  const t = e.target.closest("[data-look]"); if (!t) return;
-  const a = e.target.closest("[data-tact]");
-  if (a && a.dataset.tact === "rem") removeLook(t.dataset.look); else addLook(t.dataset.look);
+  const tile = e.target.closest("[data-key]"); if (!tile) return;
+  const key = tile.dataset.key, a = e.target.closest("[data-tact]");
+  if (!a) { applyEntry(key); return; }
+  const act = a.dataset.tact;
+  if (act === "rem") removeEntry(key); else if (act === "add") addEntry(key); else if (act === "fav") toggleFav(key); else if (act === "menu") openTileMenu(key, a);
 });
 $("#grid").addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("tile")) { e.preventDefault(); addLook(e.target.dataset.look); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("tile")) { e.preventDefault(); applyEntry(e.target.dataset.key); }
 });
+/* a personal look's menu: rename, duplicate, favourite, delete (the same files the Library shows) */
+let tmenuFor = null;
+function openTileMenu(key, b) {
+  const m = $("#tmenu"), r = b.getBoundingClientRect();
+  tmenuFor = key; m.hidden = false;
+  m.querySelector('[data-tm="fav"] span').textContent = t(G.favs.includes(key) ? "grade.unfav" : "grade.favShort");
+  m.style.position = "fixed"; m.style.top = Math.min(r.bottom + 4, innerHeight - m.offsetHeight - 8) + "px"; m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + "px"; m.style.right = "auto";
+  M.pop(m, b); m.querySelector("button").focus();
+}
+function closeTileMenu() { if (!$("#tmenu").hidden) M.closePopover($("#tmenu")); tmenuFor = null; }
+document.addEventListener("mousedown", e => { if (!e.target.closest("#tmenu") && !e.target.closest("[data-tact=menu]")) closeTileMenu(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeTileMenu(); });
+const stem = v => HAL && HAL.fileStem ? HAL.fileStem(v) : v;
+function nameError(v, except) {
+  if (!v) return t("lib.err.empty");
+  if (stem(v) !== v) return t("lib.err.chars");
+  return Object.keys(G.looks).some(n => n !== except && n.toLowerCase() === v.toLowerCase()) ? t("lib.err.taken") : "";
+}
+function renamePersonal(from, to) {
+  G.looks[to] = G.looks[from]; delete G.looks[from];
+  G.favs = G.favs.map(k => k === "u:" + from ? "u:" + to : k);
+  for (const L of G.layers) if (L.mine === from) L.mine = to;
+  buildGrid(); renderLooks(); renderLayers(); up.schedulePersist();
+}
+$("#tmenu").addEventListener("click", async e => {
+  const b = e.target.closest("[data-tm]"); if (!b || !tmenuFor) return;
+  const key = tmenuFor, name = key.slice(2); closeTileMenu();
+  if (b.dataset.tm === "fav") { toggleFav(key); return; }
+  if (b.dataset.tm === "rename") {
+    const to = HAL && HAL.ask ? await HAL.ask({ title: t("grade.renameLook"), text: t("lib.renameText", { name }), input: name, okLabel: t("lib.act.rename"), validate: v => v === name ? "" : nameError(v, name) }) : null;
+    if (!to || to === name || nameError(to, name)) return;
+    renamePersonal(name, to); setStatus(t("lib.renamed", { name: to }), "ok"); return;
+  }
+  if (b.dataset.tm === "dup") {
+    let to = t("lib.copyName", { name }), n = 2;
+    while (nameError(to)) to = t("lib.copyNameN", { name, n: n++ });
+    G.looks[to] = clone(G.looks[name]); buildGrid(); renderLooks(); up.schedulePersist(); setStatus(t("lib.duplicated", { name: to }), "ok"); return;
+  }
+  if (b.dataset.tm === "del") {
+    const ok = HAL && HAL.ask ? await HAL.ask({ title: t("grade.deleteLook"), text: t("lib.deleteText", { name }), okLabel: t("common.delete"), danger: true }) : true;
+    if (!ok) return;
+    delete G.looks[name]; G.favs = G.favs.filter(k => k !== key);
+    for (const L of G.layers) if (L.mine === name) delete L.mine;
+    buildGrid(); renderLooks(); renderLayers(); up.schedulePersist(); setStatus(t("lib.deleted", { name }), "ok");
+  }
+});
+/* thumbnails: the same render as the preview (renderStack), 160 px, one at a time, tiles on screen first (§4.5) */
 let thumbsOf = null, thumbQueue = [], thumbBusy = false, thumbTimer = 0, thumbKey = "", thumbFrame = 0, thumbsWaiting = false;
 let thumbReadback = null, thumbLUTWorker = null, thumbLUTPending = null, thumbWorkerUnavailable = false;
 function stopThumbWorker() { thumbLUTWorker?.terminate(); thumbLUTWorker = null; thumbLUTPending = null; }
-function prepareThumbLUT(id) {
-  if (lookLUTs[id] || thumbWorkerUnavailable) return false;
+// A tile's look LUT built in the worker before its thumbnail is drawn (true: wait for it)
+function prepareThumbLUT(key) {
+  const C = entryLayer(key), def = C && layerDef(C);
+  if (!def || thumbWorkerUnavailable) return false;
+  const dk = defKey(def);
+  if (lutCache.has(dk)) return false;
   if (thumbLUTPending) return true;
   try {
     if (!thumbLUTWorker) {
@@ -807,11 +1051,11 @@ function prepareThumbLUT(id) {
         if (data.error) { failed(); return; }
         thumbLUTPending = null;
         if (window.__ui.away) { stopThumbWorker(); return; }
-        if (!lookLUTs[data.id]) lookLUTs[data.id] = uploadLUT(data.bytes);
+        storeLUT(data.id, data.bytes);
         if (!thumbFrame) thumbFrame = requestAnimationFrame(pumpThumbs);
       };
     }
-    thumbLUTPending = id; thumbLUTWorker.postMessage({ id, parameters: LOOK[id].g });
+    thumbLUTPending = dk; thumbLUTWorker.postMessage({ id: dk, def });
     return true;
   } catch (_) { stopThumbWorker(); thumbWorkerUnavailable = true; return false; }
 }
@@ -825,16 +1069,27 @@ addEventListener("pagehide", () => { cancelAnimationFrame(thumbFrame); clearTime
 function waitForThumbs() { if(!thumbsWaiting){thumbsWaiting=true;window.__ui.whenBack(()=>{thumbsWaiting=false;scheduleThumbs(0);if(thumbQueue.length&&!thumbBusy)pumpThumbs();});} }
 window.__ui.onAway(()=>{cancelAnimationFrame(rq);rq=0;requestRender();cancelAnimationFrame(thumbFrame);thumbFrame=0;thumbBusy=false;clearTimeout(thumbTimer);discardThumbReadback(true);stopThumbWorker();waitForThumbs();});
 function queueThumbs() { thumbKey = ""; scheduleThumbs(0); }
+// The tiles shown whose thumbnail is not of the current picture and layers: on screen first, then the rest shown
+function queueShown() {
+  if (!thumbKey || !G.srcTex) return;
+  // the tile whose readback is in flight for this key is not queued again
+  const todo = shownKeys().filter(k => tileEls.get(k).painted !== thumbKey && !(thumbReadback && thumbReadback.id === k && thumbReadback.key === thumbKey));
+  thumbQueue = todo.filter(k => tileSeen.has(k)).concat(todo.filter(k => !tileSeen.has(k)));
+  if (thumbQueue.length && !thumbBusy) pumpThumbs();
+}
 function scheduleThumbs(delay = 350) {
   clearTimeout(thumbTimer);
   if(window.__ui.away){waitForThumbs();return;}
   thumbTimer = setTimeout(() => {
-    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0)) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick;
-    if (key === thumbKey) return;               // nothing that changes the thumbnails
-    thumbKey = key; thumbQueue = LOOKS.map(l => l.id);
-    // a new picture: the tiles shimmer until their thumbnail is painted
-    if (G.lastSrc && thumbsOf !== G.lastSrc.el) { thumbsOf = G.lastSrc.el; for (const id of thumbQueue) M.skeleton(document.getElementById("tw-" + id), true); }
-    if (!thumbBusy) pumpThumbs();
+    // the look the tiles replace is left out: adjusting it does not change any thumbnail
+    const T = targetLook();
+    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0 && l !== T)) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick + "|" + (T ? T.id : "") + "|" + JSON.stringify(personalNames().map(n => G.looks[n]));
+    if (key !== thumbKey) {
+      thumbKey = key;
+      // a new picture: the tiles shimmer until their thumbnail is painted
+      if (G.lastSrc && thumbsOf !== G.lastSrc.el) { thumbsOf = G.lastSrc.el; for (const e of tileEls.values()) { e.painted = ""; M.skeleton(e.wrap, true); } }
+    }
+    queueShown();
   }, delay);
 }
 const thumbEl = $("#thumbPct");
@@ -854,29 +1109,29 @@ function pumpThumbs() {
       discardThumbReadback(); thumbBusy=false; thumbQueue=[]; stopThumbWorker();
       setStatus(t("grade.st.glFailed", { error: "Thumbnail readback failed" }), "bad"); return;
     }
-    if (pending.key === thumbKey && pending.source === G.lastSrc?.el) {
+    const tile = tileEls.get(pending.id);
+    if (tile && pending.key === thumbKey && pending.source === G.lastSrc?.el) {
       const S = 160, buf = new Uint8Array(S * S * 4);
       gl.bindBuffer(gl.PIXEL_PACK_BUFFER, pending.buffer);
       gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, buf);
       gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
-      const cv = document.getElementById("th-" + pending.id);
-      if (cv) {
-        const x = cv.getContext("2d"), idata = x.createImageData(S, S);
-        for (let y = 0; y < S; y++) idata.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
-        x.putImageData(idata, 0, 0);
-        const w = document.getElementById("tw-" + pending.id);
-        if (w && w.classList.contains("skel")) { M.skeleton(w, false); M.fadeIn(cv, { dur: "spring" }); }
-      }
+      const x = tile.cv.getContext("2d"), idata = x.createImageData(S, S);
+      for (let y = 0; y < S; y++) idata.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+      x.putImageData(idata, 0, 0); tile.painted = pending.key;
+      if (tile.wrap.classList.contains("skel")) { M.skeleton(tile.wrap, false); M.fadeIn(tile.cv, { dur: "spring" }); }
     }
     discardThumbReadback();
     thumbFrame=requestAnimationFrame(pumpThumbs);return;
   }
+  while (thumbQueue.length && !entryLayer(thumbQueue[0])) thumbQueue.shift();
   if (!thumbQueue.length || !gl || !G.srcTex) { thumbBusy = false; stopThumbWorker(); purge(t => t.w === canvas.width && t.h === canvas.height); return; }
   thumbBusy = true;
   if (prepareThumbLUT(thumbQueue[0])) return;
   const S = 160, target = acquire(S, S), uv = cropRect(IMG.centered(srcW, srcH, "1:1")).uni;
-  const id = thumbQueue.shift(), live = G.layers.filter(l => l.on && l.amt > 0);
-  renderStack(live.filter(isLook).concat([{ type: "look", id0: id, amt: G.thumbPct, on: true }], live.filter(l => !isLook(l))), S, S, uv, target);
+  const id = thumbQueue.shift(), C = entryLayer(id), live = G.layers.filter(l => l.on && l.amt > 0), looks = live.filter(isLook), T = targetLook(), at = T ? looks.indexOf(T) : -1;
+  C.id = "thumb-" + id;
+  const stackLooks = at >= 0 ? looks.slice(0, at).concat([C], looks.slice(at + 1)) : looks.concat([C]);
+  renderStack(stackLooks.concat(live.filter(l => !isLook(l))), S, S, uv, target);
   // Queue GPU readback, then test its fence without waiting on the main thread.
   const buffer = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
   gl.bufferData(gl.PIXEL_PACK_BUFFER, S * S * 4, gl.STREAM_READ);
@@ -957,7 +1212,9 @@ document.querySelectorAll(".tabs .tab").forEach(t => t.addEventListener("click",
 function revealFromHome({ look, tool }) {
   document.querySelector(`.tabs .tab[data-tab="${look ? "filters" : "tools"}"]`).click();
   if (look) {
-    if (catSel !== "Todos") { catSel = "Todos"; renderChips(); filterGrid(false); }
+    setSub("all"); subQuery.all = ""; $("#lookSearch").value = "";
+    if (catSel !== "every") { catSel = "every"; renderChips(); }
+    filterGrid(false);
     const el = document.querySelector(`.tile[data-look="${look}"]`); if (!el) return;
     el.scrollIntoView({ block: "center" }); el.focus({ preventScroll: true }); M.pop(el);
     return;
@@ -971,7 +1228,7 @@ function revealFromHome({ look, tool }) {
 /* my G.looks */
 function renderLooks() {
   up.renderBatchLooks();
-  const names = Object.keys(G.looks).sort((a, b) => a.localeCompare(b)), list = $("#lookList");
+  const names = Object.keys(G.looks).filter(n => !isPersonal(G.looks[n])).sort((a, b) => a.localeCompare(b)), list = $("#lookList");
   if (!names.length) { list.innerHTML = `<p class="empty">${esc(t("grade.noLooks"))}</p>`; return; }
   list.innerHTML = names.map((n, i) => `<div class="item"><b title="${esc(n)}">${esc(n)}</b><small>${esc(t(G.looks[n].length === 1 ? "grade.layerCountOne" : "grade.layerCount", { n: G.looks[n].length }))}</small><button class="btn sm" data-lk="apply" data-i="${i}">${esc(t("common.apply"))}</button><button class="btn sm" data-lk="add" data-i="${i}">${esc(t("grade.addOnTop"))}</button><button class="btn sm" data-lk="del" data-i="${i}">${esc(t("common.delete"))}</button></div>`).join("");
   list.onclick = e => {
@@ -998,7 +1255,7 @@ $("#saveLookBtn").addEventListener("click", () => {
   $("#lookName").focus();
 });
 
-Object.assign(up, { draftLayer, queueThumbs, renderGridBadges, scheduleThumbs, toolBodyHTML });
+Object.assign(up, { buildGrid, draftLayer, isPersonal, queueThumbs, renderGridBadges, scheduleThumbs, toolBodyHTML });
 
 /* ===== controls ===== */
 // Crop and Cutout, before/after, keys and the file input
@@ -1180,12 +1437,23 @@ $("#linkBtn").addEventListener("click", () => { if (HAL) HAL.show("downloader");
 /* =================== persistence =================== */
 let dbDoc = null, persistTimer = 0, persistPending = false, writing = false, writeAgain = false, localStamp = 0;
 function setSync(s, text) { $("#sync").dataset.s = s; $("#syncText").textContent = text; if (HAL && HAL.setSync) HAL.setSync("grade", s, text); }
-function payload() { return { looks: clone(G.looks), previewPct: G.thumbPct, current: { layers: clone(G.layers).map(l => { delete l.open; return l; }), crop: clone(G.crop) }, updatedAt: Date.now() }; }
+function payload() { return { looks: clone(G.looks), favs: G.favs.slice(), category: catSel, previewPct: G.thumbPct, current: { layers: clone(G.layers).map(l => { delete l.open; return l; }), crop: clone(G.crop) }, updatedAt: Date.now() }; }
 function validLayer(l) {
   if (!l || typeof l !== "object") return null;
   const base = { id: rid(), on: l.on !== false, amt: clamp(+l.amt || 0, 0, 100) };
   const fill = (S, p) => { const o = schemaDefaults(S); if (p && typeof p === "object") for (const s of S) if (s.k in p && typeof p[s.k] === typeof s.def) o[s.k] = p[s.k]; return o; };
-  if (l.type === "look" && LOOK[l.id0]) return { ...base, type: "look", id0: l.id0 };
+  if (l.type === "look") {
+    // a catalogue look by id, or a personal look's own definition (docs/GRADE_LOOKS_SPEC.md §3.2–3.3); a removed classic
+    // look opens as its closest catalogue look
+    const def = l.def ? cleanDef(l.def) : null, raw = String(l.id0 || "").slice(0, 80), id0 = !def && !LOOK2[raw] && CLASSIC[raw] ? CLASSIC[raw] : raw;
+    if (!def && !LOOK2[id0]) return null;
+    const o = { ...base, type: "look", id0 }, adj = cleanAdj(l.adj);
+    if (def) o.def = def;
+    if (Object.keys(adj).length) o.adj = adj;
+    if (Number.isInteger(l.rev) && l.rev > 0) o.rev = l.rev;
+    if (typeof l.mine === "string" && l.mine) o.mine = l.mine.slice(0, 120);
+    return o;
+  }
   if (l.type === "adjust") return { ...base, type: "adjust", p: fill(ADJ, l.p) };
   if (l.type === "gmap") return { ...base, type: "gmap", p: fill(GMAP, l.p) };
   if (l.type === "text") return { ...base, type: "text", p: fill(TEXT, l.p) };
@@ -1195,6 +1463,8 @@ function validLayer(l) {
 function applyPayload(d) {
   if (!d) return;
   if (Number.isFinite(+d.previewPct)) G.thumbPct = clamp(Math.round(+d.previewPct / 5) * 5, 5, 100);
+  if (Array.isArray(d.favs)) G.favs = [...new Set(d.favs.filter(k => typeof k === "string" && /^[bu]:/.test(k)).map(k => k.slice(0, 122)))];
+  if (d.category === "every" || CATS2.includes(d.category)) catSel = d.category;
   if (d.looks && typeof d.looks === "object") { G.looks = {}; for (const n in d.looks) if (Array.isArray(d.looks[n])) G.looks[n.slice(0, 120)] = d.looks[n].map(validLayer).filter(Boolean); }
   if (d.current) {
     if (Array.isArray(d.current.layers)) G.layers = d.current.layers.map(validLayer).filter(Boolean);
@@ -1229,7 +1499,7 @@ async function connectAccount() {
     if (snap.exists) {
       const d = clone(snap.data());
       if ((d.updatedAt || 0) > localStamp) {
-        applyPayload(d); renderLooks(); renderLayers(); syncCropUI(); syncThumbPct(); fitPreview();
+        applyPayload(d); renderChips(); buildGrid(); renderLooks(); renderLayers(); syncCropUI(); syncThumbPct(); fitPreview();
         G.hist = [stateJSON()]; G.hi = 0; updateHistButtons();
         try { sessionStorage.setItem(LS_KEY, JSON.stringify(d)); } catch (e) {}
       } else if ((d.updatedAt || 0) < localStamp) writeDb();
@@ -1249,7 +1519,7 @@ async function reloadLooks() {
   const snap = await dbDoc.get(), d = snap.exists ? snap.data() : null;
   G.looks = {};
   if (d && d.looks) for (const n in d.looks) if (Array.isArray(d.looks[n])) G.looks[n.slice(0, 120)] = d.looks[n].map(validLayer).filter(Boolean);
-  renderLooks();
+  renderLooks(); buildGrid();
 }
 async function applyLookByName(name) {
   if (!G.looks[name]) await reloadLooks();
@@ -1266,7 +1536,7 @@ function readTarget(target, W, H) {
   return c;
 }
 // Miniatura de un look sobre la imagen abierta (para la Biblioteca)
-async function lookThumb(list, size = 200) {
+async function lookThumb(list, size = 200, type = "image/jpeg") {
   if (!gl || !G.srcTex) return "";
   const L = (list || []).map(validLayer).filter(Boolean);
   await Promise.all(L.filter(l => l.type === "text").map(l => ensureTextFont(l.p)));
@@ -1280,7 +1550,7 @@ async function lookThumb(list, size = 200) {
     for (const k in textTexs) if (k.startsWith(l.id)) { gl.deleteTexture(textTexs[k].tex); delete textTexs[k]; }
   }
   requestRender();
-  return c.toDataURL("image/jpeg", 0.86);
+  return c.toDataURL(type, 0.86);
 }
 
 Object.assign(up, { readTarget, schedulePersist });

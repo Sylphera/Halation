@@ -45,8 +45,11 @@
     grade: {
       state: "grade", kind: "grade", field: "looks",
       read: o => Array.isArray(o) ? o : isObj(o) && Array.isArray(o.layers) ? o.layers : null,
-      clean: v => Array.isArray(v) ? v.map(l => { if (!isObj(l)) return l; const { id, open, ...rest } = l; return rest; }) : v,
-      wrap: v => ({ app: "halation-grade", version: 1, layers: v })
+      clean: v => Array.isArray(v) ? v.map(l => { if (!isObj(l)) return l; const { id, open, mine, ...rest } = l; return rest; }) : v,
+      // a personal look (one look layer with its own definition) is version 2 (docs/GRADE_LOOKS_SPEC.md §3.3)
+      wrap: v => Array.isArray(v) && v.length === 1 && isObj(v[0]) && v[0].type === "look" && isObj(v[0].def)
+        ? { app: "halation-grade", version: 2, kind: "look", base: { id: v[0].id0, rev: v[0].rev || 1 }, layers: v }
+        : { app: "halation-grade", version: 1, layers: v }
     }
   };
 
