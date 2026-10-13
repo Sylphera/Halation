@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="docs/brand/halation-logo.svg" alt="Halation" width="60">
-
-# Halation
+<img src="docs/brand/readme-hero.jpg" alt="Halation: focused tools for image, video and audio. Local, no account.">
 
 <p>
   <a href="https://github.com/Sylphera/Halation/releases/latest">Download</a>
