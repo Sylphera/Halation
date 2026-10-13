@@ -1,4 +1,4 @@
-// Auralis (app/dist/auralis.js) without a browser: blue noise, CPU/shader field description, coverage stabiliser,
+// Auralis (app/dist/auralis.js) without a browser: blue noise, CPU/shader field description, exposure stabiliser,
 // GL resources, cadence and lifecycle against a recording WebGL mock. No screenshots or timing claims.
 const assert=require('assert/strict'),fs=require('fs'),path=require('path'),vm=require('vm'),cp=require('child_process');
 const dist=path.join(__dirname,'../dist'),code=fs.readFileSync(path.join(dist,'auralis.js'),'utf8'),noise=fs.readFileSync(path.join(dist,'blue-noise.js'),'utf8');
@@ -50,21 +50,23 @@ function setup({half=true,complete=true,failShader=false,width=1480,height=940,d
 
 /* ===== field ===== */
 {
- const s=setup(),A=s.context.__auralis,F0=A.field;
+ const s=setup(),A=s.context.__auralis,F=A.field;
  let lo=Infinity,hi=-Infinity;for(let i=0;i<20000;i++){const v=A.snoise(Math.sin(i)*40,Math.cos(i*1.3)*40,i*.01);lo=Math.min(lo,v);hi=Math.max(hi,v);}
  assert(lo>-1.05&&hi<1.05&&hi-lo>1.4,'Simplex noise spans about [-1, 1]: '+lo.toFixed(3)+' '+hi.toFixed(3));
- assert(/const vec2 AXIS=vec2\(0\.79864,0\.60182\)/.test(A.glsl.field),'Folds and clusters on a 37° axis');
- // folds run along the axis: the phase changes several times faster across it than along it
- {let along=0,across=0;const c=Math.cos(F0.angle),s=Math.sin(F0.angle),d=.01;for(let i=0;i<400;i++){const x=Math.sin(i*1.7)*.8,y=Math.cos(i*.9)*.45,t=i*3,p=A.foldPhase(x,y,t);
-  along+=Math.abs(A.foldPhase(x+c*d,y+s*d,t)-p);across+=Math.abs(A.foldPhase(x-s*d,y+c*d,t)-p);}
-  assert(across/along>2.4,'Folds run along the axis (phase changes over 2.4 times faster across it): '+(across/along).toFixed(2));}
- // the stabiliser keeps the lit share (clusters × sheen × vignette) at its target at every moment of a long run
- const F=A.field,ss=x=>{x=Math.min(1,Math.max(0,x));return x*x*(3-2*x)},lit=(aspect,t,bias)=>{let sum=0,n=0;for(let y=0;y<14;y++)for(let x=0;x<24;x++,n++){const u=(x+.5)/24-.5,w=(y+.5)/14-.5,px=u*aspect*F.zoom,py=w*F.zoom;
-  const ax=px*Math.cos(F.angle)+py*Math.sin(F.angle)-t*F.drift,sheen=ss((A.snoise(ax*F.sheenAlong,A.foldPhase(px,py,t)*F.sheenAcross/(2*Math.PI),t*F.sheenRate+3)+.6)/1.4);
-  sum+=ss((A.clusterValue(px,py,t)+bias-F.low)/(F.high-F.low))*(F.sheenLow+(1-F.sheenLow)*sheen)*(1-F.vignette*ss((Math.hypot(u*aspect*.75,w)-.18)/.67));}return sum/n;};
- const shares=[];for(let t=0;t<=600;t+=15){const b=A.coverageBias(16/9,t);shares.push(lit(16/9,t,b));assert(b>-.8&&b<.8,'Bias stays in range at '+t);}
- assert(Math.min(...shares)>F.target*.7&&Math.max(...shares)<F.target*1.6,'Lit share steady over ten minutes: '+shares.map(x=>x.toFixed(3)).join(' '));
- console.log('PASS field description: simplex range, folds stretched along 37°, coverage stabiliser over 600 s');
+ assert(/const vec2 AXIS=vec2\(0\.65998,0\.75128\)/.test(A.glsl.field),'Waves on the diagonal axis');
+ assert(/float filmGrain\(vec2 px, float frame\)/.test(A.glsl.grain),'Halation film grain in the presentation');
+ // the waves run along the axis: on screen, the height changes faster across it than along it
+ {const c=Math.cos(F.angle),k=Math.sin(F.angle),hs=(x,y,t)=>A.height((x*c+y*k)*F.along*F.scale,(y*c-x*k)*F.across*F.scale,t);
+  let along=0,across=0;const d=.01;for(let i=0;i<400;i++){const x=Math.sin(i*1.7)*.8,y=Math.cos(i*.9)*.45,t=i*.02,h=hs(x,y,t);
+  along+=Math.abs(hs(x+c*d,y+k*d,t)-h);across+=Math.abs(hs(x-k*d,y+c*d,t)-h);}
+  assert(across/along>1.5,'Waves stretched along the axis (height changes over 1.5 times faster across it): '+(across/along).toFixed(2));}
+ // the bias and exposure hold the mean brightness at its target at every moment of a long run
+ const colors=[[2,2,3],[93,101,119],[180,196,240]].map(c=>c.map(v=>v/255)),luma=c=>.2126*c[0]+.7152*c[1]+.0722*c[2],ss=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
+ const mean=(aspect,t,{bias,exposure})=>{let sum=0,n=0;for(let y=0;y<14;y++)for(let x=0;x<24;x++,n++){const u=(x+.5)/24-.5,w=(y+.5)/14-.5,[body,sheen]=A.light(A.surface(u*aspect,w,t,1.5/180),bias);
+  sum+=(luma(colors[0])+exposure*(luma(colors[1])*body+luma(colors[2])*sheen))*(1-F.vignette*ss(.2,.85,Math.hypot(u*aspect*.75,w)));}return sum/n;};
+ const means=[];for(let t=0;t<=600;t+=15){const st=A.stabiliserAt(16/9,t,180,colors);assert(Math.abs(st.bias)<F.maxBias,'Bias within its range at '+t);means.push(mean(16/9,t,st));}
+ assert(means.every(m=>Math.abs(m-F.target)<F.target*.02),'Mean brightness at its target over ten minutes: '+means.map(m=>m.toFixed(4)).join(' '));
+ console.log('PASS field description: simplex range, waves stretched along the axis, bias and exposure hold the mean over 600 s');
 }
 
 /* ===== resources and lifecycle ===== */
