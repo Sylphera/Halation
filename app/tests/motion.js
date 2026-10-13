@@ -169,10 +169,10 @@ function longTasks(trace) {
 
   await tab("grade"); await settle(page);
   await grade.locator(".tab[data-tab=filters]").click();
-  await clearLog(app.gFrame()); await grade.locator('.tile[data-look="nocturno"]').click();
+  await clearLog(app.gFrame()); await grade.locator('.tile[data-look="nordic"] [data-tact=add]').click();
   ok(await animated(app.gFrame(), "#listF .layer"), "A new Grade layer scales in");
   await settle(page);
-  await grade.locator('.tile[data-look="hielo"]').click(); await settle(page);
+  await grade.locator('.tile[data-look="cine-teal"] [data-tact=add]').click(); await settle(page);
   await clearLog(app.gFrame()); await grade.locator("#listF .layer").nth(0).locator("[data-act=more]").click();
   ok(await animated(app.gFrame(), "#lmenu"), "⋯ menu grows from its button");
   await settle(page);
@@ -205,8 +205,8 @@ function longTasks(trace) {
   await clearLog(G); await grade.locator("#chips .chip").nth(1).click();
   ok(await animated(G, ".tile"), "Filter grid: a category slides and scales the tiles");
   await grade.locator("#chips .chip").nth(0).click(); await settle(page);
-  await clearLog(G); await grade.locator('.tile[data-look="medianoche"]').click();
-  ok(await animated(G, '#bd-medianoche'), "A filter that goes on pops its badge on the tile");
+  await clearLog(G); await grade.locator('.tile[data-look="slide"] [data-tact=add]').click();
+  ok(await animated(G, '.tile[data-look="slide"] > i'), "A filter that goes on pops its badge on the tile");
   await settle(page);
   await tab("visualizer"); const VF = app.vFrame();
   await VF.evaluate(() => { document.getElementById("xDialog").showModal(); document.querySelector("#xMode [data-mode=single]").click(); });
@@ -311,7 +311,7 @@ function longTasks(trace) {
   ok(await moves(page) === 0, "With the setting on: tabs and dialogs only fade" + (left.flat().length ? ": " + left.flat().join(", ") : ""));
   await page.keyboard.press("Escape");
   ok(await until(() => page.locator("#keys").evaluate(d => !d.open), 600), "…and the dialog fades out");
-  await tab("grade"); await grade.locator(".tab[data-tab=filters]").click(); await grade.locator('.tile[data-look="medianoche"]').click();
+  await tab("grade"); await grade.locator(".tab[data-tab=filters]").click(); await grade.locator('.tile[data-look="slide"]').click();
   ok(await moves(page) === 0, "…Grade layers without moving");
   await tab("intro"); await app.iFrame().locator("#pane-element .mats button:nth-child(1)").click(); await app.iFrame().locator("#addText").click();
   ok(await moves(page) === 0, "…Intro panes and lists without moving");

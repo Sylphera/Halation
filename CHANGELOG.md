@@ -9,8 +9,15 @@
 
 ## 1.1.1
 
+### Changed
 - Updated Halation branding and application icons.
 - Unified save and export destinations, remembered manual folders, and added Show in folder.
+- Grade: a new look catalogue of 107 looks in 15 categories, from subtle film, cinematic and colour grades to creative cover and thumbnail treatments (gradient maps, cross process, solarize, halftone, riso, VHS, glitch) and a new Mood category of night blues, cyan, violet and duotones.
+- Grade: a click on a look replaces the current one and `+` stacks it; every look has intensity and eight adjustments (warmth, exposure and the rest) that apply instantly.
+- Grade: Save as My Look keeps its own copy of the look, so later catalogue changes never alter it.
+
+### Removed
+- Grade: the 38 looks of the first Grade. Saved work that uses one opens with its closest new look.
 
 ## 1.1.0
 

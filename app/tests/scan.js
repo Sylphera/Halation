@@ -117,7 +117,7 @@ async function tour(app, at) {
   await at("grade-empty", app.gFrame());
   await grade.locator("#imgIn").setInputFiles(fx("cover.png"));
   await until(async () => /cover\.png/.test(await grade.locator("#imgName").textContent()));
-  await grade.locator('.tile[data-look="hielo"]').click();
+  await grade.locator('.tile[data-look="nordic"]').click();
   await grade.locator(".tab[data-tab=tools]").click();
   await grade.locator(".acc").first().evaluate(d => { d.open = true; });
   await grade.locator(".acc .tool").first().locator("summary").click();

@@ -23,8 +23,9 @@ const stats=(page,time)=>page.evaluate(time=>{
     proxy:!!h.querySelector('.auralis-wave'),match:c.width===Math.round(innerWidth*k)&&c.height===Math.round(innerHeight*k)&&s.viewport[2]===c.width&&s.viewport[3]===c.height,renderer:s.renderer,mode:h.dataset.mode,
     canvasTransform:getComputedStyle(c).transform,surfaceTransform:getComputedStyle(c.parentElement).transform};});
   assert.deepEqual(shape,{count:1,grain:false,aria:'true',first:true,proxy:true,match:true,renderer:'auralis',mode:'home',canvasTransform:'none',surfaceTransform:'none'});
-  const s0=await state();assert.equal(s0.fieldWidth,320);assert.equal(s0.fieldHeight,200);assert.equal(s0.targetFps,15);assert.equal(s0.grain,'static-blue-noise');assert.equal(s0.state,'animate');
-  await page.waitForTimeout(600);assert((await state()).generations>s0.generations,'Home stays animated');
+  const s0=await state();assert.equal(s0.fieldWidth,320);assert.equal(s0.fieldHeight,200);assert.equal(s0.targetFps,15);assert.equal(s0.grain,'static-film-grain');assert.equal(s0.state,'animate');
+  // software WebGL (SwiftShader) draws the warped field slowly: wait for the next generation, not a fixed 600 ms
+  assert(await until(async()=>(await state()).generations>s0.generations,3000,100),'Home stays animated');
   console.log('PASS host, one canvas at native size, 320 px field, animated at 15 Hz');
 
   /* ---------- what it draws ---------- */

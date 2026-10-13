@@ -1,4 +1,4 @@
-import { contrast, hueMatrix, makeGrader, mcurve, stopsAt, toneVec } from './grade-color.js';
+import { contrast, hueMatrix, makeGrader, mcurve, stopsAt, toneVec, wbGains } from './grade-color.js'; import { CATS2, CLASSIC, LOOKS2, LEGACY_REVS } from './grade-looks.js';
 // Grade's looks and grader (no DOM work at load).
 /* ===== util ===== */
 // Helpers shared by the Grade modules
@@ -127,51 +127,6 @@ const TEXT = [
 ];
 const schemaDefaults = S => Object.fromEntries(S.map(p => [p.k, p.def]));
 
-const CATS = ["Azul", "Violeta", "Rojo", "B&N", "Película", "Oscuro", "Verde", "Soñado", "Retro", "Duotono"];
-// Category ids are stable data (saved G.looks refer to them); only the label is translated.
-const CAT_KEY = { Todos: "all", Azul: "blue", Violeta: "violet", Rojo: "red", "B&N": "bw", Película: "film", Oscuro: "dark", Verde: "green", Soñado: "dreamy", Retro: "retro", Duotono: "duotone" };
-const catName = c => t("cat." + (CAT_KEY[c] || c));
-const LOOKS = [
-  { id: "nocturno", name: t("look.nocturno"), cat: "Azul", g: { temp: -.55, tint: .04, con: .28, sat: .72, sh: -.1, hi: -.15, sTone: ["#0b2d6e", .45], hTone: ["#a8d8ff", .22], lift: .03 }, fx: [["vignette", { strength: .45 }]] },
-  { id: "hielo", name: t("look.hielo"), cat: "Azul", g: { temp: -.45, exp: .18, con: .12, sat: .5, sTone: ["#2d5f91", .35], hTone: ["#d2f4ff", .35], lift: .06 }, fx: [["bloom", { threshold: .7, intensity: .45, radius: 40, tint: "#cfefff" }]] },
-  { id: "medianoche", name: t("look.medianoche"), cat: "Azul", g: { temp: -.7, exp: -.25, con: .45, crush: .05, sat: .8, sTone: ["#0a1150", .6], hTone: ["#7b95ff", .3] }, fx: [["vignette", { strength: .6 }]] },
-  { id: "polaroid", name: t("look.polaroid"), cat: "Azul", g: { temp: -.35, tint: .02, con: .08, sat: .8, lift: .06, cap: .03, sTone: ["#16306e", .38], hTone: ["#e2f3ff", .24], curve: { m: [[0, .03], [.3, .27], [.7, .74], [1, .98]] } }, fx: [["grain", { strength: .22, size: 1.2 }], ["glow", { strength: .15, radius: 30 }], ["vignette", { strength: .25 }]] },
-  { id: "acero", name: t("look.acero"), cat: "Azul", g: { sat: .25, temp: -.35, con: .22, lift: .03, sTone: ["#1c2a3a", .3] } },
-  { id: "violeta", name: t("look.violeta"), cat: "Violeta", g: { temp: -.25, tint: .35, con: .3, crush: .03, sat: 1.05, sTone: ["#1b0640", .55], hTone: ["#dcc2ff", .3] }, fx: [["bloom", { threshold: .6, intensity: .7, tint: "#b894ff" }]] },
-  { id: "ultravioleta", name: t("look.ultravioleta"), cat: "Violeta", g: { con: .15, gmap: { stops: [[0, "#04010d"], [.45, "#3a1c91"], [.8, "#9f86ff"], [1, "#f4eeff"]], amt: .88 } } },
-  { id: "synth", name: t("look.synth"), cat: "Violeta", g: { tint: .2, con: .25, sat: 1.15, sTone: ["#1c0b5c", .5], hTone: ["#ff66d6", .28] }, fx: [["bloom", { intensity: .5 }], ["chroma", { amount: 3 }]] },
-  { id: "sangre", name: t("look.sangre"), cat: "Rojo", g: { con: .3, crush: .04, gmap: { stops: [[0, "#060001"], [.5, "#720814"], [.85, "#e3323d"], [1, "#ffd9d2"]], amt: .8 } } },
-  { id: "neonrojo", name: t("look.neonrojo"), cat: "Rojo", g: { temp: .35, tint: .28, con: .38, sat: 1.2, sTone: ["#2d0008", .5], hTone: ["#ff4d5f", .3], hue: -6 }, fx: [["bloom", { intensity: .6, tint: "#ff3a4c" }], ["halation", { intensity: .6 }]] },
-  { id: "ambar", name: t("look.ambar"), cat: "Rojo", g: { temp: .5, tint: .05, con: .15, sat: 1.05, lift: .03, sTone: ["#2e1606", .35], hTone: ["#ffd08e", .28] } },
-  { id: "sepia", name: t("look.sepia"), cat: "Rojo", g: { con: .1, lift: .04, gmap: { stops: [[0, "#1b1007"], [.5, "#7c5636"], [1, "#f4e4c6"]], amt: .92 } }, fx: [["grain", { strength: .3 }]] },
-  { id: "bn", name: t("look.bn"), cat: "B&N", g: { bw: [.3, .59, .11], con: .22 } },
-  { id: "noir", name: t("look.noir"), cat: "B&N", g: { bw: [.4, .45, .15], con: .6, crush: .06, exp: -.08 }, fx: [["grain", { strength: .6 }], ["vignette", { strength: .6 }]] },
-  { id: "plata", name: t("look.plata"), cat: "B&N", g: { bw: [.25, .6, .15], con: -.18, lift: .1, cap: .04, exp: .1 }, fx: [["glow", { strength: .3 }]] },
-  { id: "bnnoche", name: t("look.bnnoche"), cat: "B&N", g: { bw: [.1, .3, .6], con: .48, crush: .04 }, fx: [["bloom", { intensity: .55, threshold: .65 }], ["grain", { strength: .35 }]] },
-  { id: "portra", name: t("look.portra"), cat: "Película", g: { temp: .18, tint: -.03, sat: .9, lift: .04, sTone: ["#3b2a1f", .2], hTone: ["#ffe3c4", .22], curve: { m: [[0, .04], [.25, .23], [.75, .8], [1, .97]] } }, fx: [["grain", { strength: .3 }]] },
-  { id: "fuji", name: t("look.fuji"), cat: "Película", g: { temp: -.12, tint: -.12, con: .12, sat: .9, lift: .04, sTone: ["#0f3b37", .35], hTone: ["#f2fff2", .12] }, fx: [["grain", { strength: .3 }]] },
-  { id: "teal", name: t("look.teal"), cat: "Película", g: { con: .25, sat: 1.05, vib: .2, sTone: ["#0b4d5c", .5], hTone: ["#ffb26e", .32] } },
-  { id: "bleach", name: t("look.bleach"), cat: "Película", g: { sat: .35, con: .55, crush: .03, lift: .02, exp: .05, temp: -.05 } },
-  { id: "cross", name: t("look.cross"), cat: "Película", g: { con: .2, sat: 1.15, curve: { r: [[0, .04], [.5, .56], [1, 1]], g: [[0, 0], [.5, .52], [1, .96]], b: [[0, .2], [.5, .45], [1, .8]] } } },
-  { id: "faded", name: t("look.faded"), cat: "Película", g: { lift: .14, cap: .06, con: -.1, sat: .75, temp: -.05 }, fx: [["grain", { strength: .25 }]] },
-  { id: "profundo", name: t("look.profundo"), cat: "Oscuro", g: { exp: -.35, con: .45, crush: .08, sat: .8, sh: -.3, temp: -.1 }, fx: [["vignette", { strength: .65 }]] },
-  { id: "humo", name: t("look.humo"), cat: "Oscuro", g: { lift: .18, con: -.3, sat: .5, temp: -.08, cap: .05 }, fx: [["glow", { strength: .35 }]] },
-  { id: "mate", name: t("look.mate"), cat: "Oscuro", g: { exp: -.2, lift: .09, cap: .12, con: .12, sat: .7 } },
-  { id: "matrix", name: t("look.matrix"), cat: "Verde", g: { tint: -.45, temp: -.1, con: .3, sat: .8, sTone: ["#001f0c", .45], hTone: ["#bfffd4", .22] } },
-  { id: "esmeralda", name: t("look.esmeralda"), cat: "Verde", g: { tint: -.3, temp: -.3, exp: -.15, con: .35, crush: .05, sat: .7, sTone: ["#03302f", .55], hTone: ["#aee9dc", .18] }, fx: [["vignette", { strength: .45 }]] },
-  { id: "sueno", name: t("look.sueno"), cat: "Soñado", g: { lift: .05, con: -.05, sat: .9, exp: .1 }, fx: [["glow", { strength: .55 }], ["bloom", { intensity: .4 }]] },
-  { id: "halo", name: t("look.halo"), cat: "Soñado", g: { con: .15 }, fx: [["halation", { intensity: 1 }], ["bloom", { intensity: .55 }]] },
-  { id: "etereo", name: t("look.etereo"), cat: "Soñado", g: { exp: .3, sat: .45, lift: .08, temp: -.15, hTone: ["#e9f6ff", .25] }, fx: [["glow", { strength: .5 }], ["bloom", { intensity: .35 }]] },
-  { id: "destellos", name: t("look.destellos"), cat: "Soñado", g: { con: .1 }, fx: [["glints", { strength: 1 }], ["bloom", { intensity: .35 }]] },
-  { id: "vhs", name: t("look.vhs"), cat: "Retro", g: { sat: .85, con: .1, lift: .06, tint: .05 }, fx: [["blur", { radius: 1.5 }], ["rgbshift", { amount: 5 }], ["scanlines", { strength: .45 }], ["grain", { strength: .35 }]] },
-  { id: "ccd", name: t("look.ccd"), cat: "Retro", g: { temp: -.2, con: .25, sat: 1.1, exp: .1, hTone: ["#e2f1ff", .18] }, fx: [["bloom", { threshold: .75, intensity: .7 }], ["sharpen", { strength: .5 }], ["grain", { strength: .25, colored: true }]] },
-  { id: "trama", name: t("look.trama"), cat: "Retro", g: { con: .2, gmap: { stops: [[0, "#02101f"], [.5, "#2a80c0"], [1, "#e8f8ff"]], amt: 1 } }, fx: [["halftone", { size: 6 }]] },
-  { id: "glitch", name: t("look.glitch"), cat: "Retro", g: { con: .2, sat: 1.1 }, fx: [["rgbshift", { amount: 10 }], ["chroma", { amount: 6 }], ["scanlines", { strength: .25 }]] },
-  { id: "dcian", name: t("look.dcian"), cat: "Duotono", g: { con: .15, gmap: { stops: [[0, "#021119"], [1, "#90f1ff"]], amt: 1 } } },
-  { id: "dviol", name: t("look.dviol"), cat: "Duotono", g: { con: .15, gmap: { stops: [[0, "#0b0421"], [1, "#caa9ff"]], amt: 1 } } },
-  { id: "drojo", name: t("look.drojo"), cat: "Duotono", g: { con: .15, gmap: { stops: [[0, "#130002"], [1, "#ff6b6b"]], amt: 1 } } }
-];
-const LOOK = Object.fromEntries(LOOKS.map(l => [l.id, l]));
 
 // Tool groups are stable ids; only their label is translated.
 const GROUP_KEY = { Color: "color", Luz: "light", Textura: "texture", Óptica: "optics", Acabado: "finish" };
@@ -190,4 +145,69 @@ function adjustToGrade(p) {
 }
 function gmapToGrade(p) { return { con: p.con / 100, gmap: { stops: [[0, p.c1], [p.mid, p.c2], [1, p.c3]], amt: 1 } }; }
 
-export { ADJ, BUILTIN_FONTS, CATS, CAT_KEY, FX, GMAP, GROUP_KEY, LOOK, LOOKS, TEXT, adjustToGrade, catName, contrast, fxDefaults, gmapToGrade, groupName, hueMatrix, makeGrader, mcurve, schemaDefaults, stopsAt, toneVec };
+
+/* ===== looks ===== */
+// The looks of docs/GRADE_LOOKS_SPEC.md (catalogue: grade-looks.js). The classic looks were removed (Java, 2026-10-13):
+// saved work that names one opens with its closest look of the catalogue (CLASSIC in grade-looks.js).
+const LOOK2 = Object.fromEntries(LOOKS2.map(l => [l.id, l]));
+for (const k in LEGACY_REVS) LOOK2[k] = LEGACY_REVS[k];
+const cat2Name = c => t("cat2." + c);
+const look2Name = id => t("lk." + id);
+// The adjustments of an applied look (§4.4): relative, 0 = the look as is
+const ADJ2 = [
+  { k: "exposure", label: t("adj2.exposure"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "warmth", label: t("adj2.warmth"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "contrast", label: t("adj2.contrast"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "highlights", label: t("adj2.highlights"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "shadows", label: t("adj2.shadows"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "saturation", label: t("adj2.saturation"), min: -100, max: 100, step: 1, def: 0 },
+  { k: "fade", label: t("adj2.fade"), min: 0, max: 100, step: 1, def: 0 },
+  { k: "grain", label: t("adj2.grain"), min: -100, max: 100, step: 1, def: 0 }
+];
+// Only known, finite, in-range adjustments other than 0
+function cleanAdj(a) {
+  const o = {};
+  if (a && typeof a === "object") for (const s of ADJ2) { const v = +a[s.k]; if (Number.isFinite(v) && v) o[s.k] = Math.min(s.max, Math.max(s.min, Math.round(v))); }
+  return o;
+}
+const hasAdj = a => !!a && Object.keys(cleanAdj(a)).length > 0;
+// A look definition carried by a personal look (§3.3): plain data, bounded, finishing passes limited to known effects
+function cleanDef(d) {
+  if (!d || typeof d !== "object") return null;
+  let j; try { j = JSON.stringify(d); } catch (e) { return null; }
+  if (j.length > 40000) return null;
+  const o = JSON.parse(j);
+  if (!o.color || typeof o.color !== "object") o.color = {};
+  o.finish = Array.isArray(o.finish) ? o.finish.filter(f => Array.isArray(f) && FX[f[0]] && (f[1] == null || typeof f[1] === "object")).map(([k, p]) => [k, p || {}]) : [];
+  return o;
+}
+// The definition a look layer renders: its own copy (a personal look), the catalogue look at the layer's revision,
+// or null (a classic look)
+const layerDef = L => L.def || (L.rev && LOOK2[L.id0] && LOOK2[L.id0].rev !== L.rev && LOOK2[L.id0 + "@" + L.rev]) || LOOK2[L.id0] || null;
+// LUT cache key of a definition: only its colour part goes into the LUT
+function defKey(def) {
+  const s = JSON.stringify(def.color || {}); let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return "v2:" + (h >>> 0).toString(36) + ":" + s.length;
+}
+// Uniforms of the look shader for a layer's adjustments (pre-look: exposure, warmth; post-look: the rest)
+function lookUniforms(adj) {
+  const a = k => ((adj && adj[k]) || 0) / 100, wb = wbGains(a("warmth") * 0.55, 0), ex = Math.pow(2, a("exposure"));
+  const u = { wb: [wb[0] * ex, wb[1] * ex, wb[2] * ex], pre: a("warmth") || a("exposure") ? 1 : 0, con: a("contrast"), hi: a("highlights"), sh: a("shadows"), sat: a("saturation"), fade: a("fade") };
+  u.post = u.con || u.hi || u.sh || u.sat || u.fade ? 1 : 0;
+  return u;
+}
+// The finishing passes of a look with the layer's Grain adjustment, in the fixed order of §4.2
+// optics first, then light, then the print and the film surface on top
+const FINISH_ORDER = ["sharpen", "blur", "edgeblur", "motion", "ghost", "chroma", "rgbshift", "halation", "bloom", "glow", "glints", "leak", "vignette", "pixelate", "halftone", "scanlines", "grain", "dust"];
+function finishOf(def, adj) {
+  const g = ((adj && adj.grain) || 0) / 100;
+  const list = (def.finish || []).filter(([k]) => FX[k]).map(([k, p]) => [k, Object.assign(fxDefaults(k), p)]);
+  const grain = list.find(([k]) => k === "grain");
+  if (g && grain) grain[1].strength = Math.min(1, grain[1].strength * (1 + g));
+  else if (g > 0) list.push(["grain", Object.assign(fxDefaults("grain"), { size: 1.2, strength: 0.3 * g, shadows: 0.5 })]);
+  const at = k => { const i = FINISH_ORDER.indexOf(k); return i < 0 ? FINISH_ORDER.length : i; };
+  return list.filter(([k, p]) => !(k === "grain" && p.strength <= 0)).sort((x, y) => at(x[0]) - at(y[0]));
+}
+
+export { ADJ, ADJ2, CATS2, LOOK2, LOOKS2, cat2Name, cleanAdj, cleanDef, defKey, finishOf, hasAdj, layerDef, look2Name, lookUniforms, BUILTIN_FONTS, CLASSIC, FX, GMAP, GROUP_KEY, TEXT, adjustToGrade, contrast, fxDefaults, gmapToGrade, groupName, hueMatrix, makeGrader, mcurve, schemaDefaults, stopsAt, toneVec };

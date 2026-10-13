@@ -141,6 +141,17 @@ One line per decision in force and why. Add a line for every new decision; remov
 - Packs are drawn locally when installed: no server, no licence.
 - Thumbnails was removed (Java, 2026-09-28): the tool, its tests, `THUMBNAILS_SPEC.md` and its folder kinds are gone; what it shared (Crop, Cutout, the extractor, the Library) stays, described in `ARCHITECTURE.md` → Shared services. Files users already have in `Projects\Thumbnails`, `Exports\Thumbnails` or `Presets\Thumbnails` are left where they are.
 
+## Grade looks
+
+- Looks are data (`grade-looks.js`) compiled to one 33³ RGBA16F LUT plus finish passes (Java, 2026-10-13, docs/GRADE_LOOKS_SPEC.md): one engine, the catalogue grows without code.
+- A tile click replaces the look, `+` stacks.
+- The 38 classic looks of the first Grade are removed (Java, 2026-10-13: badly made). Saved work naming one opens with its closest catalogue look (`CLASSIC` in `grade-looks.js`), so it renders differently from before.
+- The 8 look adjustments are shader uniforms, not part of the LUT: dragging builds and uploads nothing.
+- Personal looks carry a copy of their definition (v2 file): retouching or removing a catalogue look never changes them.
+- A published look never changes how it looks: a retouch raises `rev` and keeps the old one in `LEGACY_REVS`; `grade-looks-baseline.json` holds every LUT hash.
+- Catalogue batches are approved by Java on contact sheets (`scripts/look-sheet.js`); every look passes `tests/grade-looks-quality.js`.
+- Each category mixes subtle looks with a few creative ones (`intent.creative`, tag `cover`): aggressive design treatments for covers and thumbnails, never a single colour over the picture unless declared a duotone (Java, 2026-10-13).
+
 ## Testing
 
 - Debug builds run `HALATION_SELFTEST` after load: `tests/realapp.py` drives the real IPC under Xvfb; release builds ignore it.
