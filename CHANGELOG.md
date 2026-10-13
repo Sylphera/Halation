@@ -1,20 +1,20 @@
 # Changelog
 
-## Unreleased
-
-- Halation is open source: GPL-3.0-or-later, with the source, issues and releases in one public repository. The
-  name and logo stay reserved (TRADEMARKS.md). Settings → About shows the new license.
-- Auralis rewritten as Halation's own code, with the same look and without React.
-- Welcome has a new background, Caustics: silver light rippling as water throws it on a ceiling.
-
 ## 1.1.1
 
+### Added
+- Halation is open source: GPL-3.0-or-later, with the source, issues and releases in one public repository. The
+  name and logo stay reserved (TRADEMARKS.md). Settings → About shows the new license.
+- Grade: a new look catalogue of 107 looks in 15 categories, from subtle film, cinematic and colour grades to creative cover and thumbnail treatments (gradient maps, cross process, solarize, halftone, riso, VHS, glitch) and a new Mood category of night blues, cyan, violet and duotones.
+- Grade: Save as My Look keeps its own copy of the look, so later catalogue changes never alter it.
+
 ### Changed
+- Auralis rewritten as Halation's own code, with the same look and without React.
+- Welcome has a new background, Caustics: silver light rippling as water throws it on a ceiling.
+- Grade: a click on a look replaces the current one and `+` stacks it; every look has intensity and eight adjustments (warmth, exposure and the rest) that apply instantly.
+- Releases ship the setup only; the portable executable is no longer published.
 - Updated Halation branding and application icons.
 - Unified save and export destinations, remembered manual folders, and added Show in folder.
-- Grade: a new look catalogue of 107 looks in 15 categories, from subtle film, cinematic and colour grades to creative cover and thumbnail treatments (gradient maps, cross process, solarize, halftone, riso, VHS, glitch) and a new Mood category of night blues, cyan, violet and duotones.
-- Grade: a click on a look replaces the current one and `+` stacks it; every look has intensity and eight adjustments (warmth, exposure and the rest) that apply instantly.
-- Grade: Save as My Look keeps its own copy of the look, so later catalogue changes never alter it.
 
 ### Removed
 - Grade: the 38 looks of the first Grade. Saved work that uses one opens with its closest new look.

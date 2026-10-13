@@ -11,10 +11,10 @@ Halation 1.1.0 and later update themselves from the public releases (Sylphera/Ha
   unset). Losing it means installed copies reject every later setup: keep a copy outside GitHub.
 - CI (`build.yml`) builds with `tauri.updater.conf.json` (`createUpdaterArtifacts`), which writes
   `Halation_<v>_x64-setup.exe.sig`, and writes `latest.json` (version, notes = the CHANGELOG section, signature, the
-  setup's URL in the public release). All three go to the release with the portable exe. Local builds and the
+  setup's URL in the public release). All three go to the release (there is no portable exe). Local builds and the
   Preview sign nothing.
 - The release `v<v>` of Sylphera/Halation must carry `Halation_<v>_x64-setup.exe`,
-  `latest.json` (and the portable) and be the repo's latest release. Until it is, nobody is offered the version.
+  `latest.json` and be the repo's latest release. Until it is, nobody is offered the version.
 - The setup runs with `/P /UPDATE` (a progress bar, no shortcuts or WebView2 setup again), plus `/R` to open Halation
   afterwards. It is downloaded to `%TEMP%\Halation-update` and its signature checked before it runs.
 - The Preview (`preview` feature) never checks.

@@ -42,7 +42,7 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 - The repository is public and open source: GPL-3.0-or-later (`LICENSE`, `NOTICE.md`); the name and logo are not
   licensed (`TRADEMARKS.md`). Nothing private goes in it: no personal paths, PC names, secrets, raw traces or
   copyrighted fixtures (tests use made-up IDs and names). Releases are GitHub releases of this same repository with the
-  NSIS setup and the portable exe; the setup updates in place and keeps user data.
+  NSIS setup only (no portable exe); the setup updates in place and keeps user data.
 - Authorship (every agent: Claude Code, Codex or any other): commits are authored and committed as
   `Sylphera <233718609+Sylphera@users.noreply.github.com>` (`git config user.name` and `user.email` at the start of each
   session). Commit messages carry no agent trailers or signatures (`Co-Authored-By`, `Co-authored-by`, `Claude-Session`,

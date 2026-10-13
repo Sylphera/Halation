@@ -24,7 +24,8 @@ const edit = (file, fn) => { const p = path.join(...file); fs.writeFileSync(p, f
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 edit([APP, "src-tauri", "tauri.conf.json"], s => s.replace(`"version": "${current}"`, `"version": "${next}"`));
 edit([APP, "package.json"], s => s.replace(`"version": "${current}"`, `"version": "${next}"`));
-edit([APP, "package-lock.json"], s => s.split(`"version": "${current}"`).join(`"version": "${next}"`));
+// only the root and packages[""] entries: dependencies can share the version number
+edit([APP, "package-lock.json"], s => s.replace(`"version": "${current}"`, `"version": "${next}"`).replace(`"version": "${current}"`, `"version": "${next}"`));
 edit([APP, "src-tauri", "Cargo.toml"], s => s.replace(new RegExp(`^version = "${esc(current)}"`, "m"), `version = "${next}"`));
 edit([APP, "src-tauri", "Cargo.lock"], s => s.replace(new RegExp(`(name = "halation"\\r?\\nversion = )"${esc(current)}"`), `$1"${next}"`));
 edit([ROOT, "CHANGELOG.md"], s => s.includes(`## ${next}\n`) ? s : s.replace(/\n## /, `\n## ${next}\n\n- \n\n## `));
