@@ -69,7 +69,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2QzA3OEU2REI2MTY2NzAKUldSd1ptSGI1bmpBUnRlbzVaNFZlL3pMdFpKcWI5YmNtWnZRN2lhVFUwNWpkUjJEYlRBbHh5STIK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDExRUExODQ4OTI5MTY3RUEKUldUcVo1R1NTQmpxRVRNTEF5NjNpc3BjeTEwZHV4U3VoV1U5a2sxdUoydi92MEdMaC9QWkNhanYK",
       "endpoints": [
         "https://github.com/Sylphera/Halation/releases/latest/download/latest.json"
       ],
