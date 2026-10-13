@@ -2,23 +2,26 @@
 
 <img src="docs/brand/readme-hero.jpg" alt="Halation: focused tools for image, video and audio. Local, no account.">
 
-<p>
-  <a href="https://github.com/Sylphera/Halation/releases/latest">Download</a>
-  ·
-  <a href="CHANGELOG.md">Changelog</a>
-  ·
-  <a href="PRIVACY.md">Privacy</a>
-  ·
-  <a href="LICENSE">License</a>
-</p>
-
-[![Release](https://img.shields.io/github/v/release/Sylphera/Halation?style=flat-square&label=release)](https://github.com/Sylphera/Halation/releases/latest)
-![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white)
-![Freeware](https://img.shields.io/badge/license-freeware-8A8A8A?style=flat-square)
-
 ### A local creative workspace for image, video and audio.
 
 Focused tools for the media work between the big apps — no account, no watermark, with media processing kept local by default.
+
+<p>
+  <a href="https://github.com/Sylphera/Halation/releases/latest"><img src="docs/brand/readme/download.png" alt="Download for Windows" height="52"></a>
+</p>
+<p>
+  <a href="CHANGELOG.md"><img src="docs/brand/readme/changelog.png" alt="Changelog" height="44"></a>
+  <a href="PRIVACY.md"><img src="docs/brand/readme/privacy.png" alt="Privacy" height="44"></a>
+  <a href="LICENSE"><img src="docs/brand/readme/license.png" alt="License" height="44"></a>
+</p>
+
+<p>
+  <a href="https://github.com/Sylphera/Halation/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Sylphera/Halation?style=for-the-badge&labelColor=0b0b0a&label=latest&color=a3a8dc"></a>
+  <a href="https://github.com/Sylphera/Halation/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Sylphera/Halation/total?style=for-the-badge&labelColor=0b0b0a&label=downloads&color=a3a8dc"></a>
+  <img alt="11 tools, one app" src="https://img.shields.io/badge/11_tools-one_app-2a2a27?style=for-the-badge&labelColor=0b0b0a">
+  <img alt="No account, no watermark" src="https://img.shields.io/badge/no_account_%C2%B7_no_watermark-2a2a27?style=for-the-badge">
+  <img alt="Free for Windows 10 and 11" src="https://img.shields.io/badge/Windows-10_%7C_11-2a2a27?style=for-the-badge&labelColor=0b0b0a&logo=windows11&logoColor=white">
+</p>
 
 </div>
 
@@ -26,7 +29,7 @@ Focused tools for the media work between the big apps — no account, no waterma
   <table>
     <tr>
       <td colspan="2">
-        <img src="docs/screenshots/home.jpg" alt="Halation Home workspace">
+        <img src="docs/screenshots/showcase.jpg" alt="Halation tools: Downloader, Converter, Vocal Remover, Audio Visualizer, Grade, Cover Test, Background Remover, Upscale, AI Interpolate, Frame Capture and Library">
       </td>
     </tr>
     <tr>
