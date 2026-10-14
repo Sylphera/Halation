@@ -90,6 +90,9 @@ captures (shader output: about `#060606` now and in C, `#0b0b0b` in D); the rest
 | accent fill vs slider track | 6.30 | 5.39 | 4.77 |
 
 Every text pair stays above AA (4.5:1); `--text-3` is raised to `#9a9993` so it still clears AA on raised controls.
+For the same reason `--red` goes from `#df7a70` to `#e17d73`: on D's `--raised` (`#31312e`) the old red reads 4.45:1
+(Grade's layer menu Delete, an errored row in Vocal Remover's queue) and the new one 4.59:1; `--red-dim` and
+`--red-line` keep their values.
 What improves is the separation: the bubbles go from darker than the window to clearly above it, and cards, fields,
 borders and tracks each sit on their own step.
 
