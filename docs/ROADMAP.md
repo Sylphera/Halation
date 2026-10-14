@@ -18,3 +18,5 @@ Parked ideas only, with a line on how each fits what exists.
 - Intro: a complete redesign (Java, 2026-09-28), to be specified before any work.
 - Grade looks v2, parked from docs/GRADE_LOOKS_SPEC.md §10: import/export of looks and third-party `.cube` files (the definition already has a `lut` slot the engine does not read yet); an editor for a look's curves and bands; Grade favourites synced with the Library star.
 - Code signing (Authenticode) through SignPath Foundation, once the project has reputation (downloads, stars). Fit: everything is ready in `docs/SIGNING.md` (application answers, README section) and `docs/signing/build-signpath.patch` (CI); `build.yml` is untouched.
+- Halation en Qt Quick (Java, 2026-10-13): especificación en `docs/QT_QUICK_SPEC.md`, pendiente de aprobación; nada implementado.
+- Motion Text (Java, 2026-10-14): la herramienta se eliminó; `docs/MOTION_TEXT_SPEC.md` queda como base para una idea nueva, por especificar.

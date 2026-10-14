@@ -71,6 +71,21 @@ async function standIn(port, { previewPaths = true } = {}) {
   return { browser, page, close: async () => { await browser.close(); emb.close(); } };
 }
 
+/* ===== a CDP connection that can be cut ===== */
+
+// A proxy in front of the stand-in's CDP port: drop() cuts every open connection while the window (and the proxy's
+// /json/version) stays up, like a WebView2 connection lost on a real PC; close() makes the window look gone.
+function cdpProxy(listen, target) {
+  // plain TCP: Chrome builds webSocketDebuggerUrl from the Host header, so the WebSocket also goes through here
+  const net = require("net"), sockets = new Set();
+  const srv = net.createServer(sock => {
+    const up = net.connect(target, "127.0.0.1");
+    sock.pipe(up); up.pipe(sock);
+    for (const x of [sock, up]) { sockets.add(x); x.on("error", () => {}); x.on("close", () => { sockets.delete(x); (x === sock ? up : sock).destroy(); }); }
+  }).listen(listen);
+  return { drop: () => { for (const x of sockets) x.destroy(); }, close: () => new Promise(r => { srv.close(() => r()); for (const x of sockets) x.destroy(); }) };
+}
+
 /* ===== launcher ===== */
 
 function launch(repo, args, env = {}) {
@@ -181,6 +196,28 @@ async function main() {
   check("dirty preview worktree: not updated, said", /worktree has changes/.test(await badgeText(w.page)) && fs.readFileSync(path.join(wt, "app/dist/tokens.css"), "utf8").includes("user edit") && sh(wt, "rev-parse", "--short", "HEAD") === nsha);
   check("main untouched", sh(repo, "rev-parse", "main") === sh(pusher, "rev-parse", "main"));
   L.kill(); await L.done;
+  await w.close();
+
+  /* ===== a dropped CDP connection reconnects ===== */
+  const rport = 9413, pport = 9414;
+  w = await standIn(rport);
+  const proxy = cdpProxy(pport, rport);
+  L = launch(repo, [local, "--port", String(pport)], { HALATION_PREVIEW_RECONNECT_MS: "4000" });
+  await until(async () => (await badgeText(w.page)).includes("PREVIEW"), 20000);
+  id = await loadId(w.page);
+  proxy.drop();
+  const back = await until(() => /reload \(reconnected/.test(L.out), 10000, 100);
+  check("dropped CDP connection, window alive → reconnects, launcher keeps running", !!back && L.exitCode === null, L.out.trim().split("\n").slice(-3).join(" | "));
+  await until(async () => (await loadId(w.page)) !== id && /PREVIEW/.test(await badgeText(w.page)) && !/launcher stopped/.test(await badgeText(w.page)), 8000);
+  id = await loadId(w.page);
+  fs.appendFileSync(path.join(local, "app/dist/tokens.css"), "\n:root { --preview-reconnect: 3; }\n");
+  const after = await until(async () => (await loadId(w.page)) !== id && await w.page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--preview-reconnect").trim() === "3").catch(() => false) && /PREVIEW/.test(await badgeText(w.page)), 10000, 50);
+  check("after reconnecting: routing, badge and reload on edit work", !!after, L.out.trim().split("\n").slice(-4).join(" | "));
+  // the window gone (CDP no longer answers) still ends the launcher
+  await proxy.close();
+  const gone = await Promise.race([L.done, sleep(12000).then(() => "timeout")]);
+  check("window gone → launcher ends", gone === 0 && /Halation Preview closed/.test(L.out), String(gone));
+  if (gone === "timeout") { L.kill(); await L.done; }
   await w.close();
 
   /* ===== not a Preview window ===== */
