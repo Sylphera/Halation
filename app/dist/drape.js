@@ -1,7 +1,7 @@
 // Drape: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
 // Silk-like waves drift slowly along a diagonal over a near-black, slightly blue base: a domain-warped surface, lit
 // softly, with a few bright lobes, broad gradients and large dark voids. The light field is drawn into a small buffer
-// (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size (DPR up to
+// (320 px on the long edge, half-float when the GPU allows, supersampled on thin crests) at 15 Hz; one pass at the window's native size (DPR up to
 // 2) scales it with a cubic B-spline and adds a ±1/255 dither and Halation's stationary film grain.
 // window.__drape.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
 (() => {
@@ -227,17 +227,19 @@ float filmGrain(vec2 px, float frame) {
 /* ===== shader ===== */
 // Both passes draw a 24×16 grid of the window (one mesh for the field and the presentation).
 const GRID = [24, 16];
+// SUPERSAMPLE: the change of light luma per field pixel over which the field takes four more samples (blended in)
+const SUPERSAMPLE = [.02, .04];
 const VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
 // The field, per pixel of the small target: u_bias moves the body's threshold and u_exposure scales the light (not
 // the base), so the lit share and the mean brightness of the screen stay steady.
-const FIELD_FS = `precision highp float;
+const FIELD_FS = `#extension GL_OES_standard_derivatives : enable
+precision highp float;
 uniform vec2 u_resolution;uniform float u_time;uniform float u_bias;uniform float u_exposure;uniform vec3 u_colors[3];uniform float u_dither;
 ${NOISE_GLSL}
 ${FIELD_GLSL}
 float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
-void main(){
-  vec2 uv=gl_FragCoord.xy/u_resolution,p=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
-  float t=u_time*${f4(F.rate)},e=1.5/u_resolution.y;
+// the light over the base at p (screen heights): the silk's body, shaded by the diffuse light, and its sheen
+vec3 shade(vec2 p,float t,float e){
   vec2 a=axisSpace(p,t);
   float h=height(a,t);
   vec2 g=vec2(height(a+vec2(e,0.0),t)-h,height(a+vec2(0.0,e),t)-h)/e;
@@ -245,7 +247,25 @@ void main(){
   float diffuse=max(dot(n,normalize(vec3(-0.5,0.5,0.7))),0.0);
   float sheen=pow(max(dot(n,normalize(vec3(-0.3,0.4,0.9))),0.0),${f4(F.sheenPower)});
   float body=smoothstep(${f4(F.bodyLow)}-u_bias,${f4(F.bodyHigh)}-u_bias,h)*voids(a,t);
-  vec3 col=u_colors[0]+u_exposure*(u_colors[1]*body*(${f4(F.diffuseFloor)}+${f4(1 - F.diffuseFloor)}*diffuse)*${f4(F.bodyGain)}+u_colors[2]*sheen*body*body*${f4(F.sheenGain)});
+  return u_exposure*(u_colors[1]*body*(${f4(F.diffuseFloor)}+${f4(1 - F.diffuseFloor)}*diffuse)*${f4(F.bodyGain)}+u_colors[2]*sheen*body*body*${f4(F.sheenGain)});
+}
+void main(){
+  vec2 uv=gl_FragCoord.xy/u_resolution,p=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
+  float t=u_time*${f4(F.rate)},e=1.5/u_resolution.y,px=1.0/u_resolution.y;
+  vec3 light=shade(p,t,e);
+  // where the light changes by more than about a level per field pixel (a thin fold or crest), four more samples on a
+  // rotated grid: a crest thinner than a pixel, sampled once, lands brighter or darker on each pixel along it (beads)
+#ifdef GL_OES_standard_derivatives
+  float ss=smoothstep(${f4(SUPERSAMPLE[0])},${f4(SUPERSAMPLE[1])},fwidth(dot(light,vec3(0.2126,0.7152,0.0722))));
+#else
+  float ss=1.0;
+#endif
+  if(ss>0.0){
+    vec3 more=vec3(0.0);vec2 o=vec2(0.125,0.375);
+    for(int i=0;i<4;i++){more+=shade(p+px*o,t,e);o=vec2(-o.y,o.x);}
+    light=mix(light,(light+more)*0.2,ss);
+  }
+  vec3 col=u_colors[0]+light;
   vec2 v=uv-0.5;v.x*=u_resolution.x/u_resolution.y*0.75;
   col*=1.0-${f4(F.vignette)}*smoothstep(0.2,0.85,length(v));
   col+=u_dither*(hash(gl_FragCoord.xy)+hash(gl_FragCoord.xy+17.0)-1.0)/255.0;
@@ -343,6 +363,7 @@ function create(surface, options = {}) {
   // GL resources: one buffer, the field program and the presentation (plus its refraction variant), the field target
   // (texture + framebuffer) and the blue-noise texture
   function build() {
+    gl.getExtension("OES_standard_derivatives");
     const half = gl.getExtension("OES_texture_half_float"), linear = gl.getExtension("OES_texture_half_float_linear");
     gl.getExtension("EXT_color_buffer_half_float");
     const r = res = { half: half && linear ? half.HALF_FLOAT_OES : 0 };
