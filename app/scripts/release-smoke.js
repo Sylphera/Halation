@@ -19,7 +19,7 @@ for(const entry of fs.readdirSync(build).filter(name=>name.startsWith('halation-
   try{assets.push(zlib.brotliDecompressSync(bytes));}catch{assets.push(bytes);}
  }
 }
-for(const file of ['sessions.js','shell.js','common.js','modules.js','motion.js','grade.css','covertest.js','covertest.css','ui.css','shell.css','locales/en.json','locales/es.json']){
+for(const file of ['sessions.js','shell.js','common.js','modules.js','motion.js','grade.css','covertest.js','covertest.css','ui.css','shell.css','locales/en.json','locales/es.json','changelog.md']){
  const source=fs.readFileSync(path.join(dist,file));
  assert(assets.some(bytes=>bytes.equals(source)),file+' from this checkout is embedded in the final executable');
  console.log('PASS final embedded asset: '+file);

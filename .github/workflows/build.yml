@@ -41,6 +41,12 @@ jobs:
         working-directory: app
         run: npm ci
 
+      # The app shows the changelog itself (Settings → About → Changelog, What's new): app/dist/changelog.md is the
+      # copy of CHANGELOG.md it ships
+      - name: Ship the changelog
+        shell: bash
+        run: cp CHANGELOG.md app/dist/changelog.md
+
       - name: Check release versions and frontend syntax
         shell: bash
         run: |

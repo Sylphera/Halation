@@ -100,9 +100,9 @@ Format: file → section: functions.
     dock visibility without affecting Jobs or Ctrl+J) · body:
     `render` / `patch`, `open` / `close` (nested in the island, interruptible), `onKey`, `cancelAll`, `clean` ·
     launch: `launched` (button confirmation and a tiny local mark cue, without a cross-window flight) · start.
-  - `updates.js` → model: `prefs`, `compare`, `notesHtml` · dialog: `dialog` · check: `check`, `remember`, `offer` ·
+  - `updates.js` → model: `prefs`, `compare`, `notesHtml`, `changelog`, `changelogBetween` (app/dist/changelog.md) · dialog: `dialog` · check: `check`, `remember`, `offer` ·
     download and install: `download`, `askInstall`, `installOnClose`, `restart` · activity: `notice` (drawn by
-    `processes.js` `setActivityNotice`) · settings: `paint` · start: `whatsNew`, `start`.
+    `processes.js` `setActivityNotice`) · settings: `paint`, Changelog (`#updLog`) · start: `whatsNew`, `start`.
   - `modules.js`: `MODULES`, `COMPONENTS`. `libpanel.js` (`window.__libPanel.mount(root, { mode: page | picker,
     kinds, use })`): search and sort, type and tool chips, the collections column, bands (Recent, Favourites, All;
     Exports by day), the detail panel, the item menu and the selection bar.

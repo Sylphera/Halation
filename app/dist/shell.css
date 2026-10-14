@@ -608,8 +608,9 @@ body.welcome-logo-handoff #v-home .hero .logo,body.welcome-logo-handoff #v-home 
 #procTray .prow.notice .psub{font-size:10px}
 .modal.upd{width:min(520px,calc(100% - 32px))}
 .upd-notes{max-height:min(360px,50vh);overflow:auto;padding:4px 12px 4px 0;font-size:12px;line-height:1.5;color:var(--text-2)}
-.upd-notes h3{margin:12px 0 4px;font-size:12px;font-weight:600;color:var(--text)}
-.upd-notes h3:first-child{margin-top:0}
+.upd-notes h3{margin:18px 0 6px;font-size:13px;font-weight:600;color:var(--text)}
+.upd-notes h4{margin:12px 0 4px;font-size:12px;font-weight:600;color:var(--text)}
+.upd-notes h3:first-child,.upd-notes h4:first-child,.upd-notes h3+h4{margin-top:0}
 .upd-notes ul{margin:0;padding-left:18px}
 .upd-notes p{margin:0 0 6px}
 .modal.upd .macts{flex-wrap:wrap}
