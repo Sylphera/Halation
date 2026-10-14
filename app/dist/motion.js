@@ -623,7 +623,7 @@
   // Slides an indicator (the dock pill, a segmented pill) to line up with a target, on the spring and with the speed it
   // already had (fast clicks carry it on); placed at once the first time
   function glide(ind, x, y, first) {
-    if (first || still() || !ind.offsetWidth) { G.killTweensOf(ind, "x,y"); ind._gl = null; G.set(ind, { x, y }); return; }
+    if (first || still() || !ind.offsetWidth) { G.killTweensOf(ind); ind._gl = null; G.set(ind, { x, y }); return; }
     log(ind);
     const x0 = G.getProperty(ind, "x"), y0 = G.getProperty(ind, "y"), prev = ind._gl, d = dur("spring") / 1000;
     let v0 = 0;
@@ -633,7 +633,10 @@
       v0 = isFinite(v0) ? Math.max(-8, Math.min(24, v0)) : 0;
     }
     const e = spring(v0);
-    ind._gl = { t: G.fromTo(ind, { x: x0, y: y0 }, { x, y, duration: d, ease: e, overwrite: "auto" }), from: { x: x0, y: y0 }, to: { x, y }, e, d };
+    // one glide at a time, from where it is painted: a fromTo overwritten before its first render stayed in the timeline
+    // unstarted and, when killed, put back the place it had started from (the dock's bar left on an old row)
+    G.killTweensOf(ind);
+    ind._gl = { t: G.to(ind, { x, y, duration: d, ease: e, overwrite: false }), from: { x: x0, y: y0 }, to: { x, y }, e, d };
   }
   function slideTo(ind, target, o = {}) {
     if (!ind || !target) return;

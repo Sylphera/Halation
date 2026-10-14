@@ -139,6 +139,16 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     await m.page.mouse.move(900, 500); await sleep(1500);
     const drift = await m.page.evaluate(() => { const d = window.__drift; window.__drift = null; return d; });
     assert(drift.length > 5 && Math.max(...drift) <= 4, "the selected surface stays on its tool while the hover moves: " + Math.round(Math.max(...drift)));
+    // tools chosen quickly, the dock mode changed between them: the bar ends beside the chosen tool (two glides
+    // within one frame left the bar on an old row, the Preview of 2026-10-14)
+    for (const [i, tb] of ["library", "stems", "interp", "removebg", "settings", "upscale", "grade"].entries()) {
+      await m.page.locator(`.rail .tab[data-tab=${tb}]`).click(); await sleep(120);
+      if (i === 3) await m.page.evaluate(() => { const s = document.querySelector("#setDock"); s.value = "compact"; s.dispatchEvent(new Event("change", { bubbles: true })); });
+      if (i === 5) await m.page.evaluate(() => { const s = document.querySelector("#setDock"); s.value = "overlay"; s.dispatchEvent(new Event("change", { bubbles: true })); });
+    }
+    await sleep(1500);
+    const barOff = await m.page.evaluate(() => { const b = document.querySelector("#railPill").getBoundingClientRect(), t = document.querySelector('.rail .tab[aria-selected="true"]').getBoundingClientRect(); return Math.round(b.top + b.height / 2 - (t.top + t.height / 2)); });
+    assert(Math.abs(barOff) <= 1, "the bar ends beside the tool chosen last: " + barOff);
     console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), a wide window makes room, a narrow one floats, activity marks, compact, F11");
   } finally { await browser.close(); server.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

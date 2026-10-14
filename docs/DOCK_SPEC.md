@@ -104,6 +104,9 @@ Dos modos (`dockMode`, §5):
   GSAP, en el mismo tick que mueve las filas, hasta que terminan sus tweens (`followDock`), no con un plazo de reloj.
   Las posiciones salen del layout más el `transform` pintado (`railPos`, `moved`), nunca de `getBoundingClientRect`
   tomado antes de que GSAP mueva la píldora; si no, la superficie seleccionada viaja con el hover.
+- La barra y las píldoras (`glide`) tienen un solo tween a la vez: se mata el anterior y se anima con `to` desde donde
+  está pintada. Un `fromTo` sobrescrito antes de su primer frame quedaba sin arrancar y, al matarlo, devolvía la barra a
+  una fila vieja.
 - Un elemento lo mueve un solo canal: `M.animate` cancela otro canal que anime las mismas propiedades (entrada `vis`
   y `dock-row` sobre una fila), tomando los valores actuales como origen.
 
