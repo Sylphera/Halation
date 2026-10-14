@@ -244,4 +244,8 @@ Diferencias con lo de arriba, decididas al implementar:
   ya se salían por abajo en esa altura.
 - La superficie del dock es `.rail-bg`, que cambia de forma con `transform` en `--spring` y mantiene las esquinas
   redondas mientras se estira; los nombres entran con `--stagger`. En `pinned` el contenido se desliza con un FLIP.
+- Tras probarlo Java (2026-10-14): abierto ocupa toda la altura de la ventana (12 px de margen) con los iconos donde
+  estaban; la luz sigue al puntero en las dos direcciones, como en la zona de Home (cerrado, solo vertical); un nombre
+  de archivo largo acaba en puntos suspensivos sin pisar la marca. El estado abierto es `data-expanded` (antes
+  `data-open`, que coincidía con los botones de carpetas de Settings y abría una carpeta a cada clic en el dock).
 - Prueba: `app/tests/dock.js` (en `verify.js`), capturas en `$SHOTS/dock`.

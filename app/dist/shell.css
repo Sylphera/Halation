@@ -33,6 +33,9 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .rail::after{inset:-1px;padding:1px;background:radial-gradient(80px circle at 50% var(--gy,50%),var(--glow-dock-edge),transparent 70%);
   -webkit-mask:linear-gradient(var(--text) 0 0) content-box,linear-gradient(var(--text) 0 0);-webkit-mask-composite:xor;mask:linear-gradient(var(--text) 0 0) content-box exclude,linear-gradient(var(--text) 0 0)}
 .rail:hover::before,.rail:hover::after{opacity:1}
+/* opened, the light follows the pointer both ways, as on Home's drop zone (shell.js sets --gx too) */
+.rail[data-expanded]::before{background:radial-gradient(160px circle at var(--gx,50%) var(--gy,50%),var(--glow-dock),transparent 72%)}
+.rail[data-expanded]::after{background:radial-gradient(120px circle at var(--gx,50%) var(--gy,50%),var(--glow-dock-edge),transparent 70%)}
 /* pill indicator just outside the bubble's left edge: a small one on hover, and one that slides to the selected tab */
 .rail .tab::before{content:"";position:absolute;left:-8px;top:50%;width:3px;height:12px;margin-top:-6px;border-radius:var(--r-pill);background:var(--text-3);transform:scaleY(0);transition:transform var(--fade) var(--ease)}
 .rail .tab[aria-selected="true"]::before{transform:scaleY(0)}
@@ -48,15 +51,15 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 :root{--dock-w:232px}
 .rail.bubble{background:transparent;border-color:transparent;box-shadow:none}
 .rail-bg{position:absolute;inset:-1px;z-index:-1;border:1px solid var(--line-soft);border-radius:26px;background:var(--surface);box-shadow:inset 0 1px 0 var(--edge);transform-origin:0 0;pointer-events:none}
-.rail[data-open]{width:var(--dock-w);align-items:stretch}
-.rail[data-open] .rail-tabs{align-items:stretch}
-.rail[data-open] .rail-sep,.rail[data-open] .spacer{margin-left:11px}
-.rail[data-open] .tab{width:auto;grid-template-columns:44px minmax(0,1fr) auto;place-items:center start;padding:0 10px 0 0;gap:0}
-.rail[data-open] .tab>.i,.rail[data-open] .tab>img{justify-self:center}
-.rail[data-open] .tab.home img{width:28px}
-.rail[data-open] .tab::after{display:none}   /* the names are there: no tooltips */
+.rail[data-expanded]{width:var(--dock-w);align-items:stretch;align-self:stretch;justify-content:center;margin-top:12px;margin-bottom:12px}   /* the whole height; the icons stay where they were */
+.rail[data-expanded] .rail-tabs{align-items:stretch}
+.rail[data-expanded] .rail-sep,.rail[data-expanded] .spacer{margin-left:11px}
+.rail[data-expanded] .tab{width:auto;grid-template-columns:44px minmax(0,1fr) auto;place-items:center start;padding:0 10px 0 0;gap:0}
+.rail[data-expanded] .tab>.i,.rail[data-expanded] .tab>img{justify-self:center}
+.rail[data-expanded] .tab.home img{width:28px}
+.rail[data-expanded] .tab::after{display:none}   /* the names are there: no tooltips */
 .rail .tab .tl{display:none;min-width:0;text-align:left;overflow:hidden;font-size:13px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
-.rail[data-open] .tab .tl{display:block}
+.rail[data-expanded] .tab .tl{display:block;justify-self:stretch}   /* a long name or file ends in an ellipsis, never under the mark */
 .rail .tab .tl small{display:block;overflow:hidden;color:var(--text-3);font-size:11px;font-weight:400;text-overflow:ellipsis}
 /* one mark per tool: clock (waiting), arc (running), tick (done, not seen), alert (failed) */
 .rail .tab .ts{display:none;align-items:center;gap:5px;color:var(--text-3);font-size:11.5px;font-variant-numeric:tabular-nums;pointer-events:auto}
@@ -73,18 +76,18 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .ts.indet .dock-ring{animation:proc-spin 1.8s linear infinite}
 .ts.indet .dock-ring .arc{stroke-dashoffset:31}
 /* closed: only a small mark on the icon (Settings → "Show activity on the dock") */
-.rail:not([data-open]) .tab .ts{position:absolute;top:5px;right:5px;width:7px;height:7px;padding:0;border-radius:50%;background:var(--text-3);box-shadow:0 0 0 2px var(--surface)}
-.rail:not([data-open]) .tab .ts>*{display:none}
-.rail:not([data-open]) .tab .ts[data-s="run"]{background:var(--accent)}
-.rail:not([data-open]) .tab .ts[data-s="done"]{background:var(--ok)}
-.rail:not([data-open]) .tab .ts[data-s="fail"]{background:var(--danger)}
-body[data-dock-activity="off"] .rail:not([data-open]) .tab .ts{display:none}
+.rail:not([data-expanded]) .tab .ts{position:absolute;top:5px;right:5px;width:7px;height:7px;padding:0;border-radius:50%;background:var(--text-3);box-shadow:0 0 0 2px var(--surface)}
+.rail:not([data-expanded]) .tab .ts>*{display:none}
+.rail:not([data-expanded]) .tab .ts[data-s="run"]{background:var(--accent)}
+.rail:not([data-expanded]) .tab .ts[data-s="done"]{background:var(--ok)}
+.rail:not([data-expanded]) .tab .ts[data-s="fail"]{background:var(--danger)}
+body[data-dock-activity="off"] .rail:not([data-expanded]) .tab .ts{display:none}
 /* the handle at the foot of the dock */
 .dock-toggle{display:grid;place-items:center;width:28px;height:28px;margin-top:4px;border:0;border-radius:9px;background:transparent;color:var(--text-3);cursor:pointer}
 .dock-toggle:hover{color:var(--text);background:var(--raised)}
 .dock-toggle:active{transform:scale(var(--press-scale))}
 .dock-toggle .i{width:16px;height:16px}
-.rail[data-open] .dock-toggle{align-self:flex-end}
+.rail[data-expanded] .dock-toggle{align-self:flex-end}
 .dock-toggle[hidden]{display:none}
 /* kept open: the content makes room (one layout change; the content glides on transform, shell.js setDock) */
 body[data-dock="pinned"]{grid-template-columns:calc(22px + var(--dock-w)) minmax(0,1fr)}

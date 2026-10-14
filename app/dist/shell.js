@@ -170,7 +170,7 @@ function setDock(open, o = {}) {
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
   dockOpen = open;
-  rail.toggleAttribute("data-open", open);
+  rail.toggleAttribute("data-expanded", open);
   if (layout) document.body.dataset.dock = layout; else delete document.body.dataset.dock;
   dockHandle(); placePill();
   if (o.save && dockMode() === "pinned" && st.settings.dockOpen !== open) S.setSetting("dockOpen", open);
@@ -354,7 +354,7 @@ function pageTitle(tab, moved) {
   if (moved) M.fadeIn(h, { x: "xs" });
 }
 // The dock's light follows the pointer (shell.css .rail::before, ::after)
-$(".rail").addEventListener("pointermove", e => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty("--gy", e.clientY - r.top + "px"); }, { passive: true });
+$(".rail").addEventListener("pointermove", e => { const el = e.currentTarget, r = el.getBoundingClientRect(); el.style.setProperty("--gx", e.clientX - r.left + "px"); el.style.setProperty("--gy", e.clientY - r.top + "px"); }, { passive: true });
 // …and along Home's tool bar (shell.css .hcards::before, ::after)
 $("#hcards").addEventListener("pointermove", e => { const el = e.currentTarget, r = el.getBoundingClientRect(); el.style.setProperty("--gx", e.clientX - r.left + "px"); el.style.setProperty("--gyh", e.clientY - r.top + "px"); }, { passive: true });
 function placePill() { const b = document.querySelector('.rail .tab[aria-selected="true"]'); M.slideTo($("#railPill"), b); }
@@ -679,7 +679,7 @@ document.querySelectorAll("[data-legal]").forEach(b => b.addEventListener("click
   if (!$("#legalDlg").open) $("#legalDlg").showFrom(b);
 }));
 $("#legalClose").addEventListener("click", () => $("#legalDlg").close());
-document.addEventListener("click", e => { const b = e.target.closest("[data-open]"); if (b) invoke("open_folder", { which: b.dataset.open }); });
+document.addEventListener("click", e => { const b = e.target.closest("[data-open]:not([data-open=\"\"])"); if (b) invoke("open_folder", { which: b.dataset.open }); });
 document.addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) show(b.dataset.go); });
 document.addEventListener("pointerover", e => { const b = e.target.closest && e.target.closest("[data-go]"); if (b) preload(b.dataset.go); });
 $("#openBase").addEventListener("click", () => invoke("open_folder", { which: "base" }));

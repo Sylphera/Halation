@@ -10,7 +10,7 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
   try {
     const { page, errors } = await openApp(browser, server, host, { width: 1480, height: 900 });
     const rail = () => page.evaluate(() => { const r = document.querySelector(".rail"), f = document.querySelector(".frame").getBoundingClientRect(), b = document.querySelector(".rail-bg").getBoundingClientRect();
-      return { open: r.hasAttribute("data-open"), w: Math.round(r.getBoundingClientRect().width), left: Math.round(r.getBoundingClientRect().left), bg: Math.round(b.width), frameLeft: Math.round(f.left), frameW: Math.round(f.width),
+      return { open: r.hasAttribute("data-expanded"), w: Math.round(r.getBoundingClientRect().width), left: Math.round(r.getBoundingClientRect().left), bg: Math.round(b.width), frameLeft: Math.round(f.left), frameW: Math.round(f.width),
         expanded: document.querySelector("#dockToggle").getAttribute("aria-expanded"), dock: document.body.dataset.dock || "" }; });
     const closed = await rail();
     assert.equal(closed.open, false); assert.equal(closed.w, 62); assert.equal(closed.left, 22, "closed dock stays where it was");
@@ -24,6 +24,8 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     assert.equal(await page.locator('.rail .tab[data-tab="grade"] .tl').isVisible(), true, "names shown");
     const iconX = () => page.evaluate(() => [...document.querySelectorAll(".rail .tab > .i, .rail .tab.home > img")].map(i => { const b = i.getBoundingClientRect(); return Math.round(b.left + b.width / 2); }));
     assert.deepEqual([...new Set(await iconX())], [53], "open: the icons stay in the closed dock's column");
+    const tall = await page.evaluate(() => { const b = document.querySelector(".rail-bg").getBoundingClientRect(); return [Math.round(b.top), Math.round(innerHeight - b.bottom)]; });
+    assert(tall[0] <= 14 && tall[1] <= 14, "open: the whole height " + tall);
     await shot(page, "2-open");
     await page.keyboard.press("Escape"); assert.equal((await rail()).open, false, "Esc closes");
     await page.keyboard.press("Control+b"); assert.equal((await rail()).open, true, "Ctrl+B opens");
@@ -47,7 +49,7 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     await page.evaluate(() => {
       const J = window.__shell.jobs; window.__rel = {};
       const job = (tool, lane, title, fn) => J.submit({ tool, lane, title, host: "page", cost: 1, run: ctx => new Promise((ok, no) => { window.__rel[title] = { ok, no, ctx }; if (fn) fn(ctx); }) });
-      job("upscale", "light", "song.mp4", ctx => ctx.progress(0.42));
+      job("upscale", "light", "A very long artist name - A very long song title [extended mix].mp3", ctx => ctx.progress(0.42));
       J.submit({ tool: "convert", lane: "gpu", cost: 99, title: "a.wav", run: () => new Promise(() => {}) });
       J.submit({ tool: "convert", lane: "gpu", cost: 99, title: "b.wav", run: () => new Promise(() => {}) });
       J.submit({ tool: "convert", lane: "gpu", cost: 99, title: "c.wav", run: () => new Promise(() => {}) });
@@ -58,7 +60,14 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     assert.match(await mark("convert"), /^(run|queue)\|/);
     await shot(page, "3-closed-activity");
     await page.keyboard.press("Control+b"); await sleep(100);
-    assert.equal(await page.locator('.rail .tab[data-tab="upscale"] .tl small').textContent(), "song.mp4");
+    assert.match(await page.locator('.rail .tab[data-tab="upscale"] .tl small').textContent(), /^A very long artist/);
+    const spill = await page.evaluate(() => { const tab = document.querySelector('.rail .tab[data-tab="upscale"]'), tb = tab.getBoundingClientRect(), tl = tab.querySelector(".tl").getBoundingClientRect(), ts = tab.querySelector(".ts").getBoundingClientRect();
+      return { inside: tl.right <= tb.right && ts.right <= tb.right, apart: tl.right <= ts.left + 0.5 }; });
+    assert.deepEqual(spill, { inside: true, apart: true }, "a long file name ends in an ellipsis, clear of the mark");
+    // a click inside the opened dock never opens a folder (the rail's open state once matched the folder buttons)
+    await page.locator('.rail .tab[data-tab="upscale"] .tl').click(); await sleep(150);
+    assert.equal(host.log.some(l => l[0] === "open_folder"), false, "no folder opens from the dock");
+    await page.locator('.rail .tab[data-tab="home"]').click(); await page.keyboard.press("Control+b"); await sleep(100);
     await shot(page, "4-open-activity");
     await page.keyboard.press("Escape");
     await page.locator('.rail .tab[data-tab="grade"]').click();
