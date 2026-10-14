@@ -261,7 +261,7 @@ function playwright() {
 
 /* ===== session: routing, badge, reload ===== */
 
-async function startSession(context, target, mode) {
+async function startSession(firstContext, target, mode) {
   const missingFiles = new Set();
   let desc = target.describe();
   const build = mode === "native" ? readBuild() : null;
@@ -270,7 +270,14 @@ async function startSession(context, target, mode) {
     warnings: [...(mode === "native" ? rustWarnings(desc, build) : []), ...(desc.blocked ? [desc.blocked] : [])],
     missingFiles: [...missingFiles].slice(-6), infoPath: INFO_PATH
   });
-  await context.route("http://tauri.localhost/**", async route => {
+  // the routing and the badge live on a CDP connection: attach() puts them on a context, again after a reconnect
+  let context = null, pending = null;
+  const attach = async ctx => {
+    context = ctx;
+    await ctx.route("http://tauri.localhost/**", serve);
+    await ctx.addInitScript(PAGE_SCRIPT, info());
+  };
+  const serve = async route => {
     const url = new URL(route.request().url());
     if (url.pathname === INFO_PATH) return route.fulfill({ status: 200, contentType: "application/json", headers: { "cache-control": "no-store" }, body: JSON.stringify(info()) });
     const r = resolveAsset(target.dist, url.pathname);
@@ -280,18 +287,31 @@ async function startSession(context, target, mode) {
       return route.fulfill({ status: r.status, contentType: "text/plain; charset=utf-8", body: `Halation Preview: ${url.pathname} ${r.reason} (${target.dist})` });
     }
     return route.fulfill({ status: 200, contentType: r.type, headers: { "cache-control": "no-store" }, body: fs.readFileSync(r.file) });
-  });
-  await context.addInitScript(PAGE_SCRIPT, info());
-  const pages = () => context.pages().filter(p => p.url().startsWith("http://tauri.localhost"));
-  const reload = async why => {
+  };
+  await attach(firstContext);
+  const pages = () => context ? context.pages().filter(p => p.url().startsWith("http://tauri.localhost")) : [];
+  // One reload at a time: changes that arrive during a reload (a reconnect, a burst of saves) reload once more after it.
+  let running = null, again = null;
+  const reloadNow = async why => {
     desc = target.describe();
+    if (!context) { pending = why; log(`change while reconnecting (${why}): reloads on reconnect`); return; }
     missingFiles.clear();
     log(`reload (${why}): ${desc.label} ${desc.commit}${desc.dirty ? " +changes" : ""}`);
     for (const w of info().warnings) log("  ! " + w);
     await Promise.all(pages().map(p => p.reload({ waitUntil: "domcontentloaded" }).catch(e => log("reload failed: " + e.message))));
   };
+  const reload = why => {
+    if (running) { again = why; return running; }
+    running = (async () => {
+      try { await reloadNow(why); while (again) { const w = again; again = null; await reloadNow(w); } }
+      finally { running = null; }
+    })();
+    return running;
+  };
   const refresh = () => { desc = target.describe(); };
-  return { reload, refresh, pages };
+  const detach = () => { context = null; };
+  const reattach = async ctx => { await attach(ctx); const why = pending; pending = null; await reload(why ? `reconnected; ${why}` : "reconnected"); };
+  return { reload, refresh, pages, detach, reattach };
 }
 
 /* ===== watchers ===== */
@@ -345,6 +365,12 @@ async function nativeContext(o) {
     const t0 = Date.now();
     while (!(await cdpUp(o.port))) { if (Date.now() - t0 > 30000) fail(`Halation Preview did not open CDP on ${o.port}`); await new Promise(r => setTimeout(r, 300)); }
   } else log(`reusing the window on CDP ${o.port}`);
+  return connectNative(o);
+}
+
+// Connects to the window on o.port and checks it is Halation Preview. When the CDP connection drops while the window
+// is still there (CDP still answers), onDrop reconnects instead of ending; only a window that is gone ends the launcher.
+async function connectNative(o) {
   const { chromium } = playwright();
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${o.port}`);
   const t0 = Date.now();
@@ -360,8 +386,28 @@ async function nativeContext(o) {
     fail(`the window on CDP ${o.port} is not Halation Preview (base folder: ${paths.base || paths.error}); refusing to touch it`);
   }
   log(`Halation Preview data: ${paths.base}`);
-  browser.on("disconnected", () => { log("Halation Preview closed"); process.exit(0); });
   return { context: page.context(), browser };
+}
+
+const RECONNECT_MS = +process.env.HALATION_PREVIEW_RECONNECT_MS || 15000;
+function keepConnected(o, ctx, session) {
+  ctx.browser.once("disconnected", async () => {
+    session.detach();
+    log("CDP connection lost: reconnecting");
+    const t0 = Date.now();
+    while (Date.now() - t0 < RECONNECT_MS) {
+      await new Promise(r => setTimeout(r, 500));
+      if (!(await cdpUp(o.port))) continue;
+      try {
+        const next = await connectNative(o);
+        await session.reattach(next.context);
+        keepConnected(o, next, session);
+        return;
+      } catch (e) { log("reconnect: " + e.message.split("\n")[0]); }
+    }
+    log("Halation Preview closed");
+    process.exit(0);
+  });
 }
 
 /* ===== chromium + host.js ===== */
@@ -424,6 +470,7 @@ async function main() {
   const mode = o.chromium ? "chromium" : "native";
   const ctx = o.chromium ? await chromiumContext(o, target) : await nativeContext(o);
   const session = await startSession(ctx.context, target, mode);
+  if (mode === "native") keepConnected(o, ctx, session);
   if (ctx.open) await ctx.open(); else await session.reload("start");
   if (kind === "path") watchLocal(target, session); else watchBranch(target, session, o.interval);
 }

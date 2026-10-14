@@ -83,6 +83,7 @@ Es la técnica de los benchmarks (`ui-benchmark.cjs`), ampliada:
    - Comandos IPC que el exe no tiene.
    - "launcher stopped" si el lanzador se cierra (desde ese momento la ventana ya no está viva; al recargar vuelve el frontend embebido, sin marca).
 4. Al cambiar el frontend, recarga todas las páginas `tauri.localhost`.
+5. Si se corta la conexión CDP pero la ventana sigue viva (el puerto responde), el lanzador se reconecta, vuelve a poner el routing y la marca y recarga; solo termina si la ventana ya no responde en ~15 s (`HALATION_PREVIEW_RECONNECT_MS`).
 
 ## Regla Rust / frontend
 
