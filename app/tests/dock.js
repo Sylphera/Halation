@@ -84,7 +84,8 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     assert.equal(await page.evaluate(() => window.__shell.st.settings.dockOpen), false, "pinned: closing is kept for the next start");
     await page.keyboard.press("Control+b");
     assert.equal(await page.evaluate(() => window.__shell.st.settings.dockOpen), true);
-    await page.setViewportSize({ width: 1100, height: 760 }); await sleep(150);
+    await page.setViewportSize({ width: 1100, height: 760 });
+    await until(async () => (await rail()).dock === "overlay", 3000).catch(() => {});
     assert.equal((await rail()).dock, "overlay", "narrow: pinned floats over the content");
     await page.setViewportSize({ width: 1480, height: 900 }); await sleep(150);
     // compact: no handle, Ctrl+B does nothing
@@ -127,6 +128,17 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     const off = await m.page.evaluate(() => { const p = document.querySelector(".rail>.hover-selector path").getBoundingClientRect(), t = document.querySelector('.rail .tab[aria-selected="true"]').getBoundingClientRect(), bar = document.querySelector("#railPill").getBoundingClientRect();
       return [p.top - t.top, bar.top + bar.height / 2 - (t.top + t.height / 2)].map(v => Math.abs(Math.round(v)) <= 1); });
     assert.deepEqual(off, [true, true], "the selected surface and its bar follow the rows");
+    // the hover running over the icons: the selected tool's surface stays on it every frame (it flew off with the hover, up to 150 px; a few px is this rAF sampling against GSAP's tick)
+    await m.page.keyboard.press("Control+b"); await sleep(1500);
+    await m.page.evaluate(() => { window.__drift = []; const hs = document.querySelector(".rail>.hover-selector");
+      const f = () => { const d = hs.querySelector("path").getAttribute("d") || "", p = hs.getBoundingClientRect(), s = document.querySelector('.rail .tab[aria-selected="true"]').getBoundingClientRect(), y = d.match(/^M[-\d.]+,([-\d.]+)H/);
+        if (y) window.__drift.push(Math.abs(+y[1] + p.top - s.top)); if (window.__drift) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+    for (const tb of ["grade", "covertest", "removebg", "upscale", "interp", "framegrab", "library", "settings", "upscale", "grade", "visualizer", "stems"]) {
+      const b = await m.page.locator(`.rail .tab[data-tab=${tb}]`).boundingBox(); await m.page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 2 }); await sleep(60);
+    }
+    await m.page.mouse.move(900, 500); await sleep(1500);
+    const drift = await m.page.evaluate(() => { const d = window.__drift; window.__drift = null; return d; });
+    assert(drift.length > 5 && Math.max(...drift) <= 4, "the selected surface stays on its tool while the hover moves: " + Math.round(Math.max(...drift)));
     console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), a wide window makes room, a narrow one floats, activity marks, compact, F11");
   } finally { await browser.close(); server.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

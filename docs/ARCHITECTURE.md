@@ -50,7 +50,7 @@ are is in `docs/DECISIONS.md`.
 Format: file → section: functions.
 
 - Main window
-  - `shell.js` → shell: `buildRail` · the dock opened (docs/DOCK_SPEC.md): `setDock` (open or closed, over the content or making room; `.rail-bg` changes shape on the spring), `dockModel` / `dockActivity` (each tool's mark from the jobs), `dockSettings` · `show` (switch view), `ensureApp` / `usable` (a tool's API, turned off),
+  - `shell.js` → shell: `buildRail` · the dock opened (docs/DOCK_SPEC.md): `setDock` (open or closed, over the content or making room; `.rail-bg` changes shape on the spring), `followDock` (bar and shared surface follow the rows on GSAP's ticker), `railPos` / `moved` (a row's place from layout plus its painted transform), `dockModel` / `dockActivity` (each tool's mark from the jobs), `dockSettings` · `show` (switch view), `ensureApp` / `usable` (a tool's API, turned off),
     `globalKeys` (Ctrl+B the dock, F11 full screen), `toast`, `ask` (confirmations), `awayAll` (tools not shown are marked away), `unloadIdle` (after `REST_MS`, 30 s,
     away a tool with work open gets `rest()`: Frame Capture lets go of its decoder, frames and sound and opens them
     again behind the picture kept, AI Interpolate its original; after `UNLOAD_MS`, 5 min, a tool whose `idle()` is true

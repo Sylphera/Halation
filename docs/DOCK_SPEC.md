@@ -100,6 +100,12 @@ Dos modos (`dockMode`, §5):
 - Interrumpible: abrir durante un cierre parte de la geometría actual con su velocidad (`carry`).
 - Solo `transform` y `opacity`. Sin animar `width`, `left` ni sombras.
 - Movimiento reducido: fundido corto (`--fade`) entre los dos estados, sin desplazamientos.
+- Seguir las filas: la barra (`placePill`) y la superficie compartida (`sharedHover`) se recolocan en el ticker de
+  GSAP, en el mismo tick que mueve las filas, hasta que terminan sus tweens (`followDock`), no con un plazo de reloj.
+  Las posiciones salen del layout más el `transform` pintado (`railPos`, `moved`), nunca de `getBoundingClientRect`
+  tomado antes de que GSAP mueva la píldora; si no, la superficie seleccionada viaja con el hover.
+- Un elemento lo mueve un solo canal: `M.animate` cancela otro canal que anime las mismas propiedades (entrada `vis`
+  y `dock-row` sobre una fila), tomando los valores actuales como origen.
 
 ---
 

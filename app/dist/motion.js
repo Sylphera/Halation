@@ -99,7 +99,7 @@
       onComplete: () => { a.playState = "finished"; if (o.fill !== "forwards") restore(); settle(true); }
     }));
     a.cancel = () => { if (a.playState === "running") { t.kill(); a.playState = "idle"; restore(); settle(false); } else if (a.playState === "finished") { a.playState = "idle"; restore(); } };
-    a.tween = t;
+    a.tween = t; a.props = props;
     // Prepare the existing from-state now, then play after its owning place has
     // settled. Cancellation also restores a reveal that never started.
     if (o.after) Promise.resolve(o.after).then(ok => { if (a.playState !== "running") return; if (ok === false) a.cancel(); else t.play(); }, () => a.cancel());
@@ -134,6 +134,15 @@
       if (prev.playState === "running" && from) { if (!o.rebase) from = Object.assign(from, current(el)); v0 = carry(prev, from, to, ms, o.carryMin, o.carryBasis); }
       prev.cancel();
       map.delete(ch);
+    }
+    // another channel moving the same properties of this element (the dock's icons arriving while the dock opens):
+    // two GSAP tweens would write one transform, and the first to end would clear it under the other, the element
+    // jumping; that one lets go here, the new move starts from where the element is
+    const mine = PROPS.filter(p => p in to || (from && p in from));
+    for (const [c, other] of map) if (c !== ch && other.props && other.props.some(p => mine.includes(p))) {
+      if (!from) from = {};
+      const now = current(el); for (const k of Object.keys(to)) if (!(k in from) && k in now) from[k] = now[k];
+      other.cancel(); map.delete(c);
     }
     if (o.noOvershoot) v0 = Math.max(0, Math.min(W, v0));
     if (off()) return null;
@@ -630,7 +639,7 @@
     if (!ind || !target) return;
     const pr = ind.offsetParent ? ind.offsetParent.getBoundingClientRect() : { top: 0, left: 0 }, r = target.getBoundingClientRect();
     // relative to the parent's padding box, where the indicator is positioned (a bordered parent, the dock)
-    const y = r.top - pr.top - (ind.offsetParent ? ind.offsetParent.clientTop : 0) + r.height / 2 - ind.offsetHeight / 2, x = o.x != null ? o.x : 0;
+    const y = o.y != null ? o.y : r.top - pr.top - (ind.offsetParent ? ind.offsetParent.clientTop : 0) + r.height / 2 - ind.offsetHeight / 2, x = o.x != null ? o.x : 0;
     glide(ind, x, y, !ind.dataset.placed);
     ind.dataset.placed = "1";
   }
