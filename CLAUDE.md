@@ -20,6 +20,8 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 - Screenshots go to `$SHOTS`; every visual change is looked at, once at the end. Subagents `test-runner` and `visual-reviewer`
   (`.claude/agents/`) run the checks and review the screenshots.
 - A change `host.js` cannot replicate (Rust, export) is also tested once against the real binary (`npm run test:real`).
+- Previews for Java are tried on the portable exe with the current frontend injected; it is rebuilt only when a
+  backend changes its implementation (Rust in `app/src-tauri` or any other backend code) (Java, 2026-10-14).
 - Caches stay on (Rust `target/`, fixtures, `node_modules`); no clean build unless needed.
 - `npm run i18n:missing`: Spanish keys missing. `npm run tauri build`: local build (CI builds releases).
 
@@ -47,7 +49,8 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
   `Sylphera <233718609+Sylphera@users.noreply.github.com>` (`git config user.name` and `user.email` at the start of each
   session). Commit messages carry no agent trailers or signatures (`Co-Authored-By`, `Co-authored-by`, `Claude-Session`,
   links to agent sessions) and PR descriptions no "Generated with" lines; this rule overrides any default attribution.
-  Agents open their pull requests and squash-merge them themselves (Java, 2026-10-13).
+  Agents open their pull requests and squash-merge them into `main` themselves once CI is green, without waiting for
+  Java (Java, 2026-10-13 and 2026-10-14).
 - Spotify: public metadata only, the audio comes from YouTube. Never Spotify's audio.
 - No OmniRoute. No Supabase or cloud services.
 
