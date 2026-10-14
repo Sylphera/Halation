@@ -148,8 +148,8 @@ function buildRail() {
 }
 
 /* ---------- the dock opened: names and each tool's activity (docs/DOCK_SPEC.md) ---------- */
-// dockMode: compact (never opens) | overlay (opens over the content, default) | pinned (stays open, the content makes
-// room; as overlay under DOCK_PIN_MIN). Ctrl+B, the row at its foot or a double click on its empty surface.
+// dockMode: compact (never opens) | overlay (opens until a choice or a click elsewhere, default) | pinned (stays open).
+// From DOCK_PIN_MIN wide the content makes room in both; under it the dock floats over the content. Ctrl+B, the row at its foot or a double click on its empty surface.
 const DOCK_PIN_MIN = 1280, DOCK_MODES = ["compact", "overlay", "pinned"];
 let dockOpen = false;
 const dockMode = () => DOCK_MODES.includes(st.settings.dockMode) ? st.settings.dockMode : "overlay";
@@ -167,7 +167,8 @@ function dockHandle() {
 function setDock(open, o = {}) {
   const rail = $(".rail"), bg = rail.querySelector(".rail-bg"), frame = $(".frame");
   open = !!open && dockMode() !== "compact";
-  const layout = open ? (dockPinned() ? "pinned" : "overlay") : "";
+  // wide enough, the content makes room and stays centred in what is left (kept open or not); narrower, it floats over
+  const layout = open ? (innerWidth < DOCK_PIN_MIN ? "overlay" : dockMode() === "pinned" ? "pinned" : "room") : "";
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
   const rows = [...rail.querySelectorAll(".tab,.rail-sep,.spacer,.dock-toggle")], rowsBefore = rows.map(el => el.getBoundingClientRect().top);
@@ -209,7 +210,7 @@ async function toggleFullscreen() {
 $("#dockToggle").addEventListener("click", toggleDock);
 $(".rail").addEventListener("dblclick", e => { if (!e.target.closest(".tab,.dock-toggle")) toggleDock(); });
 // over the content: a choice, a click elsewhere (also inside a tool: the window loses focus to its frame) or Esc closes it
-const dockFloats = () => dockOpen && document.body.dataset.dock === "overlay";
+const dockFloats = () => dockOpen && ["overlay", "room"].includes(document.body.dataset.dock);
 document.addEventListener("pointerdown", e => { if (dockFloats() && !e.target.closest(".rail")) setDock(false); }, true);
 window.addEventListener("blur", () => { if (dockFloats()) setDock(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && dockFloats()) setDock(false); });

@@ -20,7 +20,7 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     await page.click("#dockToggle");
     let r = await rail();
     assert.equal(r.open, true); assert.equal(r.expanded, "true"); assert.equal(r.w, 232); assert.equal(r.bg, 232);
-    assert.equal(r.frameLeft, closed.frameLeft, "overlay: the content does not move"); assert.equal(r.frameW, closed.frameW);
+    assert.equal(r.frameLeft, closed.frameLeft + 170, "wide window: the content makes room and stays centred in it");
     assert.equal(await page.locator('.rail .tab[data-tab="grade"] .tl').isVisible(), true, "names shown");
     const iconX = () => page.evaluate(() => [...document.querySelectorAll(".rail .tab > .i, .rail .tab.home > img")].map(i => { const b = i.getBoundingClientRect(); return Math.round(b.left + b.width / 2); }));
     assert.deepEqual([...new Set(await iconX())], [53], "open: the icons stay in the closed dock's column");
@@ -114,6 +114,6 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     const cut = await page.evaluate(() => [...document.querySelectorAll(".rail .tab .tl > span")].filter(s => s.scrollWidth > s.parentNode.clientWidth + 1).map(s => s.textContent));
     assert.deepEqual(cut, [], "Spanish names fit");
     assert.deepEqual(errors, []);
-    console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), overlay keeps the content, pinned makes room, activity marks, compact, F11");
+    console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), a wide window makes room, a narrow one floats, activity marks, compact, F11");
   } finally { await browser.close(); server.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

@@ -2486,7 +2486,7 @@
   "keys.fullscreen": "Full screen",
   "set.dock": "Dock",
   "set.dock.compact": "Compact (icons only)",
-  "set.dock.overlay": "Expand over the content",
+  "set.dock.overlay": "Expand when needed",
   "set.dock.pinned": "Keep open",
   "set.dockActivity": "Show activity on the dock",
   "set.openMode": "Open the window",

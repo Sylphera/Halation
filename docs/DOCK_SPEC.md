@@ -252,4 +252,8 @@ Diferencias con lo de arriba, decididas al implementar:
   entre ellas (Library y Settings al pie); las filas se deslizan en `--spring` al abrir y cerrar. El tirador pasa a
   ser la última fila del dock, tras una línea: cerrado, su icono en la columna de los iconos; abierto, con su nombre
   ("Close the dock") como las herramientas.
+- Tercera vuelta (Java, 2026-10-14): desde 1280 px de ancho, abrir el dock deja sitio al contenido también en
+  *Expand when needed* (antes *Expand over the content*), para que Home y las herramientas sigan centradas en lo que
+  queda; por debajo se superpone. Las pestañas son cuadradas y encogen juntas de 44 a 34 px con la altura de la
+  ventana (`--tab`), en lugar de aplastarse a 44 × 34 en ventanas bajas o con la escala de Windows alta.
 - Prueba: `app/tests/dock.js` (en `verify.js`), capturas en `$SHOTS/dock`.

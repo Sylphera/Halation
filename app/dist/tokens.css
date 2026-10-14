@@ -1,12 +1,12 @@
 /* Halation design tokens. Every interface colour lives here; the rest of the CSS only uses these variables.
-   Colour rework (docs/COLOR_REWORK_SPEC.md): near-black window, #1a1a19 bubbles lifted above it, greys in wide steps; muted accents (periwinkle leads) so it
+   Colour rework (docs/COLOR_REWORK_SPEC.md): near-black window, #111111 bubbles (graphite, Java 2026-10-14) lifted above it, greys in wide steps; muted accents (periwinkle leads) so it
    is never flat black and white, and a pale blue that only lives in the atmosphere behind the interface (atmosphere.js). */
 :root{
   color-scheme: dark;
 
   /* Neutrals: near-neutral with a faint warm bias, from pure black to off-white */
   --n-1000:#000;
-  --n-950:#1a1a19; --n-900:#232321; --n-850:#2a2a28; --n-800:#31312e; --n-700:#3d3d39; --n-600:#55554f;
+  --n-950:#111111; --n-900:#191919; --n-850:#1e1e1e; --n-800:#242424; --n-700:#3d3d39; --n-600:#55554f;
   --n-500:#74746e; --n-400:#9a9993; --n-300:#b5b5af; --n-200:#d7d7d2; --n-100:#eaeae6; --n-50:#f5f5f2;
 
   /* Accents: muted, never neon; solid, tinted background (~15 %) and border. Periwinkle leads (sliders, switches,
@@ -21,12 +21,12 @@
   /* Roles */
   --bg:var(--n-1000);           /* window, behind the atmosphere */
   --surface:var(--n-950);       /* bubbles: the dock, a tool's panels and toolbar */
-  --welcome-surface-low:#141413;
-  --welcome-surface-mid:#1c1c1b;
-  --welcome-surface-high:#232321;
+  --welcome-surface-low:#080808;
+  --welcome-surface-mid:#111111;
+  --welcome-surface-high:#191919;
   --panel:var(--n-900);         /* cards and sections, menus and dialogs */
   --raised:var(--n-800);        /* raised controls, hover */
-  --field:#0d0d0c;             /* text fields and selects */
+  --field:#080808;             /* text fields and selects */
   --line:var(--n-700);
   --line-strong:var(--n-600);
   --disabled:var(--n-500);
@@ -57,7 +57,7 @@
   /* Bubbles: a hairline border and a lit top edge; see ui.css .card */
   --line-soft:rgba(255,255,250,.11);    /* a bubble's border */
   --edge:rgba(255,255,250,.12);         /* the light on a bubble's top edge */
-  --glass:rgba(26,26,25,.68);           /* a bubble over the moving Home atmosphere (blurred behind) */
+  --glass:rgba(17,17,17,.68);           /* a bubble over the moving Home atmosphere (blurred behind) */
 
   /* Atmosphere (atmosphere.js): greys with a pale blue in the light; Home is lit, the tools almost black */
   --atmo:#b9c8e6;
