@@ -1,6 +1,7 @@
 # Color rework spec
 
-Status: proposal, not implemented. Colour only: layout, type, components, spacing, radii and motion stay as they are.
+Status: approved with level D (Neutral +), not implemented yet. Colour only: layout, type, components, spacing, radii and
+motion stay as they are.
 
 ## Problem
 
@@ -17,7 +18,8 @@ neutral greys with the current faint warm bias. The separation comes from the di
 layers on it, so the window must not rise with them, and there is no blue tint (a first round with cool slate
 neutrals lifted the window too and read as monochrome; it was rejected).
 
-Two levels were prototyped on the real app. **D is the recommended one.**
+Two levels were prototyped on the real app. **D is the chosen one** (checked on an AMOLED phone as well as a desktop
+monitor). C stays in the tables as the reference step.
 
 - **C · Neutral**: the window as it is; bubbles and cards lifted.
 - **D · Neutral +**: one step more on every layer, and the window a touch above black so the dock's edge and the
