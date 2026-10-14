@@ -472,6 +472,8 @@ function submit(it) {
   it.job = h.id; byJob.set(h.id, it);
   h.done.then(() => { it.state = "done"; it.pct = 1; },
     e => {
+      // separated, then cancelled while exporting: the song stays separated
+      if (it.res) { it.state = "done"; it.pct = 1; return; }
       const off = e && (e.name === "AbortError" || e.cancelled || /cancelled/.test(oneLine(e)));
       it.state = off ? "cancelled" : "error";
       if (!off) it.error = errText(e);
@@ -504,7 +506,13 @@ async function separate(ctx, it, cpu) {
   if (it.wave) it.wave.filled = it.wave.total;
   if (Q.sel === it) { select(it); }
   paintRow(it);
-  if (opts.auto) await exportItem(it, ctx);
+  if (opts.auto) {
+    // the stems are kept whatever happens to the export: a Save dialog dismissed, a failed write or a Cancel
+    ctx.progress(1, t("st.exporting"));
+    if (Q.sel === it) { const st = $("#exportStatus"); st.className = "status warn"; st.textContent = t("st.exporting"); }
+    try { await exportItem(it, ctx); }
+    catch (e) { if (Q.sel === it) { const st = $("#exportStatus"); st.className = "status bad"; st.textContent = oneLine(e); } }
+  }
 }
 // chunk by chunk: the waveform of what is final, progress and the time left (from the mean time per chunk after two)
 function onProgress(p) {

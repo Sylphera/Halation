@@ -141,7 +141,8 @@ function buildRail() {
   I.apply(document); window.__icons.apply($(".rail")); window.__icons.apply($("#hcards"));
   sharedHover($("#hcards"), ".hcard");
   sharedHover($(".rail"), ".tab");
-  document.querySelectorAll(".rail .tab").forEach((b, i) => { b.dataset.tip = t("shell.tabTip", { name: t("tab." + b.dataset.tab), n: i + 1 }); });
+  // Ctrl+1…9 reach the first nine (globalKeys); the rest show their name alone
+  document.querySelectorAll(".rail .tab").forEach((b, i) => { const name = t("tab." + b.dataset.tab); b.dataset.tip = i < 9 ? t("shell.tabTip", { name, n: i + 1 }) : name; });
   if (active && !TABS.includes(active)) show("home");
   else if (active) { document.querySelectorAll(".rail .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === active))); placePill(); }
   dockActivity(); dockHandle();
@@ -193,21 +194,38 @@ function setDock(open, o = {}) {
     }
   }
   // the rows spread over the whole height (or gather back) and glide there
+  const moving = [];
   rows.forEach((el, i) => {
     const d = rowsBefore[i] - el.getBoundingClientRect().top;
     if (Math.abs(d) < .5) return;
     el.style.transition = "none";
     const a = M.animate(el, [{ transform: `translateY(${d}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-row", rebase: true, noOvershoot: true });
-    (a && a.finished ? a.finished : Promise.resolve()).then(() => el.style.removeProperty("transition"));
+    const done = a && a.finished ? a.finished : Promise.resolve();
+    moving.push(done); done.then(() => el.style.removeProperty("transition"));
   });
-  // the selected tab's surface, the hover and the bar beside the selected tab ride with the rows
-  const followUntil = performance.now() + M.dur("spring") + 120;
-  const follow = () => { rail.__hover?.track(); delete $("#railPill").dataset.placed; placePill(); if (performance.now() < followUntil) requestAnimationFrame(follow); };
-  requestAnimationFrame(follow);
+  // the selected tab's surface, the hover and the bar beside the selected tab ride with the rows until they have landed
+  followDock(moving);
   if (opening) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
   // kept open: the content makes room once and glides there
   const frameAfter = frame.getBoundingClientRect();
   if (Math.abs(frameBefore.left - frameAfter.left) > .5) M.animate(frame, [{ transform: `translateX(${frameBefore.left - frameAfter.left}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-room", rebase: true, noOvershoot: true });
+}
+// Every frame while the rows move, and once more after the last has landed: a slow frame (a busy GPU, a tool
+// loading) stretches the spring in wall time, so the end is the animations', not a clock's (DOCK_SPEC.md)
+let dockFollow = 0;
+function followDock(moving) {
+  const id = ++dockFollow, rail = $(".rail");
+  let landed = false;
+  const place = () => { rail.__hover?.track(); delete $("#railPill").dataset.placed; placePill(); };
+  Promise.allSettled(moving).then(() => { landed = true; });
+  // on GSAP's ticker, after the rows have moved in the same tick
+  const cap = performance.now() + 4000;
+  const step = () => {
+    if (id !== dockFollow) { M.gsap.ticker.remove(step); return; }
+    place();
+    if (landed || performance.now() > cap) { M.gsap.ticker.remove(step); requestAnimationFrame(() => { if (id === dockFollow) place(); }); }
+  };
+  place(); M.gsap.ticker.add(step);
 }
 const toggleDock = () => setDock(!dockOpen, { save: true });
 // F11: the whole window in full screen (window.rs window_fullscreen); the first time, how to leave it
@@ -376,7 +394,29 @@ function pageTitle(tab, moved) {
 $(".rail").addEventListener("pointermove", e => { const el = e.currentTarget, r = el.getBoundingClientRect(); el.style.setProperty("--gx", e.clientX - r.left + "px"); el.style.setProperty("--gy", e.clientY - r.top + "px"); }, { passive: true });
 // …and along Home's tool bar (shell.css .hcards::before, ::after)
 $("#hcards").addEventListener("pointermove", e => { const el = e.currentTarget, r = el.getBoundingClientRect(); el.style.setProperty("--gx", e.clientX - r.left + "px"); el.style.setProperty("--gyh", e.clientY - r.top + "px"); }, { passive: true });
-function placePill() { const b = document.querySelector('.rail .tab[aria-selected="true"]'); M.slideTo($("#railPill"), b); }
+// Where an element of the dock is inside the dock's padding box: from the layout (offsets) plus the moves GSAP gives it
+// and its rows (the dock opening, the icons arriving), never from the screen, so a dock moving, a frame painted late or a
+// layout not yet flushed cannot put the bar, the hover or the selected surface somewhere else (the 1.2.0 video)
+function railPos(el) {
+  const rail = $(".rail");
+  let left = 0, top = 0;
+  for (let n = el; n && n !== rail; n = n.offsetParent) { left += n.offsetLeft; top += n.offsetTop; }
+  for (let n = el; n && n !== rail; n = n.parentElement) { const m = moved(n); left += m.x; top += m.y; }
+  return { left, top, width: el.offsetWidth, height: el.offsetHeight };
+}
+// the translation an element is painted with (its transform as applied, not GSAP's cache)
+function moved(el) {
+  const tf = el.style.transform;
+  if (!tf || tf === "none") return { x: 0, y: 0 };
+  const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+  return { x: m.m41, y: m.m42 };
+}
+function placePill() {
+  const b = document.querySelector('.rail .tab[aria-selected="true"]'), bar = $("#railPill");
+  if (!b) return;
+  const r = railPos(b);
+  M.slideTo(bar, b, { y: r.top + r.height / 2 - bar.offsetHeight / 2 });
+}
 // A smooth union of two rounded surfaces. At coincidence it is exactly one capsule;
 // apart it is two complete capsules, with a continuous geometric neck in between.
 // join: how much the neck may form (1 while the hover moves, 0 at rest: two capsules side by side).
@@ -432,24 +472,28 @@ function sharedHover(box, selector) {
     pill.innerHTML = '<svg aria-hidden="true"><path/></svg>';
     surface = pill.querySelector("path");
   }
+  // Killed tweens retain their fractional progress. They no longer drive geometry.
+  const remaining = tween => tween?.parent && !tween.paused() ? Math.max(0, 1 - tween.progress()) : 0;
+  // draws the surface; true while the hover still moves or fades
+  const draw = () => {
+    const on = box.querySelector('.tab[aria-selected="true"]');
+    if (on) {
+      // the hover's box where GSAP has put it, and the selected tool from the layout (railPos)
+      const r = railPos(on), at = moved(pill), p = { left: pill.offsetLeft + at.x, top: pill.offsetTop + at.y, width: pill.offsetWidth, height: pill.offsetHeight };
+      // joined only while the hover moves or appears; at rest next to the selected tool the two stand apart
+      const motion = Math.max(remaining(pill._gl?.t), remaining(presenceTween));
+      surface.setAttribute("d", dockSurface({ left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
+        { left: 0, top: 0, width: p.width, height: p.height }, presence.value, motion));
+    }
+    return !!(remaining(pill._gl?.t) || remaining(presenceTween));
+  };
+  // The surface is drawn in the hover's own box, so it is redrawn on GSAP's ticker, after GSAP has moved that box in
+  // the same tick: drawn from a separate animation frame it could be for where the box was a frame before and ride
+  // with it, the selected tool's surface flying off with the hover. One more draw once it has stopped.
+  const tick = () => { if (!draw()) { M.gsap.ticker.remove(tick); fusionFrame = 0; } };
   const fuse = () => {
     if (!dock) return;
-    cancelAnimationFrame(fusionFrame);
-    // Killed tweens retain their fractional progress. They no longer drive geometry.
-    const remaining = tween => tween?.parent && !tween.paused() ? Math.max(0, 1 - tween.progress()) : 0;
-    const step = () => {
-      const on = box.querySelector('.tab[aria-selected="true"]');
-      if (on) {
-        const p = pill.getBoundingClientRect(), r = on.getBoundingClientRect();
-        // joined only while the hover moves or appears; at rest next to the selected tool the two stand apart
-        const motion = Math.max(remaining(pill._gl?.t), remaining(presenceTween));
-        surface.setAttribute("d", dockSurface({ left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
-          { left: 0, top: 0, width: p.width, height: p.height }, presence.value, motion));
-      }
-      fusionFrame = remaining(pill._gl?.t) || remaining(presenceTween)
-        ? requestAnimationFrame(step) : 0;
-    };
-    step();
+    if (draw() && !fusionFrame) { fusionFrame = 1; M.gsap.ticker.add(tick); }
   };
   const visible = on => {
     if (!dock) { pill.style.opacity = on ? "1" : "0"; return; }
@@ -462,9 +506,10 @@ function sharedHover(box, selector) {
   };
   const place = () => {
     if (!target?.isConnected) return;
-    const r = target.getBoundingClientRect(), parent = box.getBoundingClientRect();
     pill.style.width = target.offsetWidth + "px";
     pill.style.height = target.offsetHeight + "px";
+    if (dock) { const r = railPos(target); M.slideTo(pill, target, { x: r.left, y: r.top }); return; }
+    const r = target.getBoundingClientRect(), parent = box.getBoundingClientRect();
     M.slideTo(pill, target, { x: r.left - parent.left - box.clientLeft });
   };
   const refresh = () => {
@@ -545,7 +590,10 @@ function enterApp() {
   const sk = $("#bootSkel");
   if (sk) M.fadeOut(sk, { then: () => sk.remove() }).then(() => sk.remove());
   M.animate($(".rail"), [{ opacity: 0, transform: "translateX(-18px)" }, { opacity: 1, transform: "none" }], { dur: "place", channel: "vis" });
-  M.stagger(document.querySelectorAll(".rail .tab"), (b, delay) => M.animate(b, [{ opacity: 0, transform: "translateX(-8px) scale(0.9)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay: 60 + delay, channel: "vis" }));
+  const arriving = [];
+  M.stagger(document.querySelectorAll(".rail .tab"), (b, delay) => { const a = M.animate(b, [{ opacity: 0, transform: "translateX(-8px) scale(0.9)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay: 60 + delay, channel: "vis" }); if (a) arriving.push(a.finished); });
+  // the selected surface and its bar are placed where the icons land
+  followDock(arriving);
   M.animate($(".frame"), [{ opacity: 0, transform: "scale(0.97)", filter: "blur(8px)" }, { opacity: 1, transform: "none", filter: "blur(0px)" }], { dur: "place", delay: 40, channel: "vis" });
 }
 // The loading skeleton shares the centered origin of its tool view.

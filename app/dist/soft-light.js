@@ -10,11 +10,11 @@ float softDither(vec2 p) { return softHash(p) + softHash(p + 57.31) - 1.0; }
 vec3 softLight(vec2 p, float seconds, float welcome, float opening) {
   vec2 a = (p - vec2(-0.32, 0.335)) * vec2(0.72, 1.15);
   vec2 b = (p - vec2(0.45, -0.12)) * vec2(0.85, 1.05);
-  vec3 col = vec3(0.032, 0.032, 0.031);
+  vec3 col = vec3(0.0176, 0.0176, 0.0171);
   vec3 first = mix(vec3(1.0), vec3(0.364706, 0.396078, 0.466667), 0.35);
   vec3 second = mix(vec3(1.0), vec3(0.705882, 0.768627, 0.941176), 0.5);
-  col += first * exp(-2.4 * dot(a, a)) * 0.068;
-  col += second * exp(-3.1 * dot(b, b)) * 0.025;
+  col += first * exp(-2.4 * dot(a, a)) * 0.0374;
+  col += second * exp(-3.1 * dot(b, b)) * 0.0138;
   // Two broad light volumes: spatial warping, breathing and drift, without visible edges.
   float phase = seconds * 0.174532925;
   float settled = smoothstep(0.35, 1.0, opening);

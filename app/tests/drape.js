@@ -6,8 +6,9 @@ const host=()=>createHost(fs.mkdtempSync(path.join(os.tmpdir(),'hal-drape-')));
 const stats=(page,time)=>page.evaluate(time=>{
  const scene=window.__atmo.review.sceneAt({time}),c=document.querySelector('.drape-host canvas'),gl=c.getContext('webgl');
  const w=c.width,h=c.height,px=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px);
+ // the silk is shown at .55 of its stabilised level (drape.js F.level, tone 2 of 2026-10-14): mean and "lit" (.08) scale with it
  let sum=0,lit=0,n=0,hash=0;
- for(let i=0;i<px.length;i+=4*7){const L=(.2126*px[i]+.7152*px[i+1]+.0722*px[i+2])/255;sum+=L;if(L>.08)lit++;n++;hash=(hash*31+px[i]+px[i+1]*7+px[i+2]*13)>>>0;}
+ for(let i=0;i<px.length;i+=4*7){const L=(.2126*px[i]+.7152*px[i+1]+.0722*px[i+2])/255;sum+=L;if(L>.044)lit++;n++;hash=(hash*31+px[i]+px[i+1]*7+px[i+2]*13)>>>0;}
  return {time:scene.time,mean:sum/n,lit:lit/n,hash,blue:px.filter((v,i)=>i%4===2).reduce((a,b)=>a+b,0)>px.filter((v,i)=>i%4===0).reduce((a,b)=>a+b,0)};
 },time);
 (async()=>{const server=serve(),browser=await launch();
@@ -30,7 +31,7 @@ const stats=(page,time)=>page.evaluate(time=>{
 
   /* ---------- what it draws ---------- */
   const frames=[];for(let t=0;t<=120;t+=7.5)frames.push(await stats(page,t));
-  for(const f of frames){assert(f.mean>.035&&f.mean<.075,'Mean luminance in range at '+f.time+': '+f.mean.toFixed(4));assert(f.lit>.15&&f.lit<.36,'Lit share in range at '+f.time+': '+f.lit.toFixed(3));assert(f.blue,'Blue-grey, not neutral or warm');}
+  for(const f of frames){assert(f.mean>.019&&f.mean<.041,'Mean luminance in range at '+f.time+': '+f.mean.toFixed(4));assert(f.lit>.15&&f.lit<.36,'Lit share in range at '+f.time+': '+f.lit.toFixed(3));assert(f.blue,'Blue-grey, not neutral or warm');}
   const means=frames.map(f=>f.mean),lits=frames.map(f=>f.lit);
   assert(Math.max(...means)/Math.min(...means)<1.35,'Steady brightness over two minutes: '+means.map(x=>x.toFixed(4)).join(' '));
   assert(Math.max(...lits)/Math.min(...lits)<1.5,'Steady coverage over two minutes: '+lits.map(x=>x.toFixed(3)).join(' '));

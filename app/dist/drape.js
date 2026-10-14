@@ -99,7 +99,9 @@ function snoise(x, y, z) {
 const F = {
   angle: .85, along: .38, across: .9, scale: .95, rate: .0055, drift: .5, warp: 1.3, ripple: .12, rippleFreq: 10,
   normal: .1, sheenPower: 1.6, bodyLow: -.2, bodyHigh: .55, voids: .9, diffuseFloor: .1, bodyGain: 1.1, sheenGain: .45,
-  vignette: .4, target: .07, maxBias: .5, minExposure: .8, maxExposure: 1.25
+  vignette: .4, target: .07, maxBias: .5, minExposure: .8, maxExposure: 1.25,
+  // the whole silk at this level when it is shown (tone 2, Java 2026-10-14): darker without changing its shape or coverage
+  level: .55
 };
 const f4 = x => x.toFixed(5);
 const FIELD_GLSL = `
@@ -292,7 +294,7 @@ void main(){
   vec2 p=(fc-0.5*u_resolution)/u_resolution.y;
   float extent=length(vec2(u_resolution.x/u_resolution.y,1.0)*0.5)+0.12;
   p=navigationRefraction(p/u_scale,u_navigationWave,extent);
-  vec3 col=field(p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5);
+  vec3 col=field(p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5)*${f4(F.level)};
   col+=vec3(tpdf(fc,0.0),tpdf(fc+13.7,0.0),tpdf(fc+41.9,0.0))/255.0;
   float luma=dot(col,vec3(0.2126,0.7152,0.0722));
   col+=vec3(filmGrain(fc,0.0))*mix(1.0,1.4,smoothstep(0.0,0.2,luma))*u_grain;
