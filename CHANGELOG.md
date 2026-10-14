@@ -17,6 +17,7 @@
   the size is kept in logical pixels.
 - Lighter neutral greys for the dock, bubbles, cards and raised controls, and darker tool and page windows.
 - The dock tightens on short windows so every tab fits down to the 640 px minimum height.
+- Grade: each look tile shows what a click would preview, the look over the looks in Layers.
 
 ## 1.1.1
 
