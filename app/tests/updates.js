@@ -6,6 +6,8 @@
 // 4. "Save session & restart" saves the session and what stopped; the next start shows What's new once, with
 //    what stopped, and takes the session back without asking.
 // 5. The portable copy offers "Download", which opens the release page.
+// 7. The app ships its changelog (changelog.md = CHANGELOG.md): What's new reads every version since the one installed
+//    before, and Settings → About → Changelog shows them all.
 // Screenshots → $SHOTS/updates.
 // Usage: node app/tests/updates.js
 const fs = require("fs"), os = require("os"), path = require("path");
@@ -23,6 +25,10 @@ const host = createHost(root, TOOLS);
 const appFile = path.join(host.base, "Settings", "app.json");
 const appState = () => JSON.parse(fs.readFileSync(appFile, "utf8"));
 const CURRENT = require("../package.json").version;
+// the app's own changelog: its versions newest first, and the list items of each (an item may wrap over lines)
+const LOG = fs.readFileSync(path.join(__dirname, "..", "..", "CHANGELOG.md"), "utf8").split(/^## /m).slice(1)
+  .map(p => ({ version: p.slice(0, p.indexOf("\n")).trim(), items: (p.match(/^- /gm) || []).length })).filter(v => /^\d+\.\d+\.\d+/.test(v.version));
+const BEFORE = LOG[LOG.findIndex(v => v.version === CURRENT) + 1].version;
 const NOTES = "## 9.0.0\n\n### New\n- **Updater**: Halation updates itself.\n- `Activity` shows the download.\n\n### Fixed\n- A [linked](https://example.com) fix.";
 fs.mkdirSync(path.dirname(appFile), { recursive: true });
 fs.writeFileSync(appFile, JSON.stringify({ settings: { version: 2, language: "en", artistName: "Nova" }, update: { seen: CURRENT } }));
@@ -48,7 +54,7 @@ host.setUpdate({ version: "9.0.0", notes: NOTES });
   await open();
   ok(await dialogOpen(), "A newer version opens the update dialog some seconds after the start");
   ok((await page.locator("#uTitle").textContent()).includes("9.0.0") && (await page.locator("#uSub").textContent()).includes(CURRENT), "The dialog names the new version and the current one");
-  ok(await page.locator("#uNotes li").count() === 3 && await page.locator("#uNotes h3").count() === 3 && await page.locator("#uNotes b").count() === 1 && !(await page.locator("#uNotes").innerHTML()).includes("example.com"), "The release notes render as headings and lists; links keep only their text");
+  ok(await page.locator("#uNotes li").count() === 3 && await page.locator("#uNotes h3").count() === 1 && await page.locator("#uNotes h4").count() === 2 && await page.locator("#uNotes b").count() === 1 && !(await page.locator("#uNotes").innerHTML()).includes("example.com"), "The release notes render as headings and lists; links keep only their text");
   ok(JSON.stringify(await dlg().locator("button").evaluateAll(b => b.map(x => x.value))) === JSON.stringify(["never", "skip", "later", "update"]), "Buttons: Don't show again, Skip this version, Later, Update");
   await shot("1-available");
   await press("later");
@@ -107,12 +113,12 @@ host.setUpdate({ version: "9.0.0", notes: NOTES });
   const resume = appState().updateResume;
   ok(resume && resume.to === "9.0.0" && resume.from === CURRENT && Array.isArray(resume.stopped), "The restart leaves the note for the next start: " + JSON.stringify(resume));
   // the next start is the new version: its notes were kept at the check
-  const st = appState(); st.update.seen = "1.0.0"; st.update.notes.version = CURRENT; st.updateResume.stopped = ["Upscale · cover"];
+  const st = appState(); st.update.seen = BEFORE; st.update.notes.version = CURRENT; st.updateResume.stopped = ["Upscale · cover"];
   fs.writeFileSync(appFile, JSON.stringify(st));
   host.setUpdate(null);
   await restart(false);
   ok(await dialogOpen(), "After an update, What's new opens once");
-  ok((await page.locator("#uTitle").textContent()).includes(CURRENT) && (await page.locator("#uSub").textContent()).includes("Upscale · cover") && await page.locator("#uNotes li").count() === 3, "What's new: the version, what the restart stopped and the notes");
+  ok((await page.locator("#uTitle").textContent()).includes(CURRENT) && (await page.locator("#uSub").textContent()).includes("Upscale · cover") && await page.locator("#uNotes li").count() === LOG[0].items && await page.locator("#uNotes h3").count() === 0, "What's new: the version, what the restart stopped and its notes from the app's changelog");
   await shot("6-whats-new");
   await press("page");
   ok(await until(() => host.log.some(e => e[0] === "update_page" && e[1] === CURRENT), 3000, 30), "Release page opens the version's page");
@@ -141,15 +147,37 @@ host.setUpdate({ version: "9.0.0", notes: NOTES });
   await app.tab("settings");
   ok(await page.locator("#updDev [data-upd-dev]").count() === 4, "Preview: Settings → Updates has the simulation buttons");
   await page.locator('[data-upd-dev="installed"]').click();
-  ok(await dialogOpen(5000) && (await page.locator("#uTitle").textContent()).includes("1.2.0"), "Preview: a simulated 1.2.0 opens the dialog");
+  ok(await dialogOpen(5000) && (await page.locator("#uTitle").textContent()).includes("1.3.0"), "Preview: a simulated 1.3.0 opens the dialog");
   await press("update");
   ok(await dialogOpen(15000), "Preview: the simulated download ends in the install dialog");
   await press("restart");
   ok(await until(() => page.evaluate(() => document.readyState === "complete" && !!window.__updates && window.__updates.current !== ""), 15000, 100) && await dialogOpen(), "Preview: Save session & restart reloads the window into What's new");
-  ok((await page.locator("#uTitle").textContent()).includes(CURRENT) && await page.locator("#uNotes li").count() === 4, "Preview: What's new shows the simulated notes");
+  ok((await page.locator("#uTitle").textContent()).includes(CURRENT) && await page.locator("#uNotes li").count() === LOG[0].items, "Preview: What's new shows the running version's notes");
   await shot("8-preview-whats-new");
   await press("ok");
   ok(!host.session.updateInstall, "Preview: nothing reached the real installer");
+
+  /* ---------- 7: the changelog shipped with the app ---------- */
+  ok(fs.readFileSync(path.join(__dirname, "..", "dist", "changelog.md"), "utf8") === fs.readFileSync(path.join(__dirname, "..", "..", "CHANGELOG.md"), "utf8"), "app/dist/changelog.md is CHANGELOG.md (node app/scripts/bump-beta.js and CI copy it)");
+  await host.call("app_quit"); await page.close(); host.begin();
+  const two = appState(); two.update = { seen: LOG[2].version }; fs.writeFileSync(appFile, JSON.stringify(two));
+  await open();
+  ok(await dialogOpen(), "An update over two versions opens What's new");
+  ok(JSON.stringify(await page.locator("#uNotes h3").allTextContents()) === JSON.stringify([LOG[0].version, LOG[1].version]) && await page.locator("#uNotes li").count() === LOG[0].items + LOG[1].items, "What's new covers every version since the one installed before, each under its heading");
+  await shot("9-whats-new-two");
+  await press("ok");
+  await app.tab("settings");
+  await page.locator("#sg-about").scrollIntoViewIfNeeded();
+  ok(await page.locator("#updLog").isVisible(), "Settings → About → Updates has Changelog");
+  await shot("10-settings-changelog");
+  await page.locator("#updLog").click();
+  ok(await dialogOpen(3000), "Changelog opens the notes dialog");
+  ok((await page.locator("#uTitle").textContent()) === "Changelog" && (await page.locator("#uSub").textContent()).includes(CURRENT) && JSON.stringify(await page.locator("#uNotes h3").allTextContents()) === JSON.stringify(LOG.map(v => v.version)) && await page.locator("#uNotes li").count() === LOG.reduce((n, v) => n + v.items, 0), "Changelog: every version, newest first, each list item once");
+  await shot("11-changelog");
+  await page.locator("#uNotes").evaluate(e => { e.scrollTop = 900; });
+  await shot("12-changelog-scrolled");
+  await press("page");
+  ok(await until(() => host.log.some(e => e[0] === "update_page" && e[1] === CURRENT), 3000, 30), "Changelog's Release page opens the running version's page");
 
   ok(!errors.length, "No page errors" + (errors.length ? ": " + errors.join(" | ") : ""));
   await browser.close(); server.close();

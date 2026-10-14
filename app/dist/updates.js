@@ -3,7 +3,9 @@
 // Settings → About → Updates decides what follows: a dialog (Update, Later, Skip this version, Don't show again), only
 // a quiet row in Activity, or nothing until "Check for updates". The setup downloads as a job (Activity shows it);
 // then "Save session & restart" (the work comes back as it was) or "Install on close". After an update, "What's new"
-// shows the release notes once. The portable copy cannot replace itself: its "Download" opens the release page.
+// shows the notes of the versions since the one installed before, once, from the changelog shipped with the app
+// (changelog.md); Settings → About → Changelog shows every version. The portable copy cannot replace itself: its
+// "Download" opens the release page.
 
 /* ===== model ===== */
 (() => {
@@ -34,18 +36,39 @@ U.compare = (a, b) => {
   if (x.pre === y.pre) return 0;
   return !x.pre ? 1 : !y.pre ? -1 : x.pre < y.pre ? -1 : 1;
 };
-// Release notes (Markdown of CHANGELOG.md) → headings, lists and paragraphs; links keep only their text
+// Release notes (Markdown of CHANGELOG.md) → headings (# and ## a version, ### a group), lists and paragraphs; links
+// keep only their text. A list item wrapped over several lines stays one item.
 U.notesHtml = md => {
   const inline = s => esc(s).replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
-  let html = "", list = false;
+  let html = "", list = false, li = "";
+  const flush = () => { if (li) { html += `<li>${inline(li)}</li>`; li = ""; } };
   for (const raw of String(md || "").split(/\r?\n/)) {
-    const line = raw.trim(), item = /^[-*]\s+(.*)$/.exec(line), head = /^#{1,6}\s+(.*)$/.exec(line);
+    const line = raw.trim(), item = /^[-*]\s+(.*)$/.exec(line), head = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (li && line && !item && !head && /^\s/.test(raw)) { li += " " + line; continue; }
+    flush();
     if (!item && list) { html += "</ul>"; list = false; }
-    if (item) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(item[1])}</li>`; }
-    else if (head) html += `<h3>${inline(head[1])}</h3>`;
+    if (item) { if (!list) { html += "<ul>"; list = true; } li = item[1]; }
+    else if (head) html += head[1].length <= 2 ? `<h3>${inline(head[2])}</h3>` : `<h4>${inline(head[2])}</h4>`;
     else if (line) html += `<p>${inline(line)}</p>`;
   }
+  flush();
   return html + (list ? "</ul>" : "");
+};
+// The changelog shipped with the app (changelog.md, a copy of CHANGELOG.md): its versions, newest first, so What's
+// new and Settings → Changelog never need the network
+let changelog = null;
+U.changelog = () => changelog || (changelog = fetch("changelog.md").then(r => r.ok ? r.text() : "").catch(() => "").then(md => {
+  const out = [];
+  for (const part of md.split(/^## /m).slice(1)) {
+    const nl = part.indexOf("\n"), version = part.slice(0, nl).trim();
+    if (/^\d+\.\d+\.\d+/.test(version)) out.push({ version, text: part.slice(nl + 1).trim() });
+  }
+  return out.sort((a, b) => U.compare(b.version, a.version));
+}));
+// Markdown of the versions after `from` up to `to`; a version's heading only when there are several
+U.changelogBetween = async (from, to) => {
+  const list = (await U.changelog()).filter(s => U.compare(s.version, to) <= 0 && (!from || U.compare(s.version, from) > 0));
+  return list.length === 1 ? list[0].text : list.map(s => `## ${s.version}\n\n${s.text}`).join("\n\n");
 };
 })();
 
@@ -188,7 +211,8 @@ U.notice = () => {
 })();
 
 /* ===== settings ===== */
-// Settings → About → Updates: when to say it, "What's new" after updating, "Check for updates" and the state.
+// Settings → About → Updates: when to say it, "What's new" after updating, "Check for updates", the changelog and the
+// state.
 (() => {
 "use strict";
 const S = window.__shell, U = window.__updates, { t, $ } = S;
@@ -218,6 +242,16 @@ U.paint = () => {
 $("#setUpdates").addEventListener("change", e => U.setPrefs({ notify: e.target.value }));
 $("#setWhatsNew").addEventListener("change", e => U.setPrefs({ whatsNew: e.target.checked }));
 $("#updCheck").addEventListener("click", () => U.check(true));
+// Changelog: every version shipped with the app, the running one first
+$("#updLog").addEventListener("click", async () => {
+  const notes = await U.changelogBetween("", U.current || "999.0.0");
+  const choice = await U.dialog({
+    title: t("upd.logTitle"), sub: U.current ? t("upd.logSub", { version: U.current }) : "",
+    notes: notes ? U.notesHtml(notes) : `<p>${S.esc(t("upd.noNotes"))}</p>`,
+    actions: [{ value: "page", label: t("upd.page"), ghost: true }, { value: "ok", label: t("common.close"), primary: true }]
+  });
+  if (choice === "page") U.call("update_page", { version: U.current }).catch(() => {});
+});
 $("#updAction").addEventListener("click", () => U.phase === "available" ? U.download() : U.askInstall());
 })();
 
@@ -227,8 +261,10 @@ $("#updAction").addEventListener("click", () => U.phase === "available" ? U.down
 "use strict";
 const S = window.__shell, U = window.__updates, { t, invoke } = S;
 const CHECK_AFTER_MS = 6000;
-async function whatsNew(st, resume) {
-  const notes = st.notes && st.notes.version === U.current ? st.notes.text : "";
+// from: the version installed before; its later versions come from the app's own changelog, the notes kept at the
+// check only when that has none
+async function whatsNew(st, resume, from) {
+  const notes = (from && await U.changelogBetween(from, U.current)) || (st.notes && st.notes.version === U.current ? st.notes.text : "");
   const stopped = resume && Array.isArray(resume.stopped) ? resume.stopped.filter(x => typeof x === "string") : [];
   const choice = await U.dialog({
     title: t("upd.newTitle", { version: U.current }),
@@ -247,10 +283,11 @@ async function start() {
   U.current = info.version; U.portable = !!info.portable;
   const state = S.isObj(st) ? st : {};
   const updated = state.seen && U.compare(U.current, state.seen) > 0;
+  const before = state.seen;
   if (state.seen !== U.current) { state.seen = U.current; await invoke("state_set", { key: "update", value: state }).catch(() => {}); }
   if (resume) await invoke("state_set", { key: "updateResume", value: null }).catch(() => {});
   U.paint();
-  if (updated && U.prefs().whatsNew !== false) await whatsNew(state, resume);
+  if (updated && U.prefs().whatsNew !== false) await whatsNew(state, resume, before);
   if (U.prefs().notify !== "off") setTimeout(() => U.check(false), CHECK_AFTER_MS);
 }
 start();

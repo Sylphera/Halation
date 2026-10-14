@@ -7,7 +7,7 @@
 (() => {
 "use strict";
 const S = window.__shell, U = window.__updates;
-const VERSION = "1.2.0", RESTARTED = "halation-update-dev";
+const VERSION = "1.3.0", RESTARTED = "halation-update-dev";
 const NOTES = [
   "### Added",
   "- **Updater**: Halation finds new versions, downloads them in Activity and installs them on restart or on close.",
@@ -41,7 +41,9 @@ async function invoke(cmd, a = {}) {
     if (!a.restart) return null;
     // the restart: the window opens again as if it were the new version (What's new reads these notes)
     const st = await S.invoke("state_get", { key: "update" }).catch(() => null) || {};
-    st.seen = "0.0.0"; st.notes = { version: U.current, text: NOTES };
+    // seen: the changelog's version before the running one, so What's new shows the running version's own notes
+    const before = (await U.changelog()).find(v => U.compare(v.version, U.current) < 0);
+    st.seen = before ? before.version : "0.0.0"; st.notes = { version: U.current, text: NOTES };
     await S.invoke("state_set", { key: "update", value: st });
     sessionStorage.setItem(RESTARTED, "1");
     location.reload();

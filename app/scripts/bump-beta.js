@@ -29,4 +29,6 @@ edit([APP, "package-lock.json"], s => s.replace(`"version": "${current}"`, `"ver
 edit([APP, "src-tauri", "Cargo.toml"], s => s.replace(new RegExp(`^version = "${esc(current)}"`, "m"), `version = "${next}"`));
 edit([APP, "src-tauri", "Cargo.lock"], s => s.replace(new RegExp(`(name = "halation"\\r?\\nversion = )"${esc(current)}"`), `$1"${next}"`));
 edit([ROOT, "CHANGELOG.md"], s => s.includes(`## ${next}\n`) ? s : s.replace(/\n## /, `\n## ${next}\n\n- \n\n## `));
+// the copy the app shows (Settings → About → Changelog); CI copies it again before the build
+fs.copyFileSync(path.join(ROOT, "CHANGELOG.md"), path.join(APP, "dist", "changelog.md"));
 console.log(`${current} → ${next}. Write the changes under "## ${next}" in CHANGELOG.md.`);

@@ -35,13 +35,16 @@ Halation 1.1.0 and later update themselves from the public releases (Sylphera/Ha
   session back without the recovery question (`sessions.js`). A job does not continue from its progress: its tool
   reopens with its inputs and settings and the job is started again.
 - Install on close: the setup runs (without `/R`) when the app closes by hand.
-- After an update (`update.seen` older than the running version) "What's new" shows the notes kept at the check
-  (`update.notes`), plus what the restart stopped; it can be turned off in Settings.
+- After an update (`update.seen` older than the running version) "What's new" shows the notes of every version after
+  `update.seen` up to the running one, from the changelog shipped with the app (`app/dist/changelog.md`, a copy of
+  `CHANGELOG.md` made by `bump-beta.js` and again by CI before the build), plus what the restart stopped; the notes
+  kept at the check (`update.notes`) only when that changelog has none. It can be turned off in Settings.
+- Settings → About → Updates → Changelog shows every version of that changelog, the newest first.
 - Portable copy: the same dialog and row, with "Download", which opens the release page; it never downloads.
 
 ## Halation Preview
 
 The Preview never checks, so `dev/updates-fixture.js` (loaded only under `window.__halPreview`) simulates a version
-1.2.0: buttons under Settings → About → Updates open it as an installed or a portable copy, show What's new, or reset.
+1.3.0: buttons under Settings → About → Updates open it as an installed or a portable copy, show What's new, or reset.
 The download is a simulated progress in Activity; "Save session & restart" reloads the window as the new version
 (session recovered, What's new); "Install on close" only marks it pending. Nothing reaches update.rs.
