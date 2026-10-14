@@ -13,7 +13,7 @@ const path = require("path");
 const APP = path.join(__dirname, ".."), CRATE = path.join(APP, "src-tauri");
 // The same files, in the same order, as the serial chain (npm run test:serial)
 const FILES = ["colors.js", "run.js --lang en", "run.js --lang es", "scan.js", "motion.js", "segmented.js", "modules.js", "home.js", "pages.js", "alpha.js", "layers.js",
-  "editor.js", "slider-defaults.js", "slider-stems.js", "focus-defaults.js", "brand-assets.js", "spotify.js", "cutout.js", "cutout-tools.js", "framegrab.js", "framegrab-perf.js", "sendto.js", "upscale.js", "interp.js", "removebg.js"];
+  "editor.js", "slider-defaults.js", "slider-stems.js", "focus-defaults.js", "brand-assets.js", "spotify.js", "cutout.js", "cutout-tools.js", "framegrab.js", "framegrab-perf.js", "sendto.js", "upscale.js", "interp.js", "removebg.js", "dock.js"];
 // Files whose limits are timings: the motion trace and Frame Capture load/scrub times
 const SOLO = new Set(["motion.js", "framegrab-perf.js"]);
 

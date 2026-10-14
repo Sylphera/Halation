@@ -152,6 +152,7 @@ fn main() {
             close_ack,
             app_quit,
             memory_low,
+            window_fullscreen,
             tools::tools_status,
             tools::tool_install,
             storage::tool_uninstall,

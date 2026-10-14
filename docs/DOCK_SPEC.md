@@ -5,7 +5,7 @@ añade un segundo estado, **abierto**: el mismo dock crece hacia la derecha y pa
 herramienta y su actividad (cola, progreso, terminado, error). Se abre y se cierra con un gesto. Idea de Java:
 2026-10-14 (bocetos: dock cerrado como columna de iconos; dock abierto como panel con icono + nombre por fila).
 
-Estado: pendiente de aprobación. No se implementa hasta que Java lo diga.
+Estado: aprobada (Java, 2026-10-14) e implementada en 1.2.0. Lo que cambió al implementar está en §10.
 
 ---
 
@@ -219,3 +219,29 @@ Textos nuevos solo en `en.json`: `dock.open`, `dock.close`, `dock.state.running`
 - Cancelar o pausar jobs desde el dock (eso es del menú de procesos).
 - Dock en otro borde de la ventana o flotante.
 - Miniaturas o lista de archivos recientes en el dock.
+
+---
+
+## 10. Implementación (1.2.0)
+
+Diferencias con lo de arriba, decididas al implementar:
+
+- **Ajustes planos**, como el resto de `DEFAULT_SETTINGS`: `dockMode` (`compact` · `overlay` · `pinned`, por
+  defecto `overlay`), `dockOpen` (solo se usa con `pinned`) y `dockActivity`. `dockAutoClose` y `dockDetail` no son
+  ajustes: en `overlay` elegir herramienta siempre cierra y la segunda línea siempre se muestra. El ancho (232 px) y
+  el mínimo de `pinned` (1280 px) son constantes (`--dock-w` en `shell.css`, `DOCK_PIN_MIN` en `shell.js`).
+- **Settings → Interface** es una sección nueva (General ya tenía cuatro controles, el máximo sin Advanced): Dock,
+  "Show activity on the dock" y "Open the window" (`WINDOW_SPEC.md`). Elegir *Keep open* abre el dock.
+- **Cerrado, la marca es siempre un punto** en la esquina del icono, con el color del estado (sin arco), para no
+  tapar el icono a 44 px.
+- **La marca no es un botón aparte** (un botón dentro de otro no es válido): con el dock abierto, un clic en ella abre
+  el menú de procesos sin filtro; Ctrl+J sigue igual. La fila entera es el botón de la herramienta.
+- **El progreso propio de una herramienta sin job** (`setToolProgress`) no lleva herramienta, así que no se cuenta;
+  solo los jobs.
+- **Cerrar en `overlay`**: además de Esc, clic fuera y elegir herramienta, se cierra cuando la ventana principal
+  pierde el foco (un clic dentro de una herramienta, otra aplicación).
+- **Ventanas bajas** (≤ 800 px de alto): las pestañas pasan a 34 px para que todas y el tirador quepan a 640 px; antes
+  ya se salían por abajo en esa altura.
+- La superficie del dock es `.rail-bg`, que cambia de forma con `transform` en `--spring` y mantiene las esquinas
+  redondas mientras se estira; los nombres entran con `--stagger`. En `pinned` el contenido se desliza con un FLIP.
+- Prueba: `app/tests/dock.js` (en `verify.js`), capturas en `$SHOTS/dock`.
