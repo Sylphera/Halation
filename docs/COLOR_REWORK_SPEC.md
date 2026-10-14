@@ -101,7 +101,7 @@ borders and tracks each sit on their own step.
 - Neutral greys with the current faint warm bias; no blue tint.
 - The window near black.
 - Muted state colours (red, mint, amber, cyan, pink) unchanged.
-- The pale blue atmosphere, Home's Auralis silk and the lit top edge of the bubbles.
+- The pale blue atmosphere, the shape, hues and motion of Home's Auralis silk, and the lit top edge of the bubbles.
 - Black where black is the content: `--media` (letterbox behind previews), `--matte-dark`, `--scrim`, `--backdrop`,
   `--crop-shade`, `--busy-dim`.
 - Cover Test platform colours (`--yt-*`, `--sp-*`, `--sc-*`, …): they copy those sites and are never the interface's.
