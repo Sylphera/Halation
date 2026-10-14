@@ -167,8 +167,11 @@ function dockHandle() {
 function setDock(open, o = {}) {
   const rail = $(".rail"), bg = rail.querySelector(".rail-bg"), frame = $(".frame");
   open = !!open && dockMode() !== "compact";
-  // wide enough, the content makes room and stays centred in what is left (kept open or not); narrower, it floats over
-  const layout = open ? (innerWidth < DOCK_PIN_MIN ? "overlay" : dockMode() === "pinned" ? "pinned" : "room") : "";
+  // wide enough, the content makes room and stays centred in what is left (kept open or not); narrower, it floats over.
+  // Home keeps the window's centre while it fits beside the opened dock (pinned-over: kept open, no room made)
+  const homeFits = active === "home" && (innerWidth - $("#hcards").offsetWidth) / 2 >= 22 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dock-w")) || 232) + 16;
+  const pinned = dockMode() === "pinned";
+  const layout = !open ? "" : innerWidth < DOCK_PIN_MIN ? "overlay" : homeFits ? (pinned ? "pinned-over" : "overlay") : pinned ? "pinned" : "room";
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
   const rows = [...rail.querySelectorAll(".tab,.rail-sep,.spacer,.dock-toggle")], rowsBefore = rows.map(el => el.getBoundingClientRect().top);
@@ -489,7 +492,7 @@ function show(tab) {
   delete leftAt[tab]; rested.delete(tab);
   // its ended work has been seen; over the content, the dock gives the room back
   dockSeen[tab] = Date.now(); if (prev && prev !== tab) dockSeen[prev] = Date.now(); dockActivity();
-  if (dockFloats()) setDock(false);
+  if (dockFloats()) setDock(false); else if (dockOpen) setDock(true);   // kept open: Home and the tools centre differently
   awayAll();
   document.querySelectorAll(".rail .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   placePill();

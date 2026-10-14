@@ -20,7 +20,7 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     await page.click("#dockToggle");
     let r = await rail();
     assert.equal(r.open, true); assert.equal(r.expanded, "true"); assert.equal(r.w, 232); assert.equal(r.bg, 232);
-    assert.equal(r.frameLeft, closed.frameLeft + 170, "wide window: the content makes room and stays centred in it");
+    assert.equal(r.frameLeft, closed.frameLeft + 170, "wide window: the content makes room and stays centred in it (Home does not fit beside it at 1480)");
     assert.equal(await page.locator('.rail .tab[data-tab="grade"] .tl').isVisible(), true, "names shown");
     const iconX = () => page.evaluate(() => [...document.querySelectorAll(".rail .tab > .i, .rail .tab.home > img")].map(i => { const b = i.getBoundingClientRect(); return Math.round(b.left + b.width / 2); }));
     assert.deepEqual([...new Set(await iconX())], [53], "open: the icons stay in the closed dock's column");
@@ -113,6 +113,13 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     await shot(page, "7-open-es");
     const cut = await page.evaluate(() => [...document.querySelectorAll(".rail .tab .tl > span")].filter(s => s.scrollWidth > s.parentNode.clientWidth + 1).map(s => s.textContent));
     assert.deepEqual(cut, [], "Spanish names fit");
+    // a wide window: Home keeps the window's centre beside the opened dock; a tool makes room
+    await page.keyboard.press("Escape"); await page.setViewportSize({ width: 1920, height: 1010 }); await sleep(300);
+    const homeX = () => page.evaluate(() => { const b = document.querySelector("#hcards").getBoundingClientRect(); return Math.round(b.left + b.width / 2); });
+    const centred = await homeX();
+    await page.keyboard.press("Control+b"); await sleep(700);
+    assert.equal((await rail()).dock, "overlay"); assert.equal(await homeX(), centred, "Home stays centred on the window");
+    await page.keyboard.press("Escape");
     assert.deepEqual(errors, []);
     console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), a wide window makes room, a narrow one floats, activity marks, compact, F11");
   } finally { await browser.close(); server.close(); }
