@@ -43,7 +43,7 @@ const page = (W, H, body, css) => `<!doctype html><meta charset="utf-8"><style>
 header{position:absolute;left:64px;right:64px;top:50px;display:flex;align-items:center;gap:22px}
 header img{width:96px}h1{font-size:44px;font-weight:650;letter-spacing:-.015em}
 header p{margin-left:auto;font-size:21px;color:#b5b5af;text-align:right;line-height:1.45}
-.tile{position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.10);background:#050504;box-shadow:0 24px 50px rgba(0,0,0,.5)}
+.tile{position:relative;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,250,.12);background:#232321;box-shadow:0 24px 50px rgba(0,0,0,.5)}
 .label{display:grid;grid-template-columns:30px 1fr;column-gap:10px;align-items:center}
 .label svg{width:24px;height:24px;stroke:#a3a8dc;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .label b{font-weight:600}.label span{grid-column:1/3;margin-top:4px;color:#b5b5af;line-height:1.35}
@@ -98,7 +98,7 @@ function showcase() {
     `<div class="grid">${cards}<div class="tile card more"><b>Send to…</b><span>Results move between tools without leaving the app. Heavy engines download only when a tool needs them.</span></div></div>`;
   return [W, H, page(W, H, body, `
 .grid{position:absolute;left:64px;right:64px;top:166px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-.card{background:rgba(11,11,10,.85)}.thumb{height:200px;border-bottom:1px solid rgba(255,255,255,.07)}
+.card{background:rgba(42,42,40,.94)}.thumb{height:200px;border-bottom:1px solid rgba(255,255,250,.11)}
 .card .label{padding:16px 18px 20px}.card .label b{font-size:23px}.card .label span{font-size:17.5px}
 .more{display:flex;flex-direction:column;justify-content:center;gap:12px;padding:26px;background:rgba(163,168,220,.10);border-color:rgba(163,168,220,.35)}
 .more b{font-size:26px;font-weight:600}.more span{font-size:19px;color:#d7d7d2;line-height:1.5}`)];
