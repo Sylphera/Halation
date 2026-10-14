@@ -123,6 +123,23 @@ apart from it by their border (`--line-soft`) and lit top edge rather than by lu
 fields keep their own steps above and below the bubble. Acceptance criterion 2 reads with that in mind: bubble ≥
 window, card and raised above the bubble.
 
+## Darker backgrounds (Java, 2026-10-14)
+
+The H backgrounds still read too bright behind the Graphite surfaces. Four darker tones of the same backgrounds were
+compared (Tone 1 to 4: base and light gains × .75, .55, .40, .28; shapes, hues, grain and motion unchanged). Chosen:
+**Tone 2 (× .55) for the tools and Home**, **Tone 1 (× .75) for Library and Settings**.
+
+| Where | Constant | H | Now |
+| --- | --- | --- | --- |
+| `soft-light.js` `softLight()` (tools, Welcome) | base `col`, first light ×, second light × | `vec3(0.032, 0.032, 0.031)`, `0.068`, `0.025` | `vec3(0.0176, 0.0176, 0.0171)`, `0.0374`, `0.0138` |
+| `atmosphere.js` `PAGE` (Library, Settings) | light gains, base | `.08`, `.042`, `vec3(.030,.030,.029)` | `.06`, `.0315`, `vec3(.0225,.0225,.0218)` |
+| `drape.js` `F.level` (Home) | the stabilised silk as shown | `1` | `.55` |
+
+Home keeps its stabiliser (target `.07`, exposure `.8`–`1.25`) and is scaled as it is presented, so the silk keeps its
+shape and coverage; `app/tests/drape.js` measures it at `.55` (mean about `.038`, "lit" above `.044`). Sampled mean
+brightness on 0–255: tools 16 → 11, pages 10 → 8, Home 14 → 7; the bubbles (`#111111`) now sit clearly above the
+window.
+
 ## What stays
 
 - Dark interface; no light theme.

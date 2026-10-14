@@ -84,8 +84,8 @@ const PAGE = `vec3 page(vec2 fc,float m){
   vec2 c2=vec2(.06*cos(T*.7),.7+.25*(1.-m));
   float a=exp(-2.1*length((uv-c1)*vec2(.7,1.6)));
   float b=exp(-2.9*length((uv-c2)*vec2(.8,1.8)));
-  float s=a*.08+b*.042;
-  return s*mix(vec3(1.),tint,.6)+vec3(.030,.030,.029);
+  float s=a*.06+b*.0315;
+  return s*mix(vec3(1.),tint,.6)+vec3(.0225,.0225,.0218);
 }`;
 const HEAD = `precision highp float;uniform vec2 r;uniform float t;uniform vec3 tint;uniform vec3 v;uniform float m;uniform vec2 wave;
 ${NAVIGATION_REFRACTION_GLSL}
