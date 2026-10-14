@@ -2,7 +2,7 @@
 // Silk-like waves drift slowly along a diagonal over a near-black, slightly blue base: a domain-warped surface, lit
 // softly, with a few bright lobes, broad gradients and large dark voids. The light field is drawn into a small buffer
 // (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size (DPR up to
-// 2) scales it with linear filtering and adds a ±1/255 dither and Halation's stationary film grain.
+// 2) scales it with a cubic B-spline and adds a ±1/255 dither and Halation's stationary film grain.
 // window.__auralis.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
 (() => {
 "use strict";
@@ -252,17 +252,27 @@ void main(){
   gl_FragColor=vec4(max(col,0.0),1.0);
 }`;
 // Presentation at native pixels: the field scaled up (with the surface scale and navigation refraction), the ±1/255
-// triangular dither, then the stationary film grain, a little stronger in the midtones.
+// triangular dither, then the stationary film grain, a little stronger in the midtones. The field is scaled with a
+// cubic B-spline (four bilinear taps): a fold thinner than a field pixel, scaled linearly, shows each texel as a bead
+// along the bright crest; the B-spline is smooth across texels and keeps the crest a continuous line.
 const PRESENT_FS = refraction => `precision highp float;
-uniform sampler2D u_field;uniform sampler2D u_blue;uniform vec2 u_resolution;uniform vec2 u_navigationWave;uniform vec2 u_scale;uniform float u_grain;
+uniform sampler2D u_field;uniform sampler2D u_blue;uniform vec2 u_resolution;uniform vec2 u_fieldSize;uniform vec2 u_navigationWave;uniform vec2 u_scale;uniform float u_grain;
 ${refraction}
 ${GRAIN_GLSL}
+vec4 bspline(float f){vec4 n=vec4(1.0,2.0,3.0,4.0)-f,s=n*n*n;float x=s.x,y=s.y-4.0*s.x,z=s.z-4.0*s.y+6.0*s.x;return vec4(x,y,z,6.0-x-y-z)/6.0;}
+vec3 field(vec2 uv){
+  vec2 tc=uv*u_fieldSize-0.5,f=fract(tc);tc-=f;
+  vec4 wx=bspline(f.x),wy=bspline(f.y),s=vec4(wx.xz+wx.yw,wy.xz+wy.yw);
+  vec4 o=(tc.xxyy+vec4(-0.5,1.5,-0.5,1.5)+vec4(wx.yw,wy.yw)/s)/u_fieldSize.xxyy;
+  float sx=s.x/(s.x+s.y),sy=s.z/(s.z+s.w);
+  return mix(mix(texture2D(u_field,o.yw).rgb,texture2D(u_field,o.xw).rgb,sx),mix(texture2D(u_field,o.yz).rgb,texture2D(u_field,o.xz).rgb,sx),sy);
+}
 void main(){
   vec2 fc=gl_FragCoord.xy;
   vec2 p=(fc-0.5*u_resolution)/u_resolution.y;
   float extent=length(vec2(u_resolution.x/u_resolution.y,1.0)*0.5)+0.12;
   p=navigationRefraction(p/u_scale,u_navigationWave,extent);
-  vec3 col=texture2D(u_field,p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5).rgb;
+  vec3 col=field(p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5);
   col+=vec3(tpdf(fc,0.0),tpdf(fc+13.7,0.0),tpdf(fc+41.9,0.0))/255.0;
   float luma=dot(col,vec3(0.2126,0.7152,0.0722));
   col+=vec3(filmGrain(fc,0.0))*mix(1.0,1.4,smoothstep(0.0,0.2,luma))*u_grain;
@@ -422,7 +432,7 @@ function create(surface, options = {}) {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, res.target);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, res.blue);
     gl.uniform1i(q.u.u_field, 0); gl.uniform1i(q.u.u_blue, 1);
-    gl.uniform2f(q.u.u_resolution, size.w, size.h); gl.uniform2f(q.u.u_navigationWave, wave[0], wave[1]);
+    gl.uniform2f(q.u.u_resolution, size.w, size.h); gl.uniform2f(q.u.u_fieldSize, res.fw, res.fh); gl.uniform2f(q.u.u_navigationWave, wave[0], wave[1]);
     gl.uniform2f(q.u.u_scale, scale[0], scale[1]); gl.uniform1f(q.u.u_grain, settings.grain * grainStrength * GRAIN_UNIT);
     gl.drawArrays(gl.TRIANGLES, 0, res.vertices);
     presentations++; valid = true;
