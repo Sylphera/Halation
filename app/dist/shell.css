@@ -51,7 +51,10 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 :root{--dock-w:232px}
 .rail.bubble{background:transparent;border-color:transparent;box-shadow:none}
 .rail-bg{position:absolute;inset:-1px;z-index:-1;border:1px solid var(--line-soft);border-radius:26px;background:var(--surface);box-shadow:inset 0 1px 0 var(--edge);transform-origin:0 0;pointer-events:none}
-.rail[data-expanded]{width:var(--dock-w);align-items:stretch;align-self:stretch;justify-content:center;margin-top:12px;margin-bottom:12px}   /* the whole height; the icons stay where they were */
+.rail[data-expanded]{width:var(--dock-w);align-items:stretch;align-self:stretch;margin-top:12px;margin-bottom:12px}
+/* the whole height, used: the rows grow up to 52 px and what is left spreads between them; Library and Settings at the foot */
+.rail[data-expanded] #railTop{flex:1 1 auto;min-height:0;justify-content:space-evenly}
+.rail[data-expanded] .tab{flex:1 1 auto;max-height:52px}
 .rail[data-expanded] .rail-tabs{align-items:stretch}
 .rail[data-expanded] .rail-sep,.rail[data-expanded] .spacer{margin-left:11px}
 .rail[data-expanded] .tab{width:auto;grid-template-columns:44px minmax(0,1fr) auto;place-items:center start;padding:0 10px 0 0;gap:0}
@@ -82,12 +85,12 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .rail:not([data-expanded]) .tab .ts[data-s="done"]{background:var(--ok)}
 .rail:not([data-expanded]) .tab .ts[data-s="fail"]{background:var(--danger)}
 body[data-dock-activity="off"] .rail:not([data-expanded]) .tab .ts{display:none}
-/* the handle at the foot of the dock */
-.dock-toggle{display:grid;place-items:center;width:28px;height:28px;margin-top:4px;border:0;border-radius:9px;background:transparent;color:var(--text-3);cursor:pointer}
-.dock-toggle:hover{color:var(--text);background:var(--raised)}
-.dock-toggle:active{transform:scale(var(--press-scale))}
-.dock-toggle .i{width:16px;height:16px}
-.rail[data-expanded] .dock-toggle{align-self:flex-end}
+/* the pull tab on the dock's right edge: shown while the pointer is over the dock or it has the focus */
+.dock-toggle{position:absolute;top:50%;right:-14px;display:grid;place-items:center;width:15px;height:44px;margin-top:-22px;padding:0;border:1px solid var(--line-soft);border-left:0;border-radius:0 10px 10px 0;background:var(--surface);color:var(--text-3);cursor:pointer;opacity:0;transition:opacity var(--fade) var(--ease),color var(--fade) var(--ease)}
+.rail:hover .dock-toggle,.dock-toggle:focus-visible{opacity:1}
+.dock-toggle:hover{color:var(--text)}
+.dock-toggle .i{width:12px;height:12px}
+.rail[data-expanded] .dock-toggle .i{transform:scaleX(-1)}
 .dock-toggle[hidden]{display:none}
 /* kept open: the content makes room (one layout change; the content glides on transform, shell.js setDock) */
 body[data-dock="pinned"]{grid-template-columns:calc(22px + var(--dock-w)) minmax(0,1fr)}

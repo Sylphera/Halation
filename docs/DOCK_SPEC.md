@@ -248,4 +248,7 @@ Diferencias con lo de arriba, decididas al implementar:
   estaban; la luz sigue al puntero en las dos direcciones, como en la zona de Home (cerrado, solo vertical); un nombre
   de archivo largo acaba en puntos suspensivos sin pisar la marca. El estado abierto es `data-expanded` (antes
   `data-open`, que coincidía con los botones de carpetas de Settings y abría una carpeta a cada clic en el dock).
+- Segunda vuelta (Java, 2026-10-14): abierto, la altura se usa: las filas crecen hasta 52 px y el sobrante se reparte
+  entre ellas (Library y Settings al pie); las filas se deslizan en `--spring` al abrir y cerrar. El tirador del pie
+  pasa a ser una pestaña en el borde derecho del dock, a media altura, visible con el puntero encima o con el foco.
 - Prueba: `app/tests/dock.js` (en `verify.js`), capturas en `$SHOTS/dock`.
