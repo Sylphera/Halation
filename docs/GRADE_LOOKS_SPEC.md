@@ -299,8 +299,9 @@ Lista cerrada para v1; no se exponen las piezas internas del look.
 
 ### 4.5 Miniaturas
 
-- Mismo `renderStack` que hoy, 160 px. La miniatura de cada tile muestra el look candidato a `Preview strength` solo
-  sobre la imagen y sus efectos: las capas de look de Layers no entran, así ajustarlas no recalcula ninguna miniatura.
+- Mismo `renderStack` que hoy, 160 px. La miniatura de cada tile muestra lo que previsualizaría un clic: el look
+  candidato a `Preview strength` encima de los looks de Layers y debajo de los efectos, así cualquier cambio en Layers
+  recalcula las miniaturas (Java, 2026-10-14: antes mostraban el look solo y no seguían a las capas).
   Para My Looks: con sus `adj` y su `def`.
 - Orden de la cola: tiles visibles primero (IntersectionObserver), luego el resto en la misma cola de una en una.
   Tiles ocultas por subpestaña, categoría o búsqueda no se calculan hasta que se muestran.

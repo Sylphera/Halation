@@ -49,8 +49,13 @@ const { serve, launch, openApp, until } = require("./common"), { createHost } = 
     await f.locator("body").press("Escape");
     await f.waitForFunction(() => document.querySelector("#lookBar").hidden);
     assert.deepEqual(await layers(), [await L("cine-teal")], "Esc ends the preview without a layer");
+    const tileShot = () => f.locator('.tile[data-look="nordic"] canvas').evaluate(c => c.toDataURL());
+    const painted = async () => { let a; do { a = await f.evaluate(() => __lookProbe.painted); await page.waitForTimeout(700); } while (a !== await f.evaluate(() => __lookProbe.painted)); };
+    await painted(); const thumbBefore = await tileShot();
     await f.locator('.tile[data-look="slide"]').dblclick();
     assert.deepEqual(await layers(), [await L("slide"), await L("cine-teal")], "A double click adds the look on top, once");
+    await painted();
+    assert.notEqual(await tileShot(), thumbBefore, "The thumbnails follow Layers: a new look repaints them");
 
     // a removed classic look opens as its closest catalogue look
     await f.evaluate(() => __halApp.applyPreset("Old blue"));
@@ -81,7 +86,8 @@ const { serve, launch, openApp, until } = require("./common"), { createHost } = 
       for (let i = 0; i < 200; i++) { e.value = String(Math.round(Math.sin(i / 9) * 80)); e.dispatchEvent(new Event("input", { bubbles: true })); if (i % 10 === 0) await new Promise(r => requestAnimationFrame(() => r())); }
       e.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    await page.waitForTimeout(400);
+    // measured before the thumbnails repaint (they follow Layers, 350 ms after the last change)
+    await page.waitForTimeout(150);
     assert.equal(await f.evaluate(() => __lookProbe.uploads3d), uploads, "Dragging an adjustment uploads no LUT");
     assert(await f.evaluate(() => __lookProbe.textures.size) <= tex, "Dragging an adjustment creates no texture");
 
