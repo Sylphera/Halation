@@ -56,7 +56,7 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 
 ## Folders
 
-- `app/dist/`: `index.html` + `shell.js` (main window) + `atmosphere.js` + `auralis.js` + `blue-noise.js` (window background) + `welcome-background.js` (Welcome) + `services.js` (`window.__hal`: Library data, Crop,
+- `app/dist/`: `index.html` + `shell.js` (main window) + `atmosphere.js` + `drape.js` + `blue-noise.js` (window background) + `welcome-background.js` (Welcome) + `services.js` (`window.__hal`: Library data, Crop,
   Cutout, Frame Grab's extractor); per tool `<tool>.html`, `<tool>.css`, `<tool>.js` (`visualizer`, `grade`,
   `framegrab`, `downloader`, `upscale`, `interp`, `removebg`, `convert`); shared `grader.js`, `common.js`, `avplay.js`, `updates.js` (updater; `docs/UPDATES.md`), `tokens.css`, `ui.css`, `motion.js`, `encoder.js`, `modules.js`, `locales/`.
 - `app/src-tauri/src/`: Rust commands. `app/scripts/`: version bump, icons, i18n.

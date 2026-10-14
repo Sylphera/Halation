@@ -28,7 +28,7 @@ const en=JSON.parse(fs.readFileSync(path.join(dist,'locales/en.json'),'utf8'));
 assert.equal(en['set.version'],'{name} {version} · Free software (GPL-3.0)');
 assert(!Object.keys(en).some(key=>key.startsWith('intro.')||key==='tab.intro'),'Title Intro is absent from the final locale');
 assert(!fs.existsSync(path.join(dist,'intro.html'))&&!fs.existsSync(path.join(dist,'ui-shadows.js')),'Removed UI runtimes are absent from the packaged frontend');
-assert(['auralis-renderer.js','atmosphere.js.LEGAL.txt'].every(f=>!fs.existsSync(path.join(dist,f)))&&['auralis.js','blue-noise.js','atmosphere.js'].every(f=>fs.existsSync(path.join(dist,f))),'Auralis ships as plain auralis.js + blue-noise.js + atmosphere.js, without the old bundle or renderer');
+assert(['auralis-renderer.js','atmosphere.js.LEGAL.txt'].every(f=>!fs.existsSync(path.join(dist,f)))&&['drape.js','blue-noise.js','atmosphere.js'].every(f=>fs.existsSync(path.join(dist,f))),'Drape ships as plain drape.js + blue-noise.js + atmosphere.js, without the old bundle or renderer');
 const shell=fs.readFileSync(path.join(dist,'shell.js'),'utf8');
 assert(shell.includes('t("set.version", { name: info.name, version: info.version })'),'About renders the embedded license label');
 for(const command of ['session_state','session_replace','session_recovery','session_recovery_write','session_discard','session_write','session_read','session_file_put']){

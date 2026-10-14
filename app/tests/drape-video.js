@@ -1,8 +1,8 @@
-// Render the actual frontend at controlled clock times, without changing Auralis.
+// Render the actual frontend at controlled clock times, without changing Drape.
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const {serve,launch,openApp,until}=require('./common'),{newHost}=require('./scan');
 const review=require('./visual-review');
-const out=path.resolve(__dirname,'../../review/auralis'),frames=path.join(out,'navigation');fs.mkdirSync(frames,{recursive:true});
+const out=path.resolve(__dirname,'../../review/drape'),frames=path.join(out,'navigation');fs.mkdirSync(frames,{recursive:true});
 (async()=>{
  const server=serve(),browser=await launch();
  try {
@@ -32,6 +32,6 @@ const out=path.resolve(__dirname,'../../review/auralis'),frames=path.join(out,'n
   manifest.resume={before,after};assert(!errors.length,errors.join('\n'));
   fs.writeFileSync(path.join(out,'navigation-timeline.json'),JSON.stringify(manifest,null,2));
   review.encodeVideo(frames,path.join(out,'navigation.webm'),60);
-  console.log('PASS Auralis live scene parity, controlled navigation/interruption video, bounded resumed clock');
+  console.log('PASS Drape live scene parity, controlled navigation/interruption video, bounded resumed clock');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

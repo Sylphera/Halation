@@ -1,0 +1,28 @@
+// Real WebGL lifecycle checks for the animated candidate. No captures or visual-approval claims.
+const assert=require('assert/strict'),fs=require('fs'),os=require('os'),path=require('path');
+const {serve,launch,openApp,until}=require('./common'),{createHost}=require('./host');
+(async()=>{const server=serve(),browser=await launch(),host=createHost(fs.mkdtempSync(path.join(os.tmpdir(),'hal-drape-animated-')));
+ try{
+  const {page,errors,tab}=await openApp(browser,server,host,{motion:true,init:()=>{window.__halVisualTest=true}});
+  await page.evaluate(()=>window.__renderBudget.setFocused(true));
+  const state=()=>page.evaluate(()=>document.querySelector('.drape-host canvas').__drapeState());
+  const resized=()=>page.waitForFunction(()=>{const s=document.querySelector('.drape-host canvas').__drapeState();return s.cssWidth===innerWidth&&s.outputWidth===innerWidth&&s.outputHeight===innerHeight&&s.fieldWidth===320&&s.fieldHeight===Math.round(320*s.cssHeight/s.cssWidth)&&!s.dirty;});
+  await page.waitForFunction(()=>document.querySelector('.drape-host canvas')?.__drapeState?.().generations>1);
+  const first=await state();const firstBudget=await page.evaluate(()=>({budget:window.__renderBudget.state(),now:performance.now()}));// software WebGL (SwiftShader) draws the warped field slowly: wait for the next generation, not a fixed 500 ms
+  await until(async()=>(await state()).generations>first.generations,3000,100);assert((await state()).generations>first.generations,'Home remains animated: before='+JSON.stringify(firstBudget)+' after='+JSON.stringify(await page.evaluate(()=>({state:document.querySelector('.drape-host canvas').__drapeState(),now:performance.now(),budget:window.__renderBudget.state(),mode:document.querySelector('.drape-host').dataset,classes:document.body.className}))));
+  await page.evaluate(()=>document.querySelector('.drape-host canvas').__drapeReview.setGrainStrength(.45));await page.waitForFunction(()=>document.querySelector('.drape-host canvas').__drapeState().grainStrength===.45);const strengthState=await state();assert.equal(strengthState.textureUploads,first.textureUploads);assert.equal(strengthState.targetFps,15);await page.evaluate(()=>document.querySelector('.drape-host canvas').__drapeReview.setGrainStrength(1));await page.waitForFunction(()=>document.querySelector('.drape-host canvas').__drapeState().grainStrength===1);
+  await tab('grade');await page.waitForFunction(()=>document.querySelector('.drape-host').dataset.rest==='tool');await page.waitForTimeout(200);const hidden=await state();await page.waitForTimeout(500);assert.equal((await state()).generations,hidden.generations,'Visible tool stops Drape completely');await tab('home');await page.waitForFunction(n=>document.querySelector('.drape-host canvas').__drapeState().generations>n,hidden.generations);
+  for(const signal of ['minimized','focused','welcome']){
+   await page.evaluate(signal=>{if(signal==='minimized')window.__renderBudget.setMinimized(true);if(signal==='focused')window.__renderBudget.setFocused(false);if(signal==='welcome')document.body.classList.add('welcome-active');},signal);
+   await page.waitForTimeout(100);const stopped=await state();await page.setViewportSize({width:signal==='minimized'?1200:signal==='focused'?1280:1300,height:signal==='minimized'?800:signal==='focused'?820:840});await page.waitForTimeout(350);assert.equal((await state()).generations,stopped.generations,signal+' resize cannot draw');
+   await page.evaluate(signal=>{if(signal==='minimized')window.__renderBudget.setMinimized(false);if(signal==='focused')window.__renderBudget.setFocused(true);if(signal==='welcome')document.body.classList.remove('welcome-active');},signal);await resized();
+  }
+  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(200);const reduced=await state();await page.waitForTimeout(350);assert.equal((await state()).generations,reduced.generations);assert.equal((await state()).state,'sleep');
+  await page.evaluate(()=>{const c=document.querySelector('.drape-host canvas');window.__lost=false;c.addEventListener('webglcontextlost',()=>window.__lost=true,{once:true});window.__lossExtension=c.getContext('webgl').getExtension('WEBGL_lose_context');if(!window.__lossExtension)throw Error('Context-loss extension unavailable');window.__lossExtension.loseContext();});await page.waitForFunction(()=>window.__lost);
+  const lost=await state();await page.setViewportSize({width:1320,height:860});await page.waitForTimeout(350);assert.equal((await state()).generations,lost.generations);assert.equal(await page.evaluate(()=>window.__renderBudget.state().active),0);
+  await page.evaluate(()=>window.__lossExtension.restoreContext());await page.waitForFunction(()=>{const c=document.querySelector('.drape-host canvas');return !c.getContext('webgl').isContextLost()&&c.__drapeState?.().generations===1});await resized();
+  const restored=await state();assert.equal(restored.time,lost.time,'Restore preserves field phase');await page.waitForTimeout(500);assert.equal((await state()).generations,restored.generations);assert.equal(restored.state,'sleep');
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(n=>document.querySelector('.drape-host canvas').__drapeState().generations>n,restored.generations);assert.deepEqual(errors,[]);
+  console.log('PASS real WebGL animated Home, hidden tool, minimize/blur/Welcome resize, reduced motion, context loss/no resurrection/phase restoration and animated resume');
+ }finally{await browser.close();server.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});

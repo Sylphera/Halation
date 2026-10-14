@@ -474,7 +474,7 @@
       d.dataset.exit = "branding";
       document.body.classList.add("welcome-releasing");
       document.body.classList.remove("welcome-active");
-      // Reveal Auralis during the branding travel, beneath the untouched live Welcome shader.
+      // Reveal Drape during the branding travel, beneath the untouched live Welcome shader.
       const dissolve = [surface, veil].map(el => done(animate(el, [{ opacity: 1 }, { opacity: 0 }], { dur: dur("place") * 1.4, channel: "welcome", fill: "forwards" })));
       // Interpolate in viewport coordinates against the live Home geometry, including the
       // static logo placement. The same placement continues through Home's reveal.

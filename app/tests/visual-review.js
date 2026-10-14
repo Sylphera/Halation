@@ -2,13 +2,13 @@
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {execFileSync}=require('child_process');
 const attached=new WeakMap();let locatorInstalled=false;
-const sources=Object.fromEntries(['atmosphere.js','auralis.js','blue-noise.js','shell.css','motion.js','tokens.css','processes.js','index.html'].map(f=>[f,crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../dist',f))).digest('hex')]));
+const sources=Object.fromEntries(['atmosphere.js','drape.js','blue-noise.js','shell.css','motion.js','tokens.css','processes.js','index.html'].map(f=>[f,crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../dist',f))).digest('hex')]));
 async function waitPresentation(page){
  const end=Date.now()+15000;
  while(Date.now()<end){
   const ready=await page.evaluate(async()=>{
    const s=await (window.__atmo?.review||window.__atmo?.grainTest)?.scene?.(),c=document.querySelector('.atmo canvas')||document.querySelector('.atmo'),g=document.querySelector('.grain canvas');
-   if(s?.renderer==='auralis')return c.width===s.width&&c.height===s.height&&s.bufferWidth===s.width&&s.bufferHeight===s.height&&s.viewport[2]===s.width&&s.viewport[3]===s.height;
+   if(s?.renderer==='drape')return c.width===s.width&&c.height===s.height&&s.bufferWidth===s.width&&s.bufferHeight===s.height&&s.viewport[2]===s.width&&s.viewport[3]===s.height;
    if(c?.hidden&&(!g||g.parentElement.hidden))return true;
    return !!s&&c.width===s.width&&c.height===s.height&&g.width===Math.round(innerWidth*devicePixelRatio)&&g.height===Math.round(innerHeight*devicePixelRatio);
   });

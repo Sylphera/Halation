@@ -33,7 +33,7 @@ The full text of the SIL Open Font License 1.1 is at the end of this file.
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.30.0, Copyright (c) Microsoft Corporation | MIT | `app/dist/onnxruntime.js` (`ort.webgpu.bundle.min.mjs` without its source-map line; runs Cutout's model) |
 | [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses) |
 | [GSAP](https://gsap.com) 3.15.0 and its Flip plugin, Copyright 2026 GreenSock | [GSAP Standard License](https://gsap.com/standard-license) | `app/dist/gsap.min.js`, `app/dist/Flip.min.js` (unmodified; combined with Halation under the additional permission in `NOTICE.md`) |
-| [webgl-noise](https://github.com/ashima/webgl-noise) (3D simplex noise), Copyright (C) 2011 by Ashima Arts and Copyright (C) 2011-2016 by Stefan Gustavson | MIT | `app/dist/auralis.js` (the Auralis background; the GLSL function, with the integer steps rewritten for exact 32-bit arithmetic, and its JavaScript port) |
+| [webgl-noise](https://github.com/ashima/webgl-noise) (3D simplex noise), Copyright (C) 2011 by Ashima Arts and Copyright (C) 2011-2016 by Stefan Gustavson | MIT | `app/dist/drape.js` (the Drape background; the GLSL function, with the integer steps rewritten for exact 32-bit arithmetic, and its JavaScript port) |
 
 ## Tools downloaded at run time (not included)
 

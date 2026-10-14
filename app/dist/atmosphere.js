@@ -1,7 +1,7 @@
 // The window's background (formerly a React bundle; now plain script). Three parts: the navigation refraction shared by
-// both backgrounds, the tool/page atmosphere (a worker-driven canvas under the tools) and the mount: Home's Auralis
-// (auralis.js) in its isolated host, window.__atmo, and the review hooks used by the visual tests.
-// Needs soft-light.js (window.__softLightGLSL), render-budget.js, blue-noise.js and auralis.js before it.
+// both backgrounds, the tool/page atmosphere (a worker-driven canvas under the tools) and the mount: Home's Drape
+// (drape.js) in its isolated host, window.__atmo, and the review hooks used by the visual tests.
+// Needs soft-light.js (window.__softLightGLSL), render-budget.js, blue-noise.js and drape.js before it.
 (() => {
 "use strict";
 
@@ -30,15 +30,15 @@ vec2 navigationRefraction(vec2 p, vec2 phases, float extent) {
 }
 `;
 
-// The Auralis scene keeps its clock, grain, coverage and approved canvas transform.
+// The Drape scene keeps its clock, grain, coverage and approved canvas transform.
 // The packet keeps its 1100 ms travel rate, with a short, diminishing oscillatory tail.
-function bindNavigationRefraction(api, auralis) {
+function bindNavigationRefraction(api, drape) {
   const trigger = api.navigationWave.bind(api);
   const mq = matchMedia('(prefers-reduced-motion: reduce)');
   const still = () => mq.matches || document.documentElement.dataset.motion === 'reduce';
   let at = 0, previousAt = 0, raf = 0;
-  // the phases go to Auralis' presentation pass (auralis.js), which draws at 60 Hz while the packet travels
-  const write = (phase, previousPhase = -1) => { if (auralis) auralis.wave(phase, previousPhase); };
+  // the phases go to Drape's presentation pass (drape.js), which draws at 60 Hz while the packet travels
+  const write = (phase, previousPhase = -1) => { if (drape) drape.wave(phase, previousPhase); };
   const stop = () => { cancelAnimationFrame(raf); raf = 0; write(0); };
   const frame = now => {
     const phase = (now - at) / 1100;
@@ -61,7 +61,7 @@ function bindNavigationRefraction(api, auralis) {
 }
 
 /* ===== tool atmosphere ===== */
-// Tools share Welcome's quiet light field, held still. Auralis owns Home.
+// Tools share Welcome's quiet light field, held still. Drape owns Home.
 // Keep the existing mode spring, worker, scales and cadence.
 function startToolAtmosphere(onPhase) {
 "use strict";
@@ -238,17 +238,17 @@ return api;
 
 /* ===== mount ===== */
 // Isolated host: navigation refracts the scene locally, outside the approved canvas transform. The surface holds the
-// canvas and the .auralis-wave proxy whose scale (motion.js backgroundWave) Auralis reads; neither is transformed.
+// canvas and the .drape-wave proxy whose scale (motion.js backgroundWave) Drape reads; neither is transformed.
 const host = document.createElement("div");
-host.className = "atmo auralis-host";
+host.className = "atmo drape-host";
 host.setAttribute("aria-hidden", "true");
 const surface = document.createElement("div");
-surface.className = "auralis-surface";
+surface.className = "drape-surface";
 host.append(surface);
 document.body.prepend(host);
-let auralis = null;
-try { auralis = window.__auralis ? window.__auralis.create(surface, { refraction: NAVIGATION_REFRACTION_GLSL }) : null; }
-catch (e) { console.warn("Auralis", e); }
+let drape = null;
+try { drape = window.__drape ? window.__drape.create(surface, { refraction: NAVIGATION_REFRACTION_GLSL }) : null; }
+catch (e) { console.warn("Drape", e); }
 
 let mode = "home";
 const tool = startToolAtmosphere(m => {
@@ -274,11 +274,11 @@ window.__atmo = {
   toolReview: tool.review,
 };
 host.dataset.mode = mode;
-bindNavigationRefraction(window.__atmo, auralis);
+bindNavigationRefraction(window.__atmo, drape);
 
 // Review-only inspection and controlled draw (visual tests); no product control.
-if (window.__halVisualTest && auralis) {
-  const scene = () => { const s = auralis.scene(); return s && { ...s, mode }; };
-  window.__atmo.review = { scene, sceneAt(value) { auralis.sceneAt(value || {}); return scene(); } };
+if (window.__halVisualTest && drape) {
+  const scene = () => { const s = drape.scene(); return s && { ...s, mode }; };
+  window.__atmo.review = { scene, sceneAt(value) { drape.sceneAt(value || {}); return scene(); } };
 }
 })();

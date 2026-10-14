@@ -52,7 +52,7 @@ accents (periwinkle and the state colours), the text colours above `--n-400`, an
 
 ## Backgrounds (shader constants)
 
-The window behind the tools and pages is drawn by WebGL, not by `--bg`, and Home is Auralis's silk. With D's tokens
+The window behind the tools and pages is drawn by WebGL, not by `--bg`, and Home is Drape'ss silk. With D's tokens
 they read too dark, so they are lifted too; only base levels, light gains and Home's target brightness change, never
 the shapes, grain, motion or hues. The chosen amount is H; I (a stronger lift) stays as the reference.
 
@@ -62,8 +62,8 @@ the shapes, grain, motion or hues. The chosen amount is H; I (a stronger lift) s
 | | first light × | `0.052` | `0.068` | `0.080` |
 | | second light × | `0.019` | `0.025` | `0.030` |
 | `atmosphere.js` `PAGE` (Library, Settings) | base | `vec3(.006,.006,.005)` | `vec3(.030,.030,.029)` | `vec3(.044,.044,.042)` |
-| `auralis.js` `DEFAULTS.colors` (Home) | base, middle | `#020203`, `#5d6577` | `#0c0c0d`, `#5d6577` | `#161618`, `#6a7284` |
-| `auralis.js` `F` | `target`, `maxExposure` | `.054`, `1.25` | `.07`, `1.25` | `.11`, `1.5` |
+| `drape.js` `DEFAULTS.colors` (Home) | base, middle | `#020203`, `#5d6577` | `#0c0c0d`, `#5d6577` | `#161618`, `#6a7284` |
+| `drape.js` `F` | `target`, `maxExposure` | `.054`, `1.25` | `.07`, `1.25` | `.11`, `1.5` |
 
 Sampled results: the tool window goes from about `#060606` to `#111111` (H) or `#161616` (I), always below the bubbles
 (`#1a1a19`); Home's mean brightness goes from 14.5 to 20 (H) or 29 (I) on 0–255.
@@ -131,7 +131,7 @@ window, card and raised above the bubble.
 - Neutral greys with the current faint warm bias; no blue tint.
 - The window near black.
 - Muted state colours (red, mint, amber, cyan, pink) unchanged.
-- The pale blue atmosphere, the shape, hues and motion of Home's Auralis silk, and the lit top edge of the bubbles.
+- The pale blue atmosphere, the shape, hues and motion of Home's Drape silk, and the lit top edge of the bubbles.
 - Black where black is the content: `--media` (letterbox behind previews), `--matte-dark`, `--scrim`, `--backdrop`,
   `--crop-shade`, `--busy-dim`.
 - Cover Test platform colours (`--yt-*`, `--sp-*`, `--sc-*`, …): they copy those sites and are never the interface's.
@@ -139,7 +139,7 @@ window, card and raised above the bubble.
 ## Acceptance criteria
 
 1. Only the D token values and the H background values above change, in `tokens.css`, `soft-light.js`,
-   `atmosphere.js` and `auralis.js`; no CSS, HTML or layout
+   `atmosphere.js` and `drape.js`; no CSS, HTML or layout
    change elsewhere. `node app/tests/colors.js` passes (no colour outside the tokens).
 2. In every tool and page, window < bubble < card < raised in luminance, measured on a capture; the dock, the
    bubbles and the cards are told apart at a glance in the README captures.

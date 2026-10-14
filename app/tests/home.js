@@ -81,10 +81,10 @@ const ok = (c, msg) => { console.log((c ? "OK   " : "FAIL ") + msg); if (!c) fai
   await home();
   ok(await page.locator('.hcard[data-go="grade"]').count() === 1, "Grade back on: on the bar again");
 
-  /* ---------- Auralis: one continuous global background, no legacy variants ---------- */
-  ok(await page.evaluate(() => document.querySelectorAll('.atmo canvas').length === 1 && !document.querySelector('.grain') && window.__atmo.current === 'home'), "Background: one Auralis canvas, no separate grain over Home");
+  /* ---------- Drape: one continuous global background, no legacy variants ---------- */
+  ok(await page.evaluate(() => document.querySelectorAll('.atmo canvas').length === 1 && !document.querySelector('.grain') && window.__atmo.current === 'home'), "Background: one Drape canvas, no separate grain over Home");
   await page.reload(); await until(() => page.evaluate(() => !!window.__atmo?.review?.scene()), 8000, 30);
-  ok(await page.evaluate(() => window.__atmo.review.scene().renderer === 'auralis'), "Background: reload mounts the same Auralis source");
+  ok(await page.evaluate(() => window.__atmo.review.scene().renderer === 'drape'), "Background: reload mounts the same Drape source");
   ok(!errors.length, "No page errors" + (errors.length ? ": " + errors.join(" / ") : ""));
   await page.close();
 
@@ -121,10 +121,10 @@ const ok = (c, msg) => { console.log((c ? "OK   " : "FAIL ") + msg); if (!c) fai
   await m.page.screenshot({ path: path.join(SHOTS, "entrance-mid.png") });
   await until(() => m.page.evaluate(() => !window.__motion.busy()), 5000, 30);
   ok(await m.page.evaluate(() => getComputedStyle(document.querySelector(".hero .logo")).opacity === "1"), "Entrance: everything ends in place");
-  ok(await m.page.evaluate(() => document.querySelectorAll('.atmo canvas').length === 1 && !document.querySelector('.grain')), "Home: Auralis owns its integrated grain/dither");
+  ok(await m.page.evaluate(() => document.querySelectorAll('.atmo canvas').length === 1 && !document.querySelector('.grain')), "Home: Drape owns its integrated grain/dither");
   // Library and Settings are pages with their own backdrop; a tool is what restores the tool backdrop
   await m.tab("grade");
-  ok(await until(()=>m.page.evaluate(() => window.__atmo.current === 'tool' && getComputedStyle(document.querySelector('.auralis-host')).visibility === 'hidden' && !document.querySelector('.grain')),5000,20), "Navigation: tools restore the previous backdrop without Auralis");
+  ok(await until(()=>m.page.evaluate(() => window.__atmo.current === 'tool' && getComputedStyle(document.querySelector('.drape-host')).visibility === 'hidden' && !document.querySelector('.grain')),5000,20), "Navigation: tools restore the previous backdrop without Drape");
   await m.page.locator(".rail .tab.home").click();
   // a box crossing the edge of a scrolling column keeps its rounded frame at the edge (common.js)
   await m.tab("settings");

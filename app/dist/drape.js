@@ -1,9 +1,9 @@
-// Auralis: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
+// Drape: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
 // Silk-like waves drift slowly along a diagonal over a near-black, slightly blue base: a domain-warped surface, lit
 // softly, with a few bright lobes, broad gradients and large dark voids. The light field is drawn into a small buffer
 // (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size (DPR up to
 // 2) scales it with a cubic B-spline and adds a ±1/255 dither and Halation's stationary film grain.
-// window.__auralis.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
+// window.__drape.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
 (() => {
 "use strict";
 
@@ -142,7 +142,7 @@ function light(s, bias = 0) {
 }
 
 /* ===== grain ===== */
-// Halation's film grain from the previous Auralis (its own code, reused as is): two layers of the 128×128 blue noise at
+// Halation's film grain from the previous background (its own code, reused as is): two layers of the 128×128 blue noise at
 // 1.35 and 1.7 px, turned off the pixel grid and lightly warped, normalised to a standard deviation of 1; and tpdf(),
 // the triangular ±1 dither. The frame is fixed (0): the grain is stationary.
 const GRAIN_GLSL = `
@@ -306,21 +306,21 @@ function stabiliserAt(aspect, t, fieldHeight, colors) {
 
 /* ===== render ===== */
 // GRAIN_UNIT: grain amplitude per unit of settings.grain × review strength; at the defaults (1.25 × 0.5) the grain is
-// half of the previous Auralis film grain at full strength (0.0098).
+// half of the previous background film grain at full strength (0.0098).
 const GRAIN_UNIT = .00784, FIELD_EDGE = 320, FIELD_FPS = 15, WAVE_FPS = 60, RESIZE_MS = 160, MAX_DT = .1;
 const DEFAULTS = { colors: ["#0c0c0d", "#5d6577", "#b4c4f0"], speed: 1, grain: 1.25 };
 const rgb = c => { const s = String(c).replace("#", ""), h = s.length === 3 ? s.replace(/./g, "$&$&") : s, n = parseInt(h, 16); return isNaN(n) ? [0, 0, 0] : [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
 const decode = b64 => Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
 
 function create(surface, options = {}) {
-  const budget = window.__renderBudget, host = surface.closest(".auralis-host") || surface;
+  const budget = window.__renderBudget, host = surface.closest(".drape-host") || surface;
   const settings = { ...DEFAULTS, ...(options.settings || {}) };
   const canvas = document.createElement("canvas"), proxy = document.createElement("div");
-  canvas.setAttribute("aria-hidden", "true"); proxy.className = "auralis-wave";
+  canvas.setAttribute("aria-hidden", "true"); proxy.className = "drape-wave";
   surface.append(canvas, proxy);
   const gl = canvas.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: "low-power" });
   if (!gl) { canvas.hidden = true; return null; }
-  const noise = decode(window.__auralisBlueNoise || "");
+  const noise = decode(window.__drapeBlueNoise || "");
   let res = null, time = Number(options.time) || 0, bias = 0, exposure = null, exposureTime = 0, target = null, measuredAt = -Infinity, generations = 0, presentations = 0, uploads = 0;
   let last = 0, lastField = -Infinity, lost = false, disposed = false, valid = false, fast = false, resizeTimer = 0;
   let grainStrength = .5, wave = [0, -1], scale = [1, 1];
@@ -328,14 +328,14 @@ function create(surface, options = {}) {
   const size = { w: 0, h: 0, fw: 0, fh: 0, dpr: 1, dirty: true };
 
   function program(fs, vs = VS) {
-    const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) { const log = gl.getShaderInfoLog(s); gl.deleteShader(s); throw Error("Auralis shader: " + log); } return s; };
+    const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) { const log = gl.getShaderInfoLog(s); gl.deleteShader(s); throw Error("Drape shader: " + log); } return s; };
     const v = shader(gl.VERTEX_SHADER, vs);
     let f;
     try { f = shader(gl.FRAGMENT_SHADER, fs); } catch (e) { gl.deleteShader(v); throw e; }
     const p = gl.createProgram();
     gl.attachShader(p, v); gl.attachShader(p, f); gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p);
     gl.detachShader(p, v); gl.detachShader(p, f); gl.deleteShader(v); gl.deleteShader(f);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) { const log = gl.getProgramInfoLog(p); gl.deleteProgram(p); throw Error("Auralis program: " + log); }
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) { const log = gl.getProgramInfoLog(p); gl.deleteProgram(p); throw Error("Drape program: " + log); }
     const u = {}, count = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS) || 0;
     for (let i = 0; i < count; i++) { const name = gl.getActiveUniform(p, i).name; u[name.replace("[0]", "")] = gl.getUniformLocation(p, name); }
     return { p, u };
@@ -388,7 +388,7 @@ function create(surface, options = {}) {
     };
     if (res.half && alloc(res.half)) res.storage = "half-float";
     else if (alloc(gl.UNSIGNED_BYTE)) res.storage = "rgba8";
-    else if (!gl.isContextLost()) throw Error("Auralis: field framebuffer incomplete");
+    else if (!gl.isContextLost()) throw Error("Drape: field framebuffer incomplete");
     res.fw = w; res.fh = h;
   }
   // whole pixels: the canvas at CSS size × DPR (at most 2), the field at 320 px on its long edge
@@ -443,7 +443,7 @@ function create(surface, options = {}) {
     if (field || !generations) { stabilise(); renderField(); lastField = now; }
     present();
   }
-  // the surface scale animated on the .auralis-wave proxy (motion.js backgroundWave), read at each frame
+  // the surface scale animated on the .drape-wave proxy (motion.js backgroundWave), read at each frame
   function readSurface() {
     const t = getComputedStyle(proxy).transform;
     if (!t || t === "none") { scale = [1, 1]; return; }
@@ -484,7 +484,7 @@ function create(surface, options = {}) {
   const bo = new MutationObserver(() => sync()); bo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   const unsubscribe = budget.subscribe(() => sync());
   const invalidate = () => { valid = false; sync(true); };
-  addEventListener("auralisinvalidate", invalidate);
+  addEventListener("drapeinvalidate", invalidate);
   const onLost = e => { e.preventDefault(); lost = true; res = null; task.stop(); clearTimeout(resizeTimer); resizeTimer = 0; size.dirty = true; };
   const onRestored = () => { if (disposed) return; lost = false; generations = presentations = 0; valid = false; try { build(); } catch (e) { release(); throw e; } size.dirty = true; sync(true); };
   canvas.addEventListener("webglcontextlost", onLost); canvas.addEventListener("webglcontextrestored", onRestored);
@@ -494,16 +494,16 @@ function create(surface, options = {}) {
   sync();
 
   // Read-only state and review controls (tests and visual review); no product setting.
-  canvas.__auralisState = () => ({
+  canvas.__drapeState = () => ({
     architecture: "tiny-field-blue-noise", state: lost ? "lost" : !allowed() ? "suspended" : still() ? "sleep" : "animate",
     time, bias, exposure, generations, presentations, fieldWidth: size.fw, fieldHeight: size.fh, fieldStorage: res?.storage || null,
     outputWidth: canvas.width, outputHeight: canvas.height, cssWidth: Math.round(css.w), cssHeight: Math.round(css.h), dpr: size.dpr,
     dirty: size.dirty, targetFps: FIELD_FPS, fps: fast ? WAVE_FPS : FIELD_FPS, grain: "static-film-grain", grainStrength,
     grainUpdates: 1, textureUploads: uploads, textures: res ? 2 : 0, framebuffers: res ? 1 : 0, programs: res ? (res.wave === res.present ? 2 : 3) : 0, scale: scale.slice(), wave: wave.slice()
   });
-  canvas.__auralisReview = { setGrainStrength(v) { grainStrength = Math.max(0, Math.min(3, Number(v) || 0)); valid = false; sync(true); } };
+  canvas.__drapeReview = { setGrainStrength(v) { grainStrength = Math.max(0, Math.min(3, Number(v) || 0)); valid = false; sync(true); } };
   const scene = () => res && ({
-    renderer: "auralis", width: canvas.width, height: canvas.height, cssWidth: surface.clientWidth, cssHeight: surface.clientHeight,
+    renderer: "drape", width: canvas.width, height: canvas.height, cssWidth: surface.clientWidth, cssHeight: surface.clientHeight,
     bufferWidth: gl.drawingBufferWidth, bufferHeight: gl.drawingBufferHeight, viewport: Array.from(gl.getParameter(gl.VIEWPORT)), dpr: devicePixelRatio,
     time, frame: generations, grain: settings.grain * grainStrength, bias, exposure, colors: settings.colors.slice(0, 3).map(rgb),
     resolution: [size.w, size.h], field: [size.fw, size.fh], storage: res.storage
@@ -518,12 +518,12 @@ function create(surface, options = {}) {
     dispose() {
       if (disposed) return; disposed = true;
       task.dispose(); unsubscribe(); ro.disconnect(); mo.disconnect(); bo.disconnect(); clearTimeout(resizeTimer);
-      removeEventListener("resize", onResize); removeEventListener("auralisinvalidate", invalidate);
+      removeEventListener("resize", onResize); removeEventListener("drapeinvalidate", invalidate);
       canvas.removeEventListener("webglcontextlost", onLost); canvas.removeEventListener("webglcontextrestored", onRestored);
       release();
     }
   };
 }
 
-window.__auralis = { create, snoise, height, surface, light, stabiliserAt, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL, grain: GRAIN_GLSL } };
+window.__drape = { create, snoise, height, surface, light, stabiliserAt, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL, grain: GRAIN_GLSL } };
 })();

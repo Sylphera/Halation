@@ -6,8 +6,8 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .spacer{flex:1}
 .atmo{position:fixed;inset:0;z-index:0;width:100%;height:100%;display:block;pointer-events:none}
 .tool-atmo{mix-blend-mode:plus-lighter}
-.auralis-host[data-rest="tool"]~.tool-atmo{mix-blend-mode:normal}
-.auralis-surface,.auralis-surface>canvas{position:absolute;inset:0;width:100%;height:100%}.auralis-surface>canvas{display:block}.auralis-wave{position:absolute;left:0;top:0;width:1px;height:1px;visibility:hidden}
+.drape-host[data-rest="tool"]~.tool-atmo{mix-blend-mode:normal}
+.drape-surface,.drape-surface>canvas{position:absolute;inset:0;width:100%;height:100%}.drape-surface>canvas{display:block}.drape-wave{position:absolute;left:0;top:0;width:1px;height:1px;visibility:hidden}
 .rail,.frame{position:relative;z-index:1}
 .rail{z-index:2;will-change:transform}   /* its tooltips go over the content; its own layer so the tools' canvases (promoted by WebView2) never cover them */
 

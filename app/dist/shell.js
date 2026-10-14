@@ -511,7 +511,7 @@ function show(tab) {
   const back = tab === "home";
   if (back && prev && prev !== tab && window.__atmo) {
     window.__atmo.navigationWave();
-    M.backgroundWave(document.querySelector(".auralis-host .auralis-wave"), back ? 7.5 : 1);
+    M.backgroundWave(document.querySelector(".drape-host .drape-wave"), back ? 7.5 : 1);
   }
   if (prev && prev !== tab) {
     const transition = M.swap(swap, { view, from: $("#v-" + prev), origin: birthOrigin(tab), back, backOrigin: back ? birthOrigin(prev) : null, flat: HEAVY.includes(tab), fromFlat: HEAVY.includes(prev) });
@@ -882,7 +882,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Reuse the approved Home deformation once, when its canvas has mounted.
       const entrance = () => {
         if (S.active() !== "home") return;
-        const canvas = document.querySelector(".auralis-host .auralis-wave");
+        const canvas = document.querySelector(".drape-host .drape-wave");
         if (canvas) M.backgroundWave(canvas, 7.5); else requestAnimationFrame(entrance);
       };
       requestAnimationFrame(entrance);

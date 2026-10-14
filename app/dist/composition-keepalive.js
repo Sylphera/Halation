@@ -9,9 +9,9 @@
   const context = layer.getContext('2d', { alpha: false });
   if (!context) return;
   let timer = 0, writes = 0, active = false, pageHidden = false;
-  const host = document.querySelector('.auralis-host'), welcome = document.querySelector('#welcome');
+  const host = document.querySelector('.drape-host'), welcome = document.querySelector('#welcome');
   const hasLiveScene = () => {
-    // Home's CSS mark and animated Auralis already keep composition active.
+    // Home's CSS mark and animated Drape already keep composition active.
     if (window.__atmo?.current === 'home' && host?.querySelector('canvas') && !window.__renderBudget.reduced) return true;
     // Welcome's own field is live except with reduced motion.
     return !!welcome?.open && !window.__motion.reduced();

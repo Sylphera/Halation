@@ -92,12 +92,12 @@ The durations are settle times, a ceiling: most of the move happens in the first
 ## Ambient
 
 - Product decision2026-10-12 supersedes the earlier no-grain experiment: the user approved stationary blue-noise at50% strength (approved2026-10-12)
-  microtexture on animated Auralis at320px/15Hz. The old procedural grain warp remains benchmark-only.
-  Auralis generates the original smooth field in a tiny target; one simple CSS-pixel pass upscales it and adds
+  microtexture on animated Drape at320px/15Hz. The old procedural grain warp remains benchmark-only.
+  Drape generates the original smooth field in a tiny target; one simple CSS-pixel pass upscales it and adds
   stationary grain/dither. No per-frame grain-texture generation or texture upload.15Hz is preserved under job pressure;
  4/5/8Hz were rejected visually. UI clocks stay independent. DPR does not multiply field/presentation buffers.
-- Hidden, Welcome-covered, unfocused and minimized Auralis does zero work. Reduced motion retains the last image,
-  invalidations redraw once, resize coalesces for160ms, restoration preserves phase. Static Auralis remains a control.
+- Hidden, Welcome-covered, unfocused and minimized Drape does zero work. Reduced motion retains the last image,
+  invalidations redraw once, resize coalesces for160ms, restoration preserves phase. Static Drape remains a control.
   Atmosphere was not redesigned; Home's worker scene is black and static, so it does not duplicate this microtexture.
   Evidence and protocol: docs/performance/auralis-2/GRAIN.md.
 - Home's mark is static: no ambient levitation or recurring animation. Welcome handoff and navigation entrances remain finite transitions. The dock's mark also never moves.

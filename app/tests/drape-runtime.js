@@ -1,7 +1,7 @@
 // Real-time execution measurement, run separately from all video/capture workers. The presentation alternates between its resting and refraction programs; neither is recompiled or deleted.
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const {serve,launch,openApp,until}=require('./common'),{newHost}=require('./scan');
-const out=path.resolve(__dirname,'../../review/auralis');
+const out=path.resolve(__dirname,'../../review/drape');
 (async()=>{
  const server=serve(),browser=await launch();
  try{
@@ -13,10 +13,10 @@ const out=path.resolve(__dirname,'../../review/auralis');
    const results=[],wait=ms=>new Promise(r=>setTimeout(r,ms)),click=n=>document.querySelector(`.rail .tab[data-tab="${n}"]`).click();
    const canvas=document.querySelector('.atmo canvas'),gl=canvas.getContext('webgl'),programs=new Set([gl.getParameter(gl.CURRENT_PROGRAM)]);
    async function run(name,action){
-    const frames=[];let active=true,last=performance.now();const before=window.__atmo.review.scene(),cacheBefore=canvas.__auralisState();
+    const frames=[];let active=true,last=performance.now();const before=window.__atmo.review.scene(),cacheBefore=canvas.__drapeState();
     const sample=t=>{if(!active)return;programs.add(gl.getParameter(gl.CURRENT_PROGRAM));frames.push(t-last);last=t;requestAnimationFrame(sample);};requestAnimationFrame(sample);
     await action();await wait(900);active=false;
-    results.push({name,frames,before,after:window.__atmo.review.scene(),cacheBefore,cacheAfter:canvas.__auralisState(),sameCanvas:canvas===document.querySelector('.atmo canvas'),sameProgram:(programs.add(gl.getParameter(gl.CURRENT_PROGRAM)),programs.size<=2&&[...programs].every(p=>gl.isProgram(p)))});
+    results.push({name,frames,before,after:window.__atmo.review.scene(),cacheBefore,cacheAfter:canvas.__drapeState(),sameCanvas:canvas===document.querySelector('.atmo canvas'),sameProgram:(programs.add(gl.getParameter(gl.CURRENT_PROGRAM)),programs.size<=2&&[...programs].every(p=>gl.isProgram(p)))});
    }
    await run('idle',()=>{});await run('navigation',()=>click('library'));
    await run('interrupted-navigation',async()=>{click('settings');await wait(45);click('home');await wait(45);click('library');await wait(45);click('home');});
@@ -31,8 +31,8 @@ const out=path.resolve(__dirname,'../../review/auralis');
   const result={environment:'Windows Chromium153 ANGLE SwiftShader; isolated runtime, no capture/encoding; does not certify hardware GPU or native WebView2',measurement,summaries,longMainTasks:long,costs,errors};
   fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'runtime-isolated.json'),JSON.stringify(result,null,2));
   assert(!errors.length,errors.join('\n'));assert(measurement.every(m=>m.sameCanvas&&m.sameProgram&&m.after.time>=m.before.time),'Continuous scene across navigation');
-  assert(measurement[0].cacheAfter.generations>measurement[0].cacheBefore.generations&&measurement[0].cacheAfter.time>measurement[0].cacheBefore.time,'Visible idle Auralis stays animated');
+  assert(measurement[0].cacheAfter.generations>measurement[0].cacheBefore.generations&&measurement[0].cacheAfter.time>measurement[0].cacheBefore.time,'Visible idle Drape stays animated');
   assert(measurement.every(m=>m.cacheAfter.fieldWidth<=320&&m.cacheAfter.fieldHeight<=320&&m.cacheAfter.outputWidth===m.cacheAfter.cssWidth&&m.cacheAfter.outputHeight===m.cacheAfter.cssHeight),'Navigation keeps the bounded field and CSS-pixel presentation');
-  console.log('PASS animated tiny-field Auralis runtime. Measured:',JSON.stringify({summaries,longMainTasks:long,costs}));
+  console.log('PASS animated tiny-field Drape runtime. Measured:',JSON.stringify({summaries,longMainTasks:long,costs}));
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

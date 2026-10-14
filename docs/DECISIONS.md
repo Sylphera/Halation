@@ -20,6 +20,7 @@ One line per decision in force and why. Add a line for every new decision; remov
 - A module registry (`modules.js`) is the one list of tools (rail, frames, Home, shortcuts, Settings → Modules); turning a tool off keeps its frame loaded, so work survives.
 - Settings → Storage counts only what Halation itself takes; presets, exports, downloads and fonts are listed apart; a tool found elsewhere on the PC is never removed.
 - The Upscale engine and its models are separate components but share one "upscaler" progress event.
+- Home's background is called Drape (Java, 2026-10-14): Auralis is the name of the unlicensed component it was rewritten from; the old name stays only in history (`CHANGELOG.md`, `docs/performance/`) and provenance notes.
 
 ## Dependencies
 

@@ -3,7 +3,7 @@
 const fs=require('fs'),path=require('path'),assert=require('assert'),cp=require('child_process');
 const {serve,launch,openApp,painted,until}=require('./common'),{newHost}=require('./scan');
 const review=require('./visual-review');
-const out=path.resolve(__dirname,'../../review/auralis-grain2-windows'),frames=path.join(out,'source-frames');fs.mkdirSync(frames,{recursive:true});
+const out=path.resolve(__dirname,'../../review/drape-grain2-windows'),frames=path.join(out,'source-frames');fs.mkdirSync(frames,{recursive:true});
 (async()=>{
  const server=serve(),browser=await launch();
  try{
@@ -19,13 +19,13 @@ const out=path.resolve(__dirname,'../../review/auralis-grain2-windows'),frames=p
   const toolLive=await page.evaluate(()=>window.__atmo.toolReview.scene());
   const toolReplay=await page.evaluate(s=>window.__atmo.toolReview.sceneAt(s),toolLive);assert.deepStrictEqual(toolReplay,toolLive);
   const replay=await page.evaluate(s=>window.__atmo.review.sceneAt(s),live);assert.deepStrictEqual(replay,live);
-  const manifest={live,replay,toolLive,toolReplay,frames:100,fps:60,events:[],source:(await review.state(page)).sources, auralisFrames:[], auralisTiming:"Unmodified component rAF executes on controlled page clock; no synthetic shader time/bias",
+  const manifest={live,replay,toolLive,toolReplay,frames:100,fps:60,events:[],source:(await review.state(page)).sources, drapeFrames:[], drapeTiming:"Unmodified component rAF executes on controlled page clock; no synthetic shader time/bias",
    userEncodingOverride:'MP4 H.264 required for Windows review; prior WebM is no longer the review deliverable',
    encoding:{codec:'H.264',profile:'Main',level:'4.0',pixelFormat:'yuv420p',colorMatrix:'BT.709',range:'limited',faststart:true,crf:16}};
   for(let i=0;i<100;i++){
    if([12,45,60,80].includes(i)){const n=i===12?'library':i===45?'settings':'home';await page.evaluate(n=>document.querySelector(`.rail .tab[data-tab="${n}"]`).click(),n);manifest.events.push({frame:i,name:n});}
    await review.stepTimeline(page,clock,i);
-   manifest.auralisFrames.push(await page.evaluate(()=>window.__atmo.review.scene()));
+   manifest.drapeFrames.push(await page.evaluate(()=>window.__atmo.review.scene()));
    await page.evaluate(({toolLive,i})=>window.__atmo.toolReview.sceneAt({time:toolLive.time+i/60,at:toolLive.at+i*1000/60}),{toolLive,i});
    // Clock remains fixed; let the worker's submitted image reach the OffscreenCanvas placeholder.
    await page.waitForTimeout(150);
