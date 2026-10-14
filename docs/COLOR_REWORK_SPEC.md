@@ -1,6 +1,6 @@
 # Color rework spec
 
-Status: tokens approved at level D (Neutral +); background amount (H or I) pending; not implemented yet. Colour only: layout, type, components, spacing, radii and
+Status: approved, D tokens with the H backgrounds; ready to implement. Colour only: layout, type, components, spacing, radii and
 motion stay as they are.
 
 ## Problem
@@ -53,9 +53,9 @@ accents (periwinkle and the state colours), the text colours above `--n-400`, an
 
 The window behind the tools and pages is drawn by WebGL, not by `--bg`, and Home is Auralis's silk. With D's tokens
 they read too dark, so they are lifted too; only base levels, light gains and Home's target brightness change, never
-the shapes, grain, motion or hues. Two amounts are proposed (H and I; the choice is pending).
+the shapes, grain, motion or hues. The chosen amount is H; I (a stronger lift) stays as the reference.
 
-| Where | Constant | Current | H · D + background | I · D + background + |
+| Where | Constant | Current | H · D + background (chosen) | I · D + background + (reference) |
 | --- | --- | --- | --- | --- |
 | `soft-light.js` `softLight()` (tools, Welcome) | base `col` | `vec3(0.009, 0.010, 0.013)` | `vec3(0.032, 0.032, 0.031)` | `vec3(0.046, 0.046, 0.045)` |
 | | first light × | `0.052` | `0.068` | `0.080` |
@@ -108,7 +108,8 @@ borders and tracks each sit on their own step.
 
 ## Acceptance criteria
 
-1. Only the values listed above change, in `tokens.css` (and, for D, `soft-light.js` and `atmosphere.js`); no CSS, HTML or layout
+1. Only the D token values and the H background values above change, in `tokens.css`, `soft-light.js`,
+   `atmosphere.js` and `auralis.js`; no CSS, HTML or layout
    change elsewhere. `node app/tests/colors.js` passes (no colour outside the tokens).
 2. In every tool and page, window < bubble < card < raised in luminance, measured on a capture; the dock, the
    bubbles and the cards are told apart at a glance in the README captures.
