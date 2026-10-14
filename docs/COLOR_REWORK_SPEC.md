@@ -1,6 +1,6 @@
 # Color rework spec
 
-Status: approved with level D (Neutral +), not implemented yet. Colour only: layout, type, components, spacing, radii and
+Status: tokens approved at level D (Neutral +); background amount (H or I) pending; not implemented yet. Colour only: layout, type, components, spacing, radii and
 motion stay as they are.
 
 ## Problem
@@ -51,15 +51,21 @@ accents (periwinkle and the state colours), the text colours above `--n-400`, an
 
 ## Backgrounds (shader constants)
 
-The window behind the tools and pages is drawn by WebGL, not by `--bg`. C leaves it as it is; D raises only its base
-level, neutral, without touching the lights, shapes, grain or motion.
+The window behind the tools and pages is drawn by WebGL, not by `--bg`, and Home is Auralis's silk. With D's tokens
+they read too dark, so they are lifted too; only base levels, light gains and Home's target brightness change, never
+the shapes, grain, motion or hues. Two amounts are proposed (H and I; the choice is pending).
 
-| Where | Constant | Current | C | D |
+| Where | Constant | Current | H · D + background | I · D + background + |
 | --- | --- | --- | --- | --- |
-| `soft-light.js` `softLight()` (tools, Welcome) | base `col` | `vec3(0.009, 0.010, 0.013)` | unchanged | `vec3(0.016, 0.016, 0.016)` |
-| `atmosphere.js` `PAGE` (Library, Settings) | base | `vec3(.006,.006,.005)` | unchanged | `vec3(.013,.013,.012)` |
+| `soft-light.js` `softLight()` (tools, Welcome) | base `col` | `vec3(0.009, 0.010, 0.013)` | `vec3(0.032, 0.032, 0.031)` | `vec3(0.046, 0.046, 0.045)` |
+| | first light × | `0.052` | `0.068` | `0.080` |
+| | second light × | `0.019` | `0.025` | `0.030` |
+| `atmosphere.js` `PAGE` (Library, Settings) | base | `vec3(.006,.006,.005)` | `vec3(.030,.030,.029)` | `vec3(.044,.044,.042)` |
+| `auralis.js` `DEFAULTS.colors` (Home) | base, middle | `#020203`, `#5d6577` | `#0c0c0d`, `#5d6577` | `#161618`, `#6a7284` |
+| `auralis.js` `F` | `target`, `maxExposure` | `.054`, `1.25` | `.07`, `1.25` | `.11`, `1.5` |
 
-Home's Auralis silk is not touched.
+Sampled results: the tool window goes from about `#060606` to `#111111` (H) or `#161616` (I), always below the bubbles
+(`#1a1a19`); Home's mean brightness goes from 14.5 to 20 (H) or 29 (I) on 0–255.
 
 ## Contrast (WCAG ratio)
 
@@ -117,7 +123,6 @@ borders and tracks each sit on their own step.
 - Layout, spacing, radii, type, icons, components, copy.
 - Motion and the shape, lights or animation of the backgrounds.
 - Accent and state colours.
-- Home's Auralis silk.
 - A light theme or a theme switch.
 - Brand assets (logo, app icon, README hero artwork).
 - Cover Test's platform recreations.
