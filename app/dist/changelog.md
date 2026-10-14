@@ -1,8 +1,6 @@
 # Changelog
 
-## 1.2.1
-
-Replaces 1.2.0, which was withdrawn. Updating from 1.1.1 or 1.2.0 brings everything below.
+## 1.2.0
 
 ### Added
 - The dock opens into a panel with each tool's name and what it is doing: a ring with the percentage while it works,
