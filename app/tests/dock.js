@@ -121,6 +121,12 @@ const SHOTS = process.env.SHOTS && path.join(process.env.SHOTS, "dock");
     assert.equal((await rail()).dock, "overlay"); assert.equal(await homeX(), centred, "Home stays centred on the window");
     await page.keyboard.press("Escape");
     assert.deepEqual(errors, []);
+    // with motion: the selected tab's surface and its bar ride with the rows while the dock opens (they stayed behind)
+    const m = await openApp(browser, server, host, { width: 1920, height: 1010, motion: true }); await sleep(800);
+    await m.page.keyboard.press("Control+b"); await sleep(1500);
+    const off = await m.page.evaluate(() => { const p = document.querySelector(".rail>.hover-selector path").getBoundingClientRect(), t = document.querySelector('.rail .tab[aria-selected="true"]').getBoundingClientRect(), bar = document.querySelector("#railPill").getBoundingClientRect();
+      return [p.top - t.top, bar.top + bar.height / 2 - (t.top + t.height / 2)].map(v => Math.abs(Math.round(v)) <= 1); });
+    assert.deepEqual(off, [true, true], "the selected surface and its bar follow the rows");
     console.log("PASS dock: opens and closes (handle, Ctrl+B, double click, Esc, outside, choice), a wide window makes room, a narrow one floats, activity marks, compact, F11");
   } finally { await browser.close(); server.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

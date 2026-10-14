@@ -200,6 +200,10 @@ function setDock(open, o = {}) {
     const a = M.animate(el, [{ transform: `translateY(${d}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-row", rebase: true, noOvershoot: true });
     (a && a.finished ? a.finished : Promise.resolve()).then(() => el.style.removeProperty("transition"));
   });
+  // the selected tab's surface, the hover and the bar beside the selected tab ride with the rows
+  const followUntil = performance.now() + M.dur("spring") + 120;
+  const follow = () => { rail.__hover?.track(); delete $("#railPill").dataset.placed; placePill(); if (performance.now() < followUntil) requestAnimationFrame(follow); };
+  requestAnimationFrame(follow);
   if (opening) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
   // kept open: the content makes room once and glides there
   const frameAfter = frame.getBoundingClientRect();
@@ -477,7 +481,8 @@ function sharedHover(box, selector) {
   if (box.matches(".rail")) new MutationObserver(fuse)
     .observe(box, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
   new ResizeObserver(() => { place(); fuse(); }).observe(box);
-  box.__hover = { refresh };
+  // track: while the rows glide (the dock opening or closing), the selected surface and the hover follow them each frame
+  box.__hover = { refresh, track: () => { if (target?.isConnected) { delete pill.dataset.placed; place(); } fuse(); } };
 }
 // the rail changes size with the window and when modules are turned on or off
 new ResizeObserver(placePill).observe(document.querySelector(".rail"));
