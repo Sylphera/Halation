@@ -1,7 +1,7 @@
 // Technical file/decoder checks. Native Windows app opening is verified separately by the coordinator.
 const fs=require('fs'),path=require('path'),assert=require('assert'),cp=require('child_process');
 const {PNG}=require(path.join(cp.execSync('npm root -g').toString().trim(),'pngjs'));
-const out=path.resolve(__dirname,'../../review/auralis-grain2-windows'),video=path.join(out,'navigation.mp4');
+const out=path.resolve(__dirname,'../../review/drape-grain2-windows'),video=path.join(out,'navigation.mp4');
 const rgb=file=>{const p=PNG.sync.read(fs.readFileSync(file),{checkCRC:true}),b=Buffer.alloc(p.width*p.height*3);for(let i=0,j=0;i<p.data.length;i+=4){b[j++]=p.data[i];b[j++]=p.data[i+1];b[j++]=p.data[i+2];}return {p,b};};
 (async()=>{
  const images=[];

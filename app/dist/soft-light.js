@@ -1,4 +1,4 @@
-// Shared quiet field; Home Auralis does not use it.
+// Shared quiet field; Home Drape does not use it.
 window.__softLightGLSL = `
 float softHash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);

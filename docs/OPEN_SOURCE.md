@@ -23,7 +23,7 @@ recoge las decisiones, lo que se hizo y lo que queda.
 | `docs/migration-2026-10-02/`, `CLAUDE_HANDOFF.md`, `review/`, `docs/readme-backups/` | Notas internas de worktrees y rutas del PC |
 | Trazas en bruto de `docs/performance*/` (`.json`, `.jsonl`, `.log`, ~250 MB) | Peso y rutas personales; los `.md` con las conclusiones se quedan |
 
-Además: rutas `C:/Users/…` sustituidas por variables de entorno en `app/scripts` y `app/tests/auralis.js`; nombres
+Además: rutas `C:/Users/…` sustituidas por variables de entorno en `app/scripts` y `app/tests/drape.js`; nombres
 de los PCs fuera de `docs/PREVIEW.md`; el ID real de Spotify de los tests (una canción con derechos, el mismo patrón
 que llevó a la retirada de youtube-dl en 2020) cambiado por uno inventado. `.gitignore` evita que vuelvan las trazas.
 
@@ -40,7 +40,7 @@ que llevó a la retirada de youtube-dl en 2020) cambiado por uno inventado. `.gi
 ## Fondos de 21st.dev
 
 Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork) venían de componentes de 21st.dev sin licencia y no están en el repo
-público. En su lugar van la reescritura propia en sala limpia: Auralis v3, aprobado por Java el 13-10-2026, y el fondo
+público. En su lugar van la reescritura propia en sala limpia: Auralis v3 (renombrado Drape el 14-10-2026), aprobado por Java el 13-10-2026, y el fondo
 de Welcome Cáusticas (`docs/BACKGROUNDS_SPEC.md`).
 
 ## Pendiente

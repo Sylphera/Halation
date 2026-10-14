@@ -79,7 +79,7 @@ de modo que una degradación sea más fácil de localizar, reproducir y corregir
 - **Actualizador** (`updates.js` + `update.rs`), **sesiones** (`sessions.js` + `sessions.rs`).
 - **Diálogos compartidos** (`services.js`): Crop, Cutout, selector de Library (`libpanel.js`), "Send to…",
   comparador (`compare.js`), fontpicker.
-- **Fondo** (`atmosphere.js` + `auralis-renderer.js`): Auralis en WebGL1 (React + shader) en Home y escena del worker
+- **Fondo** (`atmosphere.js` + `auralis-renderer.js`): Drape en WebGL1 (React + shader) en Home y escena del worker
   en las herramientas, con presupuesto de render (`render-budget.js`).
 - **Movimiento** (`motion.js`): GSAP + Flip, un muelle, cuatro tokens (`docs/MOTION.md`).
 
@@ -130,7 +130,7 @@ específicos de Tauri/WebView2.
 | Lógica pura JS: `grade-color.js` (LUT byte a byte), scoring de `spotify.js`, lectores de `profile.js`, tabla de `encoder.js`, planificador de `jobs.js` | **Portar a Rust** | Con vectores de prueba de los tests actuales (`grader-lut-baseline.json`). El JS de QML (V4) podría ejecutarlos, pero más lento y sin `cargo test`. |
 | Vistas (DOM + CSS) de todas las pantallas | **Reescribir en QML** | ~4 000 líneas de HTML/CSS y la parte de vista de ~20 000 de JS. |
 | Grade (WebGL2) | **Reescribir** | Shaders GLSL → GLSL 440 compilados con `qsb` (RHI: D3D11 en Windows); pila multipasada en un `QQuickRhiItem` (C++). |
-| Fondo Auralis / escena de herramientas | **Reescribir** | `ShaderEffect` con el mismo shader; el presupuesto de render se simplifica (sin WebView2 ni workers). |
+| Fondo Drape / escena de herramientas | **Reescribir** | `ShaderEffect` con el mismo shader; el presupuesto de render se simplifica (sin WebView2 ni workers). |
 | Visualizer (Canvas 2D) | **Reescribir** | `QPainter` sobre `QImage` (mismo modelo CPU que hoy: decisión "Layers render on CPU canvases"); preview por `QQuickPaintedItem`. |
 | Export de vídeo único (WebCodecs + Mediabunny) | **Sustituir** | Por la ruta FFmpeg de `encode.rs` (ya en ROADMAP: "Single-video export through FFmpeg too"). |
 | Frame Capture (WebCodecs) | **Sustituir** | Decodificación en Rust con FFmpeg (ya existe el extractor) o `QMediaPlayer`/`QVideoSink` para la vista; frame exacto siempre por FFmpeg. |
@@ -230,7 +230,7 @@ aislamiento entre herramientas pasa de iframes a componentes con su propio objet
 | Backend gráfico | RHI D3D11 en Windows; `software` de respaldo si falla | `QSG_RHI_BACKEND` solo para pruebas |
 | ONNX Runtime nativo | el de `stems.rs` (API 24, DirectML, carga dinámica) | Cutout pasa a usarlo |
 | Ventana | 1480 × 940, mínimo 960 × 640, fondo `#0f0e0f` | Igual que `tauri.conf.json` |
-| Fondo Auralis | campo de 320 px de lado largo a 15 Hz | Lo aprobado el 2026-10-12 |
+| Fondo Drape | campo de 320 px de lado largo a 15 Hz | Lo aprobado el 2026-10-12 |
 | Movimiento | `--spring` 320 ms, `--place` 300 ms, `--fade` 140 ms, `--stagger` 28 ms | `docs/MOTION.md` |
 | Descarga de herramientas ociosas | `REST_MS` 30 s, `UNLOAD_MS` 5 min | Como `shell.js` |
 | Distribución | NSIS por usuario, único formato, sin portable (§9.1) | Java, 2026-10-13 |
@@ -254,7 +254,7 @@ aislamiento entre herramientas pasa de iframes a componentes con su propio objet
   pierde la dependencia de WebGPU y de la wasm; la caché de máscaras no cambia.
 - **Vocal Remover, Converter, Upscale, AI Interpolate, Downloader.** Ya ejecutan en Rust o en procesos externos;
   solo cambia la vista.
-- **Fondo.** Auralis y la escena de herramientas como `ShaderEffect`; suspensión al minimizar, perder el foco u
+- **Fondo.** Drape y la escena de herramientas como `ShaderEffect`; suspensión al minimizar, perder el foco u
   ocultarse con las señales de la ventana Qt.
 
 ---
@@ -360,7 +360,7 @@ dependencias y el cierre de cada una, sus criterios de aceptación. Ninguna publ
 | 3 | Servicios compartidos | Library (página y selector), Crop, Send to, sesiones, cierre, single instance, notificaciones | 2 |
 | 4 | Herramientas de vista simple | Downloader, Converter, Upscale, AI Interpolate | 3 |
 | 5 | Audio | Vocal Remover (mezclador), reproducción común | 3 |
-| 6 | GPU y modelos | Grade (RHI), Cutout nativo, Background Remover, fondo Auralis | 3 |
+| 6 | GPU y modelos | Grade (RHI), Cutout nativo, Background Remover, fondo Drape | 3 |
 | 7 | Render CPU y vídeo | Visualizer (QPainter + export FFmpeg), Frame Capture | 3, 5 |
 | 8 | Cover Test | Réplicas de plataformas y export | 3 |
 | 9 | Release | Actualizador propio, instalador final, paso desde la 1.x (§9.2) probado, licencias, primera versión Qt publicada | 4–8 |
@@ -369,7 +369,7 @@ Las fases 4–8 son independientes entre sí; se ejecutan una tras otra (un thre
 
 ### 11.1 Fase 0: preview de Home
 
-- **Qué es:** una reproducción fiel de Home con el shell mínimo para mostrarlo: dock, Auralis, fondo, cards y
+- **Qué es:** una reproducción fiel de Home con el shell mínimo para mostrarlo: dock, Drape, fondo, cards y
   elementos visibles, hover, movimiento y transiciones principales, resize, y estados focused / unfocused /
   minimized. Debe sentirse como una pequeña versión real de Halation, no como un ejemplo de Qt.
 - **Qué no es:** ninguna herramienta (ni Grade, ni Visualizer, ni Processes) ni paridad funcional.
@@ -377,7 +377,7 @@ Las fases 4–8 son independientes entre sí; se ejecutan una tras otra (un thre
   transparencias, navegación básica, comportamiento de ventana y coste en reposo.
 - **Lleva lo mínimo de backend** para validar la cadena: un puente cxx-qt (ajustes de `app.json` y textos de
   `en.json`) y el build de `halation-qt` en el contenedor y en CI de Windows.
-- **Medidas contra la 1.x Tauri** en el mismo PC: arranque, RAM, VRAM, CPU, GPU, reposo, Auralis activo, resize,
+- **Medidas contra la 1.x Tauri** en el mismo PC: arranque, RAM, VRAM, CPU, GPU, reposo, Drape activo, resize,
   focused, unfocused, minimized y estabilidad del frame pacing. No hay una cifra objetivo fijada de antemano; la
   fase existe para obtener datos reales.
 - **Empaquetado:** la preview completa se empaqueta con NSIS con todas sus dependencias y se instala y desinstala

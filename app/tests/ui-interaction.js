@@ -47,24 +47,24 @@ async function settled(page){assert(await until(()=>page.evaluate(()=>!window.__
   ok(await page.locator('#homeDrop').evaluate(e=>getComputedStyle(e).transform==='none'),'reduced-motion drag stays still');await event(page,'dragleave');
   await page.evaluate(()=>delete document.documentElement.dataset.motion);
   await app.tab('library');await settled(page);await app.tab('home');await sleep(40);
-  ok(await page.locator('.auralis-host .auralis-wave').evaluate(e=>getComputedStyle(e).transform!=='none'),'returning Home deforms the Auralis field without changing shader');
-  ok(await page.locator('.auralis-host canvas').evaluate(e=>getComputedStyle(e).transform==='none'&&getComputedStyle(e.parentElement).transform==='none'),'Auralis canvas never moves during the wave (no black edges)');
+  ok(await page.locator('.drape-host .drape-wave').evaluate(e=>getComputedStyle(e).transform!=='none'),'returning Home deforms the Drape field without changing shader');
+  ok(await page.locator('.drape-host canvas').evaluate(e=>getComputedStyle(e).transform==='none'&&getComputedStyle(e.parentElement).transform==='none'),'Drape canvas never moves during the wave (no black edges)');
   const waveContinuity=await page.evaluate(()=>{
-   const e=document.querySelector('.auralis-host .auralis-wave'),c=document.querySelector('.auralis-host canvas'),read=()=>({transform:getComputedStyle(e).transform,width:c.width,height:c.height}),before=read();
+   const e=document.querySelector('.drape-host .drape-wave'),c=document.querySelector('.drape-host canvas'),read=()=>({transform:getComputedStyle(e).transform,width:c.width,height:c.height}),before=read();
    document.querySelector('.rail .tab[data-tab=library]').click();return {before,after:read()};
   });
   assert.deepStrictEqual(waveContinuity.before,waveContinuity.after);checks.push('interrupted wave retains exact current pose and buffer');
   await settled(page);
-  ok(await page.locator('.auralis-host .auralis-wave').evaluate(e=>!e.style.transform),'wave restores exact resting canvas transform');
+  ok(await page.locator('.drape-host .drape-wave').evaluate(e=>!e.style.transform),'wave restores exact resting canvas transform');
   await app.tab('grade');await settled(page);
-  ok(await until(()=>page.evaluate(()=>getComputedStyle(document.querySelector('.auralis-host')).visibility==='hidden'),5000,20),'Grade keeps Auralis hidden at rest');
+  ok(await until(()=>page.evaluate(()=>getComputedStyle(document.querySelector('.drape-host')).visibility==='hidden'),5000,20),'Grade keeps Drape hidden at rest');
   ok(await page.locator('.tool-atmo').evaluate(e=>getComputedStyle(e).transform==='none'),'own tool canvas remains untransformed');
   await app.tab('home');await sleep(30);await page.evaluate(()=>document.documentElement.dataset.motion='reduce');await sleep(30);
-  ok(await page.locator('.auralis-host .auralis-wave').evaluate(e=>getComputedStyle(e).transform==='none'),'reduced motion releases active background wave');
+  ok(await page.locator('.drape-host .drape-wave').evaluate(e=>getComputedStyle(e).transform==='none'),'reduced motion releases active background wave');
   await settled(page);await app.tab('library');await settled(page);
-  ok(await page.locator('.auralis-host .auralis-wave').evaluate(e=>getComputedStyle(e).transform==='none'),'reduced navigation produces no background deformation');
+  ok(await page.locator('.drape-host .drape-wave').evaluate(e=>getComputedStyle(e).transform==='none'),'reduced navigation produces no background deformation');
   ok(!app.errors.length,'no frontend errors');
-  fs.writeFileSync(path.join(OUT,'ui-interaction-wave.json'),JSON.stringify({checks,centered,continuity,waveContinuity,errors:app.errors,scope:'physical drop plus Auralis navigation deformation; own tool canvas and source preserved'},null,2));
+  fs.writeFileSync(path.join(OUT,'ui-interaction-wave.json'),JSON.stringify({checks,centered,continuity,waveContinuity,errors:app.errors,scope:'physical drop plus Drape navigation deformation; own tool canvas and source preserved'},null,2));
   await page.close();console.log('OK retained UI interaction:',checks.join('; '));
  }finally{await browser.close();server.close();fs.rmSync(tmp,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

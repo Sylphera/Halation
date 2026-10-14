@@ -1,11 +1,11 @@
-# Fondos propios: Auralis reescrito y nuevo fondo de Welcome
+# Fondos propios: Drape reescrito y nuevo fondo de Welcome
 
-> Estado (13-10-2026): Auralis v3 aprobado visualmente por Java (vídeo lado a lado) e integrado en `app/dist/auralis.js`:
-> superficie de seda por deformación de dominio, grain del Auralis anterior al 50 %. v1 y v2 (pliegues) se descartaron.
+> Estado (13-10-2026): Auralis v3 (hoy Drape) aprobado visualmente por Java (vídeo lado a lado) e integrado en `app/dist/drape.js`:
+> superficie de seda por deformación de dominio, grain del fondo anterior al 50 %. v1 y v2 (pliegues) se descartaron.
 > La migración a este repo es total: la próxima release sale de aquí y Halation-source se elimina.
 
 Requisito para abrir el código (`docs/OPEN_SOURCE.md`). Los dos fondos actuales parten de componentes de 21st.dev sin
-licencia: Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork). Auralis se reescribe con código propio y el mismo
+licencia: Auralis (Aman Shakya) y Aurora Veil (Isaiah Bjork). Auralis se reescribe con código propio (hoy Drape) y el mismo
 aspecto; Welcome recibe un fondo nuevo y distinto.
 
 ## Procedimiento (sala limpia)
@@ -23,7 +23,7 @@ aspecto; Welcome recibe un fondo nuevo y distinto.
 - Al terminar se borran `auralis.tsx`, `source-integrity.json`, la dependencia de React y su `atmosphere.js.LEGAL.txt`
   si dejan de usarse, y el código antiguo de `welcome-background.js`.
 
-## 1. Auralis (Home y fondo de la ventana)
+## 1. Drape (Home y fondo de la ventana)
 
 ### Lo que se ve (objetivo de paridad)
 
@@ -51,14 +51,14 @@ aspecto; Welcome recibe un fondo nuevo y distinto.
 ### Contrato con el resto de la app (sin cambios)
 
 - `window.__atmo` (mode, navigationWave, current, variant, toolReview) y los `data-` del host igual que hoy.
-- Refracción de navegación (`navigation-refraction.js`) y escala de superficie leída del proxy `.auralis-wave`.
+- Refracción de navegación (`navigation-refraction.js`) y escala de superficie leída del proxy `.drape-wave`.
 - Transición Home ↔ herramienta (`tool-atmosphere.js`), opacidad y escala del host.
 - DPR hasta 2 con canvas redondeado a píxeles; reloj con delta acotado a 0.1 s; `prefers-reduced-motion` como hoy.
 - Parámetros: `colors` (3 hex, por defecto los de arriba), `speed` (1), `grain` (1.25).
 
 ### Implementación
 
-- JavaScript plano en `app/dist/auralis.js` (una sección por parte: shader, ruido, estabilizador, render), sin React
+- JavaScript plano en `app/dist/drape.js` (una sección por parte: shader, ruido, estabilizador, render), sin React
   ni bundler. `atmosphere.js` deja de ser un bundle; `app/background/` se reduce a lo que siga haciendo falta.
 
 ### Criterios de aceptación
@@ -96,6 +96,6 @@ mayor que el fondo actual.
 
 ## Orden
 
-Un thread en High: 1) referencias del fondo actual (otra sesión), 2) Auralis, 3) OK visual, 4) Welcome según la
+Un thread en High: 1) referencias del fondo actual (otra sesión), 2) Drape, 3) OK visual, 4) Welcome según la
 opción elegida, 5) OK visual, 6) limpieza, `THIRD_PARTY.md` y tests. Entra en la rama de apertura; sin `[build]`
 hasta que se decida la primera release tras abrir el código.

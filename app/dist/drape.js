@@ -1,9 +1,9 @@
-// Auralis: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
+// Drape: Home's window background (docs/BACKGROUNDS_SPEC.md §1). Halation's own code, written from that description.
 // Silk-like waves drift slowly along a diagonal over a near-black, slightly blue base: a domain-warped surface, lit
 // softly, with a few bright lobes, broad gradients and large dark voids. The light field is drawn into a small buffer
-// (320 px on the long edge, half-float when the GPU allows) at 15 Hz; one pass at the window's native size (DPR up to
-// 2) scales it with linear filtering and adds a ±1/255 dither and Halation's stationary film grain.
-// window.__auralis.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
+// (320 px on the long edge, half-float when the GPU allows, supersampled on thin crests) at 15 Hz; one pass at the window's native size (DPR up to
+// 2) scales it with a cubic B-spline and adds a ±1/255 dither and Halation's stationary film grain.
+// window.__drape.create(surface, options) → { canvas, proxy, wave(phase, previous), scene(), sceneAt(v), dispose() }
 (() => {
 "use strict";
 
@@ -142,7 +142,7 @@ function light(s, bias = 0) {
 }
 
 /* ===== grain ===== */
-// Halation's film grain from the previous Auralis (its own code, reused as is): two layers of the 128×128 blue noise at
+// Halation's film grain from the previous background (its own code, reused as is): two layers of the 128×128 blue noise at
 // 1.35 and 1.7 px, turned off the pixel grid and lightly warped, normalised to a standard deviation of 1; and tpdf(),
 // the triangular ±1 dither. The frame is fixed (0): the grain is stationary.
 const GRAIN_GLSL = `
@@ -227,17 +227,19 @@ float filmGrain(vec2 px, float frame) {
 /* ===== shader ===== */
 // Both passes draw a 24×16 grid of the window (one mesh for the field and the presentation).
 const GRID = [24, 16];
+// SUPERSAMPLE: the change of light luma per field pixel over which the field takes four more samples (blended in)
+const SUPERSAMPLE = [.02, .04];
 const VS = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
 // The field, per pixel of the small target: u_bias moves the body's threshold and u_exposure scales the light (not
 // the base), so the lit share and the mean brightness of the screen stay steady.
-const FIELD_FS = `precision highp float;
+const FIELD_FS = `#extension GL_OES_standard_derivatives : enable
+precision highp float;
 uniform vec2 u_resolution;uniform float u_time;uniform float u_bias;uniform float u_exposure;uniform vec3 u_colors[3];uniform float u_dither;
 ${NOISE_GLSL}
 ${FIELD_GLSL}
 float hash(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
-void main(){
-  vec2 uv=gl_FragCoord.xy/u_resolution,p=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
-  float t=u_time*${f4(F.rate)},e=1.5/u_resolution.y;
+// the light over the base at p (screen heights): the silk's body, shaded by the diffuse light, and its sheen
+vec3 shade(vec2 p,float t,float e){
   vec2 a=axisSpace(p,t);
   float h=height(a,t);
   vec2 g=vec2(height(a+vec2(e,0.0),t)-h,height(a+vec2(0.0,e),t)-h)/e;
@@ -245,24 +247,52 @@ void main(){
   float diffuse=max(dot(n,normalize(vec3(-0.5,0.5,0.7))),0.0);
   float sheen=pow(max(dot(n,normalize(vec3(-0.3,0.4,0.9))),0.0),${f4(F.sheenPower)});
   float body=smoothstep(${f4(F.bodyLow)}-u_bias,${f4(F.bodyHigh)}-u_bias,h)*voids(a,t);
-  vec3 col=u_colors[0]+u_exposure*(u_colors[1]*body*(${f4(F.diffuseFloor)}+${f4(1 - F.diffuseFloor)}*diffuse)*${f4(F.bodyGain)}+u_colors[2]*sheen*body*body*${f4(F.sheenGain)});
+  return u_exposure*(u_colors[1]*body*(${f4(F.diffuseFloor)}+${f4(1 - F.diffuseFloor)}*diffuse)*${f4(F.bodyGain)}+u_colors[2]*sheen*body*body*${f4(F.sheenGain)});
+}
+void main(){
+  vec2 uv=gl_FragCoord.xy/u_resolution,p=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
+  float t=u_time*${f4(F.rate)},e=1.5/u_resolution.y,px=1.0/u_resolution.y;
+  vec3 light=shade(p,t,e);
+  // where the light changes by more than about a level per field pixel (a thin fold or crest), four more samples on a
+  // rotated grid: a crest thinner than a pixel, sampled once, lands brighter or darker on each pixel along it (beads)
+#ifdef GL_OES_standard_derivatives
+  float ss=smoothstep(${f4(SUPERSAMPLE[0])},${f4(SUPERSAMPLE[1])},fwidth(dot(light,vec3(0.2126,0.7152,0.0722))));
+#else
+  float ss=1.0;
+#endif
+  if(ss>0.0){
+    vec3 more=vec3(0.0);vec2 o=vec2(0.125,0.375);
+    for(int i=0;i<4;i++){more+=shade(p+px*o,t,e);o=vec2(-o.y,o.x);}
+    light=mix(light,(light+more)*0.2,ss);
+  }
+  vec3 col=u_colors[0]+light;
   vec2 v=uv-0.5;v.x*=u_resolution.x/u_resolution.y*0.75;
   col*=1.0-${f4(F.vignette)}*smoothstep(0.2,0.85,length(v));
   col+=u_dither*(hash(gl_FragCoord.xy)+hash(gl_FragCoord.xy+17.0)-1.0)/255.0;
   gl_FragColor=vec4(max(col,0.0),1.0);
 }`;
 // Presentation at native pixels: the field scaled up (with the surface scale and navigation refraction), the ±1/255
-// triangular dither, then the stationary film grain, a little stronger in the midtones.
+// triangular dither, then the stationary film grain, a little stronger in the midtones. The field is scaled with a
+// cubic B-spline (four bilinear taps): a fold thinner than a field pixel, scaled linearly, shows each texel as a bead
+// along the bright crest; the B-spline is smooth across texels and keeps the crest a continuous line.
 const PRESENT_FS = refraction => `precision highp float;
-uniform sampler2D u_field;uniform sampler2D u_blue;uniform vec2 u_resolution;uniform vec2 u_navigationWave;uniform vec2 u_scale;uniform float u_grain;
+uniform sampler2D u_field;uniform sampler2D u_blue;uniform vec2 u_resolution;uniform vec2 u_fieldSize;uniform vec2 u_navigationWave;uniform vec2 u_scale;uniform float u_grain;
 ${refraction}
 ${GRAIN_GLSL}
+vec4 bspline(float f){vec4 n=vec4(1.0,2.0,3.0,4.0)-f,s=n*n*n;float x=s.x,y=s.y-4.0*s.x,z=s.z-4.0*s.y+6.0*s.x;return vec4(x,y,z,6.0-x-y-z)/6.0;}
+vec3 field(vec2 uv){
+  vec2 tc=uv*u_fieldSize-0.5,f=fract(tc);tc-=f;
+  vec4 wx=bspline(f.x),wy=bspline(f.y),s=vec4(wx.xz+wx.yw,wy.xz+wy.yw);
+  vec4 o=(tc.xxyy+vec4(-0.5,1.5,-0.5,1.5)+vec4(wx.yw,wy.yw)/s)/u_fieldSize.xxyy;
+  float sx=s.x/(s.x+s.y),sy=s.z/(s.z+s.w);
+  return mix(mix(texture2D(u_field,o.yw).rgb,texture2D(u_field,o.xw).rgb,sx),mix(texture2D(u_field,o.yz).rgb,texture2D(u_field,o.xz).rgb,sx),sy);
+}
 void main(){
   vec2 fc=gl_FragCoord.xy;
   vec2 p=(fc-0.5*u_resolution)/u_resolution.y;
   float extent=length(vec2(u_resolution.x/u_resolution.y,1.0)*0.5)+0.12;
   p=navigationRefraction(p/u_scale,u_navigationWave,extent);
-  vec3 col=texture2D(u_field,p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5).rgb;
+  vec3 col=field(p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5);
   col+=vec3(tpdf(fc,0.0),tpdf(fc+13.7,0.0),tpdf(fc+41.9,0.0))/255.0;
   float luma=dot(col,vec3(0.2126,0.7152,0.0722));
   col+=vec3(filmGrain(fc,0.0))*mix(1.0,1.4,smoothstep(0.0,0.2,luma))*u_grain;
@@ -296,21 +326,21 @@ function stabiliserAt(aspect, t, fieldHeight, colors) {
 
 /* ===== render ===== */
 // GRAIN_UNIT: grain amplitude per unit of settings.grain × review strength; at the defaults (1.25 × 0.5) the grain is
-// half of the previous Auralis film grain at full strength (0.0098).
+// half of the previous background film grain at full strength (0.0098).
 const GRAIN_UNIT = .00784, FIELD_EDGE = 320, FIELD_FPS = 15, WAVE_FPS = 60, RESIZE_MS = 160, MAX_DT = .1;
 const DEFAULTS = { colors: ["#0c0c0d", "#5d6577", "#b4c4f0"], speed: 1, grain: 1.25 };
 const rgb = c => { const s = String(c).replace("#", ""), h = s.length === 3 ? s.replace(/./g, "$&$&") : s, n = parseInt(h, 16); return isNaN(n) ? [0, 0, 0] : [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
 const decode = b64 => Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
 
 function create(surface, options = {}) {
-  const budget = window.__renderBudget, host = surface.closest(".auralis-host") || surface;
+  const budget = window.__renderBudget, host = surface.closest(".drape-host") || surface;
   const settings = { ...DEFAULTS, ...(options.settings || {}) };
   const canvas = document.createElement("canvas"), proxy = document.createElement("div");
-  canvas.setAttribute("aria-hidden", "true"); proxy.className = "auralis-wave";
+  canvas.setAttribute("aria-hidden", "true"); proxy.className = "drape-wave";
   surface.append(canvas, proxy);
   const gl = canvas.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: "low-power" });
   if (!gl) { canvas.hidden = true; return null; }
-  const noise = decode(window.__auralisBlueNoise || "");
+  const noise = decode(window.__drapeBlueNoise || "");
   let res = null, time = Number(options.time) || 0, bias = 0, exposure = null, exposureTime = 0, target = null, measuredAt = -Infinity, generations = 0, presentations = 0, uploads = 0;
   let last = 0, lastField = -Infinity, lost = false, disposed = false, valid = false, fast = false, resizeTimer = 0;
   let grainStrength = .5, wave = [0, -1], scale = [1, 1];
@@ -318,14 +348,14 @@ function create(surface, options = {}) {
   const size = { w: 0, h: 0, fw: 0, fh: 0, dpr: 1, dirty: true };
 
   function program(fs, vs = VS) {
-    const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) { const log = gl.getShaderInfoLog(s); gl.deleteShader(s); throw Error("Auralis shader: " + log); } return s; };
+    const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS) && !gl.isContextLost()) { const log = gl.getShaderInfoLog(s); gl.deleteShader(s); throw Error("Drape shader: " + log); } return s; };
     const v = shader(gl.VERTEX_SHADER, vs);
     let f;
     try { f = shader(gl.FRAGMENT_SHADER, fs); } catch (e) { gl.deleteShader(v); throw e; }
     const p = gl.createProgram();
     gl.attachShader(p, v); gl.attachShader(p, f); gl.bindAttribLocation(p, 0, "p"); gl.linkProgram(p);
     gl.detachShader(p, v); gl.detachShader(p, f); gl.deleteShader(v); gl.deleteShader(f);
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) { const log = gl.getProgramInfoLog(p); gl.deleteProgram(p); throw Error("Auralis program: " + log); }
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS) && !gl.isContextLost()) { const log = gl.getProgramInfoLog(p); gl.deleteProgram(p); throw Error("Drape program: " + log); }
     const u = {}, count = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS) || 0;
     for (let i = 0; i < count; i++) { const name = gl.getActiveUniform(p, i).name; u[name.replace("[0]", "")] = gl.getUniformLocation(p, name); }
     return { p, u };
@@ -333,6 +363,7 @@ function create(surface, options = {}) {
   // GL resources: one buffer, the field program and the presentation (plus its refraction variant), the field target
   // (texture + framebuffer) and the blue-noise texture
   function build() {
+    gl.getExtension("OES_standard_derivatives");
     const half = gl.getExtension("OES_texture_half_float"), linear = gl.getExtension("OES_texture_half_float_linear");
     gl.getExtension("EXT_color_buffer_half_float");
     const r = res = { half: half && linear ? half.HALF_FLOAT_OES : 0 };
@@ -378,7 +409,7 @@ function create(surface, options = {}) {
     };
     if (res.half && alloc(res.half)) res.storage = "half-float";
     else if (alloc(gl.UNSIGNED_BYTE)) res.storage = "rgba8";
-    else if (!gl.isContextLost()) throw Error("Auralis: field framebuffer incomplete");
+    else if (!gl.isContextLost()) throw Error("Drape: field framebuffer incomplete");
     res.fw = w; res.fh = h;
   }
   // whole pixels: the canvas at CSS size × DPR (at most 2), the field at 320 px on its long edge
@@ -422,7 +453,7 @@ function create(surface, options = {}) {
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, res.target);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, res.blue);
     gl.uniform1i(q.u.u_field, 0); gl.uniform1i(q.u.u_blue, 1);
-    gl.uniform2f(q.u.u_resolution, size.w, size.h); gl.uniform2f(q.u.u_navigationWave, wave[0], wave[1]);
+    gl.uniform2f(q.u.u_resolution, size.w, size.h); gl.uniform2f(q.u.u_fieldSize, res.fw, res.fh); gl.uniform2f(q.u.u_navigationWave, wave[0], wave[1]);
     gl.uniform2f(q.u.u_scale, scale[0], scale[1]); gl.uniform1f(q.u.u_grain, settings.grain * grainStrength * GRAIN_UNIT);
     gl.drawArrays(gl.TRIANGLES, 0, res.vertices);
     presentations++; valid = true;
@@ -433,7 +464,7 @@ function create(surface, options = {}) {
     if (field || !generations) { stabilise(); renderField(); lastField = now; }
     present();
   }
-  // the surface scale animated on the .auralis-wave proxy (motion.js backgroundWave), read at each frame
+  // the surface scale animated on the .drape-wave proxy (motion.js backgroundWave), read at each frame
   function readSurface() {
     const t = getComputedStyle(proxy).transform;
     if (!t || t === "none") { scale = [1, 1]; return; }
@@ -474,7 +505,7 @@ function create(surface, options = {}) {
   const bo = new MutationObserver(() => sync()); bo.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   const unsubscribe = budget.subscribe(() => sync());
   const invalidate = () => { valid = false; sync(true); };
-  addEventListener("auralisinvalidate", invalidate);
+  addEventListener("drapeinvalidate", invalidate);
   const onLost = e => { e.preventDefault(); lost = true; res = null; task.stop(); clearTimeout(resizeTimer); resizeTimer = 0; size.dirty = true; };
   const onRestored = () => { if (disposed) return; lost = false; generations = presentations = 0; valid = false; try { build(); } catch (e) { release(); throw e; } size.dirty = true; sync(true); };
   canvas.addEventListener("webglcontextlost", onLost); canvas.addEventListener("webglcontextrestored", onRestored);
@@ -484,16 +515,16 @@ function create(surface, options = {}) {
   sync();
 
   // Read-only state and review controls (tests and visual review); no product setting.
-  canvas.__auralisState = () => ({
+  canvas.__drapeState = () => ({
     architecture: "tiny-field-blue-noise", state: lost ? "lost" : !allowed() ? "suspended" : still() ? "sleep" : "animate",
     time, bias, exposure, generations, presentations, fieldWidth: size.fw, fieldHeight: size.fh, fieldStorage: res?.storage || null,
     outputWidth: canvas.width, outputHeight: canvas.height, cssWidth: Math.round(css.w), cssHeight: Math.round(css.h), dpr: size.dpr,
     dirty: size.dirty, targetFps: FIELD_FPS, fps: fast ? WAVE_FPS : FIELD_FPS, grain: "static-film-grain", grainStrength,
     grainUpdates: 1, textureUploads: uploads, textures: res ? 2 : 0, framebuffers: res ? 1 : 0, programs: res ? (res.wave === res.present ? 2 : 3) : 0, scale: scale.slice(), wave: wave.slice()
   });
-  canvas.__auralisReview = { setGrainStrength(v) { grainStrength = Math.max(0, Math.min(3, Number(v) || 0)); valid = false; sync(true); } };
+  canvas.__drapeReview = { setGrainStrength(v) { grainStrength = Math.max(0, Math.min(3, Number(v) || 0)); valid = false; sync(true); } };
   const scene = () => res && ({
-    renderer: "auralis", width: canvas.width, height: canvas.height, cssWidth: surface.clientWidth, cssHeight: surface.clientHeight,
+    renderer: "drape", width: canvas.width, height: canvas.height, cssWidth: surface.clientWidth, cssHeight: surface.clientHeight,
     bufferWidth: gl.drawingBufferWidth, bufferHeight: gl.drawingBufferHeight, viewport: Array.from(gl.getParameter(gl.VIEWPORT)), dpr: devicePixelRatio,
     time, frame: generations, grain: settings.grain * grainStrength, bias, exposure, colors: settings.colors.slice(0, 3).map(rgb),
     resolution: [size.w, size.h], field: [size.fw, size.fh], storage: res.storage
@@ -508,12 +539,12 @@ function create(surface, options = {}) {
     dispose() {
       if (disposed) return; disposed = true;
       task.dispose(); unsubscribe(); ro.disconnect(); mo.disconnect(); bo.disconnect(); clearTimeout(resizeTimer);
-      removeEventListener("resize", onResize); removeEventListener("auralisinvalidate", invalidate);
+      removeEventListener("resize", onResize); removeEventListener("drapeinvalidate", invalidate);
       canvas.removeEventListener("webglcontextlost", onLost); canvas.removeEventListener("webglcontextrestored", onRestored);
       release();
     }
   };
 }
 
-window.__auralis = { create, snoise, height, surface, light, stabiliserAt, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL, grain: GRAIN_GLSL } };
+window.__drape = { create, snoise, height, surface, light, stabiliserAt, field: F, glsl: { noise: NOISE_GLSL, field: FIELD_GLSL, grain: GRAIN_GLSL } };
 })();

@@ -1,7 +1,7 @@
-// Auralis (app/dist/auralis.js) without a browser: blue noise, CPU/shader field description, exposure stabiliser,
+// Drape (app/dist/drape.js) without a browser: blue noise, CPU/shader field description, exposure stabiliser,
 // GL resources, cadence and lifecycle against a recording WebGL mock. No screenshots or timing claims.
 const assert=require('assert/strict'),fs=require('fs'),path=require('path'),vm=require('vm'),cp=require('child_process');
-const dist=path.join(__dirname,'../dist'),code=fs.readFileSync(path.join(dist,'auralis.js'),'utf8'),noise=fs.readFileSync(path.join(dist,'blue-noise.js'),'utf8');
+const dist=path.join(__dirname,'../dist'),code=fs.readFileSync(path.join(dist,'drape.js'),'utf8'),noise=fs.readFileSync(path.join(dist,'blue-noise.js'),'utf8');
 
 /* ===== blue noise ===== */
 cp.execFileSync(process.execPath,[path.join(__dirname,'../scripts/blue-noise.js'),'--check'],{stdio:'pipe'});
@@ -35,7 +35,7 @@ function setup({half=true,complete=true,failShader=false,width=1480,height=940,d
   add(fn,options){const t={fn,options:{...options},active:false,start(){this.active=true},request(){this.active=true},stop(){this.active=false},setFps(f){this.options.fps=f},dispose(){this.active=false;this.disposed=true}};tasks.push(t);return t;},
   subscribe(fn){subscriptions.add(fn);return()=>subscriptions.delete(fn)}};
  class Observer{constructor(fn){this.fn=fn;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}}
- const context={__renderBudget:budget,__auralisBlueNoise:/"([^"]+)"/.exec(noise)[1],document:{body:{classList:{contains:n=>bodyClasses.has(n)}},createElement:el},
+ const context={__renderBudget:budget,__drapeBlueNoise:/"([^"]+)"/.exec(noise)[1],document:{body:{classList:{contains:n=>bodyClasses.has(n)}},createElement:el},
   getComputedStyle:()=>({transform:'none'}),DOMMatrixReadOnly:class{constructor(){this.a=this.d=1}},innerWidth:width,innerHeight:height,devicePixelRatio:dpr,
   performance:{now:()=>clock},ResizeObserver:Observer,MutationObserver:Observer,Float32Array,Uint8Array,atob:s=>Buffer.from(s,'base64').toString('binary'),
   addEventListener(n,f){windowListeners[n]=f},removeEventListener(n,f){if(windowListeners[n]===f)delete windowListeners[n]},
@@ -43,14 +43,14 @@ function setup({half=true,complete=true,failShader=false,width=1480,height=940,d
  context.window=context;vm.createContext(context);vm.runInContext(code,context);
  const task=()=>tasks.at(-1);
  return {context,gl,host,surface,budget,tasks,observers,subscriptions,live,listeners,windowListeners,timers,bodyClasses,draws,uniforms,
-  create:options=>context.__auralis.create(surface,options),canvas:()=>surface.children[0],state:()=>surface.children[0].__auralisState(),
+  create:options=>context.__drape.create(surface,options),canvas:()=>surface.children[0],state:()=>surface.children[0].__drapeState(),
   notify(){for(const fn of subscriptions)fn()},flush(){for(const [k,fn] of [...timers]){timers.delete(k);fn()}},setLost:v=>lost=v,
   tick(ms=1000/15){clock+=ms;const t=task();if(t.active)t.fn(clock,budget.profile);}};
 }
 
 /* ===== field ===== */
 {
- const s=setup(),A=s.context.__auralis,F=A.field;
+ const s=setup(),A=s.context.__drape,F=A.field;
  let lo=Infinity,hi=-Infinity;for(let i=0;i<20000;i++){const v=A.snoise(Math.sin(i)*40,Math.cos(i*1.3)*40,i*.01);lo=Math.min(lo,v);hi=Math.max(hi,v);}
  assert(lo>-1.05&&hi<1.05&&hi-lo>1.4,'Simplex noise spans about [-1, 1]: '+lo.toFixed(3)+' '+hi.toFixed(3));
  assert(/const vec2 AXIS=vec2\(0\.65998,0\.75128\)/.test(A.glsl.field),'Waves on the diagonal axis');
@@ -82,7 +82,7 @@ for(const half of [true,false]){
  assert.equal(s.draws.length,d0+120,'Visible focused Home draws field + presentation each tick');assert(st().time>t0);assert.equal(s.live.size,7,'No resource growth');assert.equal(s.uniforms.uploads,1,'No per-frame uploads');
  // the clock delta is capped at 0.1 s
  const t1=st().time;s.tick(5000);assert(Math.abs(st().time-t1-.1)<1e-9,'Delta capped at 0.1 s');
- for(const v of [0,.35,3,12,-2]){c.__auralisReview.setGrainStrength(v);assert.equal(st().grainStrength,Math.max(0,Math.min(3,v)));}c.__auralisReview.setGrainStrength(.5);
+ for(const v of [0,.35,3,12,-2]){c.__drapeReview.setGrainStrength(v);assert.equal(st().grainStrength,Math.max(0,Math.min(3,v)));}c.__drapeReview.setGrainStrength(.5);
  function suspended(name,change,undo){change();s.notify();const before=s.draws.length,t=st().time;for(let i=0;i<10;i++)s.tick();
   assert.equal(s.draws.length,before,name+' does no work');assert.equal(st().time,t);assert.equal(s.tasks[0].active,false);assert.equal(st().state,'suspended');
   undo();s.notify();s.tick();assert.equal(s.draws.length,before+2,name+' resumes');assert.equal(st().time,t,'Resume does not count the time away');}
@@ -95,14 +95,14 @@ for(const half of [true,false]){
  assert.equal(s.timers.size,1,'Resize coalesced');s.flush();s.tick();assert.equal(c.width,2400);assert.equal(c.height,1600);assert.equal(st().fieldHeight,213);assert.equal(st().dirty,false);
  // reduced motion: the last image stays, an invalidation draws once
  s.budget.reduced=true;s.notify();const r=s.draws.length;for(let i=0;i<10;i++)s.tick();assert.equal(s.draws.length,r,'Reduced motion keeps the last image');assert.equal(st().state,'sleep');
- s.windowListeners.auralisinvalidate();assert.equal(s.draws.length,r+2,'Invalidation draws once');for(let i=0;i<5;i++)s.tick();assert.equal(s.draws.length,r+2);
+ s.windowListeners.drapeinvalidate();assert.equal(s.draws.length,r+2,'Invalidation draws once');for(let i=0;i<5;i++)s.tick();assert.equal(s.draws.length,r+2);
  s.budget.reduced=false;s.notify();s.tick();assert.equal(s.tasks[0].active,true);
  // navigation wave: refraction program and 60 Hz presentation while it travels, field still at 15 Hz
  const presentProgram=s.draws.at(-1).program;api.wave(.3,-1);assert.equal(st().fps,60);s.tick(1000/60);assert.notEqual(s.draws.at(-1).program,presentProgram,'Refraction variant while the packet travels');
  const w=s.draws.length;for(let i=0;i<8;i++)s.tick(1000/60);const fields=s.draws.slice(w).filter(d=>d.fbo).length;assert(fields>=1&&fields<=3,'Field keeps its own cadence: '+fields);
  api.wave(0,-1);s.tick(1000/60);assert.equal(st().fps,15);assert.equal(s.draws.at(-1).program,presentProgram);
  // context loss: nothing resurrects it; restoration keeps the phase
- const lostTime=st().time;s.setLost(true);s.listeners.webglcontextlost({preventDefault(){}});s.notify();s.windowListeners.auralisinvalidate();s.observers[0].fn([]);s.flush();
+ const lostTime=st().time;s.setLost(true);s.listeners.webglcontextlost({preventDefault(){}});s.notify();s.windowListeners.drapeinvalidate();s.observers[0].fn([]);s.flush();
  const ld=s.draws.length;for(let i=0;i<5;i++)s.tick();assert.equal(s.draws.length,ld);assert.equal(s.tasks[0].active,false);assert.equal(st().state,'lost');assert.equal(st().time,lostTime);
  s.live.clear();s.setLost(false);s.listeners.webglcontextrestored();assert.equal(st().time,lostTime,'Restoration keeps the field phase');assert.equal(s.live.size,7,'Resources rebuilt once');
  s.tick();assert(st().time>lostTime);
@@ -113,4 +113,4 @@ for(const half of [true,false]){
 {const s=setup({complete:false});assert.throws(()=>s.create(),/framebuffer incomplete/);assert.equal(s.live.size,0,'A failed field target releases everything');}
 {const s=setup({failShader:true});assert.throws(()=>s.create(),/injected compile failure/);assert.equal(s.live.size,0,'A failed shader releases everything');}
 {const s=setup({width:600,height:900,dpr:1});s.create();assert.equal(s.state().fieldHeight,320);assert.equal(s.state().fieldWidth,213,'Portrait: 320 px on the long edge');}
-console.log('PASS Auralis without a browser: blue noise, field, stabiliser, resources, cadence, suspension, resize, reduced motion, context loss and cleanup');
+console.log('PASS Drape without a browser: blue noise, field, stabiliser, resources, cadence, suspension, resize, reduced motion, context loss and cleanup');
