@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests the real executable (Linux, WebKitGTK under Xvfb): one-time import of data from earlier versions,
-"Open with" through arguments and the remembered window size. Usage: python3 app/tests/realapp.py [binary path]"""
+"Open with" through arguments, the first window size and the remembered one. Usage: python3 app/tests/realapp.py [binary path]"""
 import json, os, re, shutil, subprocess, sys, tempfile, time
 from Xlib import X, display, protocol
 
@@ -97,6 +97,10 @@ try:
     ok(until(lambda: recent().get("tab") == "visualizer" and recent().get("kind") == "audio"), "\"Open with\" an audio file opens the Visualizer tab")
     w = until(find_window)
     ok(bool(w), "Window visible with the title Halation")
+    g0 = w.get_geometry() if w else None
+    # first start (docs/WINDOW_SPEC.md): maximized over a restored size of 85 % of the screen (Xvfb has no window
+    # manager to maximize it, so the restored size shows), never larger than the screen
+    ok(bool(g0) and 1600 - 2 <= g0.width <= 1920 and 900 <= g0.height <= 1080, f"First start opens large, inside the screen: {g0.width if g0 else '?'}×{g0.height if g0 else '?'}")
     w.configure(x=140, y=90, width=1300, height=820); dpy.sync(); time.sleep(1.0)
     close(w)
     ok(until(lambda: p.poll() is not None, 15), "Closing the window ends the program")

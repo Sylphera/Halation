@@ -37,7 +37,7 @@ function createHost(root, opts = {}) {
   const dir = (...parts) => { const d = path.join(base, ...parts); fs.mkdirSync(d, { recursive: true }); return d; };
   for (const l of LAYOUT) dir(...l);
   const log = [], exports = new Map();
-  let nextExport = 1;
+  let nextExport = 1, fullscreen = false;
   const opened = { queue: [], allowed: new Set() };
   const statePath = () => path.join(dir("Settings"), "app.json");
   const readState = () => { try { return JSON.parse(fs.readFileSync(statePath(), "utf8")); } catch (e) { return {}; } };
@@ -379,6 +379,7 @@ function createHost(root, opts = {}) {
     open_path: ({ path: p }) => { insideBase(p); return null; },
     reveal_path: ({ path: p }) => { if (!fs.existsSync(p) && !fs.existsSync(path.dirname(p))) throw new Error("The export folder no longer exists"); return null; },
     set_progress: () => null,
+    window_fullscreen: ({ on } = {}) => { fullscreen = on == null ? !fullscreen : !!on; log.push(["window_fullscreen", fullscreen]); return fullscreen; },
     notify: () => null,
     asset_put: (_, bytes, h) => {
       const ext = safeId(h["x-ext"] || "").toLowerCase() || "bin";

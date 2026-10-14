@@ -4,7 +4,7 @@ Cómo se abre la ventana principal, qué tamaño mínimo admite y cómo se recue
 tipo CapCut, que abren ocupando la pantalla porque el trabajo creativo necesita sitio. Idea de Java: 2026-10-14
 ("que la app se abra más ancha por default; en pantalla completa o lo que mejor experiencia dé").
 
-Estado: pendiente de aprobación. No se implementa hasta que Java lo diga.
+Estado: aprobada (Java, 2026-10-14) e implementada en 1.2.0. Lo que cambió al implementar está en §10.
 
 ---
 
@@ -173,3 +173,20 @@ Textos nuevos solo en `en.json`: `set.openMode`, `set.openMode.last`, `set.openM
 - Varias ventanas o sacar una herramienta a una ventana aparte.
 - Distribuciones por herramienta (tamaños de paneles guardados) o escalado de la interfaz (zoom).
 - Recordar tamaño distinto por herramienta.
+
+---
+
+## 10. Implementación (1.2.0)
+
+- `app.json` → `window`: `x`, `y` siguen en **píxeles físicos** (identifican el monitor sin ambigüedad entre escalas);
+  `width`, `height` en lógicos con `units: 2`; además `monitor`, `maximized`, `fullscreen`. Un archivo sin `units` se
+  lee como antes (físicos) y se convierte con la escala del monitor donde cae.
+- Los ajustes son planos en `settings`: `openMode` y `rememberFullscreen` (sin control en Settings; `false`).
+  `fullscreenHinted` recuerda que el aviso de F11 ya se mostró.
+- La decisión es una función pura, `window.rs` → `plan`, con sus pruebas en `cargo test`; `restore_window` la aplica
+  (posición, tamaño, y luego maximizar o pantalla completa) antes de `show()`.
+- En el primer arranque se usa el monitor donde estaba la ventana si había posición guardada (migración desde el
+  tamaño antiguo); si no, el principal.
+- `tests/realapp.py` comprueba el primer arranque (en Xvfb no hay gestor de ventanas que maximice, así que se ve el
+  85 %: 1600 × 918 en 1920 × 1080) y que el tamaño guardado vuelve.
+- Pendiente de verificar en Windows: maximizar real, escalas 125–150 %, segundo monitor (§7).

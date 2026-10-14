@@ -1329,7 +1329,7 @@ document.addEventListener("keydown", e => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(tag) && document.activeElement.type !== "range" && document.activeElement.type !== "checkbox";
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { if (typing) return; e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { if (typing) return; e.preventDefault(); redo(); }
-  else if (!typing && (e.key === "b" || e.key === "B") && !e.repeat) setOrig(true);
+  else if (!typing && !e.ctrlKey && !e.metaKey && (e.key === "b" || e.key === "B") && !e.repeat) setOrig(true);
 });
 document.addEventListener("keyup", e => { if (e.key === "b" || e.key === "B") setOrig(false); });
 

@@ -26,6 +26,7 @@ const S = window.__shell = {};
 // (toolDefaults, "Use as default" in the tool)
 const DEFAULT_SETTINGS = {
   version: 2, language: "en", reduceMotion: false, showProcesses: true, notifyDone: true, artistName: "", links: {},
+  dockMode: "overlay", dockOpen: false, dockActivity: true, openMode: "last", rememberFullscreen: false,
   saveMode: null, saveLocationChosen: false, videoName: "{title}.mp4", imageName: "{title}.png",
   processing: { mode: "balanced", gpu: true, minimized: "continue", limits: null, stems: "auto" },
   workspace: { budgetMB: 8192 }, modules: {}
@@ -105,6 +106,7 @@ const ready = (async () => {
   buildRail();
   I.apply(document);
   window.__icons.apply(document);
+  dockSettings();
   document.body.classList.remove("booting");
   enterApp();
   // the last run never closed (a crash, a power cut): its work was kept, and the user is told once
@@ -119,8 +121,8 @@ let TABS = [];
 // Builds the rail, the frames of the tools and the Home cards; again whenever a module is turned on or off
 function buildRail() {
   const btn = m => m.id === "home"
-    ? `<button class="tab home" role="tab" data-tab="home" aria-controls="v-home" data-i18n-aria-label="tab.home"><img src="img/halation-mark.svg" alt="" width="573" height="282"></button>`
-    : `<button class="tab" role="tab" data-tab="${m.id}" data-icon="${m.icon}" aria-controls="v-${m.id}" data-i18n-aria-label="tab.${m.id}"></button>`;
+    ? `<button class="tab home" role="tab" data-tab="home" aria-controls="v-home" data-i18n-aria-label="tab.home"><img src="img/halation-mark.svg" alt="" width="573" height="282"><span class="tl" data-i18n="tab.home"></span></button>`
+    : `<button class="tab" role="tab" data-tab="${m.id}" data-icon="${m.icon}" aria-controls="v-${m.id}" data-i18n-aria-label="tab.${m.id}"><span class="tl"><span data-i18n="tab.${m.id}"></span><small></small></span><span class="ts" aria-hidden="true"></span></button>`;
   const top = REG.MODULES.filter(m => m.place !== "bottom" && on_(m)), bottom = REG.MODULES.filter(m => m.place === "bottom" && on_(m));
   $("#railTop").innerHTML = top.map((m, i) => (i && m.group !== top[i - 1].group ? `<span class="rail-sep" aria-hidden="true"></span>` : "") + btn(m)).join("");
   $("#railBottom").innerHTML = bottom.map(btn).join("");
@@ -142,7 +144,124 @@ function buildRail() {
   document.querySelectorAll(".rail .tab").forEach((b, i) => { b.dataset.tip = t("shell.tabTip", { name: t("tab." + b.dataset.tab), n: i + 1 }); });
   if (active && !TABS.includes(active)) show("home");
   else if (active) { document.querySelectorAll(".rail .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === active))); placePill(); }
+  dockActivity(); dockHandle();
 }
+
+/* ---------- the dock opened: names and each tool's activity (docs/DOCK_SPEC.md) ---------- */
+// dockMode: compact (never opens) | overlay (opens over the content, default) | pinned (stays open, the content makes
+// room; as overlay under DOCK_PIN_MIN). Ctrl+B, the handle at its foot or a double click on its empty surface.
+const DOCK_PIN_MIN = 1280, DOCK_MODES = ["compact", "overlay", "pinned"];
+let dockOpen = false;
+const dockMode = () => DOCK_MODES.includes(st.settings.dockMode) ? st.settings.dockMode : "overlay";
+const dockPinned = () => dockMode() === "pinned" && innerWidth >= DOCK_PIN_MIN;
+function dockHandle() {
+  const b = $("#dockToggle"), key = dockOpen ? "dock.close" : "dock.open";
+  b.hidden = dockMode() === "compact";
+  b.setAttribute("aria-expanded", String(dockOpen));
+  b.title = t(key) + " · Ctrl B"; b.setAttribute("aria-label", t(key));
+  const want = dockOpen ? "panel-left-close" : "panel-left-open";
+  if (b.dataset.icon !== want) { b.dataset.icon = want; b.innerHTML = ""; window.__icons.apply(b.parentNode); }
+}
+// open: true | false; o.save keeps it for the next start (pinned only), o.instant skips the move
+function setDock(open, o = {}) {
+  const rail = $(".rail"), bg = rail.querySelector(".rail-bg"), frame = $(".frame");
+  open = !!open && dockMode() !== "compact";
+  const layout = open ? (dockPinned() ? "pinned" : "overlay") : "";
+  if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
+  const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
+  dockOpen = open;
+  rail.toggleAttribute("data-open", open);
+  if (layout) document.body.dataset.dock = layout; else delete document.body.dataset.dock;
+  dockHandle(); placePill();
+  if (o.save && dockMode() === "pinned" && st.settings.dockOpen !== open) S.setSetting("dockOpen", open);
+  if (o.instant || !before.width) return;
+  // the surface changes shape on the spring; its corners stay round while it is stretched
+  const after = bg.getBoundingClientRect(), sx = before.width / after.width, sy = before.height / after.height;
+  if (Math.abs(sx - 1) > .001 || Math.abs(sy - 1) > .001 || Math.abs(before.left - after.left) > .5) {
+    const a = M.animate(bg, [{ transform: `translate(${before.left - after.left}px,${before.top - after.top}px) scale(${sx},${sy})` }, { transform: "none" }], { dur: "spring", channel: "dock-surface", rebase: true, noOvershoot: true, lazy: false });
+    if (a && a.tween) {
+      const round = () => { const kx = +M.gsap.getProperty(bg, "scaleX") || 1, ky = +M.gsap.getProperty(bg, "scaleY") || 1; bg.style.borderRadius = `${26 / kx}px / ${26 / ky}px`; };
+      round(); a.tween.eventCallback("onUpdate", round);
+      a.finished.then(() => bg.style.removeProperty("border-radius"));
+    }
+  }
+  if (open) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
+  // kept open: the content makes room once and glides there
+  const frameAfter = frame.getBoundingClientRect();
+  if (Math.abs(frameBefore.left - frameAfter.left) > .5) M.animate(frame, [{ transform: `translateX(${frameBefore.left - frameAfter.left}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-room", rebase: true, noOvershoot: true });
+}
+const toggleDock = () => setDock(!dockOpen, { save: true });
+// F11: the whole window in full screen (window.rs window_fullscreen); the first time, how to leave it
+async function toggleFullscreen() {
+  const on = await invoke("window_fullscreen", {}).catch(() => null);
+  if (on && !st.settings.fullscreenHinted) { toast(t("window.fullscreenHint")); S.setSetting("fullscreenHinted", true); }
+}
+$("#dockToggle").addEventListener("click", toggleDock);
+$(".rail").addEventListener("dblclick", e => { if (!e.target.closest(".tab,.dock-toggle")) toggleDock(); });
+// over the content: a choice, a click elsewhere (also inside a tool: the window loses focus to its frame) or Esc closes it
+const dockFloats = () => dockOpen && document.body.dataset.dock === "overlay";
+document.addEventListener("pointerdown", e => { if (dockFloats() && !e.target.closest(".rail")) setDock(false); }, true);
+window.addEventListener("blur", () => { if (dockFloats()) setDock(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && dockFloats()) setDock(false); });
+window.addEventListener("resize", () => { if (dockOpen) setDock(true); });
+// The activity of each tool, from the jobs (jobs.js): failed > running > waiting > done since it was last opened
+const dockSeen = {};
+function dockModel() {
+  const by = {};
+  const list = S.jobs ? S.jobs.list() : [];
+  for (const j of list) {
+    if (j.silent) continue;
+    const id = j.tool === "settings" || !j.tool ? "settings" : j.tool;
+    const m = by[id] = by[id] || { running: 0, queued: 0, failed: 0, doneUnseen: 0, w: 0, p: 0, known: false, lead: null };
+    const after = id !== active && (dockSeen[id] || 0) < (j.endedAt || 0);
+    if (j.state === "running") {
+      m.running++;
+      if (j.progress != null) { m.known = true; m.w += j.cost || 1; m.p += (j.cost || 1) * j.progress; }
+      if (!m.lead || PRIO(j) < PRIO(m.lead)) m.lead = j;
+    } else if (j.state === "queued" || j.state === "held") m.queued++;
+    else if (j.state === "failed" && after) m.failed++;
+    else if (j.state === "done" && after) m.doneUnseen++;
+  }
+  for (const m of Object.values(by)) m.progress = m.known && m.w ? m.p / m.w : null;
+  return by;
+}
+const PRIO = j => ({ user: 0, normal: 1, background: 2 })[j.priority] ?? 1;
+const RING_C = 43.98;   // 2π·7
+function dockActivity() {
+  const by = dockModel();
+  document.querySelectorAll(".rail .tab").forEach(b => {
+    const id = b.dataset.tab, m = by[id], ts = b.querySelector(".ts"), sub = b.querySelector(".tl small");
+    const s = !m ? "" : m.failed ? "fail" : m.running ? "run" : m.queued ? "queue" : m.doneUnseen ? "done" : "";
+    const name = t("tab." + id);
+    if (sub) {
+      const lead = s === "run" && m.lead && m.lead.title ? m.lead.title + (m.running > 1 ? " +" + (m.running - 1) : "") : "";
+      if (sub.textContent !== lead) sub.textContent = lead;
+      sub.hidden = !lead;
+    }
+    b.setAttribute("aria-label", s ? t("dock.state." + s, { name, pct: m.progress == null ? "" : Math.round(m.progress * 100), n: m.queued }) : name);
+    if (!ts) return;
+    const key = s + "|" + (s === "run" ? (m.progress == null ? "i" : Math.round(m.progress * 100)) : s === "queue" ? m.queued : "");
+    if (ts.dataset.key === key) return;
+    ts.dataset.key = key;
+    if (!s) { delete ts.dataset.s; ts.innerHTML = ""; return; }
+    const was = ts.dataset.s; ts.dataset.s = s;
+    ts.classList.toggle("indet", s === "run" && m.progress == null);
+    if (s === "run") {
+      if (was !== "run" || !ts.querySelector(".dock-ring")) ts.innerHTML = `<svg class="dock-ring" viewBox="0 0 16 16"><circle class="trk" cx="8" cy="8" r="7"/><circle class="arc" cx="8" cy="8" r="7"/></svg><span class="tx"></span>`;
+      if (m.progress != null) ts.querySelector(".arc").style.strokeDashoffset = String(RING_C * (1 - m.progress)); else ts.querySelector(".arc").style.removeProperty("stroke-dashoffset");
+      ts.querySelector(".tx").textContent = m.progress == null ? "" : Math.round(m.progress * 100) + " %";
+    } else ts.innerHTML = window.__icons.icon(s === "queue" ? "clock" : s === "done" ? "circle-check" : "circle-alert") + (s === "queue" ? `<span class="tx">${m.queued}</span>` : "");
+  });
+}
+// the mark opens the processes tray (Ctrl+J), the rest of the row the tool
+$(".rail").addEventListener("click", e => { const ts = e.target.closest(".ts[data-s]"); if (ts && dockOpen && S.processes) { e.stopPropagation(); S.processes.open(); } }, true);
+on("jobs", () => dockActivity());
+function dockSettings() {
+  document.body.dataset.dockActivity = st.settings.dockActivity === false ? "off" : "on";
+  setDock(dockMode() === "pinned" && st.settings.dockOpen === true, { instant: true });
+  dockHandle();
+}
+Object.assign(S, { setDock, dockSettings, dockOpen: () => dockOpen });
 
 // Save state reported by the tool pages ("Saved on this PC"), shown in the header for the active one
 const syncState = {};
@@ -357,6 +476,9 @@ function show(tab) {
   // the tab left behind saves what it has
   if (prev && prev !== tab) { const a = loadedApp(prev); if (a && a.leave) Promise.resolve().then(() => a.leave()).catch(() => {}); leftAt[prev] = Date.now(); }
   delete leftAt[tab]; rested.delete(tab);
+  // its ended work has been seen; over the content, the dock gives the room back
+  dockSeen[tab] = Date.now(); if (prev && prev !== tab) dockSeen[prev] = Date.now(); dockActivity();
+  if (dockFloats()) setDock(false);
   awayAll();
   document.querySelectorAll(".rail .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   placePill();
@@ -524,6 +646,9 @@ function globalKeys(e) {
   // Ctrl+J: the processes tray (processes.js), from any view
   if (e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === "j" || e.key === "J") && S.processes) { e.preventDefault(); S.processes.toggle(); return; }
   if (e.ctrlKey && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key) && window.__halTab(+e.key - 1)) { e.preventDefault(); return; }
+  // Ctrl+B: the dock opened or closed (docs/DOCK_SPEC.md); F11: full screen (docs/WINDOW_SPEC.md)
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); if (dockMode() !== "compact") toggleDock(); return; }
+  if (e.key === "F11" && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); toggleFullscreen(); return; }
   if (e.key === "?" && !e.ctrlKey && !e.altKey) {
     const el = e.target, typing = el && ((/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && !["range", "checkbox", "radio", "button"].includes(el.type)) || el.isContentEditable);
     if (!typing) { e.preventDefault(); openKeys(); }
@@ -531,7 +656,7 @@ function globalKeys(e) {
 }
 document.addEventListener("keydown", e => { globalKeys(e); if (e.key === "Escape") closeLangMenu(); });
 const KEYS = [
-  ["general", [["tabs", "keys.tabs"], ["Ctrl+J", "keys.processes"], ["?", "keys.this"], ["Esc", "keys.close"]]],
+  ["general", [["tabs", "keys.tabs"], ["Ctrl+J", "keys.processes"], ["Ctrl+B", "keys.dock"], ["F11", "keys.fullscreen"], ["?", "keys.this"], ["Esc", "keys.close"]]],
   ["visualizer", [["keys.space", "keys.v.play"], ["← →", "keys.v.jump"], ["F", "keys.v.full"], ["keys.dblclick", "keys.reset"], ["keys.drag", "keys.v.marks"], ["keys.drop", "keys.v.drop"]]],
   ["grade", [["Ctrl+Z", "keys.undo"], ["Ctrl+Shift+Z · Ctrl+Y", "keys.redo"], ["B", "keys.g.orig"], ["keys.dblclick", "keys.reset"], ["keys.g.selectKeys", "keys.g.select"], ["↑ ↓", "keys.g.move"], ["Esc", "keys.g.unselect"]]],
   ["upscale", [["keys.wheel", "keys.u.zoom"], ["keys.drag", "keys.u.pan"], ["keys.dblclick", "keys.u.fit"], ["← →", "keys.u.divider"]]]
@@ -1049,6 +1174,9 @@ for (const [id, k] of Object.entries(TEXTS)) {
 document.querySelectorAll('input[name="saveMode"]').forEach(r => r.addEventListener("change", () => { if (r.checked) S.exportLocation.setMode(r.value).catch(e => S.toast(String(e))); }));
 $("#setReduceMotion").addEventListener("change", e => { M.setReduce(e.target.checked); setSetting("reduceMotion", e.target.checked); });
 $("#setShowProcesses").addEventListener("change", e => setSetting("showProcesses", e.target.checked));
+$("#setDock").addEventListener("change", e => { setSetting("dockMode", e.target.value); setSetting("dockOpen", e.target.value === "pinned"); S.dockSettings(); });
+$("#setDockActivity").addEventListener("change", e => { setSetting("dockActivity", e.target.checked); S.dockSettings(); });
+$("#setOpenMode").addEventListener("change", e => setSetting("openMode", e.target.value));
 $("#setNotifyDone").addEventListener("change", e => setSetting("notifyDone", e.target.checked));
 $("#setLanguage").addEventListener("change", async e => { if (!(await S.setLanguage(e.target.value))) e.target.value = S.I.lang(); });
 $("#setProcMode").addEventListener("change", e => { setProc("mode", e.target.value); renderProcessing(); });
@@ -1451,6 +1579,9 @@ async function renderSettings() {
   document.querySelectorAll('input[name="saveMode"]').forEach(r => { r.checked = r.value === st.settings.saveMode; });
   $("#setReduceMotion").checked = !!st.settings.reduceMotion;
   $("#setShowProcesses").checked = st.settings.showProcesses !== false;
+  $("#setDock").value = ["compact", "overlay", "pinned"].includes(st.settings.dockMode) ? st.settings.dockMode : "overlay";
+  $("#setDockActivity").checked = st.settings.dockActivity !== false;
+  $("#setOpenMode").value = ["last", "maximized", "fullscreen"].includes(st.settings.openMode) ? st.settings.openMode : "last";
   $("#setNotifyDone").checked = st.settings.notifyDone !== false;
   $("#setLanguage").value = S.I.lang();
   $("#setBudget").value = String(st.settings.workspace.budgetMB || 8192);
