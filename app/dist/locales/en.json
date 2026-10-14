@@ -357,7 +357,7 @@
   "grade.st.toolAdded": "Added to layers: {name}. You can keep adjusting it from Layers.",
   "grade.textDefault": "Title",
   "grade.textLayer": "Text: {text}",
-  "grade.thumbHint2": "Thumbnails show each filter alone on your picture at this intensity. A click previews it; “Add to layers” or a double click keeps it at this same percentage.",
+  "grade.thumbHint2": "Thumbnails show each filter on top of your layers at this intensity. A click previews it; “Add to layers” or a double click keeps it at this same percentage.",
   "grade.thumbPct": "Preview intensity",
   "grade.tool.adjust": "Color adjustments",
   "grade.tool.gmap": "Duotone / gradient",
