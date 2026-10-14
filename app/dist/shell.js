@@ -148,8 +148,8 @@ function buildRail() {
 }
 
 /* ---------- the dock opened: names and each tool's activity (docs/DOCK_SPEC.md) ---------- */
-// dockMode: compact (never opens) | overlay (opens over the content, default) | pinned (stays open, the content makes
-// room; as overlay under DOCK_PIN_MIN). Ctrl+B, the row at its foot or a double click on its empty surface.
+// dockMode: compact (never opens) | overlay (opens until a choice or a click elsewhere, default) | pinned (stays open).
+// From DOCK_PIN_MIN wide the content makes room in both; under it the dock floats over the content. Ctrl+B, the row at its foot or a double click on its empty surface.
 const DOCK_PIN_MIN = 1280, DOCK_MODES = ["compact", "overlay", "pinned"];
 let dockOpen = false;
 const dockMode = () => DOCK_MODES.includes(st.settings.dockMode) ? st.settings.dockMode : "overlay";
@@ -167,10 +167,15 @@ function dockHandle() {
 function setDock(open, o = {}) {
   const rail = $(".rail"), bg = rail.querySelector(".rail-bg"), frame = $(".frame");
   open = !!open && dockMode() !== "compact";
-  const layout = open ? (dockPinned() ? "pinned" : "overlay") : "";
+  // wide enough, the content makes room and stays centred in what is left (kept open or not); narrower, it floats over.
+  // Home keeps the window's centre while it fits beside the opened dock (pinned-over: kept open, no room made)
+  const homeFits = active === "home" && (innerWidth - $("#hcards").offsetWidth) / 2 >= 22 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dock-w")) || 232) + 16;
+  const pinned = dockMode() === "pinned";
+  const layout = !open ? "" : innerWidth < DOCK_PIN_MIN ? "overlay" : homeFits ? (pinned ? "pinned-over" : "overlay") : pinned ? "pinned" : "room";
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
   const rows = [...rail.querySelectorAll(".tab,.rail-sep,.spacer,.dock-toggle")], rowsBefore = rows.map(el => el.getBoundingClientRect().top);
+  const opening = open && !dockOpen;   // already open (only the room changes): the names stay
   dockOpen = open;
   rail.toggleAttribute("data-expanded", open);
   if (layout) document.body.dataset.dock = layout; else delete document.body.dataset.dock;
@@ -195,7 +200,11 @@ function setDock(open, o = {}) {
     const a = M.animate(el, [{ transform: `translateY(${d}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-row", rebase: true, noOvershoot: true });
     (a && a.finished ? a.finished : Promise.resolve()).then(() => el.style.removeProperty("transition"));
   });
-  if (open) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
+  // the selected tab's surface, the hover and the bar beside the selected tab ride with the rows
+  const followUntil = performance.now() + M.dur("spring") + 120;
+  const follow = () => { rail.__hover?.track(); delete $("#railPill").dataset.placed; placePill(); if (performance.now() < followUntil) requestAnimationFrame(follow); };
+  requestAnimationFrame(follow);
+  if (opening) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
   // kept open: the content makes room once and glides there
   const frameAfter = frame.getBoundingClientRect();
   if (Math.abs(frameBefore.left - frameAfter.left) > .5) M.animate(frame, [{ transform: `translateX(${frameBefore.left - frameAfter.left}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-room", rebase: true, noOvershoot: true });
@@ -209,7 +218,7 @@ async function toggleFullscreen() {
 $("#dockToggle").addEventListener("click", toggleDock);
 $(".rail").addEventListener("dblclick", e => { if (!e.target.closest(".tab,.dock-toggle")) toggleDock(); });
 // over the content: a choice, a click elsewhere (also inside a tool: the window loses focus to its frame) or Esc closes it
-const dockFloats = () => dockOpen && document.body.dataset.dock === "overlay";
+const dockFloats = () => dockOpen && ["overlay", "room"].includes(document.body.dataset.dock);
 document.addEventListener("pointerdown", e => { if (dockFloats() && !e.target.closest(".rail")) setDock(false); }, true);
 window.addEventListener("blur", () => { if (dockFloats()) setDock(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && dockFloats()) setDock(false); });
@@ -472,7 +481,8 @@ function sharedHover(box, selector) {
   if (box.matches(".rail")) new MutationObserver(fuse)
     .observe(box, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
   new ResizeObserver(() => { place(); fuse(); }).observe(box);
-  box.__hover = { refresh };
+  // track: while the rows glide (the dock opening or closing), the selected surface and the hover follow them each frame
+  box.__hover = { refresh, track: () => { if (target?.isConnected) { delete pill.dataset.placed; place(); } fuse(); } };
 }
 // the rail changes size with the window and when modules are turned on or off
 new ResizeObserver(placePill).observe(document.querySelector(".rail"));
@@ -488,7 +498,7 @@ function show(tab) {
   delete leftAt[tab]; rested.delete(tab);
   // its ended work has been seen; over the content, the dock gives the room back
   dockSeen[tab] = Date.now(); if (prev && prev !== tab) dockSeen[prev] = Date.now(); dockActivity();
-  if (dockFloats()) setDock(false);
+  if (dockFloats()) setDock(false); else if (dockOpen) setDock(true);   // kept open: Home and the tools centre differently
   awayAll();
   document.querySelectorAll(".rail .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   placePill();
