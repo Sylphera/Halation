@@ -50,8 +50,8 @@ are is in `docs/DECISIONS.md`.
 Format: file → section: functions.
 
 - Main window
-  - `shell.js` → shell: `buildRail`, `show` (switch view), `ensureApp` / `usable` (a tool's API, turned off),
-    `globalKeys`, `toast`, `ask` (confirmations), `awayAll` (tools not shown are marked away), `unloadIdle` (after `REST_MS`, 30 s,
+  - `shell.js` → shell: `buildRail` · the dock opened (docs/DOCK_SPEC.md): `setDock` (open or closed, over the content or making room; `.rail-bg` changes shape on the spring), `dockModel` / `dockActivity` (each tool's mark from the jobs), `dockSettings` · `show` (switch view), `ensureApp` / `usable` (a tool's API, turned off),
+    `globalKeys` (Ctrl+B the dock, F11 full screen), `toast`, `ask` (confirmations), `awayAll` (tools not shown are marked away), `unloadIdle` (after `REST_MS`, 30 s,
     away a tool with work open gets `rest()`: Frame Capture lets go of its decoder, frames and sound and opens them
     again behind the picture kept, AI Interpolate its original; after `UNLOAD_MS`, 5 min, a tool whose `idle()` is true
     is unloaded; minimized, both at once; then WebView2's memory target is lowered a moment), `setLanguage`, `pageNav` (the section tabs at the top of Settings and the Library) · home: `renderHome`, `openRecent`, `enterHome` (entrance), the tool bar `#hcards` (built in `buildRail`, the dock's pointer light), the drop zone `#homeDrop` (`homeChoice`: an image's choice inside it, `homeDragOver`) · library: `renderLibrary`,
@@ -355,7 +355,7 @@ Every tool reaches them through `window.__hal` (code in `services.js`, see the c
   small helpers every module uses (re-exported by `main.rs`).
 - One module per area: `state.rs` (Settings\app.json; sessions: `begin` drops the last run's open work after a clean close, keeps it
   after a crash, `end_session`), `presets.rs`, `files.rs` (saving exports), `assets.rs`
-  (fonts and logos), `system.rs` (taskbar, notifications, fonts, disk space; `legal_text`: LICENSE and THIRD_PARTY.md compiled in, shown in Settings → About and copied beside the installed exe), `window.rs` (closing: `close_requested` asks the page, `app_quit` stops processes and exports; `memory_low`:
+  (fonts and logos), `system.rs` (taskbar, notifications, fonts, disk space; `legal_text`: LICENSE and THIRD_PARTY.md compiled in, shown in Settings → About and copied beside the installed exe), `window.rs` (size and position, docs/WINDOW_SPEC.md: `plan` decides how the window opens from the monitors' work areas, the saved `window` and `openMode`, `restore_window` applies it before the window shows, `save_window` keeps the size in logical pixels; `window_fullscreen`: F11; closing: `close_requested` asks the page, `app_quit` stops processes and exports; `memory_low`:
   WebView2's memory target), `openwith.rs`,
   `migrate.rs` (data of earlier versions), `tools.rs` (finding and installing upscayl-bin, yt-dlp, FFmpeg, Pandoc, LibreOffice (the MSI unpacked with
   `msiexec /a` into `Tools\libreoffice`, or the user's install) and PDFium),

@@ -718,7 +718,7 @@ window.__halApp = {
       if (!MODES[opts.mode]) opts.mode = "hq4";
       if (!CODEC[opts.format]) opts.format = "wav";
       if (!["44100", "source"].includes(opts.rate)) opts.rate = "44100";
-      if (!["orig", "sep"].includes(opts.ab)) opts.ab = "sep";
+      opts.ab = "sep";   // the A/B listening switch starts on the stems (DECISIONS: reopening)
       delete opts.dest; delete opts.destAsked;
     }
     syncOpts(); renderQueue(); await refreshEngine(false);

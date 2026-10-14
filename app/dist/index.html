@@ -23,12 +23,15 @@
 <!-- while the app starts: its shape, until it is there (shell.js enterApp) -->
 <div class="bootsk" id="bootSkel" aria-hidden="true"><div class="sk bsk-rail"></div><div class="bsk-main"><div class="sk bsk-logo"></div><div class="sk bsk-word"></div><div class="sk bsk-note"></div><div class="sk bsk-tools"></div></div></div>
 <script src="blue-noise.js"></script><script src="auralis.js"></script><script src="atmosphere.js"></script>
-<nav class="rail bubble" data-i18n-aria-label="shell.sections">
+<nav class="rail bubble" id="dock" data-i18n-aria-label="shell.sections">
+  <span class="rail-bg" aria-hidden="true"></span>
   <span class="rail-pill" id="railPill" aria-hidden="true"></span>
   <!-- tabs built from the module registry (modules.js, shell.js buildRail) -->
   <div class="rail-tabs" id="railTop" role="tablist" aria-orientation="vertical"></div>
   <span class="spacer"></span>
   <div class="rail-tabs" id="railBottom" role="tablist" aria-orientation="vertical"></div>
+  <span class="rail-sep dock-sep" aria-hidden="true"></span>
+  <button class="dock-toggle" id="dockToggle" data-icon="panel-left-open" aria-controls="dock" aria-expanded="false"><span class="tl"></span></button>
 </nav>
 
 <div class="frame">
@@ -140,6 +143,7 @@
       <div class="pbar">
         <nav class="tabs pnav" id="setNav" role="tablist" data-i18n-aria-label="tab.settings">
           <button class="tab" role="tab" data-sec="sg-general" data-i18n="set.g.general"></button>
+          <button class="tab" role="tab" data-sec="sg-interface" data-i18n="set.interface"></button>
           <button class="tab" role="tab" data-sec="sg-you" data-i18n="set.g.you"></button>
           <button class="tab" role="tab" data-sec="sg-files" data-i18n="set.g.files"></button>
           <button class="tab" role="tab" data-sec="sg-processing" data-i18n="set.g.processing"></button>
@@ -168,6 +172,12 @@
           <div class="acts"><button class="btn" id="testNotify" data-icon="info"><span data-i18n="set.testNotify"></span></button></div>
           <p class="note" id="notifyResult"></p>
         </details>
+      </section>
+      <section class="card" id="sg-interface">
+        <h2 data-i18n="set.interface"></h2>
+        <label class="f setlang"><span data-i18n="set.dock"></span><select id="setDock"><option value="compact" data-i18n="set.dock.compact"></option><option value="overlay" data-i18n="set.dock.overlay"></option><option value="pinned" data-i18n="set.dock.pinned"></option></select></label>
+        <label class="tog" for="setDockActivity"><span data-i18n="set.dockActivity"></span><input type="checkbox" id="setDockActivity"></label>
+        <label class="f setlang"><span data-i18n="set.openMode"></span><select id="setOpenMode"><option value="last" data-i18n="set.openMode.last"></option><option value="maximized" data-i18n="set.openMode.maximized"></option><option value="fullscreen" data-i18n="set.openMode.fullscreen"></option></select></label>
       </section>
       <section class="card" id="sg-you">
         <h2 data-i18n="set.g.you"></h2>

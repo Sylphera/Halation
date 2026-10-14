@@ -99,7 +99,7 @@ function snoise(x, y, z) {
 const F = {
   angle: .85, along: .38, across: .9, scale: .95, rate: .0055, drift: .5, warp: 1.3, ripple: .12, rippleFreq: 10,
   normal: .1, sheenPower: 1.6, bodyLow: -.2, bodyHigh: .55, voids: .9, diffuseFloor: .1, bodyGain: 1.1, sheenGain: .45,
-  vignette: .4, target: .054, maxBias: .5, minExposure: .8, maxExposure: 1.25
+  vignette: .4, target: .07, maxBias: .5, minExposure: .8, maxExposure: 1.25
 };
 const f4 = x => x.toFixed(5);
 const FIELD_GLSL = `
@@ -298,7 +298,7 @@ function stabiliserAt(aspect, t, fieldHeight, colors) {
 // GRAIN_UNIT: grain amplitude per unit of settings.grain × review strength; at the defaults (1.25 × 0.5) the grain is
 // half of the previous Auralis film grain at full strength (0.0098).
 const GRAIN_UNIT = .00784, FIELD_EDGE = 320, FIELD_FPS = 15, WAVE_FPS = 60, RESIZE_MS = 160, MAX_DT = .1;
-const DEFAULTS = { colors: ["#020203", "#5d6577", "#b4c4f0"], speed: 1, grain: 1.25 };
+const DEFAULTS = { colors: ["#0c0c0d", "#5d6577", "#b4c4f0"], speed: 1, grain: 1.25 };
 const rgb = c => { const s = String(c).replace("#", ""), h = s.length === 3 ? s.replace(/./g, "$&$&") : s, n = parseInt(h, 16); return isNaN(n) ? [0, 0, 0] : [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
 const decode = b64 => Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
 

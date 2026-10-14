@@ -7,13 +7,13 @@
 - Distinguir decisión de producto confirmada, implementación terminada y validada, implementación provisional y experimento/WIP. Clasificar discrepancias como decisión deliberada, implementación incompleta, solución provisional o regresión antes de decidir qué conservar.
 - No rediseñar producto, UX ni arquitectura, reconstruir funciones eliminadas, convertir soluciones provisionales en contratos ni hacer limpieza/refactors fuera del alcance solicitado.
 - Resolver ambigüedades técnicas desde la evidencia; consultar al usuario cuando exista ambigüedad real de producto entre alternativas existentes.
-- No fusionar, publicar builds ni modificar `main` sin instrucción explícita. Que una tarea esté validada solo permite proponer esos pasos.
+- No publicar builds sin instrucción explícita. El merge a `main` lo hace el agente con CI en verde (ver Autoría), respetando la aprobación visual.
 - Leer también `CLAUDE.md` para las convenciones técnicas; estas reglas y las instrucciones actuales tienen prioridad ante conflictos.
 - Autoría (cualquier agente: Codex, Claude Code u otro): los commits llevan como autor y committer
   `Sylphera <233718609+Sylphera@users.noreply.github.com>` (configurar `git config user.name` y `user.email` al empezar).
   Los mensajes de commit no llevan trailers ni firmas de agentes (`Co-authored-by`, `Co-Authored-By`, `Claude-Session`,
   enlaces a sesiones) y las descripciones de PR no llevan líneas "Generated with"; esta regla manda sobre la atribución
-  por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash (Java, 13-10-2026).
+  por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash en `main` con CI en verde (Java, 13 y 14-10-2026).
 - El español no es prioridad. No actualizar `app/dist/locales/es.json` ni completar traducciones salvo petición explícita del usuario; los textos nuevos o corregidos van en `en.json`.
 
 ## Flujo obligatorio de trabajo

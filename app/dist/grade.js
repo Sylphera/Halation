@@ -1091,9 +1091,9 @@ function scheduleThumbs(delay = 350) {
   clearTimeout(thumbTimer);
   if(window.__ui.away){waitForThumbs();return;}
   thumbTimer = setTimeout(() => {
-    // a thumbnail is the look alone over the picture and its effects: the looks in Layers are left out, so adjusting
-    // them changes no thumbnail
-    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0 && !isLook(l))) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick + "|" + JSON.stringify(personalNames().map(n => G.looks[n]));
+    // a thumbnail is what a click would preview: the look on top of the looks in Layers, under the effects, so any
+    // change to Layers repaints the tiles
+    const key = JSON.stringify(G.layers.filter(l => l.on && l.amt > 0)) + "|" + G.thumbPct + "|" + srcW + "x" + srcH + "|" + G.fontsTick + "|" + JSON.stringify(personalNames().map(n => G.looks[n]));
     if (key !== thumbKey) {
       thumbKey = key;
       // a new picture: the tiles shimmer until their thumbnail is painted
@@ -1138,9 +1138,9 @@ function pumpThumbs() {
   thumbBusy = true;
   if (prepareThumbLUT(thumbQueue[0])) return;
   const S = 160, target = acquire(S, S), uv = cropRect(IMG.centered(srcW, srcH, "1:1")).uni;
-  const id = thumbQueue.shift(), C = entryLayer(id), live = G.layers.filter(l => l.on && l.amt > 0 && !isLook(l));
+  const id = thumbQueue.shift(), C = entryLayer(id), live = G.layers.filter(l => l.on && l.amt > 0);
   C.id = "thumb-" + id;
-  renderStack([C].concat(live), S, S, uv, target);
+  renderStack(ordered(live.concat(C)), S, S, uv, target);
   // Queue GPU readback, then test its fence without waiting on the main thread.
   const buffer = gl.createBuffer(); gl.bindBuffer(gl.PIXEL_PACK_BUFFER, buffer);
   gl.bufferData(gl.PIXEL_PACK_BUFFER, S * S * 4, gl.STREAM_READ);
@@ -1329,7 +1329,7 @@ document.addEventListener("keydown", e => {
   const typing = /INPUT|SELECT|TEXTAREA/.test(tag) && document.activeElement.type !== "range" && document.activeElement.type !== "checkbox";
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { if (typing) return; e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { if (typing) return; e.preventDefault(); redo(); }
-  else if (!typing && (e.key === "b" || e.key === "B") && !e.repeat) setOrig(true);
+  else if (!typing && !e.ctrlKey && !e.metaKey && (e.key === "b" || e.key === "B") && !e.repeat) setOrig(true);
 });
 document.addEventListener("keyup", e => { if (e.key === "b" || e.key === "B") setOrig(false); });
 

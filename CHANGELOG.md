@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+- The dock opens into a panel with each tool's name and what it is doing: a ring with the percentage while it works,
+  a clock with the count while jobs wait, a tick when something finished and an alert when it failed. Open and close
+  it with the handle at its foot, Ctrl+B or a double click on its surface. Settings → Interface → Dock chooses
+  Compact, Expand over the content (closes on a choice, Esc or a click elsewhere) or Keep open (the content makes
+  room, on windows 1280 px wide or more). Closed, a small dot on a tool's icon shows the same activity.
+- F11 puts the whole window in full screen and back.
+- Settings → Interface → Open the window: as it was left, maximized or full screen.
+
+### Changed
+- The window opens maximized on a new install, and once for windows still at the old default size.
+- A saved window size never opens larger than the screen or off it, also after changing monitor or Windows scaling;
+  the size is kept in logical pixels.
+- Lighter neutral greys for the dock, bubbles, cards and raised controls, and darker tool and page windows.
+- The dock tightens on short windows so every tab fits down to the 640 px minimum height.
+- Grade: each look tile shows what a click would preview, the look over the looks in Layers.
+
 ## 1.1.1
 
 ### Added

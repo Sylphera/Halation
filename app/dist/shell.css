@@ -12,14 +12,17 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .rail{z-index:2;will-change:transform}   /* its tooltips go over the content; its own layer so the tools' canvases (promoted by WebView2) never cover them */
 
 /* the dock: a static bubble, centred on the left edge */
-.rail{align-self:center;justify-self:end;display:flex;flex-direction:column;align-items:center;gap:4px;max-height:calc(100vh - 24px);padding:10px 8px;border-radius:26px}
+/* --tab: the size of a tab, square; short windows (a small screen or Windows at 125-150 %) shrink the whole dock
+   evenly down to 34 px instead of squashing its tabs */
+.rail{--tab:clamp(34px,calc((100vh - 172px) / 14),44px);--tab-i:clamp(17px,calc(var(--tab) * .45),20px)}
+.rail{align-self:center;justify-self:start;margin-left:22px;display:flex;flex-direction:column;align-items:center;gap:4px;max-height:calc(100vh - 24px);padding:10px 8px;border-radius:26px}
 .rail .spacer{flex:none;width:22px;height:1px;margin:6px 0;background:var(--line)}
-.rail .tab.home{width:44px;height:44px}
-.rail .tab.home img{display:block;width:28px;height:auto}
+.rail .tab.home{width:var(--tab);height:var(--tab)}
+.rail .tab.home img{display:block;width:calc(var(--tab) * .64);height:auto}
 .rail-sep{width:22px;height:1px;margin:6px 0;background:var(--line)}
 .rail-tabs{display:flex;flex-direction:column;align-items:center;gap:4px}
-.rail .tab{position:relative;display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:14px;background:transparent;color:var(--text-2);cursor:pointer;transition:transform var(--fade) var(--ease)}
-.rail .tab .i{width:20px;height:20px}
+.rail .tab{position:relative;display:grid;place-items:center;width:var(--tab);height:var(--tab);border:0;border-radius:calc(var(--tab) * .32);background:transparent;color:var(--text-2);cursor:pointer;transition:transform var(--fade) var(--ease)}
+.rail .tab .i{width:var(--tab-i);height:var(--tab-i)}
 .rail .tab:hover{color:var(--text)}
 .rail .tab{z-index:1}
 .rail .tab:active{box-shadow:inset 0 0 0 999px var(--state-press);transform:scale(var(--press-scale))}
@@ -33,6 +36,9 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .rail::after{inset:-1px;padding:1px;background:radial-gradient(80px circle at 50% var(--gy,50%),var(--glow-dock-edge),transparent 70%);
   -webkit-mask:linear-gradient(var(--text) 0 0) content-box,linear-gradient(var(--text) 0 0);-webkit-mask-composite:xor;mask:linear-gradient(var(--text) 0 0) content-box exclude,linear-gradient(var(--text) 0 0)}
 .rail:hover::before,.rail:hover::after{opacity:1}
+/* opened, the light follows the pointer both ways, as on Home's drop zone (shell.js sets --gx too) */
+.rail[data-expanded]::before{background:radial-gradient(160px circle at var(--gx,50%) var(--gy,50%),var(--glow-dock),transparent 72%)}
+.rail[data-expanded]::after{background:radial-gradient(120px circle at var(--gx,50%) var(--gy,50%),var(--glow-dock-edge),transparent 70%)}
 /* pill indicator just outside the bubble's left edge: a small one on hover, and one that slides to the selected tab */
 .rail .tab::before{content:"";position:absolute;left:-8px;top:50%;width:3px;height:12px;margin-top:-6px;border-radius:var(--r-pill);background:var(--text-3);transform:scaleY(0);transition:transform var(--fade) var(--ease)}
 .rail .tab[aria-selected="true"]::before{transform:scaleY(0)}
@@ -42,6 +48,67 @@ body.booting .rail,body.booting .frame{visibility:hidden}
 .rail .tab::after{content:attr(data-tip);position:absolute;left:calc(100% + 16px);top:50%;z-index:60;padding:5px 10px;border-radius:var(--r-pill);background:var(--primary);color:var(--on-primary);box-shadow:none;
   font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;opacity:0;transform:translate(-4px,-50%);transition:opacity var(--t),transform var(--t)}
 .rail .tab:hover::after,.rail .tab:focus-visible::after{opacity:1;transform:translate(0,-50%);transition-delay:120ms}
+
+/* the dock opened (docs/DOCK_SPEC.md): the same bubble grows to the right with each tool's name and activity. Its
+   surface is .rail-bg, so it can change shape on the spring (transform) while the icons and names keep their size. */
+:root{--dock-w:232px}
+.rail.bubble{background:transparent;border-color:transparent;box-shadow:none}
+.rail-bg{position:absolute;inset:-1px;z-index:-1;border:1px solid var(--line-soft);border-radius:26px;background:var(--surface);box-shadow:inset 0 1px 0 var(--edge);transform-origin:0 0;pointer-events:none}
+.rail[data-expanded]{width:var(--dock-w);align-items:stretch;align-self:stretch;margin-top:12px;margin-bottom:12px}
+/* the whole height, used: the rows grow up to 52 px and what is left spreads between them; Library and Settings at the foot */
+.rail[data-expanded] #railTop{flex:1 1 auto;min-height:0;justify-content:space-evenly}
+.rail[data-expanded] .tab{flex:1 1 auto;max-height:52px}
+.rail[data-expanded] .rail-tabs{align-items:stretch}
+.rail[data-expanded] .rail-sep,.rail[data-expanded] .spacer{margin-left:11px}
+.rail[data-expanded] .tab{width:auto;grid-template-columns:var(--tab) minmax(0,1fr) auto;place-items:center start;padding:0 10px 0 0;gap:0}
+.rail[data-expanded] .tab>.i,.rail[data-expanded] .tab>img{justify-self:center}
+.rail[data-expanded] .tab.home img{width:calc(var(--tab) * .64)}
+.rail[data-expanded] .tab::after{display:none}   /* the names are there: no tooltips */
+.rail .tab .tl{display:none;min-width:0;text-align:left;overflow:hidden;font-size:13px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.rail[data-expanded] .tab .tl{display:block;justify-self:stretch}   /* a long name or file ends in an ellipsis, never under the mark */
+.rail .tab .tl small{display:block;overflow:hidden;color:var(--text-3);font-size:11px;font-weight:400;text-overflow:ellipsis}
+/* one mark per tool: clock (waiting), arc (running), tick (done, not seen), alert (failed) */
+.rail .tab .ts{display:none;align-items:center;gap:5px;color:var(--text-3);font-size:11.5px;font-variant-numeric:tabular-nums;pointer-events:auto}
+.rail .tab .ts[data-s]{display:flex}
+.rail .tab .ts .i{width:14px;height:14px}
+.rail .tab .ts .tx:empty{display:none}
+.rail .tab .ts[data-s="run"]{color:var(--text-2)}
+.rail .tab .ts[data-s="done"]{color:var(--ok)}
+.rail .tab .ts[data-s="fail"]{color:var(--danger)}
+.dock-ring{width:16px;height:16px;transform:rotate(-90deg)}
+.dock-ring circle{fill:none;stroke-width:1.8}
+.dock-ring .trk{stroke:var(--line)}
+.dock-ring .arc{stroke:var(--accent);stroke-linecap:round;stroke-dasharray:43.98}
+.ts.indet .dock-ring{animation:proc-spin 1.8s linear infinite}
+.ts.indet .dock-ring .arc{stroke-dashoffset:31}
+/* closed: only a small mark on the icon (Settings → "Show activity on the dock") */
+.rail:not([data-expanded]) .tab .ts{position:absolute;top:calc(var(--tab) * .11);right:calc(var(--tab) * .11);width:7px;height:7px;padding:0;border-radius:50%;background:var(--text-3);box-shadow:0 0 0 2px var(--surface)}
+.rail:not([data-expanded]) .tab .ts>*{display:none}
+.rail:not([data-expanded]) .tab .ts[data-s="run"]{background:var(--accent)}
+.rail:not([data-expanded]) .tab .ts[data-s="done"]{background:var(--ok)}
+.rail:not([data-expanded]) .tab .ts[data-s="fail"]{background:var(--danger)}
+body[data-dock-activity="off"] .rail:not([data-expanded]) .tab .ts{display:none}
+/* the foot of the dock: a row like the tabs, after a line; closed, its icon sits in the icons' column; opened, with
+   its name ("Close the dock") as the tools have theirs */
+.dock-toggle{display:grid;grid-template-columns:var(--tab);place-items:center;width:var(--tab);height:calc(var(--tab) * .8);padding:0;border:0;border-radius:calc(var(--tab) * .32);background:transparent;color:var(--text-3);font:inherit;cursor:pointer;transition:color var(--fade) var(--ease)}
+.dock-toggle:hover{color:var(--text);background:var(--state-hover)}
+.dock-toggle:active{box-shadow:inset 0 0 0 999px var(--state-press)}
+.dock-toggle .i{width:calc(var(--tab-i) - 2px);height:calc(var(--tab-i) - 2px)}
+.dock-toggle .tl{display:none;min-width:0;overflow:hidden;font-size:13px;font-weight:500;text-align:left;text-overflow:ellipsis;white-space:nowrap}
+.rail[data-expanded] .dock-toggle{width:auto;grid-template-columns:var(--tab) minmax(0,1fr);place-items:center start;padding-right:10px}
+.rail[data-expanded] .dock-toggle>.i{justify-self:center}
+.rail[data-expanded] .dock-toggle .tl{display:block;justify-self:stretch}
+.rail:has(.dock-toggle[hidden]) .dock-sep{display:none}
+.dock-toggle[hidden]{display:none}
+/* opened on a wide window: the content makes room (one layout change; the content glides on transform, shell.js setDock) */
+body[data-dock="pinned"],body[data-dock="room"]{grid-template-columns:calc(22px + var(--dock-w)) minmax(0,1fr)}
+
+/* short windows (down to the 640 px minimum): the dock tightens so every tab and its handle fit */
+@media (max-height:800px){
+  .rail{gap:2px;padding:6px 8px}
+  .rail-tabs{gap:2px}
+  .rail-sep,.rail .spacer{margin:3px 0}
+}
 
 /* content over the atmosphere */
 .frame{min-width:0;min-height:0;padding:0 var(--gap-frame) var(--gap-frame) 4px}
@@ -406,7 +473,7 @@ body.welcome-logo-handoff #v-home .hero .logo,body.welcome-logo-handoff #v-home 
 .island[data-kind="failed"] .isl-mark svg.ev,.island.failed[data-state="rest"] .isl-mark svg.ev{color:var(--danger)}
 .island[data-state="finishing"] .isl-mark svg.ev{animation:proc-finish 1s var(--ease) infinite alternate}
 @keyframes proc-finish{from{opacity:.45}to{opacity:1}}
-[data-motion="reduce"] .island .isl-ring,[data-motion="reduce"] .island .isl-mark svg.ev{animation:none!important}
+[data-motion="reduce"] .ts.indet .dock-ring,[data-motion="reduce"] .island .isl-ring,[data-motion="reduce"] .island .isl-mark svg.ev{animation:none!important}
 .isl-th{display:none}
 .isl-text{flex:0 1 auto;min-width:0}
 .isl-text:has(.isl-t:empty){display:none}

@@ -782,6 +782,7 @@ window.__halApp = {
       if (!["auto", "wand", "brush"].includes(opts.mode)) opts.mode = "auto";
       if (!["png", "webp", "mask"].includes(opts.format)) opts.format = "png";
       opts.btool = "fg";   // the brush always opens on the subject
+      opts.mode = DEF.mode; opts.bg = DEF.bg;   // the mode and the backdrop are interface state: defaults at every start (DECISIONS: reopening)
     }
     $("#bgColor").value = opts.color || blueHex();
     sync();

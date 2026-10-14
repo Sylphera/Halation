@@ -1,7 +1,8 @@
 # Color rework spec
 
-Status: approved, D tokens with the H backgrounds; ready to implement. Colour only: layout, type, components, spacing, radii and
-motion stay as they are.
+Status: implemented (#12) with D tokens and the H backgrounds, then darkened to **Graphite** (Java, 2026-10-14, #21; see
+[Graphite](#graphite-java-2026-10-14)): the values in `tokens.css` are Graphite's, D stays below as the step it came
+from. Colour only: layout, type, components, spacing, radii and motion stay as they are.
 
 ## Problem
 
@@ -90,8 +91,37 @@ captures (shader output: about `#060606` now and in C, `#0b0b0b` in D); the rest
 | accent fill vs slider track | 6.30 | 5.39 | 4.77 |
 
 Every text pair stays above AA (4.5:1); `--text-3` is raised to `#9a9993` so it still clears AA on raised controls.
+For the same reason `--red` goes from `#df7a70` to `#e17d73`: on D's `--raised` (`#31312e`) the old red reads 4.45:1
+(Grade's layer menu Delete, an errored row in Vocal Remover's queue) and the new one 4.59:1; `--red-dim` and
+`--red-line` keep their values.
 What improves is the separation: the bubbles go from darker than the window to clearly above it, and cards, fields,
 borders and tracks each sit on their own step.
+
+## Graphite (Java, 2026-10-14)
+
+After living with D, the surfaces read too grey ("se ha perdido calidad"). Five darker neutrals were compared on one
+Grade capture (Carbón `#141413`, Grafito `#111111`, Tinta `#0e0e0d`, Azabache `#0b0b0c`, Noche azulada `#0d0e11`);
+**Grafito** was chosen and shipped with the dock in #21. Only the surface steps change; the lines, the text colours,
+`--red` (`#e17d73`), the checker, the accents and the H backgrounds keep D's values.
+
+| Token | D · Neutral + | Graphite (current) |
+| --- | --- | --- |
+| `--n-950` (`--surface`, `--viewer`) | `#1a1a19` | `#111111` |
+| `--n-900` (`--panel`) | `#232321` | `#191919` |
+| `--n-850` | `#2a2a28` | `#1e1e1e` |
+| `--n-800` (`--raised`) | `#31312e` | `#242424` |
+| `--field` | `#0d0d0c` | `#080808` |
+| `--welcome-surface-low` / `-mid` / `-high` | `#141413` / `#1c1c1b` / `#232321` | `#080808` / `#111111` / `#191919` |
+| `--glass` | `rgba(26,26,25,.68)` | `rgba(17,17,17,.68)` |
+
+Contrast on Graphite's tokens (same formula as above): text-3 vs bubble 6.61, vs card 6.16, vs raised 5.43; `--red`
+vs raised 5.46 (the old `#df7a70` would also pass, 5.29, but `#e17d73` stays); line vs bubble 1.73, line-strong vs
+bubble 2.52; card vs bubble 1.07, raised vs bubble 1.22, field vs bubble 1.06. Every text pair stays above AA.
+
+What changes against D: the bubbles now sit at about the level of the H tool window (`#111111`), so they are told
+apart from it by their border (`--line-soft`) and lit top edge rather than by luminance; cards, raised controls and
+fields keep their own steps above and below the bubble. Acceptance criterion 2 reads with that in mind: bubble ≥
+window, card and raised above the bubble.
 
 ## What stays
 

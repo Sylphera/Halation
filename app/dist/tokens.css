@@ -1,18 +1,18 @@
 /* Halation design tokens. Every interface colour lives here; the rest of the CSS only uses these variables.
-   Rebrand: pure black window, #050504 bubbles, greys in wide steps for contrast; muted accents (periwinkle leads) so it
+   Colour rework (docs/COLOR_REWORK_SPEC.md): near-black window, #111111 bubbles (graphite, Java 2026-10-14) lifted above it, greys in wide steps; muted accents (periwinkle leads) so it
    is never flat black and white, and a pale blue that only lives in the atmosphere behind the interface (atmosphere.js). */
 :root{
   color-scheme: dark;
 
   /* Neutrals: near-neutral with a faint warm bias, from pure black to off-white */
   --n-1000:#000;
-  --n-950:#050504; --n-900:#0b0b0a; --n-850:#121211; --n-800:#1b1b19; --n-700:#2a2a27; --n-600:#3e3e3a;
-  --n-500:#6d6d67; --n-400:#908f89; --n-300:#b5b5af; --n-200:#d7d7d2; --n-100:#eaeae6; --n-50:#f5f5f2;
+  --n-950:#111111; --n-900:#191919; --n-850:#1e1e1e; --n-800:#242424; --n-700:#3d3d39; --n-600:#55554f;
+  --n-500:#74746e; --n-400:#9a9993; --n-300:#b5b5af; --n-200:#d7d7d2; --n-100:#eaeae6; --n-50:#f5f5f2;
 
   /* Accents: muted, never neon; solid, tinted background (~15 %) and border. Periwinkle leads (sliders, switches,
      selection, focus, progress); the others each keep one job (states and effects) */
   --lavender:#a3a8dc; --lavender-dim:rgba(163,168,220,.15); --lavender-line:rgba(163,168,220,.55);
-  --red:#df7a70;      --red-dim:rgba(223,122,112,.13);      --red-line:rgba(223,122,112,.55);
+  --red:#e17d73;      --red-dim:rgba(223,122,112,.13);      --red-line:rgba(223,122,112,.55);
   --mint:#83c7a3;     --mint-dim:rgba(131,199,163,.14);     --mint-line:rgba(131,199,163,.55);
   --amber:#d9ae6a;    --amber-dim:rgba(217,174,106,.14);    --amber-line:rgba(217,174,106,.55);
   --cyan:#82b5d6;     --cyan-dim:rgba(130,181,214,.14);     --cyan-line:rgba(130,181,214,.55);
@@ -21,12 +21,12 @@
   /* Roles */
   --bg:var(--n-1000);           /* window, behind the atmosphere */
   --surface:var(--n-950);       /* bubbles: the dock, a tool's panels and toolbar */
-  --welcome-surface-low:#0a0a0a;
-  --welcome-surface-mid:#121212;
-  --welcome-surface-high:#171717;
+  --welcome-surface-low:#080808;
+  --welcome-surface-mid:#111111;
+  --welcome-surface-high:#191919;
   --panel:var(--n-900);         /* cards and sections, menus and dialogs */
   --raised:var(--n-800);        /* raised controls, hover */
-  --field:var(--n-1000);        /* text fields and selects */
+  --field:#080808;             /* text fields and selects */
   --line:var(--n-700);
   --line-strong:var(--n-600);
   --disabled:var(--n-500);
@@ -55,15 +55,15 @@
   --backdrop:rgba(0,0,0,.66);   /* behind dialogs */
 
   /* Bubbles: a hairline border and a lit top edge; see ui.css .card */
-  --line-soft:rgba(255,255,250,.075);   /* a bubble's border */
-  --edge:rgba(255,255,250,.08);         /* the light on a bubble's top edge */
-  --glass:rgba(5,5,4,.62);              /* a bubble over the moving Home atmosphere (blurred behind) */
+  --line-soft:rgba(255,255,250,.11);    /* a bubble's border */
+  --edge:rgba(255,255,250,.12);         /* the light on a bubble's top edge */
+  --glass:rgba(17,17,17,.68);           /* a bubble over the moving Home atmosphere (blurred behind) */
 
   /* Atmosphere (atmosphere.js): greys with a pale blue in the light; Home is lit, the tools almost black */
   --atmo:#b9c8e6;
   --media:#000;                 /* letterbox behind the preview canvas */
   --viewer:var(--n-950);        /* Upscale: behind a still picture, around its own aspect ratio */
-  --checker-a:#2a2a27; --checker-b:#1b1b19;   /* behind transparent previews and cut-out pictures */
+  --checker-a:#3d3d39; --checker-b:#31312e;   /* behind transparent previews and cut-out pictures */
   --matte-dark:#000; --matte-light:#fff;      /* Cutout: plain backgrounds to judge the edge on */
   --crop-shade:rgba(0,0,0,.66);                /* Crop: the picture outside the frame */
   --bg-select:#3d7dff;                         /* Remove Background: what counts as background (drawn at half opacity) */
