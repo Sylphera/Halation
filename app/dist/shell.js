@@ -149,7 +149,7 @@ function buildRail() {
 
 /* ---------- the dock opened: names and each tool's activity (docs/DOCK_SPEC.md) ---------- */
 // dockMode: compact (never opens) | overlay (opens over the content, default) | pinned (stays open, the content makes
-// room; as overlay under DOCK_PIN_MIN). Ctrl+B, the handle at its foot or a double click on its empty surface.
+// room; as overlay under DOCK_PIN_MIN). Ctrl+B, the row at its foot or a double click on its empty surface.
 const DOCK_PIN_MIN = 1280, DOCK_MODES = ["compact", "overlay", "pinned"];
 let dockOpen = false;
 const dockMode = () => DOCK_MODES.includes(st.settings.dockMode) ? st.settings.dockMode : "overlay";
@@ -159,8 +159,9 @@ function dockHandle() {
   b.hidden = dockMode() === "compact";
   b.setAttribute("aria-expanded", String(dockOpen));
   b.title = t(key) + " · Ctrl B"; b.setAttribute("aria-label", t(key));
+  b.querySelector(".tl").textContent = t(key);
   const want = dockOpen ? "panel-left-close" : "panel-left-open";
-  if (b.dataset.icon !== want) { b.dataset.icon = want; b.innerHTML = ""; window.__icons.apply(b.parentNode); }
+  if (b.dataset.icon !== want) { b.dataset.icon = want; b.querySelector(".i")?.remove(); window.__icons.apply(b.parentNode); }
 }
 // open: true | false; o.save keeps it for the next start (pinned only), o.instant skips the move
 function setDock(open, o = {}) {
@@ -169,6 +170,7 @@ function setDock(open, o = {}) {
   const layout = open ? (dockPinned() ? "pinned" : "overlay") : "";
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
+  const rows = [...rail.querySelectorAll(".tab,.rail-sep,.spacer,.dock-toggle")], rowsBefore = rows.map(el => el.getBoundingClientRect().top);
   dockOpen = open;
   rail.toggleAttribute("data-expanded", open);
   if (layout) document.body.dataset.dock = layout; else delete document.body.dataset.dock;
@@ -185,6 +187,14 @@ function setDock(open, o = {}) {
       a.finished.then(() => bg.style.removeProperty("border-radius"));
     }
   }
+  // the rows spread over the whole height (or gather back) and glide there
+  rows.forEach((el, i) => {
+    const d = rowsBefore[i] - el.getBoundingClientRect().top;
+    if (Math.abs(d) < .5) return;
+    el.style.transition = "none";
+    const a = M.animate(el, [{ transform: `translateY(${d}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-row", rebase: true, noOvershoot: true });
+    (a && a.finished ? a.finished : Promise.resolve()).then(() => el.style.removeProperty("transition"));
+  });
   if (open) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
   // kept open: the content makes room once and glides there
   const frameAfter = frame.getBoundingClientRect();
