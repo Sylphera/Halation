@@ -175,6 +175,7 @@ function setDock(open, o = {}) {
   if (open === dockOpen && (document.body.dataset.dock || "") === layout) { dockHandle(); return; }
   const before = bg.getBoundingClientRect(), frameBefore = frame.getBoundingClientRect();
   const rows = [...rail.querySelectorAll(".tab,.rail-sep,.spacer,.dock-toggle")], rowsBefore = rows.map(el => el.getBoundingClientRect().top);
+  const opening = open && !dockOpen;   // already open (only the room changes): the names stay
   dockOpen = open;
   rail.toggleAttribute("data-expanded", open);
   if (layout) document.body.dataset.dock = layout; else delete document.body.dataset.dock;
@@ -199,7 +200,7 @@ function setDock(open, o = {}) {
     const a = M.animate(el, [{ transform: `translateY(${d}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-row", rebase: true, noOvershoot: true });
     (a && a.finished ? a.finished : Promise.resolve()).then(() => el.style.removeProperty("transition"));
   });
-  if (open) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
+  if (opening) M.stagger(rail.querySelectorAll(".tab .tl,.tab .ts[data-s]"), (el, delay) => M.animate(el, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { dur: "spring", delay, channel: "dock-names" }));
   // kept open: the content makes room once and glides there
   const frameAfter = frame.getBoundingClientRect();
   if (Math.abs(frameBefore.left - frameAfter.left) > .5) M.animate(frame, [{ transform: `translateX(${frameBefore.left - frameAfter.left}px)` }, { transform: "none" }], { dur: "spring", channel: "dock-room", rebase: true, noOvershoot: true });
