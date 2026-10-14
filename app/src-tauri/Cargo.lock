@@ -1682,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "halation"
-version = "1.2.1"
+version = "1.2.0"
 dependencies = [
  "flate2",
  "fontdb",
