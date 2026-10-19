@@ -29,7 +29,7 @@ index b7a43ad..fb043da 100644
 @@ -1458,6 +1462,35 @@ export function renderSidebar(
    );
  }
- 
+
 +function renderReadableTasks(view: TaskView, theme: Parameters<typeof renderSidebar>[2], interaction?: SidebarInteraction, visibleID?: string): JSX.Element {
 +  const hover = resolveHoverBackground(theme);
 +  const open = interaction?.isOpen() ?? true;
@@ -71,7 +71,7 @@ index b7a43ad..fb043da 100644
    renderer: { requestRender: () => void; getSelection?: () => unknown };
    theme: V2TuiThemeTokens;
 @@ -1691,6 +1725,7 @@ function v2ThemeView(theme: V2TuiThemeTokens): {
- 
+
  interface SidebarRuntimeAdapter {
    hostFlavor?: string;
 +  getTaskView?: (visibleID: string | undefined) => TaskView | undefined;

@@ -19,7 +19,9 @@
 ## Misión vigente
 
 - La base es `main`: la app Tauri 2 (`app/`) y su backend Rust (`app/src-tauri`) se conservan sin cambios de producto como referencia funcional y comportamiento validado.
-- Las fases Qt anteriores se dan por retiradas. La reconstrucción Qt se hará clean-room con Qt Quick + C++/CMake partiendo de `main` y de las specs públicas (`docs/*_SPEC.md`, `docs/MOTION*.md`); no se reutiliza el código de las ramas Qt retiradas ni se recrea su arquitectura. No se adelantan fases ni se portan motores que aún no correspondan.
+- Las fases Qt anteriores se dan por retiradas. La reconstrucción es clean-room con Qt Quick + C++/CMake partiendo de `main`; no se reutiliza el código de las ramas Qt retiradas ni se recrea su arquitectura. El stack objetivo es Qt Quick + C++/CMake: la antigua exigencia de runtime Rust no aplica. No se adelantan fases ni se portan motores que aún no correspondan.
+- Las specs públicas antiguas (`docs/*_SPEC.md`, `docs/MOTION*.md` y similares) se conservan solo como fuente de requisitos funcionales y contratos de comportamiento (qué debe hacer la app). No son referencia arquitectónica ni de presentación: layouts, duraciones, easings y convenciones de motion antiguos quedan superseded por el prompt clean-room de misión, la documentación oficial de Qt y la nueva spec que se escriba. No se hace otra migración literal.
+- Prioridad de ingeniería: arquitectura, respuesta, pacing, lifecycles, recursos y mantenibilidad antes que estética o paridad visual. La validación visual sigue siendo manual.
 - La app Tauri y su backend se mantienen operativos y verificables mientras la fase Qt correspondiente no los sustituya; no mezclar una migración en curso con cambios de harness.
 
 ## Harness (OpenCode V2 + OmO Slim)
