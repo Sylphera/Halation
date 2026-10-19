@@ -1,0 +1,9 @@
+{
+  "name": "halation-omo-readable-ui",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./tui": "./tui.js",
+    ".": "./server.js"
+  }
+}

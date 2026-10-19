@@ -16,6 +16,21 @@
   por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash en `main` con CI en verde (Java, 13 y 14-10-2026).
 - El español no es prioridad. No actualizar `app/dist/locales/es.json` ni completar traducciones salvo petición explícita del usuario; los textos nuevos o corregidos van en `en.json`.
 
+## Misión vigente
+
+- La base es `main`: la app Tauri 2 (`app/`) y su backend Rust (`app/src-tauri`) se conservan sin cambios de producto como referencia funcional y comportamiento validado.
+- Las fases Qt anteriores se dan por retiradas. La reconstrucción Qt se hará clean-room con Qt Quick + C++/CMake partiendo de `main` y de las specs públicas (`docs/*_SPEC.md`, `docs/MOTION*.md`); no se reutiliza el código de las ramas Qt retiradas ni se recrea su arquitectura. No se adelantan fases ni se portan motores que aún no correspondan.
+- La app Tauri y su backend se mantienen operativos y verificables mientras la fase Qt correspondiente no los sustituya; no mezclar una migración en curso con cambios de harness.
+
+## Harness (OpenCode V2 + OmO Slim)
+
+- La capa compartida vive en el usuario (`~/.config/opencode/`, `~/.opencode/`): plugin oficial OmO Slim, modelos, prompts, permisos MCP y habilidades. Este repo solo aporta reglas, idiomas, contexto de proyecto y el adaptador mínimo en `.opencode/`. No duplicar aquí la política global ni añadir rutas de máquina a requisitos globales.
+- Leer `docs/OPENCODE_WORKFLOW.md` para uso, verificación y recuperación. No restaurar el harness antiguo (Drive/agent-harness) ni su plugin.
+- Sidebar de tareas: `.opencode/ui-patches/omo-slim-3.0.4` es presentación local. Resuelve el runtime neutral versionado (ver su README y `runtime-manifest.json`); si falta o no coincide, falla con error explícito y nunca sustituye la sidebar en silencio.
+- `.tools/` y `.serena/` son estado local ignorado (probes, handoffs, memorias, evidencias). No versionar secretos, credenciales, rutas personales ni transcripciones.
+- Unidad de trabajo = un worker; el coordinador delega unidades completas. Modelos: DeepSeek Flash Free por defecto, Luna medium como fallback de proveedor, LongCat último recurso deliberado; un fallo de tests no autoriza cambiar de modelo.
+- No hacer push, PR, merge remoto, release ni reiniciar el host/servicios sin autorización explícita del usuario.
+
 ## Flujo obligatorio de trabajo
 
 Para cualquier cambio no trivial:

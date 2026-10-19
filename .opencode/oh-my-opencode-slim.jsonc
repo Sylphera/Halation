@@ -1,0 +1,22 @@
+// Project layer for this checkout.
+//
+// OmO Slim merges, in order: built-in defaults -> user config
+// (~/.config/opencode/oh-my-opencode-slim.jsonc) -> every ancestor
+// .opencode/oh-my-opencode-slim.jsonc, farthest first -> this file last.
+// The last layer wins on any key it sets, so keep only what is specific to
+// this tree here.
+//
+// Shared policy (agents, models, MCP grants, prompts, skills) lives in the
+// user layer and is not duplicated here, so any checkout gets the same
+// harness. Prompts resolve nearest-first and REPLACE (never merge with) the
+// ancestor file.
+//
+// Checkout-specific pieces:
+//   * ../opencode.json: the checkout-relative UI patch plugin plus the default
+//     agent and model for this tree
+//   * .serena/project.yml: local, unversioned Serena project definition
+//
+// Add an override here only when it must not apply to other checkouts.
+{
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@3.0.4/oh-my-opencode-slim.schema.json"
+}

@@ -10,3 +10,10 @@ docs/performance*/**/*.json
 docs/performance*/**/*.jsonl
 docs/performance*/**/*.log
 review/
+
+# Local harness state: private probes, handoffs, evidence and build trees
+# (docs/OPENCODE_WORKFLOW.md). Never product, never versioned.
+.tools/
+# Serena project state is local and unversioned: project definition, memories,
+# caches and machine paths (docs/OPENCODE_HARNESS_TOOLS.md).
+.serena/

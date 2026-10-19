@@ -1,0 +1,39 @@
+{
+  "package": "oh-my-opencode-slim",
+  "version": "3.0.4",
+  "upstream": {
+    "repository": "https://github.com/alvinunreal/oh-my-opencode-slim",
+    "releaseCommit": "ea5859f41befefe779051bcd1389b4cff1e76cb7"
+  },
+  "presentation": {
+    "file": "node_modules/oh-my-opencode-slim/dist/tui2.js",
+    "sha256": "FEC8C7EB97976653CFA5D4E555D34F05FECA6283984F9FBBA26C5EC70368E6F6",
+    "builtFrom": [
+      "tui.patch",
+      "readable-sidebar.ts"
+    ]
+  },
+  "runtimeLayout": {
+    "required": [
+      "node_modules/oh-my-opencode-slim/package.json",
+      "node_modules/oh-my-opencode-slim/dist/tui2.js",
+      "node_modules/solid-js",
+      "node_modules/seroval",
+      "node_modules/seroval-plugins",
+      "node_modules/jsonc-parser"
+    ],
+    "hostProvided": [
+      "@opentui/core",
+      "@opentui/solid"
+    ]
+  },
+  "dependencyVersions": {
+    "solid-js": "1.9.12",
+    "seroval": "1.5.6",
+    "seroval-plugins": "1.5.6",
+    "jsonc-parser": "3.3.1"
+  },
+  "environmentOverride": "OMO_READABLE_SIDEBAR_RUNTIME",
+  "sharedLocation": "~/.local/share/omo-slim-readable-ui/<version>",
+  "legacyFallback": "<checkout>/.tools/orchestrator-replacement/runtime"
+}
