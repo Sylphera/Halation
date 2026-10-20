@@ -24,6 +24,50 @@
 - Prioridad de ingeniería: arquitectura, respuesta, pacing, lifecycles, recursos y mantenibilidad antes que estética o paridad visual. La validación visual sigue siendo manual.
 - La app Tauri y su backend se mantienen operativos y verificables mientras la fase Qt correspondiente no los sustituya; no mezclar una migración en curso con cambios de harness.
 
+## Reglas obligatorias de ingeniería Qt 6
+
+Estas reglas rigen la reconstrucción clean-room de Halation con Qt Quick + C++/CMake. Se aplican a todo trabajo presente y futuro sobre la app Qt, en cualquier rama o worktree, y no a la app Tauri/Rust de referencia. No son un mandato retroactivo para reescribir el backend Rust/Tauri ni el código visual de referencia de `main`, que se conservan como referencia funcional y comportamiento validado. No sustituyen a `docs/QT_QUICK_SPEC.md`, la especificación Qt canónica, ni autorizan por sí solas cambios de producto, UX o arquitectura.
+
+### 1. Separación estricta entre C++ y QML
+
+- Toda la lógica pesada, los cálculos, el procesamiento de datos, el acceso a archivos y red y cualquier operación costosa van en C++.
+- QML se usa solo para UI, animaciones, transiciones y bindings simples.
+- Está prohibido implementar lógica de negocio o procesamiento pesado en JavaScript/QML.
+
+### 2. Rendimiento y uso de recursos
+
+- El rendimiento y el bajo consumo de recursos son prioridad.
+- Las listas y tablas grandes usan modelos C++ (`QAbstractListModel` / `QAbstractItemModel`); nunca arrays QML grandes.
+- Evitar crear y destruir grandes cantidades de objetos de forma continua.
+- Usar `Loader` on-demand cuando tenga sentido y minimizar allocations y temporales.
+
+### 3. Animaciones
+
+- Usar animaciones nativas de Qt Quick (`NumberAnimation`, `PropertyAnimation`, `Behavior`, `Transition`, etc.).
+- Deben ser fluidas y no bloquear la GUI.
+- No inventar motores de animación en JavaScript ni mecanismos paralelos.
+
+### 4. Memoria y C++
+
+- Preferir smart pointers (`std::unique_ptr`, `QScopedPointer`) y el ownership parent-child de Qt.
+- Evitar `new` sin owner claro cuando sea posible.
+- El trabajo pesado va fuera del hilo GUI (`QtConcurrent`, `QThread`/worker).
+- El parent de un `QObject` es un ownership válido y explícito: no combinar doble ownership entre smart pointer y parent.
+
+### 5. Calidad de código y validación estática
+
+- Código limpio, legible, mantenible y con buenas prácticas de Qt 6.
+- Debe pasar Clazy y Clang-Tidy sin warnings importantes de rendimiento o de API de Qt.
+- Si una herramienta no está disponible o no se puede ejecutar, declarar la validación como pendiente y no afirmar que pasó. No instalar herramientas ni lanzar escaneos fuera de una tarea que los requiera.
+
+### 6. Antes de implementar
+
+- Explicar brevemente la separación entre lógica C++ y QML de la solución propuesta.
+- Si la solución puede afectar al rendimiento, avisar y proponer alternativas más ligeras.
+- No convertir cada decisión microtécnica en una aprobación humana: comunicar el riesgo relevante junto con una alternativa, dentro de la autonomía ya autorizada. Las decisiones de producto o irreversibles siguen siendo humanas.
+
+Estas reglas no imponen un lifecycle único: el `Loader` on-demand, el destroy-on-leave de la página activa y el estado funcional en servicios C++ siguen siendo válidos. Se evita el churn continuo e innecesario, no el ciclo de vida deliberado. No exigen cachear todas las vistas, añadir micro-motores ni introducir presupuestos numéricos nuevos; los objetivos de rendimiento vigentes están en `docs/QT_QUICK_SPEC.md`.
+
 ## Harness (OpenCode V2 + OmO Slim)
 
 - La capa compartida vive en el usuario (`~/.config/opencode/`, `~/.opencode/`): plugin oficial OmO Slim, modelos, prompts, permisos MCP y habilidades. Este repo solo aporta reglas, idiomas, contexto de proyecto y el adaptador mínimo en `.opencode/`. No duplicar aquí la política global ni añadir rutas de máquina a requisitos globales.
