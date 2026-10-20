@@ -4,40 +4,53 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 
 ## Stack
 
-- Tauri 2. Interface: plain HTML/JS/CSS in `app/dist`, no framework or bundler.
-- Backend: Rust in `app/src-tauri/src`, one module per area; `main.rs` only registers commands.
+- Tauri 2 (reference app, unchanged): interface plain HTML/JS/CSS in `app/dist`, no framework or bundler; backend Rust
+  in `app/src-tauri/src`, one module per area; `main.rs` only registers commands.
+- Native rebuild: **Rust + Slint 1.18.1 + Skia** in the standalone `slint/` crate. All logic, I/O, persistence and
+  heavy work in Rust; `.slint` files only for presentation, layout, simple bindings, native animation and events.
+  Backend `winit`, renderer `skia`, selected explicitly. No Qt, QML, C++/CMake or cxx-qt.
 - FFmpeg, yt-dlp, upscayl-bin, rife-ncnn-vulkan, the Cutout model (ONNX Runtime Web), Pandoc, LibreOffice and PDFium are
-  downloadable components.
-- Tests: Playwright on headless Chromium with the backend mocked in Node (`app/tests/host.js`), plus `cargo test`.
+  downloadable components of the Tauri app. The Slint beta has no engines connected.
+- Tests: Playwright on headless Chromium with the backend mocked in Node (`app/tests/host.js`), plus `cargo test` for
+  Tauri. The Slint crate uses headless Rust service/model tests; UI visual review is a native-window manual gate.
 
 ## Build and test
 
-- While iterating: the mocked backend and the tests of the area touched (`node app/tests/<file>.js`).
-- Once at the end, only the tests of what the task changed (Java, 2026-09-29: the full suite takes over an hour in the
-  container): the Node test files of the areas touched, plus cargo check, clippy `-D warnings` and cargo test when Rust
-  changed. The full suite (`cd app && npm run verify`; `npm test` without cargo, `--force` runs everything) only when
-  asked.
-- Screenshots go to `$SHOTS`; every visual change is looked at, once at the end. Subagents `test-runner` and `visual-reviewer`
-  (`.claude/agents/`) run the checks and review the screenshots.
-- A change `host.js` cannot replicate (Rust, export) is also tested once against the real binary (`npm run test:real`).
-- Previews for Java are tried on the portable exe with the current frontend injected; it is rebuilt only when a
-  backend changes its implementation (Rust in `app/src-tauri` or any other backend code) (Java, 2026-10-14).
-- Caches stay on (Rust `target/`, fixtures, `node_modules`); no clean build unless needed.
-- `npm run i18n:missing`: Spanish keys missing. `npm run tauri build`: local build (CI builds releases).
+- Tauri while iterating: the mocked backend and the tests of the area touched (`node app/tests/<file>.js`).
+- Tauri at the end: only the tests of what the task changed; the Node test files of the areas touched, plus cargo
+  check, clippy `-D warnings` and cargo test when Rust changed. The full suite (`cd app && npm run verify`; `npm test`
+  without cargo, `--force` runs everything) only when asked.
+- Slint: `cd slint`, then `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`,
+  `cargo build --release`. Confirm `Cargo.lock` and feature graph keep winit + Skia; no Qt/FemtoVG/software runtime.
+- Slint visual review: the coordinator/user opens the real native window with the beta launcher and isolated profile.
+  The worker does not launch the visible beta or generate screenshots/video/frames. Tests do not prove visual quality,
+  frame pacing or hardware rendering.
+- Screenshots for the Tauri app go to `$SHOTS`; every visual change is looked at, once at the end. Subagents
+  `test-runner` and `visual-reviewer` (`.claude/agents/`) run Tauri checks and review screenshots.
+- A Tauri change `host.js` cannot replicate (Rust, export) is also tested once against the real binary
+  (`npm run test:real`). Tauri previews are tried on the portable exe with the current frontend injected; rebuild only
+  when backend code changes (Java, 2026-10-14).
+- Caches stay on (Rust `target/`, Cargo registry, fixtures, `node_modules`); no clean build unless needed.
+- `npm run i18n:missing`: Spanish keys missing. `npm run tauri build`: Tauri local build (CI builds releases).
 
 ## Conventions
 
-- New interface text only in `app/dist/locales/en.json` (`t()` / `data-i18n`); `es.json` only when asked to
-  "update Spanish". Missing Spanish keys fall back to English.
+- New Tauri interface text only in `app/dist/locales/en.json` (`t()` / `data-i18n`); `es.json` only when asked to
+  "update Spanish". Missing Spanish keys fall back to English. Slint beta text is English in the `.slint`/Rust sources;
+  there is no shared locale system in the beta.
 - Release only with a `[build]` commit, the last of a task (one build per task). It runs
-  `node app/scripts/bump-beta.js --set <v>` and adds the version's section to `CHANGELOG.md` (English).
+  `node app/scripts/bump-beta.js --set <v>` and adds the version's section to `CHANGELOG.md` (English). No Slint
+  release is authorized by this rule.
 - Implementation threads run at High effort, one phase after another; no agent teams, no fast mode.
-- One code file per tool, split into sections `/* ===== name ===== */`; `docs/ARCHITECTURE.md` has the code map
-  (file + function). Prompts name the files to touch; read those, no wide searches unless needed. Keep the
-  surrounding style.
-- Colours only through `app/dist/tokens.css`; animations only through `app/dist/motion.js` and the motion tokens
+- Tauri: one code file per tool, split into sections `/* ===== name ===== */`; `docs/ARCHITECTURE.md` has the code map
+  (file + function). Prompts name the files to touch; read those, no wide searches unless needed. Keep the surrounding
+  style.
+- Tauri colours only through `app/dist/tokens.css`; animations only through `app/dist/motion.js` and the motion tokens
   (`docs/MOTION.md`: one critically damped spring, four tokens, interruptible with the speed carried over, transform
   and opacity (blur only for depth), skeletons instead of loaders, a short fade with reduced motion).
+- Slint colours come from the Rust `theme` constants applied to the Slint `Theme` global; controls must stay legible
+  under any Windows theme. Motion uses native Slint animation only, with deterministic reduced-motion behavior.
+  Business state lives in Rust services, never in page instances.
 
 ## Fixed restrictions
 
@@ -56,10 +69,14 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 
 ## Folders
 
+- `slint/`: standalone Rust + Slint beta crate: `src/` (services, models, controller), `ui/` (`.slint` shell, pages,
+  components, theme), `assets/` (product mark), `tests/` (headless state tests), `scripts/` (beta launcher). Canonical
+  spec: `docs/SLINT_SPEC.md`.
 - `app/dist/`: `index.html` + `shell.js` (main window) + `atmosphere.js` + `drape.js` + `blue-noise.js` (window background) + `welcome-background.js` (Welcome) + `services.js` (`window.__hal`: Library data, Crop,
   Cutout, Frame Grab's extractor); per tool `<tool>.html`, `<tool>.css`, `<tool>.js` (`visualizer`, `grade`,
   `framegrab`, `downloader`, `upscale`, `interp`, `removebg`, `convert`); shared `grader.js`, `common.js`, `avplay.js`, `updates.js` (updater; `docs/UPDATES.md`), `tokens.css`, `ui.css`, `motion.js`, `encoder.js`, `modules.js`, `locales/`.
 - `app/src-tauri/src/`: Rust commands. `app/scripts/`: version bump, icons, i18n.
 - `app/tests/`: Playwright suite, `host.js`, `verify.js`.
-- `docs/`: `ARCHITECTURE.md` (code map, export), `MOTION.md` (motion rules, tokens, waits), `DECISIONS.md`, `ROADMAP.md` (parked ideas).
+- `docs/`: `SLINT_SPEC.md` (canonical native rebuild spec), `ARCHITECTURE.md` (Tauri code map, export), `MOTION.md`
+  (Tauri motion rules, tokens, waits), `DECISIONS.md`, `ROADMAP.md` (parked ideas).
 - `.claude/`: agents and skills (`playwright-cli`, `context7`, `frontend-design`).

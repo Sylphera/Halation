@@ -92,7 +92,8 @@ mayor que el fondo actual.
 ## Fuera de alcance
 
 - Cambiar el diseño de Home, Welcome o la navegación; otros fondos (`tool-atmosphere`, `soft-light`).
-- La versión Qt Quick de los fondos (se hará en la migración, partiendo ya de este código propio).
+- Los fondos de la app nativa Rust + Slint: la beta usa una atmósfera estática simple y no porta Drape ni Welcome;
+  cualquier fondo animado futuro se especificará en el roadmap de `docs/SLINT_SPEC.md`.
 
 ## Orden
 

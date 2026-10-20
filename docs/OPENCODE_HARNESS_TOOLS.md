@@ -29,9 +29,8 @@ contains machine-specific paths; `.serena/` is ignored in full.
 
 A local `project.yml` defines: project name, ignored paths (`.tools`,
 `.worktrees`, caches), and the enabled language servers. For this tree the
-useful set is TypeScript, Rust, JSON, Python and YAML. QML is declared but not
-activated: `qmlls` does not expose `documentSymbol`, so the navigation tools do
-not work for QML. C++/clangd is intentionally off until the Qt phase needs it.
+useful set is TypeScript, Rust, JSON, Python and YAML. QML and C++ are not part
+of the active stack and are not enabled.
 
 Activation rules:
 

@@ -1,6 +1,6 @@
 # Apertura del código (open source)
 
-Halation pasó de freeware cerrado a software libre el 13-10-2026, antes de la migración a Qt Quick. Este documento
+Halation pasó de freeware cerrado a software libre el 13-10-2026, antes de la reconstrucción nativa Rust + Slint. Este documento
 recoge las decisiones, lo que se hizo y lo que queda.
 
 ## Decisiones

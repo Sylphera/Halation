@@ -115,6 +115,13 @@ npm run verify                   # everything, including cargo check, clippy and
 
 `docs/ARCHITECTURE.md` maps the code (one file per tool, one Rust module per area). `CONTRIBUTING.md` explains how to propose changes.
 
+## Native rebuild (in progress)
+
+A separate clean-room native application is being built with Rust, [Slint](https://slint.dev) and Skia in the `slint/`
+crate. It has its own profile, schema and tests and does not read Tauri user data. It is a technical beta, not the
+published app; the Tauri application remains the release line. The canonical specification, current phase state and
+validation gates are in **[docs/SLINT_SPEC.md](docs/SLINT_SPEC.md)**.
+
 ## Development
 
 Halation is developed with extensive use of AI coding agents as engineering tools for implementation, refactoring, debugging, profiling, testing, research and documentation.

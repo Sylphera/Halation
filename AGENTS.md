@@ -19,54 +19,61 @@
 ## Misión vigente
 
 - La base es `main`: la app Tauri 2 (`app/`) y su backend Rust (`app/src-tauri`) se conservan sin cambios de producto como referencia funcional y comportamiento validado.
-- Las fases Qt anteriores se dan por retiradas. La reconstrucción es clean-room con Qt Quick + C++/CMake partiendo de `main`; no se reutiliza el código de las ramas Qt retiradas ni se recrea su arquitectura. El stack objetivo es Qt Quick + C++/CMake: la antigua exigencia de runtime Rust no aplica. No se adelantan fases ni se portan motores que aún no correspondan.
-- Las specs públicas antiguas (`docs/*_SPEC.md`, `docs/MOTION*.md` y similares) se conservan solo como fuente de requisitos funcionales y contratos de comportamiento (qué debe hacer la app). No son referencia arquitectónica ni de presentación: layouts, duraciones, easings y convenciones de motion antiguos quedan superseded por el prompt clean-room de misión, la documentación oficial de Qt y la nueva spec que se escriba. No se hace otra migración literal.
+- Qt Quick, QML, C++/CMake y cxx-qt quedan retirados del desarrollo activo. La reconstrucción es clean-room con **Rust + Slint + Skia**, en un crate `slint/` independiente y en su propia rama/worktree. No se reutiliza código de la rama Qt, ni su arquitectura, ni fuentes de interfaz de la app Tauri.
+- La especificación canónica es `docs/SLINT_SPEC.md` (sustituye a `docs/QT_QUICK_SPEC.md`, ya renombrada). Recoge el primer bloque A–E y el roadmap posterior; no hay specs paralelas. Las specs públicas antiguas (`docs/*_SPEC.md`, `docs/MOTION*.md` y similares) se conservan solo como fuente de requisitos funcionales (qué debe hacer la app), no como arquitectura, layout o convención de motion.
 - Prioridad de ingeniería: arquitectura, respuesta, pacing, lifecycles, recursos y mantenibilidad antes que estética o paridad visual. La validación visual sigue siendo manual.
-- La app Tauri y su backend se mantienen operativos y verificables mientras la fase Qt correspondiente no los sustituya; no mezclar una migración en curso con cambios de harness.
+- La app Tauri y su backend se mantienen operativos y verificables mientras la app Slint no los sustituya; no mezclar la reconstrucción con cambios de harness ni con datos de usuario Tauri.
+- La beta Slint usa un perfil propio y aislado; no lee ni escribe ajustes, Library o sesiones de Tauri. Cualquier continuidad de datos requiere un diseño y una validación explícitos.
 
-## Reglas obligatorias de ingeniería Qt 6
+## Reglas obligatorias de ingeniería Rust + Slint + Skia
 
-Estas reglas rigen la reconstrucción clean-room de Halation con Qt Quick + C++/CMake. Se aplican a todo trabajo presente y futuro sobre la app Qt, en cualquier rama o worktree, y no a la app Tauri/Rust de referencia. No son un mandato retroactivo para reescribir el backend Rust/Tauri ni el código visual de referencia de `main`, que se conservan como referencia funcional y comportamiento validado. No sustituyen a `docs/QT_QUICK_SPEC.md`, la especificación Qt canónica, ni autorizan por sí solas cambios de producto, UX o arquitectura.
+Estas reglas rigen la reconstrucción clean-room de Halation con Rust + Slint + Skia. Se aplican a todo trabajo presente y futuro sobre el crate `slint/`, en cualquier rama o worktree, y no a la app Tauri/Rust de referencia. No son un mandato retroactivo para reescribir el backend Tauri ni el código visual de referencia de `main`. No sustituyen a `docs/SLINT_SPEC.md`, la especificación canónica, ni autorizan por sí solas cambios de producto, UX o arquitectura.
 
-### 1. Separación estricta entre C++ y QML
+### 1. Separación estricta entre Rust y Slint
 
-- Toda la lógica pesada, los cálculos, el procesamiento de datos, el acceso a archivos y red y cualquier operación costosa van en C++.
-- QML se usa solo para UI, animaciones, transiciones y bindings simples.
-- Está prohibido implementar lógica de negocio o procesamiento pesado en JavaScript/QML.
+- Toda la lógica, los cálculos, el procesamiento, el acceso a archivos y red, la persistencia y cualquier operación costosa van en Rust.
+- Slint se usa solo para presentación, layout, bindings simples, animaciones nativas y eventos de UI.
+- Está prohibido implementar lógica de negocio o procesamiento pesado en `.slint` o en expresiones de UI.
+- Los cálculos de vista pequeños (índices de fila, formato de etiquetas) pueden vivir en bindings simples; si crecen o tocan datos, pasan a Rust.
 
 ### 2. Rendimiento y uso de recursos
 
 - El rendimiento y el bajo consumo de recursos son prioridad.
-- Las listas y tablas grandes usan modelos C++ (`QAbstractListModel` / `QAbstractItemModel`); nunca arrays QML grandes.
-- Evitar crear y destruir grandes cantidades de objetos de forma continua.
-- Usar `Loader` on-demand cuando tenga sentido y minimizar allocations y temporales.
+- Las listas y tablas grandes usan modelos Rust (`slint::Model`) con mapeo de fila O(1), roles tipados y metadatos cacheados; nunca arrays Slint grandes.
+- Usar `ListView` virtualizado para colecciones; la página activa se instancia de forma perezosa y las páginas ocultas no ejecutan trabajo.
+- Evitar crear y destruir grandes cantidades de objetos de forma continua; reutilizar modelos y estado funcional en servicios Rust.
+- No introducir un framework reactivo propio, polling continuo, timers en reposo ni motores de animación paralelos.
 
 ### 3. Animaciones
 
-- Usar animaciones nativas de Qt Quick (`NumberAnimation`, `PropertyAnimation`, `Behavior`, `Transition`, etc.).
-- Deben ser fluidas y no bloquear la GUI.
-- No inventar motores de animación en JavaScript ni mecanismos paralelos.
+- Usar animaciones nativas de Slint (`animate`, `states`, `transitions`, propiedades animadas) y sus semánticas documentadas.
+- Deben ser fluidas, interrumpibles cuando corresponda y no bloquear la GUI.
+- La preferencia de movimiento reducido es determinista: duración cero o estado final inmediato, sin depender de un reloj propio.
+- No inventar un muelle o un motor de animación si la documentación de Slint no valida esa semántica.
 
-### 4. Memoria y C++
+### 4. Memoria, ownership y concurrencia
 
-- Preferir smart pointers (`std::unique_ptr`, `QScopedPointer`) y el ownership parent-child de Qt.
-- Evitar `new` sin owner claro cuando sea posible.
-- El trabajo pesado va fuera del hilo GUI (`QtConcurrent`, `QThread`/worker).
-- El parent de un `QObject` es un ownership válido y explícito: no combinar doble ownership entre smart pointer y parent.
+- El estado de UI vive en Rust; las vistas no son la fuente de verdad.
+- Para callbacks de UI, usar `Rc`/`Weak` y `upgrade_in_event_loop`; no capturar referencias fuertes que creen ciclos.
+- El trabajo pesado va fuera del hilo GUI. Los resultados vuelven al hilo GUI mediante `slint::invoke_from_event_loop` o `Weak::upgrade_in_event_loop`; los modelos no se mutan desde workers.
+- Usar `Arc`, atómicos y generaciones para descartar resultados obsoletos; no acceder a owners destruidos.
+- Los workers son finitos y con alcance acotado. No hacer `join` indefinido en el cierre ni bloquear la GUI esperando E/S.
 
 ### 5. Calidad de código y validación estática
 
-- Código limpio, legible, mantenible y con buenas prácticas de Qt 6.
-- Debe pasar Clazy y Clang-Tidy sin warnings importantes de rendimiento o de API de Qt.
+- Código limpio, legible, mantenible y con buenas prácticas de Rust 2024 y Slint 1.18.
+- Deben pasar `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` y el build release con los diagnósticos del compilador Slint.
+- Verificar el grafo de features y el lockfile: backend `winit` y renderer `skia` explícitos, sin backend Qt, FemtoVG ni renderer software como runtime.
+- Clazy y Clang-Tidy son herramientas del stack Qt retirado y no bloquean el stack Slint.
 - Si una herramienta no está disponible o no se puede ejecutar, declarar la validación como pendiente y no afirmar que pasó. No instalar herramientas ni lanzar escaneos fuera de una tarea que los requiera.
 
 ### 6. Antes de implementar
 
-- Explicar brevemente la separación entre lógica C++ y QML de la solución propuesta.
+- Explicar brevemente la separación entre lógica Rust y presentación Slint de la solución propuesta.
 - Si la solución puede afectar al rendimiento, avisar y proponer alternativas más ligeras.
 - No convertir cada decisión microtécnica en una aprobación humana: comunicar el riesgo relevante junto con una alternativa, dentro de la autonomía ya autorizada. Las decisiones de producto o irreversibles siguen siendo humanas.
 
-Estas reglas no imponen un lifecycle único: el `Loader` on-demand, el destroy-on-leave de la página activa y el estado funcional en servicios C++ siguen siendo válidos. Se evita el churn continuo e innecesario, no el ciclo de vida deliberado. No exigen cachear todas las vistas, añadir micro-motores ni introducir presupuestos numéricos nuevos; los objetivos de rendimiento vigentes están en `docs/QT_QUICK_SPEC.md`.
+Estas reglas no imponen un lifecycle único: la página activa condicional, el destroy-on-leave y el estado funcional en servicios Rust siguen siendo válidos. Se evita el churn continuo e innecesario, no el ciclo de vida deliberado. No exigen cachear todas las vistas, añadir micro-motores ni introducir presupuestos numéricos nuevos; los objetivos de rendimiento vigentes están en `docs/SLINT_SPEC.md`.
 
 ## Harness (OpenCode V2 + OmO Slim)
 
@@ -96,23 +103,24 @@ Para cualquier cambio no trivial:
 
 Cualquier cambio que afecte UI, UX, animaciones, layout, espaciado, jerarquía visual, estados, navegación o comportamiento visible **no puede considerarse terminado ni fusionarse sin aprobación visual explícita del usuario**.
 
-El flujo es:
+El flujo depende del producto que se revisa:
 
-**implementar → ejecutar/comprobar → dejar la instancia real de Chromium/local abierta para revisión → esperar OK visual manual del usuario → corregir si hace falta → volver a presentar en Chromium/local → solo entonces cerrar/fusionar.**
+- **Tauri/WebView2:** **implementar → ejecutar/comprobar → dejar la instancia real de Chromium/WebView2 abierta para revisión → esperar OK visual manual → corregir → volver a presentar → solo entonces cerrar/fusionar.**
+- **Slint nativo:** **implementar → compilar → el coordinador/usuario abre la ventana nativa real con el perfil beta → esperar OK visual manual → corregir → volver a presentar → solo entonces cerrar/fusionar.** El worker no abre la beta visible por su cuenta.
 
-Para iteraciones visuales locales, la revisión visual se hace directamente en la instancia real de Chromium/local abierta para el usuario. El usuario da el OK visual manual; esa revisión constituye la evidencia visual de la iteración. No sustituir revisión visual por tests DOM, snapshots, inspección de CSS o afirmaciones del agente de que “se ve correcto”.
+Para iteraciones visuales locales, la revisión se hace directamente sobre la instancia real abierta para el usuario: Chromium/WebView2 en Tauri, ventana nativa en Slint. El usuario da el OK visual manual; esa revisión constituye la evidencia visual de la iteración. No sustituir revisión visual por tests DOM, snapshots, inspección de CSS, tests de estado Rust/Slint ni afirmaciones del agente de que “se ve correcto”. En la app Slint, la ventana nativa real es la única evidencia visual válida.
 
 Durante estas iteraciones, no generar vídeos, capturas automatizadas, secuencias de frames, comparación RGB ni pipelines de evidencia visual salvo petición explícita del usuario. No ejecutar indirectamente scripts o tests de visual review que generen esa evidencia. Si un test relevante dispara automáticamente esa infraestructura, no ejecutarlo durante la iteración visual: indicarlo y usar sólo las comprobaciones funcionales focales necesarias.
 
-Los vídeos y las capturas automatizadas quedan reservados para una validación final solicitada explícitamente o una petición directa del usuario. Las reglas de generación, codificación, reproducción y paridad descritas más abajo se aplican únicamente cuando esa evidencia automatizada haya sido solicitada explícitamente.
+Los vídeos y las capturas automatizadas quedan reservados para una validación final solicitada explícitamente o una petición directa del usuario. Las reglas de generación, codificación, reproducción y paridad descritas más abajo se aplican únicamente a la app Tauri/Chromium y sólo cuando esa evidencia automatizada haya sido solicitada explícitamente. La beta Slint no genera ni usa esa infraestructura.
 
 Si el usuario todavía no ha dado el OK visual, el estado de la tarea es **“implementada, pendiente de revisión visual”**, nunca “terminada”.
 
-Los vídeos de revisión se renderizan por fotogramas con tiempo controlado sobre el frontend real y se codifican después. No usar grabación en tiempo real como evidencia de fluidez. Medir por separado la ejecución (frame times, long frames, layout/repaint y continuidad); un render fluido no demuestra rendimiento real.
+Los vídeos de revisión de Tauri se renderizan por fotogramas con tiempo controlado sobre el frontend real y se codifican después. No usar grabación en tiempo real como evidencia de fluidez. Medir por separado la ejecución (frame times, long frames, layout/repaint y continuidad); un render fluido no demuestra rendimiento real.
 
 Verificar también la codificación y reproducción: comparar los píxeles RGB de los fotogramas fuente con el vídeo decodificado y comprobar fotogramas realmente presentados por el reproductor. No basta con que FFmpeg decodifique correctamente. Usar el encoder compartido `visual-review.encodeVideo` (WebM/VP9 RGB sin pérdida); H.264 RGB no reproduce correctamente el color en el Chromium de revisión. No compensar errores del vídeo ajustando el diseño de la aplicación.
 
-Antes de juzgar diseño, verificar paridad entre ejecución y evidencia: viewport CSS, DPR, tamaños del canvas y viewport WebGL, variante/fase del fondo, transforms y escala de salida. Usar el contrato compartido `app/tests/visual-review.js` en las capturas de la aplicación; conservar manifiestos de geometría, estado y fuentes. Los recortes, máscaras, JPEG y capturas de elementos son detalles diagnósticos, acompañados de una vista completa PNG a resolución nativa; no presentarlos ampliados como si fueran la ventana completa. En comparaciones, reproducir una escena capturada de la ejecución con los mismos parámetros en ambas versiones, sin variantes de fondo inventadas ni compensaciones de diseño. Si la paridad no está comprobada, la evidencia no sirve para aprobar cambios visuales.
+Antes de juzgar diseño en Tauri, verificar paridad entre ejecución y evidencia: viewport CSS, DPR, tamaños del canvas y viewport WebGL, variante/fase del fondo, transforms y escala de salida. Usar el contrato compartido `app/tests/visual-review.js` en las capturas de la aplicación; conservar manifiestos de geometría, estado y fuentes. Los recortes, máscaras, JPEG y capturas de elementos son detalles diagnósticos, acompañados de una vista completa PNG a resolución nativa; no presentarlos ampliados como si fueran la ventana completa. En comparaciones, reproducir una escena capturada de la ejecución con los mismos parámetros en ambas versiones, sin variantes de fondo inventadas ni compensaciones de diseño. Si la paridad no está comprobada, la evidencia no sirve para aprobar cambios visuales.
 
 Una aprobación anterior solo cubre exactamente lo mostrado. Si después se modifica algo visualmente relevante, **se pierde ese OK y debe revisarse de nuevo**.
 
@@ -122,12 +130,14 @@ Para cambios puramente internos sin efecto visible, no se requiere OK visual, pe
 
 ## Comprobaciones adicionales
 
-Para cambios estructurales o de backend: además de los tests específicos, ejecutar las comprobaciones globales relevantes (`clippy`, `cargo test`, arquitectura y runners afectados).
+Para cambios estructurales o de backend Tauri: además de los tests específicos, ejecutar las comprobaciones globales relevantes (`clippy`, `cargo test`, arquitectura y runners afectados).
+
+Para el crate Slint: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, build release con diagnósticos del compilador Slint y verificación del lockfile/grafo de features (`winit` + `skia`). Los tests de estado Rust no sustituyen la validación visual nativa.
 
 Para tareas interrumpidas: reconstruir primero el punto exacto alcanzado y continuar desde ahí. No repetir trabajo ya realizado ni asumir que el último commit representa una tarea cerrada.
 
 ## Validación y definición de terminado
 
-`verify.js` y `test:serial` no cubren automáticamente todos los sistemas nuevos. Ejecutar explícitamente los tests relacionados de `jobs.js`, `processes.js`, `session.js`, `covertest.js`, `library.js` y `settings.js` cuando la tarea toque esas áreas. Preservar resultados previamente validados salvo cambios que los afecten. No ejecutar la suite completa sin petición o necesidad justificada por el alcance.
+`verify.js` y `test:serial` cubren la app Tauri, no la app Slint. Ejecutar explícitamente los tests relacionados de `jobs.js`, `processes.js`, `session.js`, `covertest.js`, `library.js` y `settings.js` cuando la tarea toque esas áreas Tauri. Para Slint, ejecutar los tests del crate y no presentar tests de estado como validación de UI. Preservar resultados previamente validados salvo cambios que los afecten. No ejecutar la suite completa sin petición o necesidad justificada por el alcance.
 
-**Terminado = implementación completa + integración real + tests relevantes + comprobación de regresiones + validación contra la spec.** Solo después se puede proponer merge/build; cualquier comprobación pendiente debe comunicarse explícitamente.
+**Terminado = implementación completa + integración real + tests relevantes + comprobación de regresiones + validación contra la spec.** Solo después se puede proponer merge/build; cualquier comprobación pendiente debe comunicarse explícitamente. En la app Slint, el OK visual manual de la ventana nativa es un gate separado y obligatorio.
