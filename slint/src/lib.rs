@@ -1,0 +1,28 @@
+#![deny(unsafe_code)]
+
+pub mod app;
+pub mod atomic_file;
+pub mod catalog;
+pub mod jobs;
+pub mod library;
+pub mod motion;
+pub mod navigation;
+pub mod profile;
+pub mod settings;
+pub mod theme;
+
+pub mod ui {
+    slint::include_modules!();
+}
+
+pub const APP_NAME: &str = "Halation";
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const BUILD_SHA: &str = env!("HALATION_BUILD_SHA");
+
+pub fn build_label() -> String {
+    format!("{APP_NAME} native beta · v{APP_VERSION} · {BUILD_SHA}")
+}
+
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    app::run()
+}

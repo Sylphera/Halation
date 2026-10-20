@@ -19,7 +19,7 @@
 ## Misión vigente
 
 - La base es `main`: la app Tauri 2 (`app/`) y su backend Rust (`app/src-tauri`) se conservan sin cambios de producto como referencia funcional y comportamiento validado.
-- Qt Quick, QML, C++/CMake y cxx-qt quedan retirados del desarrollo activo. La reconstrucción es clean-room con **Rust + Slint + Skia**, en un crate `slint/` independiente y en su propia rama/worktree. No se reutiliza código de la rama Qt, ni su arquitectura, ni fuentes de interfaz de la app Tauri.
+- Qt Quick, QML, C++/CMake y cxx-qt quedan retirados del desarrollo activo. La reconstrucción es clean-room con **Rust + Slint + Skia**, en un crate `slint/` independiente y en su propia rama/worktree. No se reutiliza código de la rama Qt ni código Rust propio anterior de Tauri, `halation-core`, puentes/pruebas/servicios Qt o diagnósticos Rust. No se copia, traduce, cherry-pickea ni recrea desde esas implementaciones; tampoco se enlaza mediante path dependencies, FFI o wrappers. Solo se consultan requisitos funcionales y esquemas/contratos documentados como información, además de assets puros de identidad y referencias estáticas. La app Tauri se conserva como referencia de producto, no como fuente de implementación.
 - La especificación canónica es `docs/SLINT_SPEC.md` (sustituye a `docs/QT_QUICK_SPEC.md`, ya renombrada). Recoge el primer bloque A–E y el roadmap posterior; no hay specs paralelas. Las specs públicas antiguas (`docs/*_SPEC.md`, `docs/MOTION*.md` y similares) se conservan solo como fuente de requisitos funcionales (qué debe hacer la app), no como arquitectura, layout o convención de motion.
 - Prioridad de ingeniería: arquitectura, respuesta, pacing, lifecycles, recursos y mantenibilidad antes que estética o paridad visual. La validación visual sigue siendo manual.
 - La app Tauri y su backend se mantienen operativos y verificables mientras la app Slint no los sustituya; no mezclar la reconstrucción con cambios de harness ni con datos de usuario Tauri.
@@ -28,6 +28,13 @@
 ## Reglas obligatorias de ingeniería Rust + Slint + Skia
 
 Estas reglas rigen la reconstrucción clean-room de Halation con Rust + Slint + Skia. Se aplican a todo trabajo presente y futuro sobre el crate `slint/`, en cualquier rama o worktree, y no a la app Tauri/Rust de referencia. No son un mandato retroactivo para reescribir el backend Tauri ni el código visual de referencia de `main`. No sustituyen a `docs/SLINT_SPEC.md`, la especificación canónica, ni autorizan por sí solas cambios de producto, UX o arquitectura.
+
+### Límite de procedencia clean-room
+
+- El código Rust de `slint/` y sus pruebas se diseñan desde cero. No usar implementaciones, tests ni diagnósticos Rust propios anteriores como plantilla o fuente, incluidos Tauri, `halation-core`, puentes/servicios/pruebas Qt y herramientas diagnósticas.
+- Se permite leer contratos, requisitos y formatos documentados solo para entender el comportamiento; no trasladar su código. Se permiten crates públicos estándar sujetos a licencia y assets estáticos puros de identidad/referencia.
+- No introducir path dependencies, enlaces, FFI, wrappers ni dependencias locales que alcancen implementaciones Rust anteriores.
+- Antes de cerrar, declarar las fuentes consultadas y revisar `Cargo.toml`/`Cargo.lock`, imports y usos de rutas para confirmar el límite. Si se detecta contaminación, retirarla y reimplementar desde cero en esta misma unidad; no ocultarla ni presentar la suite de pruebas como justificación de procedencia.
 
 ### 1. Separación estricta entre Rust y Slint
 

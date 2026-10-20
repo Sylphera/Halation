@@ -1,0 +1,6 @@
+# Asset provenance
+
+`halation-mark.png` is an unchanged copy of the existing pure Halation identity asset
+`docs/brand/halation-mark-source.png` (SHA-256 `79DADA76D9075E018641D90642D27E63D8DEEEEA02F6022DC5BFEEDC2F478AC4`).
+It is used only as the product mark. The static Home reference image is kept outside the source tree under ignored
+`.tools/ui-rebuild-native/home-reference/`; it is composition guidance only and is not embedded in the application.

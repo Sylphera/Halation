@@ -1,0 +1,60 @@
+import { Theme } from "../theme.slint";
+
+export component ToggleSwitch inherits FocusScope {
+    in property <bool> checked: false;
+    in property <duration> motion-duration: 160ms;
+    in property <string> accessible-name: "";
+    callback toggled(bool);
+
+    width: 46px;
+    height: 26px;
+    focus-on-tab-navigation: true;
+    accessible-role: checkbox;
+    accessible-label: accessible-name;
+    accessible-action-default => {
+        if (root.enabled) {
+            toggled(!checked);
+        }
+    }
+
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            if (root.enabled) {
+                toggled(!checked);
+            }
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 13px;
+        background: root.checked ? Theme.accent : Theme.surface-high;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.accent : Theme.border;
+        opacity: root.enabled ? 1 : 0.45;
+        animate background { duration: root.motion-duration; easing: ease-out; }
+    }
+
+    Rectangle {
+        width: 20px;
+        height: 20px;
+        y: 3px;
+        x: root.checked ? parent.width - 23px : 3px;
+        border-radius: 10px;
+        background: root.checked ? Theme.background : Theme.muted;
+        animate x { duration: root.motion-duration; easing: ease-out; }
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.toggled(!root.checked);
+        }
+    }
+}

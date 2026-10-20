@@ -482,6 +482,24 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib |
 
+## Rust crates — native Slint beta (not released)
+
+The standalone `slint/` beta has not been released. These are the direct crates and graphics/windowing licenses
+resolved by its `Cargo.lock` (Slint 1.18.1 / Rust 1.99 MSVC validation, 2026-10-20). This section supplements the
+Tauri dependency list above; it is not a complete transitive notice set. Generate and review all notices from
+`slint/Cargo.lock` before any distribution.
+
+| Crate | Resolved version | License | Use |
+|---|---:|---|---|
+| `slint`, `slint-build` | 1.18.1 | GPL-3.0-only OR Slint royalty-free OR commercial (beta uses GPL-3.0-only) | UI runtime and compiler |
+| `skia-safe` | 0.153.3 | MIT | Rust bindings for Skia |
+| Skia native library | resolved through `skia-safe` build | BSD-3-Clause | Skia renderer |
+| `winit` | 0.30.13 | Apache-2.0 | Windowing backend |
+| `rfd` | 0.17.2 | MIT | Native file picker |
+| `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Isolated profile serialization |
+
+Halation remains GPL-3.0-or-later. This beta does not authorize or claim closed-source distribution.
+
 ## SIL Open Font License 1.1
 
 ```

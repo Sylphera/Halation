@@ -1,0 +1,61 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+
+export component RailButton inherits FocusScope {
+    in property <string> icon: "home";
+    in property <string> label: "";
+    in property <bool> active: false;
+    in property <bool> available: true;
+    in property <duration> motion-duration: 160ms;
+    callback activated;
+
+    width: 40px;
+    height: 32px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: label + (available ? "" : " (not available in this beta)");
+    accessible-action-default => { activated(); }
+
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 9px;
+        background: root.active ? Theme.accent-soft : (touch.has-hover ? Theme.surface-high : transparent);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+        opacity: root.available ? 1 : 0.55;
+        animate background { duration: root.motion-duration; easing: ease-out; }
+    }
+
+    if icon == "mark" : Image {
+        source: @image-url("../../assets/halation-mark.png");
+        width: 24px;
+        height: 12px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        image-fit: contain;
+    }
+    if icon != "mark" : ToolIcon {
+        name: root.icon;
+        tint: root.active ? Theme.text : Theme.muted;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+    }
+}

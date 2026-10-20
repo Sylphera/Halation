@@ -1,0 +1,66 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+
+export component ToolTile inherits FocusScope {
+    in property <string> id: "";
+    in property <string> name: "";
+    in property <string> icon: "download";
+    in property <bool> available: false;
+    in property <duration> motion-duration: 160ms;
+    callback activated;
+
+    height: 54px;
+    min-width: 52px;
+    max-width: 88px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: name + (available ? "" : " (not available in this beta)");
+    accessible-action-default => { activated(); }
+
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 9px;
+        background: touch.has-hover ? Theme.surface-high : transparent;
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+        animate background { duration: root.motion-duration; easing: ease-out; }
+    }
+
+    VerticalLayout {
+        padding: 3px;
+        spacing: 4px;
+        alignment: center;
+        ToolIcon {
+            name: root.icon;
+            tint: root.available ? Theme.text : Theme.muted;
+            opacity: root.available ? 1 : 0.6;
+        }
+        Text {
+            text: root.name;
+            color: root.available ? Theme.text : Theme.muted;
+            font-size: 9px;
+            font-weight: 500;
+            horizontal-alignment: center;
+            overflow: elide;
+            opacity: root.available ? 1 : 0.7;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+    }
+}

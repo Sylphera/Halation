@@ -1,0 +1,96 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+import { JobRow } from "../models.slint";
+
+export component JobsPage inherits Rectangle {
+    in property <[JobRow]> jobs;
+    in property <string> capability: "";
+    in property <duration> motion-duration: 160ms;
+
+    background: transparent;
+
+    VerticalLayout {
+        padding: Theme.page-padding;
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            Text {
+                text: "Jobs";
+                color: Theme.text;
+                font-size: 27px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Rectangle {
+                width: 154px;
+                height: 24px;
+                border-radius: 12px;
+                background: #2a1c1c;
+                border-width: 1px;
+                border-color: Theme.danger;
+                Text {
+                    text: "DISCONNECTED";
+                    color: Theme.danger;
+                    font-size: 8px;
+                    font-weight: 700;
+                    letter-spacing: 0.8px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Text {
+            text: "Honest empty state: this beta has no processing engine, scheduler or queue. Nothing here will pretend to run.";
+            color: Theme.muted;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: 16px;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 9px;
+                ToolIcon { name: "jobs"; tint: Theme.muted; }
+                Text {
+                    text: "No jobs";
+                    color: Theme.text;
+                    font-size: 18px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.capability;
+                    color: Theme.muted;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "The Jobs page stays empty until a real service contract, capability check and lifecycle exist.";
+                    color: Theme.muted;
+                    font-size: 10px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        if root.jobs.length > 0 : Text {
+            text: "Unexpected job rows are present; this build should always keep Jobs empty.";
+            color: Theme.danger;
+            font-size: 10px;
+        }
+        if root.jobs.length == 0 : Text {
+            text: "No process was started. No progress is simulated.";
+            color: Theme.muted;
+            font-size: 9px;
+        }
+    }
+}

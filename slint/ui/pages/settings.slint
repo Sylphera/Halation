@@ -1,0 +1,244 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+import { AppButton } from "../components/button.slint";
+import { ToggleSwitch } from "../components/toggle.slint";
+
+export component SettingsPage inherits Rectangle {
+    in property <bool> reduced-motion: false;
+    in property <bool> settings-writable: true;
+    in property <int> library-limit: 2000;
+    in property <int> schema-version: 1;
+    in property <string> profile-path: "";
+    in property <string> build-label: "";
+    in property <string> error: "";
+    in property <string> notice: "";
+    in property <duration> motion-duration: 160ms;
+
+    callback set-reduced-motion(bool);
+    callback reset-settings();
+    callback dismiss-notice();
+
+    background: transparent;
+
+    VerticalLayout {
+        padding: Theme.page-padding;
+        spacing: 12px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            Text {
+                text: "Settings";
+                color: Theme.text;
+                font-size: 27px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            AppButton {
+                text: "Reset settings";
+                clicked => { root.reset-settings(); }
+            }
+        }
+
+        Text {
+            text: "Native beta profile only. Tauri settings, Library data and sessions are not read or written.";
+            color: Theme.muted;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+
+        if root.error != "" : Rectangle {
+            height: 36px;
+            border-radius: 8px;
+            background: #2a1c1c;
+            border-width: 1px;
+            border-color: Theme.danger;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 8px;
+                ToolIcon { name: "warning"; tint: Theme.danger; }
+                Text {
+                    text: root.error;
+                    color: Theme.danger;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+
+        if root.notice != "" : Rectangle {
+            height: 30px;
+            border-radius: 8px;
+            background: Theme.accent-soft;
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 8px;
+                Text {
+                    text: root.notice;
+                    color: Theme.accent;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+                Text {
+                    text: "Dismiss";
+                    color: Theme.accent;
+                    font-size: 10px;
+                    vertical-alignment: center;
+                }
+            }
+            TouchArea { mouse-cursor: pointer; clicked => { root.dismiss-notice(); } }
+        }
+
+        Rectangle {
+            height: 62px;
+            border-radius: 12px;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            HorizontalLayout {
+                padding: 14px;
+                spacing: 16px;
+                VerticalLayout {
+                    spacing: 3px;
+                    horizontal-stretch: 1;
+                    Text {
+                        text: "Reduce motion";
+                        color: Theme.text;
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: "Native Slint animations resolve to zero duration; navigation is immediate either way.";
+                        color: Theme.muted;
+                        font-size: 10px;
+                        wrap: word-wrap;
+                    }
+                }
+                ToggleSwitch {
+                    checked: root.reduced-motion;
+                    enabled: root.settings-writable;
+                    accessible-name: "Reduce motion";
+                    motion-duration: root.motion-duration;
+                    toggled(value) => { root.set-reduced-motion(value); }
+                }
+            }
+        }
+
+        Rectangle {
+            border-radius: 12px;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 9px;
+                Text {
+                    text: "PROFILE AND SCHEMA";
+                    color: Theme.muted;
+                    font-size: 9px;
+                    font-weight: 700;
+                    letter-spacing: 0.8px;
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text {
+                        text: "Profile root";
+                        color: Theme.muted;
+                        font-size: 11px;
+                        min-width: 100px;
+                    }
+                    Text {
+                        text: root.profile-path;
+                        color: Theme.text;
+                        font-size: 11px;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text {
+                        text: "Settings schema";
+                        color: Theme.muted;
+                        font-size: 11px;
+                        min-width: 100px;
+                    }
+                    Text {
+                        text: "v" + root.schema-version + " · atomic writes · corrupt data fails closed";
+                        color: Theme.text;
+                        font-size: 11px;
+                        horizontal-stretch: 1;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text {
+                        text: "Library limit";
+                        color: Theme.muted;
+                        font-size: 11px;
+                        min-width: 100px;
+                    }
+                    Text {
+                        text: root.library-limit + " references · bounded index";
+                        color: Theme.text;
+                        font-size: 11px;
+                        horizontal-stretch: 1;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Text {
+                        text: "Build";
+                        color: Theme.muted;
+                        font-size: 11px;
+                        min-width: 100px;
+                    }
+                    Text {
+                        text: root.build-label;
+                        color: Theme.text;
+                        font-size: 11px;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            border-radius: 12px;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            VerticalLayout {
+                padding: 14px;
+                spacing: 6px;
+                Text {
+                    text: "LICENSING";
+                    color: Theme.muted;
+                    font-size: 9px;
+                    font-weight: 700;
+                    letter-spacing: 0.8px;
+                }
+                Text {
+                    text: "Halation is GPL-3.0-or-later. Slint 1.18.1 is used under its GPLv3-compatible open-source option. Skia is BSD-3-Clause; skia-safe, winit and the Rust dependencies retain their own licences.";
+                    color: Theme.muted;
+                    font-size: 10px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; background: transparent; }
+
+        Text {
+            text: "The beta writes only to this isolated profile. Reset archives a replaced settings file instead of silently overwriting corrupt data.";
+            color: Theme.muted;
+            font-size: 9px;
+            wrap: word-wrap;
+        }
+    }
+}

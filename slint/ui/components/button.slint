@@ -1,0 +1,63 @@
+import { Theme } from "../theme.slint";
+
+export component AppButton inherits FocusScope {
+    in property <string> text: "";
+    in property <bool> primary: false;
+    in property <bool> compact: false;
+    in property <duration> motion-duration: 160ms;
+    callback clicked;
+
+    width: compact ? 82px : 124px;
+    height: compact ? 27px : 34px;
+    focus-on-tab-navigation: true;
+
+    accessible-role: button;
+    accessible-label: text;
+    accessible-action-default => {
+        if (root.enabled) {
+            clicked();
+        }
+    }
+
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            if (root.enabled) {
+                clicked();
+            }
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: 8px;
+        background: root.primary ? Theme.accent : Theme.surface-high;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.accent : Theme.border;
+        opacity: root.enabled ? 1 : 0.45;
+        animate background { duration: root.motion-duration; easing: ease-out; }
+        animate opacity { duration: root.motion-duration; }
+    }
+
+    Text {
+        text: root.text;
+        color: root.primary ? Theme.background : Theme.text;
+        font-size: root.compact ? 11px : 13px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.clicked();
+        }
+    }
+}

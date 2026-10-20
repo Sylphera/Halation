@@ -7,14 +7,20 @@ preview until separately approved in the real window.
 
 ## Authority and boundaries
 
-- Rebuild the presentation clean-room with **Rust + Slint + Skia**. Do not port or reproduce prior UI, layout, styling,
-  animation, navigation or rendering mechanisms from the Tauri frontend, the Qt branch or third-party Halation forks.
-  Functional contracts below may inform behavior, not implementation.
+- Rebuild the application clean-room with **new Rust + Slint + Skia code**. Do not copy, translate, cherry-pick, recreate
+  from, link to or wrap prior Halation Rust implementations: this prohibition covers the Tauri backend, `halation-core`,
+  Qt bridges/services/tests and Rust diagnostics, as well as any UI implementation. Do not use their source or tests as
+  templates. Tauri remains a product-behavior reference only, never an implementation source.
+- Requirements, documented schemas and service contracts may be consulted only as information about expected behavior;
+  they do not authorize moving code. Public crates may be used subject to their licenses. Pure identity assets and static
+  reference images are allowed; neither is source code or a replacement for native UI.
 - `app/` and its Rust/Tauri backend remain untouched and operational. The native application does not call, link,
   embed or claim compatibility with them. No Rust runtime sharing, cxx-qt, media engine, scheduler or tool execution
   is in scope for the beta.
 - The application is a standalone Cargo crate in `slint/`, on its own branch/worktree. It owns its profile, settings
   schema, Library index and tests. It must not read or write Tauri settings, Library data, sessions, presets or caches.
+- No local path dependency, FFI, wrapper, shared Rust module or other dependency edge may reach prior Halation Rust
+  implementation. New Rust services, models and tests are authored from zero.
 - The initial shell has Home, Library, Jobs and Settings. Welcome, the ten media tools, engines, data migration,
   packaging, updater and release are future work, not claims of completion in the beta.
 - Visible beta text is English. Visual identity follows the approved reference image and product marks, not a new
@@ -35,8 +41,13 @@ preview until separately approved in the real window.
 
 The Slint framework is triple-licensed (`GPL-3.0-only`, royalty-free, or commercial). Halation uses the GPLv3-compatible
 open-source path under its existing GPL-3.0-or-later license. Skia is BSD-3-Clause, `skia-safe` is MIT, winit is
-Apache-2.0/MIT, `rfd` is MIT and serde is MIT/Apache-2.0. Notices are recorded before any release; the beta makes no
+Apache-2.0, `rfd` is MIT and serde is MIT/Apache-2.0. Notices are recorded before any release; the beta makes no
 claim about closed distribution.
+
+In the verified Windows-target feature graph, Slint 1.18.1's Skia package also activates its internal `softbuffer`
+and `wgpu-30` integration features. These are dependencies/features within `i-slint-renderer-skia`, not selection of
+Slint's separate `renderer-software`, FemtoVG or Qt renderer. The application selects winit + Skia explicitly; the
+actual presented Skia path remains unverified until the authorized native-window review.
 
 ## Delivery plan and current state
 
@@ -47,13 +58,25 @@ performance qualification or release.
 
 | Phase | Work and exit criteria | Current state |
 |---|---|---|
-| A — clean foundation | Start from the authorized `main` baseline; preserve the Tauri reference and shared harness; archive the abandoned Qt line before removing it from active sources; create the standalone `slint/` crate; rework the single canonical spec; record exact pins and licences. | Spec, archive and new-base boundary implemented. Qt is retired from active sources; the private archive retains the line. |
-| B — native shell | Standalone Cargo app; one native resizable window; central navigation; Home/Library/Jobs/Settings; lazy active page with destroy-on-leave; useful empty/error states; typed Rust-to-Slint contract; responsive logical layout, keyboard operation, focus and accessible names. | Implemented in the beta branch: model-driven rail, static Home composition, 11-entry catalog, real Library/Settings/Jobs, release build and headless state tests. |
+| A — clean foundation | Start from the authorized `main` baseline; preserve the Tauri reference and shared harness; archive the abandoned Qt line before removing it from active sources; create the standalone `slint/` crate; rework the single canonical spec; record exact pins and licences. | Implemented. Qt remains only in the private archive. Clean-room boundary now explicitly excludes all prior Halation Rust implementation and tests; no old Rust source/test was consulted or used. |
+| B — native shell | Standalone Cargo app; one native resizable window; central navigation; Home/Library/Jobs/Settings; lazy active page with destroy-on-leave; useful empty/error states; typed Rust-to-Slint contract; responsive logical layout, keyboard operation, focus and accessible names. | Compiles and links in release: model-driven rail, static Home composition, 11-entry catalog, isolated Library/Settings/Jobs, lazy active page and keyboard/accessibility properties. Twenty headless service/model tests pass. No native window was launched or visually reviewed. |
 | C — native motion | Deliberate native Slint animation only; immediate navigation; same-target changes do no extra navigation; reduced-motion preference; no idle timer, animation clock, particles or forced render policy. Evaluate a small representative shell motion/response slice. | Implemented: native rail/control property animation, Settings-driven duration (160 ms / 0 ms reduced motion), no background animation or idle timer. Native presentation timing is not qualified. |
-| D — useful services | Rust-owned isolated atomic Settings schema/reset with visible write errors; bounded asynchronous Library load/metadata/save, references/filter/missing/no-delete with failure rollback and corrupt-data fail-closed; typed Jobs model with explicit no-engine capability and no simulated execution; never touch Tauri data; synthetic test fixtures only. | Implemented at beta scope: settings persistence/rollback/corrupt lock, async bounded library load/save with generation checks, reference-only Library, Jobs submission rejected as disconnected. Engines, rich indexing and migration remain future work. |
-| E — technical validation | Release build; Slint compiler diagnostics; `cargo fmt --check`; strict `cargo clippy --all-targets -- -D warnings`; `cargo test`; lockfile/feature-tree audit; focused state tests; dependency/source-boundary check; repeat affected checks after fixes. | Beta branch passes the recorded Rust gates and builds release. Actual Windows Skia renderer/presents, economical-hardware pacing and visual acceptance remain unverified/manual gates. |
+| D — useful services | Rust-owned isolated atomic Settings schema/reset with visible write errors; bounded asynchronous Library load/metadata/save, references/filter/missing/no-delete with failure rollback and corrupt-data fail-closed; typed Jobs model with explicit no-engine capability and no simulated execution; never touch Tauri data; synthetic test fixtures only. | Implemented at beta scope: isolated atomic Settings, async index load/reference metadata/save with generation checks, rollback and corrupt-data lock; reference-only Library; Jobs submission rejected as disconnected. Engines, rich indexing and migration remain future work. |
+| E — technical validation | Release build; Slint compiler diagnostics; `cargo fmt --check`; strict `cargo clippy --all-targets -- -D warnings`; `cargo test`; lockfile/feature-tree audit; focused state tests; dependency/source-boundary check; repeat affected checks after fixes. | Passed on Windows MSVC: fmt check, strict Clippy, 20 service/model tests, release build, metadata/tree/source-boundary audit. Explicit winit + Skia selection is in code; actual presented renderer, hardware pacing and manual visual acceptance remain pending. |
 
 ## Architecture and lifecycle
+
+### Source provenance and boundary self-review
+
+- Implementation provenance for this beta: newly authored Rust and Slint code in `slint/`; public crates pinned through
+  Cargo; documented functional requirements/contracts and schemas as behavior-only information; the existing Halation
+  mark and static Home reference image as identity/composition references.
+- No prior Tauri, `halation-core`, Qt bridge/service/test or Rust diagnostic implementation was consulted or used as a
+  code/test template. The Tauri checkout was treated only as a product-behavior reference; no Tauri Rust source was read
+  to implement this crate. Existing Rust tests were not used as templates.
+- Before technical close, inspect direct/transitive dependencies, imports and filesystem/path references to verify no
+  local dependency edge or call reaches old Rust. Record the actual audit and any source consulted in `slint/README.md`;
+  if contamination is found, remove it and implement the affected unit anew before validation.
 
 ### Crate layout
 
