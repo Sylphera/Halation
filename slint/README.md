@@ -26,7 +26,9 @@ Default profile: `%LOCALAPPDATA%\Halation\slint-beta`. Override with `--profile-
 temporary directories, never the real profile.
 
 The opt-in [`scripts/launch-beta.ps1`](scripts/launch-beta.ps1) writes a release manifest by default and launches only
-when explicitly passed `-Launch`. The launcher does not build the application.
+when explicitly passed `-Launch`. Its metadata-only dry-run verifies the resolved profile with `--print-profile`
+through `HALATION_SLINT_PROFILE` (including paths with spaces), writes no profile data and computes the executable hash
+with .NET SHA-256. The launcher does not build the application.
 
 ## Clean-room source provenance and audit
 

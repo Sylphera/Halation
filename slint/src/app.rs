@@ -1,7 +1,8 @@
 use crate::catalog;
 use crate::jobs::JobsService;
 use crate::library::{
-    LibraryEntry, LibraryLoad, LibraryModel, LibraryStore, load_index, scan_reference, write_index,
+    LibraryEntry, LibraryLoad, LibraryModel, LibraryStore, SaveCompletion, SaveRequest, load_index,
+    scan_reference, write_index,
 };
 use crate::motion;
 use crate::navigation::{Navigation, Page};
@@ -14,7 +15,7 @@ use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const HELP: &str = "\
@@ -35,6 +36,13 @@ struct AsyncInbox {
     load: Option<(u64, LibraryLoad)>,
     save: Option<(u64, Result<(), String>)>,
     references: Option<(u64, Vec<Result<LibraryEntry, String>>)>,
+}
+
+fn lock_inbox(inbox: &Mutex<AsyncInbox>) -> MutexGuard<'_, AsyncInbox> {
+    // Inbox updates are simple owned-value moves. Recover the lock instead of leaving the UI busy.
+    inbox
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 struct Services {
@@ -240,22 +248,17 @@ impl Controller {
                     return;
                 };
                 let mut s = services.borrow_mut();
-                let result = if s.reference_busy {
+                let staged = if s.reference_busy {
                     Err(crate::library::LibraryError::Busy)
                 } else {
-                    s.library.remove_reference(id.as_str())
+                    s.library.stage_remove_reference(id.as_str())
                 };
-                let changed = result.is_ok();
-                match result {
-                    Ok(()) => {
-                        s.notice =
-                            "Reference removed. The original file was not touched.".to_owned();
+                match staged {
+                    Ok(request) => {
+                        s.notice = "Saving reference changes…".to_owned();
+                        start_save(&mut s, &weak, request);
                     }
                     Err(error) => s.notice = error.to_string(),
-                }
-                refresh(&ui, &s);
-                if changed {
-                    start_save(&mut s, &weak);
                 }
                 refresh(&ui, &s);
             });
@@ -369,7 +372,7 @@ impl Controller {
                     return;
                 };
                 let mut s = services.borrow_mut();
-                let slot = s.inbox.lock().ok().and_then(|mut inbox| inbox.load.take());
+                let slot = lock_inbox(&s.inbox).load.take();
                 if let Some((generation, load)) = slot
                     && generation == s.load_generation
                 {
@@ -391,17 +394,21 @@ impl Controller {
                     return;
                 };
                 let mut s = services.borrow_mut();
-                let slot = s.inbox.lock().ok().and_then(|mut inbox| inbox.save.take());
+                let slot = lock_inbox(&s.inbox).save.take();
                 if let Some((generation, result)) = slot {
-                    let failed = result.is_err();
-                    s.library.finish_save(generation, result);
-                    if failed {
-                        s.notice =
-                            "Could not save the reference index. The previous snapshot was kept."
-                                .to_owned();
-                        if let Some(error) = s.library.error() {
-                            log_line(&s.profile, &format!("library save failed: {error}"));
+                    match s.library.finish_save(generation, result) {
+                        SaveCompletion::Committed => {
+                            s.notice =
+                                "Library changes saved. Original files were not modified.".to_owned();
                         }
+                        SaveCompletion::Failed => {
+                            s.notice = "Could not save the reference index. The previous snapshot was kept."
+                                .to_owned();
+                            if let Some(error) = s.library.error() {
+                                log_line(&s.profile, &format!("library save failed: {error}"));
+                            }
+                        }
+                        SaveCompletion::Stale => {}
                     }
                 }
                 refresh(&ui, &s);
@@ -416,17 +423,14 @@ impl Controller {
                     return;
                 };
                 let mut s = services.borrow_mut();
-                let slot = s
-                    .inbox
-                    .lock()
-                    .ok()
-                    .and_then(|mut inbox| inbox.references.take());
+                let slot = lock_inbox(&s.inbox).references.take();
                 if let Some((generation, results)) = slot
                     && generation == s.reference_generation
                 {
                     s.reference_busy = false;
-                    if apply_scanned_references(&mut s, results) {
-                        start_save(&mut s, &weak);
+                    if let Some(request) = stage_scanned_references(&mut s, results) {
+                        s.notice = "Saving reference changes…".to_owned();
+                        start_save(&mut s, &weak, request);
                     }
                 }
                 refresh(&ui, &s);
@@ -459,9 +463,8 @@ fn start_load(services: &Rc<RefCell<Services>>, weak: &Weak<AppWindow>) {
         .name("library-load".to_owned())
         .spawn(move || {
             let load = load_index(&path, limit);
-            if let Ok(mut inbox) = inbox.lock() {
-                inbox.load = Some((generation, load));
-            }
+            lock_inbox(&inbox).load = Some((generation, load));
+            // A dropped window/event loop is an expected lifecycle cancellation: no UI state is captured here.
             let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_load_finished());
         });
     if let Err(error) = spawn {
@@ -474,14 +477,7 @@ fn start_load(services: &Rc<RefCell<Services>>, weak: &Weak<AppWindow>) {
     }
 }
 
-fn start_save(s: &mut Services, weak: &Weak<AppWindow>) {
-    if !s.library_loaded || s.library.busy() || s.reference_busy || !s.library.writable() {
-        return;
-    }
-    let request = match s.library.begin_save() {
-        Ok(request) => request,
-        Err(_) => return,
-    };
+fn start_save(s: &mut Services, weak: &Weak<AppWindow>, request: SaveRequest) {
     let inbox = s.inbox.clone();
     let weak = weak.clone();
     let generation = request.generation;
@@ -492,16 +488,14 @@ fn start_save(s: &mut Services, weak: &Weak<AppWindow>) {
         .name("library-save".to_owned())
         .spawn(move || {
             let result = write_index(&path, &entries).map_err(|error| error.to_string());
-            if let Ok(mut inbox) = inbox.lock() {
-                inbox.save = Some((generation, result));
-            }
+            lock_inbox(&inbox).save = Some((generation, result));
+            // A dropped window/event loop is an expected lifecycle cancellation; the disk result stands alone.
             let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_save_finished());
         });
     if let Err(error) = spawn {
-        let _ = s
-            .library
+        s.library
             .finish_save(generation, Err(format!("could not start saver: {error}")));
-        s.notice = "Could not start the reference index saver.".to_owned();
+        s.notice = "Could not save the reference index. The previous snapshot was kept.".to_owned();
         log_line(&profile, &format!("could not start index saver: {error}"));
     }
 }
@@ -537,9 +531,8 @@ fn start_reference_scan(s: &mut Services, paths: Vec<PathBuf>, weak: &Weak<AppWi
                 .iter()
                 .map(|path| scan_reference(path).map_err(|error| error.to_string()))
                 .collect();
-            if let Ok(mut inbox) = inbox.lock() {
-                inbox.references = Some((generation, results));
-            }
+            lock_inbox(&inbox).references = Some((generation, results));
+            // If the owner was destroyed, the weak callback is discarded and this owned payload is dropped.
             let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_references_finished());
         });
     if let Err(error) = spawn {
@@ -552,38 +545,27 @@ fn start_reference_scan(s: &mut Services, paths: Vec<PathBuf>, weak: &Weak<AppWi
     }
 }
 
-fn apply_scanned_references(s: &mut Services, results: Vec<Result<LibraryEntry, String>>) -> bool {
-    let mut added = 0usize;
-    let mut errors = Vec::new();
+fn stage_scanned_references(
+    s: &mut Services,
+    results: Vec<Result<LibraryEntry, String>>,
+) -> Option<SaveRequest> {
+    let mut entries = Vec::with_capacity(results.len());
     for result in results {
         match result {
-            Ok(entry) => {
-                let name = entry.display_name.clone();
-                match s.library.add_scanned_entry(entry) {
-                    Ok(()) => {
-                        added += 1;
-                        log_line(&s.profile, &format!("reference added: {name}"));
-                    }
-                    Err(error) => errors.push(error.to_string()),
-                }
+            Ok(entry) => entries.push(entry),
+            Err(error) => {
+                s.notice = error;
+                return None;
             }
-            Err(error) => errors.push(error),
         }
     }
-    if added > 0 {
-        s.notice = format!(
-            "Added {added} reference{}. The original file{} not modified{}.",
-            if added == 1 { "" } else { "s" },
-            if added == 1 { " was" } else { "s were" },
-            errors
-                .first()
-                .map(|error| format!(" Some files were skipped: {error}"))
-                .unwrap_or_default()
-        );
-    } else if let Some(error) = errors.first() {
-        s.notice = error.clone();
+    match s.library.stage_add_entries(entries) {
+        Ok(request) => Some(request),
+        Err(error) => {
+            s.notice = error.to_string();
+            None
+        }
     }
-    added > 0
 }
 
 fn refresh(ui: &AppWindow, s: &Services) {
@@ -642,6 +624,7 @@ fn color(value: theme::Rgb) -> slint::Color {
 }
 
 fn log_line(profile: &Profile, message: &str) {
+    // Diagnostic logging is best-effort; the operation's user-facing error is handled by its caller.
     let _ = profile.ensure();
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)

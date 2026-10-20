@@ -152,43 +152,9 @@ impl LibraryModel {
         self.visible.borrow().clone()
     }
 
-    pub fn replace_entries(&self, entries: Vec<LibraryEntry>) {
+    fn replace_entries(&self, entries: Vec<LibraryEntry>) {
         *self.entries.borrow_mut() = entries;
         self.rebuild();
-    }
-
-    /// Add a reference. Duplicates are compared case-insensitively on the stored path.
-    pub fn add_entry(&self, entry: LibraryEntry) -> Result<(), LibraryError> {
-        {
-            let mut entries = self.entries.borrow_mut();
-            if entries
-                .iter()
-                .any(|existing| existing.path.eq_ignore_ascii_case(&entry.path))
-            {
-                return Err(LibraryError::Duplicate);
-            }
-            if entries.len() >= self.limit.get() {
-                return Err(LibraryError::Full {
-                    limit: self.limit.get(),
-                });
-            }
-            entries.push(entry);
-        }
-        self.rebuild();
-        Ok(())
-    }
-
-    pub fn remove_reference(&self, id: &str) -> bool {
-        let removed = {
-            let mut entries = self.entries.borrow_mut();
-            let before = entries.len();
-            entries.retain(|entry| entry.id != id);
-            entries.len() != before
-        };
-        if removed {
-            self.rebuild();
-        }
-        removed
     }
 
     pub fn set_query(&self, query: &str) {
@@ -272,6 +238,13 @@ pub struct SaveRequest {
     pub entries: Vec<LibraryEntry>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SaveCompletion {
+    Committed,
+    Failed,
+    Stale,
+}
+
 #[derive(Debug)]
 struct PendingSave {
     generation: u64,
@@ -347,91 +320,102 @@ impl LibraryStore {
         }
     }
 
-    pub fn add_reference(&mut self, path: &Path) -> Result<LibraryEntry, LibraryError> {
-        if !self.writable {
-            return Err(LibraryError::NotWritable);
+    /// Build an isolated candidate for an add batch without changing the visible model.
+    pub fn stage_add_entries(
+        &mut self,
+        additions: Vec<LibraryEntry>,
+    ) -> Result<SaveRequest, LibraryError> {
+        self.ensure_available()?;
+        if additions.is_empty() {
+            return Err(LibraryError::Invalid("no references to add".to_owned()));
         }
-        if self.pending.is_some() {
-            return Err(LibraryError::Busy);
+        let mut candidate = self.committed.clone();
+        for entry in additions {
+            if entry.id.is_empty() || entry.path.is_empty() || entry.display_name.is_empty() {
+                return Err(LibraryError::Invalid(
+                    "a reference has an empty id, path or name".to_owned(),
+                ));
+            }
+            if candidate
+                .iter()
+                .any(|existing| existing.path.eq_ignore_ascii_case(&entry.path))
+            {
+                return Err(LibraryError::Duplicate);
+            }
+            if candidate.iter().any(|existing| existing.id == entry.id) {
+                return Err(LibraryError::Invalid(format!(
+                    "duplicate reference id {}",
+                    entry.id
+                )));
+            }
+            if candidate.len() >= self.model.limit() {
+                return Err(LibraryError::Full {
+                    limit: self.model.limit(),
+                });
+            }
+            candidate.push(entry);
         }
-        let entry = scan_reference(path)?;
-        self.add_scanned_entry(entry.clone())?;
-        Ok(entry)
+        Ok(self.begin_candidate(candidate))
     }
 
-    /// Add metadata already collected by a bounded worker. This method does no filesystem I/O.
-    pub fn add_scanned_entry(&mut self, entry: LibraryEntry) -> Result<(), LibraryError> {
+    /// Build an isolated removal candidate without changing the visible model.
+    pub fn stage_remove_reference(&mut self, id: &str) -> Result<SaveRequest, LibraryError> {
+        self.ensure_available()?;
+        let mut candidate = self.committed.clone();
+        let Some(index) = candidate.iter().position(|entry| entry.id == id) else {
+            return Err(LibraryError::NotFound);
+        };
+        candidate.remove(index);
+        Ok(self.begin_candidate(candidate))
+    }
+
+    fn ensure_available(&self) -> Result<(), LibraryError> {
         if !self.writable {
             return Err(LibraryError::NotWritable);
         }
         if self.pending.is_some() {
             return Err(LibraryError::Busy);
         }
-        self.model.add_entry(entry)?;
-        self.error = None;
         Ok(())
     }
 
-    pub fn remove_reference(&mut self, id: &str) -> Result<(), LibraryError> {
-        if !self.writable {
-            return Err(LibraryError::NotWritable);
-        }
-        if self.pending.is_some() {
-            return Err(LibraryError::Busy);
-        }
-        if self.model.remove_reference(id) {
-            self.error = None;
-            Ok(())
-        } else {
-            Err(LibraryError::NotFound)
-        }
-    }
-
-    pub fn begin_save(&mut self) -> Result<SaveRequest, LibraryError> {
-        if !self.writable {
-            return Err(LibraryError::NotWritable);
-        }
-        if self.pending.is_some() {
-            return Err(LibraryError::Busy);
-        }
+    fn begin_candidate(&mut self, entries: Vec<LibraryEntry>) -> SaveRequest {
         self.next_generation = self.next_generation.wrapping_add(1);
         let generation = self.next_generation;
-        let entries = self.model.entries();
         self.pending = Some(PendingSave {
             generation,
             entries: entries.clone(),
         });
-        Ok(SaveRequest {
+        SaveRequest {
             generation,
             path: self.path.clone(),
             entries,
-        })
+        }
     }
 
-    /// Apply a completed save. Returns `false` for a stale generation.
-    pub fn finish_save(&mut self, generation: u64, result: Result<(), String>) -> bool {
-        let Some(pending) = self.pending.take() else {
-            return false;
+    /// Publish the candidate only after persistence succeeds.
+    pub fn finish_save(&mut self, generation: u64, result: Result<(), String>) -> SaveCompletion {
+        let Some(pending) = self.pending.as_ref() else {
+            return SaveCompletion::Stale;
         };
         if pending.generation != generation {
-            self.pending = Some(pending);
-            return false;
+            return SaveCompletion::Stale;
         }
+        let Some(pending) = self.pending.take() else {
+            return SaveCompletion::Stale;
+        };
         match result {
             Ok(()) => {
                 self.committed = pending.entries;
+                self.model.replace_entries(self.committed.clone());
                 self.error = None;
+                SaveCompletion::Committed
             }
             Err(message) => {
-                self.model.replace_entries(self.committed.clone());
                 self.error = Some(message);
+                SaveCompletion::Failed
             }
         }
-        true
-    }
-
-    pub fn cancel_pending(&mut self) {
-        self.pending = None;
     }
 }
 

@@ -18,47 +18,89 @@ if ([string]::IsNullOrWhiteSpace($ProfileRoot)) {
     }
     $ProfileRoot = Join-Path $env:LOCALAPPDATA 'Halation/slint-beta'
 }
+$ProfileRoot = [System.IO.Path]::GetFullPath($ProfileRoot)
 
-$versionTemp = Join-Path ([System.IO.Path]::GetTempPath()) ("halation-slint-version-" + [guid]::NewGuid().ToString('N'))
-$versionStdout = "$versionTemp.stdout"
-$versionStderr = "$versionTemp.stderr"
-try {
-    $versionProcess = Start-Process -FilePath $exe `
-        -ArgumentList @('--version') `
-        -Wait `
-        -PassThru `
-        -RedirectStandardOutput $versionStdout `
-        -RedirectStandardError $versionStderr
-    if ($versionProcess.ExitCode -ne 0) {
-        $details = if (Test-Path -LiteralPath $versionStderr) {
-            Get-Content -LiteralPath $versionStderr -Raw
-        } else {
-            "exit code $($versionProcess.ExitCode)"
+function Invoke-BetaCli {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [string]$ProfileRootOverride
+    )
+
+    $token = [guid]::NewGuid().ToString('N')
+    $stdout = Join-Path ([System.IO.Path]::GetTempPath()) "halation-slint-$token.stdout"
+    $stderr = Join-Path ([System.IO.Path]::GetTempPath()) "halation-slint-$token.stderr"
+    $previousProfile = [Environment]::GetEnvironmentVariable('HALATION_SLINT_PROFILE', 'Process')
+    $overrideProfile = $PSBoundParameters.ContainsKey('ProfileRootOverride')
+    try {
+        if ($overrideProfile) {
+            [Environment]::SetEnvironmentVariable('HALATION_SLINT_PROFILE', $ProfileRootOverride, 'Process')
         }
-        throw "Could not query beta version from $exe`: $details"
-    }
-    $versionOutput = [System.IO.File]::ReadAllText($versionStdout, [System.Text.Encoding]::UTF8)
-} finally {
-    foreach ($temporaryFile in @($versionStdout, $versionStderr)) {
-        if (Test-Path -LiteralPath $temporaryFile) {
-            Remove-Item -LiteralPath $temporaryFile -Force
+        # These metadata-only CLI commands return before BackendSelector/AppWindow creation.
+        $process = Start-Process -FilePath $exe `
+            -ArgumentList $Arguments `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr
+        if ($process.ExitCode -ne 0) {
+            $details = if (Test-Path -LiteralPath $stderr) {
+                [System.IO.File]::ReadAllText($stderr, [System.Text.Encoding]::UTF8)
+            } else {
+                "exit code $($process.ExitCode)"
+            }
+            throw "Metadata command failed ($($Arguments -join ' ')): $details"
+        }
+        [System.IO.File]::ReadAllText($stdout, [System.Text.Encoding]::UTF8).Trim()
+    } finally {
+        [Environment]::SetEnvironmentVariable('HALATION_SLINT_PROFILE', $previousProfile, 'Process')
+        foreach ($temporaryFile in @($stdout, $stderr)) {
+            if (Test-Path -LiteralPath $temporaryFile) {
+                Remove-Item -LiteralPath $temporaryFile -Force
+            }
         }
     }
 }
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $algorithm = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-', '')
+    } finally {
+        $stream.Dispose()
+        $algorithm.Dispose()
+    }
+}
+
+# This uses an environment variable instead of a spaced command-line argument. --print-profile is
+# metadata-only; verify it does not create the isolated profile directory.
+$profileExistedBefore = Test-Path -LiteralPath $ProfileRoot
+$reportedProfile = Invoke-BetaCli -Arguments @('--print-profile') -ProfileRootOverride $ProfileRoot
+$profileExistedAfter = Test-Path -LiteralPath $ProfileRoot
+if ([System.IO.Path]::GetFullPath($reportedProfile) -ne $ProfileRoot) {
+    throw "The executable resolved a different profile: $reportedProfile"
+}
+if ($profileExistedBefore -ne $profileExistedAfter) {
+    throw 'The metadata-only profile check unexpectedly changed profile-directory existence.'
+}
+
+$versionOutput = Invoke-BetaCli -Arguments @('--version')
 if ([string]::IsNullOrWhiteSpace($versionOutput)) {
     throw "The release executable returned no version string: $exe."
 }
-$exeHash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+$exeHash = Get-Sha256Hex -Path $exe
 if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
     $ManifestPath = Join-Path (Split-Path -Parent $exe) 'beta-manifest.json'
 }
 
 $manifest = [ordered]@{
     product = 'Halation native beta'
-    version = $versionOutput.Trim()
+    version = $versionOutput
     executable = (Resolve-Path -LiteralPath $exe).Path
     executable_sha256 = $exeHash
-    profile_root = [System.IO.Path]::GetFullPath($ProfileRoot)
+    profile_root = $ProfileRoot
     generated_utc = [DateTime]::UtcNow.ToString('o')
     visual_approval = 'pending manual native-window review'
     renderer = 'Slint Skia; runtime path not confirmed until launch'
@@ -70,11 +112,15 @@ Write-Output "Profile: $($manifest.profile_root)"
 Write-Output "Executable SHA-256: $exeHash"
 
 if ($Launch) {
-    $process = Start-Process -FilePath $exe `
-        -ArgumentList @('--profile-root', $manifest.profile_root) `
-        -WorkingDirectory $crateRoot `
-        -PassThru
-    Write-Output "Launched native beta PID $($process.Id)."
+    # The human explicitly opts in; the process inherits the exact profile through its environment.
+    $previousProfile = [Environment]::GetEnvironmentVariable('HALATION_SLINT_PROFILE', 'Process')
+    try {
+        [Environment]::SetEnvironmentVariable('HALATION_SLINT_PROFILE', $ProfileRoot, 'Process')
+        $process = Start-Process -FilePath $exe -WorkingDirectory $crateRoot -PassThru
+        Write-Output "Launched native beta PID $($process.Id)."
+    } finally {
+        [Environment]::SetEnvironmentVariable('HALATION_SLINT_PROFILE', $previousProfile, 'Process')
+    }
 } else {
     Write-Output 'Not launched. Pass -Launch only when a human is ready to review the native window.'
 }

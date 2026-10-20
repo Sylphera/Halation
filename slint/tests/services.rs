@@ -1,7 +1,9 @@
+use halation_slint::atomic_file::write_atomic_new;
 use halation_slint::catalog::{self, TOOLS};
 use halation_slint::jobs::{JobRequest, JobsError, JobsService};
 use halation_slint::library::{
-    LibraryEntry, LibraryError, LibraryLoad, LibraryModel, LibraryStore, load_index, write_index,
+    LibraryEntry, LibraryError, LibraryLoad, LibraryModel, LibraryStore, SaveCompletion,
+    load_index, scan_reference, write_index,
 };
 use halation_slint::motion;
 use halation_slint::navigation::{Navigation, Page};
@@ -115,6 +117,22 @@ fn profile_paths_are_confined_to_the_explicit_root() {
 }
 
 #[test]
+fn create_new_atomic_write_never_overwrites_an_existing_path() {
+    let temp = TestDir::new();
+    let target = temp.path().join("settings.json");
+    let foreign = b"external settings change";
+    fs::write(&target, foreign).unwrap();
+
+    let error = write_atomic_new(&target, b"defaults").unwrap_err();
+    assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+    assert_eq!(fs::read(&target).unwrap(), foreign);
+
+    let new_target = temp.path().join("new/settings.json");
+    write_atomic_new(&new_target, b"defaults").unwrap();
+    assert_eq!(fs::read(new_target).unwrap(), b"defaults");
+}
+
+#[test]
 fn settings_missing_file_defaults_then_atomic_save_reopens() {
     let temp = TestDir::new();
     let path = temp.path().join("profile/settings.json");
@@ -203,6 +221,104 @@ fn invalid_or_corrupt_settings_fail_closed_until_explicit_reset() {
 }
 
 #[test]
+fn failed_settings_reset_preserves_live_corrupt_bytes_and_backup() {
+    let temp = TestDir::new();
+    let path = temp.path().join("settings.json");
+    let corrupt = b"{ corrupt but preserved";
+    fs::write(&path, corrupt).unwrap();
+
+    let mut store = SettingsStore::load(&path);
+    assert!(store.is_locked());
+    let result = store
+        .reset_with(|_path, _defaults| Err(io::Error::other("injected defaults write failure")));
+
+    assert!(matches!(result, Err(SettingsError::Io(_))));
+    assert!(store.is_locked());
+    assert_eq!(store.current(), &Settings::default());
+    assert!(store.error().unwrap().contains("reset failed"));
+    assert_eq!(fs::read(&path).unwrap(), corrupt);
+
+    let backup = fs::read_dir(temp.path())
+        .unwrap()
+        .map(Result::unwrap)
+        .map(|item| item.path())
+        .find(|candidate| {
+            candidate
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains("reset-")
+        })
+        .expect("corrupt settings backup remains available");
+    assert_eq!(fs::read(backup).unwrap(), corrupt);
+}
+
+#[test]
+fn failed_settings_reset_preserves_valid_memory_and_live_bytes() {
+    let temp = TestDir::new();
+    let path = temp.path().join("settings.json");
+    let previous = Settings {
+        reduced_motion: true,
+        library_limit: 1_700,
+        ..Settings::default()
+    };
+    let previous_bytes = serde_json::to_vec_pretty(&previous).unwrap();
+    fs::write(&path, &previous_bytes).unwrap();
+
+    let mut store = SettingsStore::load(&path);
+    assert!(!store.is_locked());
+    assert_eq!(store.current(), &previous);
+    let result =
+        store.reset_with(|_path, _defaults| Err(io::Error::other("injected reset failure")));
+
+    assert!(matches!(result, Err(SettingsError::Io(_))));
+    assert!(store.is_locked());
+    assert_eq!(store.current(), &previous);
+    assert!(store.error().unwrap().contains("reset failed"));
+    assert_eq!(fs::read(&path).unwrap(), previous_bytes);
+}
+
+#[test]
+fn failed_settings_reset_never_overwrites_a_foreign_live_path() {
+    let temp = TestDir::new();
+    let path = temp.path().join("settings.json");
+    let previous = Settings {
+        reduced_motion: false,
+        library_limit: 1_400,
+        ..Settings::default()
+    };
+    let previous_bytes = serde_json::to_vec_pretty(&previous).unwrap();
+    let foreign_bytes = b"external settings replacement";
+    fs::write(&path, &previous_bytes).unwrap();
+
+    let mut store = SettingsStore::load(&path);
+    let result = store.reset_with(|live_path, _defaults| {
+        // Simulate an outside replacement between backup creation and a failed write.
+        fs::write(live_path, foreign_bytes)?;
+        Err(io::Error::other("injected race/write failure"))
+    });
+
+    assert!(matches!(result, Err(SettingsError::Io(_))));
+    assert!(store.is_locked());
+    assert_eq!(store.current(), &previous);
+    assert_eq!(fs::read(&path).unwrap(), foreign_bytes);
+    assert!(store.error().unwrap().contains("reset failed"));
+    let backup = fs::read_dir(temp.path())
+        .unwrap()
+        .map(Result::unwrap)
+        .map(|item| item.path())
+        .find(|candidate| {
+            candidate
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains("reset-")
+        })
+        .expect("pre-reset bytes remain in the backup");
+    assert_eq!(fs::read(backup).unwrap(), previous_bytes);
+}
+
+#[test]
 fn oversized_settings_are_rejected_and_values_are_bounded() {
     let temp = TestDir::new();
     let path = temp.path().join("settings.json");
@@ -270,10 +386,11 @@ fn applied_theme_text_pairs_meet_wcag_contrast_threshold() {
 #[test]
 fn library_model_maps_filtered_rows_without_filesystem_access() {
     let model = LibraryModel::new(10);
-    model.replace_entries(vec![
+    let mut store = LibraryStore::new("unused/library.json", model.clone());
+    store.apply_load(LibraryLoad::Loaded(vec![
         entry("a", "Z:/not-real/ambient.wav", "Ambient.wav", true),
         entry("b", "Z:/not-real/portrait.png", "Portrait.png", false),
-    ]);
+    ]));
     assert_eq!(model.row_count(), 2);
     model.set_query("PORTRAIT");
     assert_eq!(model.row_count(), 1);
@@ -289,17 +406,18 @@ fn library_model_maps_filtered_rows_without_filesystem_access() {
 #[test]
 fn library_bounds_and_duplicate_paths_are_enforced() {
     let model = LibraryModel::new(1);
-    model
-        .add_entry(entry("a", "C:/ref/a.wav", "a.wav", false))
-        .unwrap();
-    assert_eq!(
-        model.add_entry(entry("b", "c:/REF/A.wav", "A.wav", false)),
-        Err(LibraryError::Duplicate)
-    );
+    let mut store = LibraryStore::new("unused/library.json", model.clone());
+    let existing = entry("a", "C:/ref/a.wav", "a.wav", false);
+    store.apply_load(LibraryLoad::Loaded(vec![existing.clone()]));
     assert!(matches!(
-        model.add_entry(entry("c", "C:/ref/c.wav", "c.wav", false)),
+        store.stage_add_entries(vec![entry("b", "c:/REF/A.wav", "A.wav", false)]),
+        Err(LibraryError::Duplicate)
+    ));
+    assert!(matches!(
+        store.stage_add_entries(vec![entry("c", "C:/ref/c.wav", "c.wav", false)]),
         Err(LibraryError::Full { limit: 1 })
     ));
+    assert_eq!(model.entries(), vec![existing]);
 }
 
 #[test]
@@ -312,10 +430,27 @@ fn library_add_remove_never_deletes_original_and_reopens_persisted_index() {
     let mut store = LibraryStore::new(&index_path, model.clone());
     store.apply_load(LibraryLoad::Missing);
 
-    let added = store.add_reference(&source).unwrap();
-    let save = store.begin_save().unwrap();
+    let added = scan_reference(&source).unwrap();
+    model.set_query("source");
+    let save = store.stage_add_entries(vec![added.clone()]).unwrap();
+    assert!(store.busy());
+    assert!(store.committed().is_empty());
+    assert!(
+        model.is_empty(),
+        "candidate must remain private while saving"
+    );
+    assert_eq!(model.row_count(), 0);
+    assert!(model.recent_entries(3).is_empty());
     write_index(&save.path, &save.entries).unwrap();
-    assert!(store.finish_save(save.generation, Ok(())));
+    assert_eq!(
+        store.finish_save(save.generation, Ok(())),
+        SaveCompletion::Committed
+    );
+    assert!(!store.busy());
+    assert_eq!(store.committed().len(), 1);
+    assert_eq!(model.len(), 1);
+    assert_eq!(model.row_count(), 1, "commit reapplies the active filter");
+    assert_eq!(model.recent_entries(3)[0].id, added.id);
     assert!(source.exists());
 
     let reopened_model = LibraryModel::new(10);
@@ -325,50 +460,117 @@ fn library_add_remove_never_deletes_original_and_reopens_persisted_index() {
     assert_eq!(reopened_model.entries()[0].display_name, "source.wav");
     assert!(!reopened_model.entries()[0].missing);
 
-    reopened.remove_reference(&added.id).unwrap();
+    let remove = reopened.stage_remove_reference(&added.id).unwrap();
+    assert_eq!(reopened.committed().len(), 1);
+    assert_eq!(reopened_model.len(), 1, "remove is private until commit");
+    assert_eq!(reopened_model.recent_entries(3).len(), 1);
+    assert!(reopened.busy());
+    assert!(
+        reopened
+            .stage_add_entries(vec![entry(
+                "concurrent",
+                "Z:/concurrent.wav",
+                "concurrent.wav",
+                true
+            )])
+            .is_err()
+    );
     assert!(
         source.exists(),
         "removing a reference must not delete its source"
     );
-    let save = reopened.begin_save().unwrap();
-    write_index(&save.path, &save.entries).unwrap();
-    assert!(reopened.finish_save(save.generation, Ok(())));
+    write_index(&remove.path, &remove.entries).unwrap();
+    assert_eq!(
+        reopened.finish_save(remove.generation, Ok(())),
+        SaveCompletion::Committed
+    );
+    assert!(reopened.committed().is_empty());
+    assert!(reopened_model.is_empty());
+    assert!(reopened_model.recent_entries(3).is_empty());
     assert!(
         matches!(load_index(&index_path, 10), LibraryLoad::Loaded(entries) if entries.is_empty())
     );
 }
 
 #[test]
-fn failed_library_save_rolls_back_to_committed_snapshot() {
+fn failed_add_and_remove_saves_keep_disk_and_visible_committed_snapshot() {
     let temp = TestDir::new();
     let model = LibraryModel::new(10);
     let initial = entry("committed", "Z:/committed.wav", "committed.wav", true);
-    let mut store = LibraryStore::new(temp.path().join("library.json"), model.clone());
+    let index_path = temp.path().join("library.json");
+    write_index(&index_path, std::slice::from_ref(&initial)).unwrap();
+    let disk_before = fs::read(&index_path).unwrap();
+    let mut store = LibraryStore::new(&index_path, model.clone());
     store.apply_load(LibraryLoad::Loaded(vec![initial.clone()]));
-    model
-        .add_entry(entry("new", "Z:/new.wav", "new.wav", true))
+    model.set_query("committed");
+
+    let request = store
+        .stage_add_entries(vec![entry("new", "Z:/new.wav", "new.wav", true)])
         .unwrap();
-    let request = store.begin_save().unwrap();
     assert!(store.busy());
-    assert!(store.finish_save(request.generation, Err("injected disk error".to_owned())));
+    assert_eq!(store.committed(), std::slice::from_ref(&initial));
+    assert_eq!(model.entries(), vec![initial.clone()]);
+    assert_eq!(model.len(), 1);
+    assert_eq!(model.row_count(), 1);
+    assert_eq!(model.recent_entries(3), vec![initial.clone()]);
+    assert!(matches!(
+        store.stage_remove_reference("committed"),
+        Err(LibraryError::Busy)
+    ));
+    assert_eq!(
+        store.finish_save(request.generation, Err("injected disk error".to_owned())),
+        SaveCompletion::Failed
+    );
     assert!(!store.busy());
-    assert_eq!(model.entries(), vec![initial]);
+    assert_eq!(store.committed(), std::slice::from_ref(&initial));
+    assert_eq!(model.entries(), vec![initial.clone()]);
+    assert_eq!(fs::read(&index_path).unwrap(), disk_before);
     assert_eq!(store.error(), Some("injected disk error"));
+
+    let request = store.stage_remove_reference("committed").unwrap();
+    assert_eq!(store.committed(), std::slice::from_ref(&initial));
+    assert_eq!(model.entries(), vec![initial.clone()]);
+    assert_eq!(model.row_count(), 1);
+    assert!(matches!(
+        store.stage_add_entries(vec![entry("other", "Z:/other.wav", "other.wav", true)]),
+        Err(LibraryError::Busy)
+    ));
+    assert_eq!(
+        store.finish_save(
+            request.generation,
+            Err("injected remove failure".to_owned())
+        ),
+        SaveCompletion::Failed
+    );
+    assert_eq!(model.entries(), vec![initial]);
+    assert_eq!(fs::read(&index_path).unwrap(), disk_before);
 }
 
 #[test]
 fn stale_library_save_result_is_ignored_and_generations_advance() {
     let temp = TestDir::new();
-    let mut store = LibraryStore::new(temp.path().join("library.json"), LibraryModel::new(5));
-    let first = store.begin_save().unwrap();
-    assert!(!store.finish_save(first.generation + 1, Ok(())));
+    let model = LibraryModel::new(5);
+    let mut store = LibraryStore::new(temp.path().join("library.json"), model.clone());
+    let committed = entry("old", "Z:/old.wav", "old.wav", true);
+    store.apply_load(LibraryLoad::Loaded(vec![committed.clone()]));
+    let candidate = entry("new", "Z:/new.wav", "new.wav", true);
+    let first = store.stage_add_entries(vec![candidate]).unwrap();
+    assert_eq!(model.entries(), vec![committed.clone()]);
+    assert_eq!(
+        store.finish_save(first.generation + 1, Ok(())),
+        SaveCompletion::Stale
+    );
     assert!(store.busy());
-    assert!(store.finish_save(first.generation, Ok(())));
-    let second = store.begin_save().unwrap();
+    assert_eq!(model.entries(), vec![committed]);
+    assert_eq!(
+        store.finish_save(first.generation, Ok(())),
+        SaveCompletion::Committed
+    );
+    let second = store
+        .stage_remove_reference("new")
+        .expect("new candidate is committed after the matching callback");
     assert!(second.generation > first.generation);
-    store.cancel_pending();
-    assert!(!store.busy());
-    assert!(!store.finish_save(second.generation, Ok(())));
+    assert_eq!(model.len(), 2);
 }
 
 #[test]
@@ -382,12 +584,12 @@ fn corrupt_and_oversized_library_indexes_fail_closed() {
     assert!(matches!(load, LibraryLoad::Corrupt(_)));
     store.apply_load(load);
     assert!(!store.writable());
-    assert!(store.begin_save().is_err());
     assert!(
         store
-            .add_reference(&temp.path().join("never-read.wav"))
+            .stage_add_entries(vec![entry("x", "Z:/never.wav", "never.wav", true)])
             .is_err()
     );
+    assert!(store.stage_remove_reference("x").is_err());
     assert!(model.is_empty());
 
     let large_path = temp.path().join("large.json");
@@ -416,7 +618,13 @@ fn library_writer_rejects_oversized_serialized_indexes() {
 #[test]
 fn metadata_refresh_updates_cached_rows_only() {
     let model = LibraryModel::new(5);
-    model.replace_entries(vec![entry("x", "Z:/gone.wav", "gone.wav", false)]);
+    let mut store = LibraryStore::new("unused/library.json", model.clone());
+    store.apply_load(LibraryLoad::Loaded(vec![entry(
+        "x",
+        "Z:/gone.wav",
+        "gone.wav",
+        false,
+    )]));
     model.apply_missing(&[("x".to_owned(), true)]);
     assert!(model.row_data(0).unwrap().missing);
     assert_eq!(model.missing_count(), 1);

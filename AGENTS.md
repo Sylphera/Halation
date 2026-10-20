@@ -45,10 +45,15 @@ Estas reglas rigen la reconstrucción clean-room de Halation con Rust + Slint + 
 
 ### 2. Rendimiento y uso de recursos
 
-- El rendimiento y el bajo consumo de recursos son prioridad.
+- La memoria y el rendimiento tienen **prioridad máxima**, especialmente en equipos de pocos recursos. Priorizar una
+  experiencia funcional estable, motion decente y bajo coste de memoria/startup.
+- Evitar `.clone()` innecesarios y asignaciones en hot paths; preferir referencias y ownership claro. Conservar clones
+  justificados por snapshots, límites de thread o ownership y no hacer una pasada de refactor masiva por dogma.
 - Las listas y tablas grandes usan modelos Rust (`slint::Model`) con mapeo de fila O(1), roles tipados y metadatos cacheados; nunca arrays Slint grandes.
 - Usar `ListView` virtualizado para colecciones; la página activa se instancia de forma perezosa y las páginas ocultas no ejecutan trabajo.
 - Evitar crear y destruir grandes cantidades de objetos de forma continua; reutilizar modelos y estado funcional en servicios Rust.
+- Al proponer colecciones, procesamiento o nuevos estados, considerar el coste en máquinas modestas y preferir la
+  alternativa ligera que cumpla los contratos.
 - No introducir un framework reactivo propio, polling continuo, timers en reposo ni motores de animación paralelos.
 
 ### 3. Animaciones
@@ -71,13 +76,16 @@ Estas reglas rigen la reconstrucción clean-room de Halation con Rust + Slint + 
 - Código limpio, legible, mantenible y con buenas prácticas de Rust 2024 y Slint 1.18.
 - Deben pasar `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test` y el build release con los diagnósticos del compilador Slint.
 - Verificar el grafo de features y el lockfile: backend `winit` y renderer `skia` explícitos, sin backend Qt, FemtoVG ni renderer software como runtime.
-- Clazy y Clang-Tidy son herramientas del stack Qt retirado y no bloquean el stack Slint.
+- Clippy es el sustituto obligatorio de Clazy en este stack y no puede dejar warnings importantes; escribir Rust idiomático con iterators y ownership adecuados.
+- Evitar `unwrap()` excesivos en producción; manejar y exponer errores en vez de silenciarlos. Las cancelaciones normales de lifecycle deben documentarse explícitamente y no convertirse en errores perdidos.
+- Clazy y Clang-Tidy pertenecen al stack Qt retirado y no se ejecutan como gate Slint.
 - Si una herramienta no está disponible o no se puede ejecutar, declarar la validación como pendiente y no afirmar que pasó. No instalar herramientas ni lanzar escaneos fuera de una tarea que los requiera.
 
 ### 6. Antes de implementar
 
 - Explicar brevemente la separación entre lógica Rust y presentación Slint de la solución propuesta.
-- Si la solución puede afectar al rendimiento, avisar y proponer alternativas más ligeras.
+- Si una función puede aumentar significativamente memoria, startup o trabajo sostenido, avisar y proponer una alternativa más ligera antes de añadirla.
+- Para cada feature, advertir el riesgo significativo de recursos cuando exista; no convertir cada microdecisión en gate humano.
 - No convertir cada decisión microtécnica en una aprobación humana: comunicar el riesgo relevante junto con una alternativa, dentro de la autonomía ya autorizada. Las decisiones de producto o irreversibles siguen siendo humanas.
 
 Estas reglas no imponen un lifecycle único: la página activa condicional, el destroy-on-leave y el estado funcional en servicios Rust siguen siendo válidos. Se evita el churn continuo e innecesario, no el ciclo de vida deliberado. No exigen cachear todas las vistas, añadir micro-motores ni introducir presupuestos numéricos nuevos; los objetivos de rendimiento vigentes están en `docs/SLINT_SPEC.md`.

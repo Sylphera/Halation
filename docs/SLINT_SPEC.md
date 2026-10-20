@@ -58,11 +58,11 @@ performance qualification or release.
 
 | Phase | Work and exit criteria | Current state |
 |---|---|---|
-| A — clean foundation | Start from the authorized `main` baseline; preserve the Tauri reference and shared harness; archive the abandoned Qt line before removing it from active sources; create the standalone `slint/` crate; rework the single canonical spec; record exact pins and licences. | Implemented. Qt remains only in the private archive. Clean-room boundary now explicitly excludes all prior Halation Rust implementation and tests; no old Rust source/test was consulted or used. |
-| B — native shell | Standalone Cargo app; one native resizable window; central navigation; Home/Library/Jobs/Settings; lazy active page with destroy-on-leave; useful empty/error states; typed Rust-to-Slint contract; responsive logical layout, keyboard operation, focus and accessible names. | Compiles and links in release: model-driven rail, static Home composition, 11-entry catalog, isolated Library/Settings/Jobs, lazy active page and keyboard/accessibility properties. Twenty headless service/model tests pass. No native window was launched or visually reviewed. |
+| A — clean foundation | Start from the authorized `main` baseline; preserve the Tauri reference and shared harness; archive the specifically retired `qt/rebuild-shell-20261019` worktree and its Git history; create the standalone `slint/` crate; rework the single canonical spec; record exact pins and licences. | Implemented for this rebuild. The final Qt worktree snapshot and two-ref bundle are in private archive `20261020T113722-qt-final`; an earlier archive `20261019T201500-qt-retirement` also retains historical snapshots. Other historical Qt refs/worktrees remain outside this unit's deletion scope. Qt is not active in the Slint branch. No claim is made that every historical Qt root/ref was purged. Clean-room boundary excludes all prior Halation Rust implementation and tests; no old Rust source/test was consulted or used. |
+| B — native shell | Standalone Cargo app; one native resizable window; central navigation; Home/Library/Jobs/Settings; lazy active page with destroy-on-leave; useful empty/error states; typed Rust-to-Slint contract; responsive logical layout, keyboard operation, focus and accessible names. | Compiles and links in release: model-driven rail, static Home composition, 11-entry catalog, isolated Library/Settings/Jobs, lazy active page and keyboard/accessibility properties. Twenty-four headless service/model tests pass. No native window was launched or visually reviewed. |
 | C — native motion | Deliberate native Slint animation only; immediate navigation; same-target changes do no extra navigation; reduced-motion preference; no idle timer, animation clock, particles or forced render policy. Evaluate a small representative shell motion/response slice. | Implemented: native rail/control property animation, Settings-driven duration (160 ms / 0 ms reduced motion), no background animation or idle timer. Native presentation timing is not qualified. |
-| D — useful services | Rust-owned isolated atomic Settings schema/reset with visible write errors; bounded asynchronous Library load/metadata/save, references/filter/missing/no-delete with failure rollback and corrupt-data fail-closed; typed Jobs model with explicit no-engine capability and no simulated execution; never touch Tauri data; synthetic test fixtures only. | Implemented at beta scope: isolated atomic Settings, async index load/reference metadata/save with generation checks, rollback and corrupt-data lock; reference-only Library; Jobs submission rejected as disconnected. Engines, rich indexing and migration remain future work. |
-| E — technical validation | Release build; Slint compiler diagnostics; `cargo fmt --check`; strict `cargo clippy --all-targets -- -D warnings`; `cargo test`; lockfile/feature-tree audit; focused state tests; dependency/source-boundary check; repeat affected checks after fixes. | Passed on Windows MSVC: fmt check, strict Clippy, 20 service/model tests, release build, metadata/tree/source-boundary audit. Explicit winit + Skia selection is in code; actual presented renderer, hardware pacing and manual visual acceptance remain pending. |
+| D — useful services | Rust-owned isolated atomic Settings schema/reset with visible write errors; bounded asynchronous Library load/metadata/save, references/filter/missing/no-delete with committed-candidate publication only after success and corrupt-data fail-closed; typed Jobs model with explicit no-engine capability and no simulated execution; never touch Tauri data; synthetic test fixtures only. | Implemented at beta scope: reset preserves a backup and restores safely on failure; Library stages add/remove privately, publishes only after save and leaves the committed view/disk snapshot on error; reference-only data and Jobs submission rejected as disconnected. Engines, rich indexing and migration remain future work. |
+| E — technical validation | Release build; Slint compiler diagnostics; `cargo fmt --check`; strict `cargo clippy --all-targets -- -D warnings`; `cargo test`; lockfile/feature-tree audit; focused state tests; dependency/source-boundary check; repeat affected checks after fixes. | Passed on Windows MSVC: fmt check, strict Clippy, 24 service/model tests, release build, metadata/tree/source-boundary audit. Explicit winit + Skia selection is in code; actual presented renderer, hardware pacing and manual visual acceptance remain pending. |
 
 ## Architecture and lifecycle
 
@@ -100,6 +100,13 @@ slint/
   threads. Results return with `slint::invoke_from_event_loop` or `Weak::upgrade_in_event_loop`; stale generations are
   discarded. Workers do not dereference destroyed UI owners, and shutdown never blocks on an indefinite join.
 - No custom reactive framework, perpetual render loop, frame polling or engine hidden behind the shell.
+- Memory/startup and low-resource behavior take precedence over incidental convenience: avoid unnecessary cloning and
+  hot-path allocations, but retain ownership-boundary/snapshot copies when they make lifecycle and rollback safer. Do
+  not perform broad clone refactors without evidence. Before a feature with significant memory/startup cost, state the
+  Rust-vs-Slint split and offer a lighter alternative; do not escalate micro-decisions.
+- Clippy (`cargo clippy --all-targets -- -D warnings`) is the mandatory Rust static-quality replacement for the retired
+  Clazy gate. Prefer idiomatic iterators/ownership, avoid production `unwrap()` overuse, and handle errors explicitly.
+  Document only intentional lifecycle cancellations; do not silently swallow operational errors.
 
 ### Ownership and failure model
 
@@ -109,8 +116,9 @@ slint/
   result; the internal event-loop callback is not invoked for a dead component.
 - Persistence is atomic: write a uniquely named temporary file in the target directory, flush it, then replace the
   destination. A failed write leaves the last committed snapshot and reports the error.
-- Corrupt or oversized persisted data fails closed: it is not silently overwritten by ordinary edits; an explicit
-  reset archives/removes the bad file before writing defaults.
+- Corrupt or oversized persisted data fails closed: it is not silently overwritten by ordinary edits. Reset moves the
+  live file to a unique same-directory backup, then installs defaults with an atomic create-if-absent operation. On
+  failure it restores its own backup only when the live path remains absent; a new/foreign path is never overwritten.
 
 ## Functional baseline
 
@@ -123,7 +131,10 @@ slint/
 - Reads are capped (64 KiB). Values are validated and bounded (`library_limit` 100–5000). Missing file means defaults.
   Corrupt, oversized or invalid data reports an error and locks ordinary writes until an explicit reset.
 - Saves are atomic and small. A failed write reports the error and preserves both the in-memory previous value and the
-  control state; the UI only applies a new value after a successful save. Reset writes defaults and clears the lock.
+  control state; the UI only applies a new value after a successful save. Reset moves the current file to a
+  same-directory backup, then atomically creates defaults only if the live path is still absent. If writing fails, it
+  restores that backup only into an absent path; a concurrently created path is left untouched and the backup remains.
+  The in-memory value stays unchanged, the error remains visible and ordinary writes stay locked until reset succeeds.
 - The Settings page shows the profile path, build identity and the actual stored values. It does not claim to manage
   Tauri settings or downloadable components.
 
@@ -134,8 +145,11 @@ slint/
 - The bounded index is stored atomically in the app's own profile. Loading, size/format validation and filesystem
   metadata checks run off the GUI thread. Saving serializes a committed snapshot off the GUI thread; while a write is
   pending the UI reports busy and retains the committed snapshot.
-- A failed write restores the committed snapshot and reports the error. A stale worker result is ignored by generation.
-  Destroying the window discards pending results without dereferencing the model or blocking shutdown.
+- While a write is pending, the visible model, counts, recent summary and filter results remain on the committed
+  snapshot. A successful write publishes the candidate in one GUI-thread step; a failed write leaves that view and
+  disk snapshot unchanged and reports the error. A stale worker result is ignored by generation; concurrent changes
+  are rejected rather than queued. Destroying the window discards pending results without dereferencing the model or
+  blocking shutdown.
 - Corrupt or oversized indexes fail closed and cannot be overwritten by add/remove until an explicit recovery action.
 - Row count and row data use a precomputed visible-index map and cached metadata; they perform no filesystem calls.
   Query remaps are bounded by the index limit. The UI uses a virtualized `ListView`.

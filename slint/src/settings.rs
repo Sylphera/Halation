@@ -1,9 +1,10 @@
-use crate::atomic_file::write_atomic;
+use crate::atomic_file::{write_atomic, write_atomic_new};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const SCHEMA_VERSION: u32 = 1;
@@ -11,6 +12,8 @@ pub const MAX_SETTINGS_BYTES: u64 = 64 * 1024;
 pub const MIN_LIBRARY_LIMIT: usize = 100;
 pub const MAX_LIBRARY_LIMIT: usize = 5_000;
 pub const DEFAULT_LIBRARY_LIMIT: usize = 2_000;
+
+static RESET_BACKUP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -185,29 +188,151 @@ impl SettingsStore {
         Ok(())
     }
 
-    /// Archive a corrupt/settings file (if present) and write defaults.
+    /// Move the current file to a same-directory backup, then atomically write defaults.
     pub fn reset(&mut self) -> Result<(), SettingsError> {
-        if self.path.exists() {
-            let stamp = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|duration| duration.as_nanos())
-                .unwrap_or(0);
-            let archive = self.path.with_file_name(format!(
-                "{}.reset-{stamp}",
-                self.path
-                    .file_name()
-                    .map(|name| name.to_string_lossy())
-                    .unwrap_or_else(|| "settings.json".into())
-            ));
-            fs::rename(&self.path, &archive)?;
-        }
+        self.reset_with(write_atomic_new)
+    }
+
+    /// Testable writer hook for the reset transaction and its failure recovery.
+    pub fn reset_with<F>(&mut self, writer: F) -> Result<(), SettingsError>
+    where
+        F: FnOnce(&Path, &[u8]) -> io::Result<()>,
+    {
         let defaults = Settings::default();
-        let bytes =
-            serde_json::to_vec_pretty(&defaults).map_err(|e| SettingsError::Io(e.to_string()))?;
-        write_atomic(&self.path, &bytes)?;
+        let bytes = serde_json::to_vec_pretty(&defaults).map_err(|error| {
+            let message = error.to_string();
+            self.locked = true;
+            self.error = Some(message.clone());
+            SettingsError::Io(message)
+        })?;
+
+        let backup = match fs::symlink_metadata(&self.path) {
+            Ok(metadata) if metadata.file_type().is_file() => {
+                let backup = match self.unique_reset_backup_path() {
+                    Ok(path) => path,
+                    Err(error) => {
+                        let message = format!("could not allocate settings backup: {error}");
+                        self.locked = true;
+                        self.error = Some(message.clone());
+                        return Err(SettingsError::Io(message));
+                    }
+                };
+                if let Err(error) = fs::rename(&self.path, &backup) {
+                    let message = format!("could not preserve settings before reset: {error}");
+                    self.locked = true;
+                    self.error = Some(message.clone());
+                    return Err(SettingsError::Io(message));
+                }
+                Some(backup)
+            }
+            Ok(_) => {
+                let message =
+                    "settings path is not a regular file; reset did not replace it".to_owned();
+                self.locked = true;
+                self.error = Some(message.clone());
+                return Err(SettingsError::Io(message));
+            }
+            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+            Err(error) => {
+                let message = format!("could not inspect settings before reset: {error}");
+                self.locked = true;
+                self.error = Some(message.clone());
+                return Err(SettingsError::Io(message));
+            }
+        };
+
+        if let Some(backup_path) = backup.as_ref() {
+            match fs::symlink_metadata(&self.path) {
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Ok(_) => {
+                    let message = format!(
+                        "settings path changed during reset; it was not overwritten and the original is preserved at {}",
+                        backup_path.display()
+                    );
+                    self.locked = true;
+                    self.error = Some(message.clone());
+                    return Err(SettingsError::Io(message));
+                }
+                Err(error) => {
+                    let message = format!(
+                        "could not verify the settings path before reset; original remains at {}: {error}",
+                        backup_path.display()
+                    );
+                    self.locked = true;
+                    self.error = Some(message.clone());
+                    return Err(SettingsError::Io(message));
+                }
+            }
+        }
+
+        if let Err(error) = writer(&self.path, &bytes) {
+            let message = match backup {
+                Some(path) => {
+                    let recovery = match fs::symlink_metadata(&self.path) {
+                        Err(path_error) if path_error.kind() == io::ErrorKind::NotFound => {
+                            match fs::hard_link(&path, &self.path) {
+                                Ok(()) => format!(
+                                    "the previous file was restored and its backup remains at {}",
+                                    path.display()
+                                ),
+                                Err(restore_error) => format!(
+                                    "the live path remains absent; the original is preserved at {} (restore failed: {restore_error})",
+                                    path.display()
+                                ),
+                            }
+                        }
+                        Ok(_) => format!(
+                            "the live path changed during reset and was not overwritten; the original is preserved at {}",
+                            path.display()
+                        ),
+                        Err(path_error) => format!(
+                            "could not inspect the live path after failure; the original is preserved at {} ({path_error})",
+                            path.display()
+                        ),
+                    };
+                    format!("reset failed; defaults were not committed; {recovery}: {error}")
+                }
+                None => format!("reset failed; defaults were not committed: {error}"),
+            };
+            // Keep ordinary writes locked after reset failure so a concurrent filesystem change
+            // cannot be overwritten by a later UI edit.
+            self.locked = true;
+            self.error = Some(message.clone());
+            return Err(SettingsError::Io(message));
+        }
+
         self.current = defaults;
         self.locked = false;
         self.error = None;
         Ok(())
+    }
+
+    fn unique_reset_backup_path(&self) -> io::Result<PathBuf> {
+        let file_name = self
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy())
+            .unwrap_or_else(|| "settings.json".into());
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or(0);
+
+        for _ in 0..16 {
+            let counter = RESET_BACKUP_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let backup = self
+                .path
+                .with_file_name(format!("{file_name}.reset-{stamp}-{counter}"));
+            match fs::symlink_metadata(&backup) {
+                Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(backup),
+                Ok(_) => continue,
+                Err(error) => return Err(error),
+            }
+        }
+
+        Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not allocate a unique settings backup name",
+        ))
     }
 }
