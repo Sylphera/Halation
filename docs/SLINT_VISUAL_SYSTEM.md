@@ -78,15 +78,21 @@ first pass of this file (a launcher redesign, approved only as a starting point 
   (3 at most). What changes from the original: the slide turns slowly instead of always running along the diagonal.
 - **How much it covers:** in 2 minutes the slide travels about 0.9 screen heights (half a 16:9 width) and the folds
   reshape by about two thirds of a fold, so the loop only repeats every 2 minutes.
-- **Video (`assets/drape-loop.mp4`, 0.85 MB):** the 1800 frames (15 fps, the Drape's own field rate) of 320 × 180,
-  rendered without the original's dither, stored as **luma only** in H.264 (x264 veryslow, CRF 20, full range), lifted
-  so the dark field gets most of the codes: `y' = 255 × sqrt(min(1, luma / 80))`. Colour is restored per pixel from
+- **Video (`assets/drape-loop.mp4`, 0.67 MB):** the 1800 frames (15 fps, the Drape's own field rate) of 320 × 180,
+  rendered without the original's dither and read from the shader as **16-bit luma**, stored as **luma only** in H.264
+  (x264 veryslow, CRF 16, full range), lifted so the dark field gets most of the codes:
+  `y' = 255 × sqrt(min(1, luma / 80))`, rounded once from the 16-bit value. Each stored code is then at most 0.6 of a
+  window level (0.2 to 0.4 in the dark field). Colour is restored per pixel from
   `drape-tint.bin` (the frames' average colour for each luma; mean error 0.5 level). A first try with colour JPEG
   frames (6.7 MB) showed blocks: 4:2:0 colour at 320 × 180 becomes large blocks once scaled to the window.
-- **Banding:** the window draws into 8 bits per channel, and grain laid over an image already drawn cannot break its
-  steps. So each decoded frame is scaled twice in floating point with a fixed one-level triangular dither (640 × 360,
-  1.5 ms) before Skia scales it the rest of the way; the bands that were left after the blocks went away are gone in
-  the captures (compared with the brightness multiplied by 8).
+- **Banding:** two causes, both fixed. First, the frames were read back from the browser as 8-bit colour, so the
+  dark field was already a stair of one-level plateaus; scaled six times to the window, each plateau edge is a band
+  that no dither can remove (the original never has them: it computes in floating point and rounds once, at the
+  window, after its dither). Hence the 16-bit luma above. Second, the window draws into 8 bits per channel and grain
+  laid over an image already drawn cannot break its steps, so each decoded frame is scaled twice in floating point
+  with a fixed one-level triangular dither (640 × 360, 1.5 ms) before Skia scales it the rest of the way. Checked by
+  emulating the beta's pipeline on a frame with the brightness multiplied by 6: the contour rings of the 8-bit
+  recording are gone.
 - **Grain:** the original's output dither and stationary film grain together, as a fixed 256 × 256 tile
   (`drape-grain.png`, signed: white adds, black takes away), laid over the scaled frame at the window's resolution.
 - **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
@@ -102,7 +108,7 @@ first pass of this file (a launcher redesign, approved only as a starting point 
 | Still frame (loop off) | about 66 MB | 0.00 % |
 | Recorded Drape playing | about 90 MB (peak 100) | about 0.9 % of all 12 threads (about 11 % of one) |
 
-On disk the loop takes 0.85 MB beside the executable. The extra memory is mostly Media Foundation and its decoder;
+On disk the loop takes 0.67 MB beside the executable. The extra memory is mostly Media Foundation and its decoder;
 the CPU is Skia redrawing the window 15 times a second plus the 1.5 ms scaling and dither of each frame (the decoding
 itself takes about 0.2 ms). Hover cost is not measured: no input is injected into Java's desktop.
 
