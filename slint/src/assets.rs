@@ -1,5 +1,5 @@
 //! The app's files beside the executable, in `assets\` (Java, 2026-10-21: assets ship apart from the exe, installer
-//! only): the mark and wordmark, the icons, the Inter typeface, and Home's backdrop loop. `build.rs` copies
+//! only): the mark and wordmark, the icons, the Inter typeface, Home's backdrop loop and its grain. `build.rs` copies
 //! the crate's `assets/` there for development builds. A missing file is reported to the user and logged; the app still
 //! runs without it.
 
@@ -92,6 +92,7 @@ pub fn required() -> Vec<String> {
         "halation-mark.png",
         "halation-wordmark.svg",
         "drop-outline.svg",
+        "drape-grain.png",
         "drape-still.jpg",
         "drape-loop.mp4",
         "drape-tint.bin",
@@ -131,8 +132,7 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     assets.set_mark(load("halation-mark.png"));
     assets.set_wordmark(load("halation-wordmark.svg"));
     assets.set_drop_outline(load("drop-outline.svg"));
-    // Generated, not a file: a standard static grain
-    assets.set_grain(Image::from_rgba8(crate::backdrop::grain_tile()));
+    assets.set_grain(load("drape-grain.png"));
     assets.set_still(load("drape-still.jpg"));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));

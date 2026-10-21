@@ -15,7 +15,7 @@ first pass of this file (a launcher redesign, approved only as a starting point 
    identity assets: Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
    **One exception** (Java, 2026-10-21): the original's Drape code (`app/dist/drape.js`) may be reused **only to record
    and modify the Drape** for the beta's backdrop. It runs only inside the recording tool (`slint/scripts/record-drape.js`),
-   never in the beta; the beta ships the recorded frames, which are allowed as rendered assets.
+   never in the beta; the beta ships the recorded frames and the grain tile, which are allowed as rendered assets.
 3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
    Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
    `animate` on colour, opacity, position and size, only while something changes (hover, rail opening, toggles).
@@ -93,13 +93,13 @@ first pass of this file (a launcher redesign, approved only as a starting point 
   with a fixed one-level triangular dither (640 × 360, 1.5 ms) before Skia scales it the rest of the way. Checked by
   emulating the beta's pipeline on a frame with the brightness multiplied by 6: the contour rings of the 8-bit
   recording are gone.
-- **Grain:** a standard static film grain generated at start (`backdrop::grain_tile`): monochrome Gaussian noise, one
-  independent value per pixel, as a 512 × 512 tile laid over the scaled frame at the window's resolution (signed:
-  white adds, black takes away, each scaled so that over the dark field it moves the colour by the noise value; full
-  strength is a deviation of 10 levels). Home sets its opacity. It replaced a tile cut from the original's own grain
-  (Java, 2026-10-21): that grain was made for video, and the patch carried the Drape's light and shade, so every repeat
-  of the tile showed as a block. For now a slider on Home (preview only, not saved, 25 % at start) sets the strength
-  while Java chooses it.
+- **Grain:** the original's output dither and stationary film grain together, as a fixed 512 × 512 tile
+  (`drape-grain.png`, signed: white adds, black takes away) at twice the original's default strength, laid over the
+  scaled frame at the window's resolution; Home shows it at half opacity, the original's default. The recorder draws it
+  over one even grey (a copy whose field is replaced): a first tile cut from a patch of the real Drape carried that
+  patch's light and shade, so every repeat showed as a block. A standard Gaussian grain was tried in its place and
+  showed the codec's small blocks more (Java, 2026-10-21). For now a slider on Home (preview only, not saved, 50 % at
+  start) sets the opacity while Java chooses it.
 - **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
   a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Only the
   frame on screen is held decoded. It runs only while Home is shown with motion on and the window is not minimized;
@@ -120,7 +120,7 @@ itself takes about 0.2 ms). Hover cost is not measured: no input is injected int
 ## Assets beside the executable
 
 Java (2026-10-21): assets ship apart from the exe; installer only, no portable. The mark, wordmark, drop outline,
-icons, the Inter typeface, the Drape loop, its colour table and still frame live in `assets\` next to the
+icons, the Inter typeface, the Drape loop, its colour table, still frame and grain live in `assets\` next to the
 executable and are loaded at start (`assets.rs`; Inter through Slint's run-time font collection). `build.rs` copies the
 crate's `assets/` beside the executable of development builds. A missing file is logged and named in a notice at the
 top of the window; the app still runs (icons stay blank, Home keeps its plain ground).

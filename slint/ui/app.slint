@@ -88,9 +88,9 @@ export component AppWindow inherits Window {
     in-out property <bool> rail-open: false;
     // Settings section to open at (headless snapshots)
     in property <int> settings-jump: -1;
-    // Grain strength on Home, 0..100 of the generated grain's full strength. Preview only (Java is choosing the value):
-    // the slider on Home sets it and nothing saves it.
-    in-out property <int> grain-preview: 25;
+    // Grain opacity on Home, 0..100; 50 is the original Drape's default grain (the tile holds twice that). Preview
+    // only (Java is choosing the value): the slider on Home sets it and nothing saves it.
+    in-out property <int> grain-preview: 50;
 
     callback navigate(int);
     callback choose-reference();

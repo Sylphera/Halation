@@ -8,7 +8,7 @@
 //! turned back into colour here and handed to the window. Only the frame on screen is held decoded. Plan and costs:
 //! docs/SLINT_VISUAL_SYSTEM.md.
 
-use slint::{Rgb8Pixel, Rgba8Pixel, SharedPixelBuffer};
+use slint::{Rgb8Pixel, SharedPixelBuffer};
 use std::path::Path;
 
 /// Frames per second of the loop; the player asks for one frame per tick of this rate
@@ -115,62 +115,18 @@ impl Palette {
     }
 }
 
-/// Side of the grain tile, in pixels
-pub const GRAIN_TILE: u32 = 512;
-/// The dark field's level, where white and black grain move the colour by the same amount
-const GRAIN_BASE: f32 = 24.0;
-/// Standard deviation of the grain at full strength, in levels over the dark field
-pub const GRAIN_SIGMA: f32 = 10.0;
-
-/// Home's grain: a standard static film grain (monochrome Gaussian noise, one value per pixel, the same at every
-/// frame) as a tile laid over the backdrop at the window's resolution. White adds and black takes away, each scaled so
-/// that over the dark field it moves the colour by the noise value. The tile is at full strength; Home sets its
-/// opacity. Pixels are independent, so the tile repeats without seams or larger shapes.
-pub fn grain_tile() -> SharedPixelBuffer<Rgba8Pixel> {
-    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(GRAIN_TILE, GRAIN_TILE);
-    for (i, pixel) in buffer.make_mut_slice().iter_mut().enumerate() {
-        let (x, y) = (i as u32 % GRAIN_TILE, i as u32 / GRAIN_TILE);
-        let level = gaussian(x, y) * GRAIN_SIGMA;
-        let (value, alpha) = if level >= 0.0 {
-            (255, level / (255.0 - GRAIN_BASE))
-        } else {
-            (0, -level / GRAIN_BASE)
-        };
-        let a = (alpha.min(1.0) * 255.0 + 0.5) as u8;
-        *pixel = Rgba8Pixel {
-            r: value,
-            g: value,
-            b: value,
-            a,
-        };
-    }
-    buffer
-}
-
-/// A uniform value in [0, 1) for a 32-bit key
-fn unit(mut v: u32) -> f32 {
-    v ^= v >> 16;
-    v = v.wrapping_mul(0x7feb_352d);
-    v ^= v >> 15;
-    v = v.wrapping_mul(0x846c_a68b);
-    v ^= v >> 16;
-    (v >> 8) as f32 / (1 << 24) as f32
-}
-
 /// Triangular noise in (-1, 1) for a pixel: the sum of two uniform hashes, minus one
 fn tpdf(x: u32, y: u32) -> f32 {
+    let hash = |mut v: u32| {
+        v ^= v >> 16;
+        v = v.wrapping_mul(0x7feb_352d);
+        v ^= v >> 15;
+        v = v.wrapping_mul(0x846c_a68b);
+        v ^= v >> 16;
+        (v >> 8) as f32 / (1 << 24) as f32
+    };
     let seed = x.wrapping_mul(0x9e37_79b9) ^ y.wrapping_mul(0x85eb_ca6b);
-    unit(seed) + unit(seed ^ 0x68e3_1da4) - 1.0
-}
-
-/// Close to a standard normal value for a pixel: four uniforms summed (variance 1/3), centred and scaled
-fn gaussian(x: u32, y: u32) -> f32 {
-    let seed = x.wrapping_mul(0x27d4_eb2f) ^ y.wrapping_mul(0x1656_67b1) ^ 0x5bd1_e995;
-    let sum: f32 = [0, 0x68e3_1da4, 0xb529_7a4d, 0x1b56_c4e9]
-        .iter()
-        .map(|salt| unit(seed ^ salt))
-        .sum();
-    (sum - 2.0) * 3.0_f32.sqrt()
+    hash(seed) + hash(seed ^ 0x68e3_1da4) - 1.0
 }
 
 /// Plays the loop on a decoding thread: `request` asks for the next frame, `deliver` gets it on that thread
@@ -409,48 +365,6 @@ mod tests {
         let values: Vec<u8> = frame.as_slice().iter().map(|p| p.g).collect();
         assert!(values.iter().all(|&v| (99..=101).contains(&v)));
         assert!(values.iter().any(|&v| v != 100));
-    }
-
-    #[test]
-    fn the_grain_is_even_and_centred() {
-        let tile = grain_tile();
-        assert_eq!((tile.width(), tile.height()), (GRAIN_TILE, GRAIN_TILE));
-        // The change each pixel makes over the dark field, in levels
-        let levels: Vec<f32> = tile
-            .as_slice()
-            .iter()
-            .map(|p| {
-                let alpha = f32::from(p.a) / 255.0;
-                if p.r == 255 {
-                    alpha * (255.0 - GRAIN_BASE)
-                } else {
-                    -alpha * GRAIN_BASE
-                }
-            })
-            .collect();
-        let deviation = |part: &[f32]| {
-            let mean = part.iter().sum::<f32>() / part.len() as f32;
-            let var = part.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / part.len() as f32;
-            (mean, var.sqrt())
-        };
-        let (mean, sd) = deviation(&levels);
-        assert!(mean.abs() < 0.1, "centred, got {mean}");
-        assert!((sd - GRAIN_SIGMA).abs() < 0.5, "deviation {sd}");
-        // No larger shapes: every quarter of the tile looks the same
-        let side = GRAIN_TILE as usize;
-        for (qx, qy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-            let part: Vec<f32> = (0..side / 2)
-                .flat_map(|y| {
-                    let row = (qy * side / 2 + y) * side + qx * side / 2;
-                    levels[row..row + side / 2].to_vec()
-                })
-                .collect();
-            let (m, s) = deviation(&part);
-            assert!(
-                m.abs() < 0.2 && (s - sd).abs() < 0.3,
-                "quarter {qx},{qy}: {m} {s}"
-            );
-        }
     }
 
     #[cfg(windows)]

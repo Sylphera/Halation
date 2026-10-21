@@ -21,6 +21,12 @@
 //                       320 x 180 made blocks and bands once scaled to the window.
 //   drape-tint.bin      256 x RGB (u8): the average colour of every 30th frame for each luma, filled across gaps
 //   drape-still.jpg     frame 0, shown when the loop does not play (reduced motion, no decoder)
+//   drape-grain.png     512 x 512 RGBA tile of the original's output dither and stationary film grain together at twice
+//                       the default strength (signed: white adds, black takes away), laid over the scaled frame at the
+//                       window's own resolution; Home shows it at half opacity by default. It is drawn by a third copy
+//                       whose field is one even grey (GRAIN_BASE): a patch of the real Drape carried its light and shade
+//                       into the tile (the grain is clipped near black and stronger in the midtones), and every repeat
+//                       of the tile showed as a block
 //   drape-original-1920.png, drape-periodic-1920.png  the unmodified and the periodic Drape at t = 0, full size
 // Usage: node record.js <dist dir of the original> <out dir>   (CHROME, NODE_PATH and FFMPEG as needed)
 const path = require("path");
@@ -28,7 +34,14 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const { chromium } = require("playwright");
 const [, , dist, out] = process.argv;
-const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, QUALITY = 0.9, LIFT = 80;
+const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, GRAIN = 512, GRAIN_BASE = 24, QUALITY = 0.9, LIFT = 80;
+
+// The grain copy of drape.js: the presented field replaced by one even grey, the dither and grain left as they are
+function evenField(src) {
+  const from = "vec3 col=field(p*vec2(u_resolution.y/u_resolution.x,1.0)+0.5)*${f4(F.level)};";
+  if (src.split(from).length !== 2) throw Error("expected the presented field once");
+  return src.replace(from, () => `vec3 col=vec3(${GRAIN_BASE}.0/255.0);`);
+}
 
 // The periodic copy of drape.js: exact replacements, each must match once
 function periodic(src, luma16 = false) {
@@ -98,6 +111,8 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
   const lumaCopy = path.join(out, "drape-periodic-luma16.js");
   fs.writeFileSync(copy, periodic(fs.readFileSync(original, "utf8")));
   fs.writeFileSync(lumaCopy, periodic(fs.readFileSync(original, "utf8"), true));
+  const grainCopy = path.join(out, "drape-grain-only.js");
+  fs.writeFileSync(grainCopy, evenField(fs.readFileSync(original, "utf8")));
   const browser = await chromium.launch({ executablePath: process.env.CHROME, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--allow-file-access-from-files"] });
   const open = async (w, h, file, name) => {
     const html = path.join(out, name);
@@ -171,6 +186,30 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
       path.join(out, "drape-loop.mp4")]);
     console.log("drape-loop.mp4", (fs.statSync(path.join(out, "drape-loop.mp4")).size / 1024).toFixed(0), "KB");
   }
+
+  // The grain and the output dither: the original's presentation at 1:1 over an even grey, at twice the default grain
+  // (review strength 1 instead of 0.5); the difference from that grey is what the original adds at the window's
+  // resolution
+  const g = await open(1920, 1080, grainCopy, "grain.html");
+  const grained = await g.evaluate(() => window.frameAt(0, 1));
+  const tile = await g.evaluate(([n, base, px]) => {
+    const [cw] = window.sizeOf();
+    const c = document.createElement("canvas"); c.width = n; c.height = n;
+    const ctx = c.getContext("2d"), img = ctx.createImageData(n, n);
+    let sum = 0, sq = 0;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const s = ((200 + y) * cw + 600 + x) * 4, o = (y * n + x) * 4;
+      const diff = (px[s] + px[s + 1] + px[s + 2]) / 3 - base;
+      sum += diff; sq += diff * diff;
+      // over this grey, white at alpha a adds a * (255 - base) and black takes away a * base
+      if (diff >= 0) { img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.min(255, Math.round(diff * 255 / (255 - base))); }
+      else { img.data[o] = img.data[o + 1] = img.data[o + 2] = 0; img.data[o + 3] = Math.min(255, Math.round(-diff * 255 / base)); }
+    }
+    ctx.putImageData(img, 0, 0);
+    return { url: c.toDataURL("image/png"), mean: sum / (n * n), sd: Math.sqrt(sq / (n * n) - (sum / (n * n)) ** 2) };
+  }, [GRAIN, GRAIN_BASE, grained]);
+  fs.writeFileSync(path.join(out, "drape-grain.png"), Buffer.from(tile.url.split(",")[1], "base64"));
+  console.log(`grain tile: mean ${tile.mean.toFixed(3)}, deviation ${tile.sd.toFixed(3)} levels`);
 
   // Reference shots: the original and the periodic copy at full size, with grain
   const q = await open(1920, 1080, original, "full.html");
