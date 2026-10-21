@@ -8,6 +8,20 @@ Fuentes del inventario: `main` (Tauri 1.2.0, 466 ficheros, 75 `.md`), `slint/vis
 Los datos de ramas y PRs salen de `git` y de la API de GitHub; lo que no se ha comprobado fichero a fichero se marca
 **(sin verificar)**.
 
+## Revisión 2026-10-21 (Java): dos líneas de repo
+
+Esta sección prevalece sobre el resto donde haya conflicto.
+
+- **Halation Tauri** = `main`, tal cual y con todo lo anterior. No se reorganiza; publica las 1.x. Se consulta en un
+  checkout local para importar backend.
+- **Halation Slint** = rama nueva, reestructurada y limpia desde el primer commit, lista para publicarse cuando termine
+  la migración. Sin `legacy/tauri/`, sin Playwright ni Node en la ruta de compilación, sin `.opencode/`. Se publica en
+  **este mismo repositorio** (las 1.x se actualizan desde sus releases con la misma clave minisign) y al corte pasa a
+  ser `main`; el Tauri actual queda en `tauri-final` y `archive/tauri`. El corte lo aprueba Java.
+- Efectos en el plan: §2.2 queda sustituida por lo anterior; en §4 desaparecen la fase 2 (mover `app/`) y el borrado de
+  `legacy/tauri/` de la fase 6; los mapeos de §2.4 que apuntan a `legacy/tauri/` pasan a «no se copia». Coste total
+  ≈ 4,5 – 5,5.
+
 ## 1. Inventario
 
 ### 1.1 Qué hay hoy
