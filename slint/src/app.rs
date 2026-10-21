@@ -1,5 +1,5 @@
 use crate::catalog;
-use crate::jobs::JobsService;
+use crate::jobs::{JobEntry, JobsService};
 use crate::library::{
     LibraryEntry, LibraryLoad, LibraryModel, LibraryStore, SaveCompletion, SaveRequest, load_index,
     scan_reference, write_index,
@@ -10,7 +10,7 @@ use crate::profile::{LaunchOptions, Profile};
 use crate::settings::{Settings, SettingsStore};
 use crate::theme;
 use crate::ui::{AppWindow, JobRow, RecentItem, Theme, ToolItem};
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Weak};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -113,11 +113,17 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     window
         .run()
         .map_err(|error| format!("event loop failed: {error}"))?;
+    controller.shutdown();
     log_line(&log_profile, "event loop finished");
     Ok(())
 }
 
 impl Controller {
+    /// Closing the window: every job process still running stops with it.
+    fn shutdown(&self) {
+        self.services.borrow().jobs.shutdown();
+    }
+
     fn new(
         weak: Weak<AppWindow>,
         profile: Profile,
@@ -138,6 +144,11 @@ impl Controller {
             })
             .collect();
         let jobs_model = Rc::new(VecModel::from(Vec::<JobRow>::new()));
+        let jobs_weak = weak.clone();
+        let jobs = JobsService::new(move || {
+            // Called from engine threads. A closed window is a normal lifecycle end.
+            let _ = jobs_weak.upgrade_in_event_loop(|ui| ui.invoke_jobs_changed());
+        });
         let rail_tools: Vec<ToolItem> = tools
             .iter()
             .filter(|tool| !tool.available)
@@ -151,7 +162,7 @@ impl Controller {
                 profile,
                 settings,
                 library,
-                jobs: JobsService::default(),
+                jobs,
                 nav: Navigation::default(),
                 notice: String::new(),
                 library_loaded: false,
@@ -394,6 +405,45 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            ui.on_cancel_job(move |id| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let s = services.borrow();
+                s.jobs.cancel(id.as_str());
+                refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_clear_finished_jobs(move || {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let s = services.borrow();
+                s.jobs.clear_finished();
+                refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_jobs_changed(move || {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let s = services.borrow();
+                update_jobs_model(&ui, &s.jobs.jobs(), &s.jobs_model);
+                ui.set_jobs_capability(SharedString::from(s.jobs.capability()));
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
             ui.on_load_finished(move || {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -618,6 +668,35 @@ fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_notice(SharedString::from(s.notice.as_str()));
 
     update_recent_model(model, &s.recent_cache, &s.recent_model);
+    update_jobs_model(ui, &s.jobs.jobs(), &s.jobs_model);
+}
+
+fn update_jobs_model(ui: &AppWindow, jobs: &[JobEntry], model: &VecModel<JobRow>) {
+    ui.set_jobs_has_finished(jobs.iter().any(|job| job.finished));
+    let rows: Vec<JobRow> = jobs
+        .iter()
+        .map(|job| JobRow {
+            id: SharedString::from(job.id.as_str()),
+            name: SharedString::from(job.name.as_str()),
+            detail: SharedString::from(job.detail.as_str()),
+            state: SharedString::from(job.state.as_str()),
+            progress: job.progress.unwrap_or(0.0),
+            has_progress: job.progress.is_some(),
+            cancellable: job.cancellable,
+            finished: job.finished,
+            failed: job.failed,
+        })
+        .collect();
+    if model.row_count() == rows.len() {
+        // Same rows: update in place so a list being scrolled is not reset by every progress tick.
+        for (index, row) in rows.into_iter().enumerate() {
+            if model.row_data(index).as_ref() != Some(&row) {
+                model.set_row_data(index, row);
+            }
+        }
+    } else {
+        model.set_vec(rows);
+    }
 }
 
 fn start_diagnostic_cycle(weak: &Weak<AppWindow>) -> Rc<slint::Timer> {

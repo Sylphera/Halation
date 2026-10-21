@@ -17,6 +17,12 @@ export struct JobRow {
     id: string,
     name: string,
     detail: string,
+    state: string,
+    progress: float,
+    has-progress: bool,
+    cancellable: bool,
+    finished: bool,
+    failed: bool,
 }
 
 export struct RecentItem {

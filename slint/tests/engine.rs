@@ -173,3 +173,41 @@ fn shutdown_stops_what_is_running() {
     engine.shutdown();
     wait_until("the job to end", || state_of(&engine, &id).finished());
 }
+
+#[test]
+fn the_jobs_service_lists_rows_for_the_page_and_clears_finished_ones() {
+    use halation_slint::jobs::JobsService;
+
+    let jobs = JobsService::default();
+    let id = jobs.engine().submit(
+        JobSpec::new("convert", "a.png", Lane::Cpu),
+        cmd("echo 50%& echo done"),
+        Some(percent),
+    );
+    wait_until("the row to finish", || {
+        jobs.jobs().iter().any(|row| row.id == id && row.finished)
+    });
+    let row = jobs.jobs().into_iter().next().unwrap();
+    assert_eq!(row.name, "a.png");
+    assert_eq!(row.state, "Done");
+    assert_eq!(row.progress, Some(1.0));
+    assert!(!row.cancellable && !row.failed);
+
+    let failing = jobs.engine().submit(
+        JobSpec::new("convert", "bad", Lane::Cpu),
+        ProcessSpec {
+            program: PathBuf::from("Z:/no/such/program.exe"),
+            ..ProcessSpec::default()
+        },
+        None,
+    );
+    wait_until("the failing row", || {
+        jobs.jobs().iter().any(|r| r.id == failing && r.failed)
+    });
+    let bad = jobs.jobs().into_iter().find(|r| r.id == failing).unwrap();
+    assert_eq!(bad.state, "Failed");
+    assert!(!bad.detail.is_empty(), "the reason is shown");
+
+    jobs.clear_finished();
+    assert!(jobs.jobs().is_empty());
+}

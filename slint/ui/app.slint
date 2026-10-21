@@ -45,6 +45,7 @@ export component AppWindow inherits Window {
     in property <string> settings-error: "";
     in property <string> notice: "";
     in property <string> jobs-capability: "";
+    in property <bool> jobs-has-finished: false;
 
     callback navigate(int);
     callback choose-reference();
@@ -55,6 +56,9 @@ export component AppWindow inherits Window {
     callback reset-settings();
     callback tool-activated(string);
     callback dismiss-notice();
+    callback cancel-job(string);
+    callback clear-finished-jobs();
+    callback jobs-changed();
     // Internal async notifications; the UI does not trigger these.
     callback load-finished();
     callback save-finished();
@@ -182,7 +186,10 @@ export component AppWindow inherits Window {
                 height: parent.height;
                 jobs: root.jobs;
                 capability: root.jobs-capability;
+                has-finished: root.jobs-has-finished;
                 motion-duration: root.motion-duration;
+                cancel-job(id) => { root.cancel-job(id); }
+                clear-finished => { root.clear-finished-jobs(); }
             }
 
             if root.page == 3 : SettingsPage {

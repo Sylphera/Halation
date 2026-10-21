@@ -1,11 +1,17 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { AppButton } from "../components/button.slint";
 import { JobRow } from "../models.slint";
+import { ListView } from "std-widgets.slint";
 
 export component JobsPage inherits Rectangle {
     in property <[JobRow]> jobs;
     in property <string> capability: "";
+    in property <bool> has-finished: false;
     in property <duration> motion-duration: 160ms;
+
+    callback cancel-job(string);
+    callback clear-finished();
 
     background: transparent;
 
@@ -30,6 +36,7 @@ export component JobsPage inherits Rectangle {
                 background: #2a1c1c;
                 border-width: 1px;
                 border-color: Theme.danger;
+                y: (parent.height - self.height) / 2;
                 Text {
                     text: "DISCONNECTED";
                     color: Theme.danger;
@@ -40,16 +47,22 @@ export component JobsPage inherits Rectangle {
                     vertical-alignment: center;
                 }
             }
+            AppButton {
+                text: "Clear finished";
+                compact: true;
+                enabled: root.has-finished;
+                clicked => { root.clear-finished(); }
+            }
         }
 
         Text {
-            text: "Honest empty state: this beta has no processing engine, scheduler or queue. Nothing here will pretend to run.";
+            text: "The queue and process engine are live, but no tool is connected in this beta: nothing can be added here. Nothing pretends to run.";
             color: Theme.muted;
             font-size: 12px;
             wrap: word-wrap;
         }
 
-        Rectangle {
+        if root.jobs.length == 0 : Rectangle {
             vertical-stretch: 1;
             border-radius: 16px;
             background: Theme.surface;
@@ -72,23 +85,79 @@ export component JobsPage inherits Rectangle {
                     color: Theme.muted;
                     font-size: 12px;
                     horizontal-alignment: center;
-                }
-                Text {
-                    text: "The Jobs page stays empty until a real service contract, capability check and lifecycle exist.";
-                    color: Theme.muted;
-                    font-size: 10px;
-                    horizontal-alignment: center;
+                    wrap: word-wrap;
                 }
             }
         }
 
-        if root.jobs.length > 0 : Text {
-            text: "Unexpected job rows are present; this build should always keep Jobs empty.";
-            color: Theme.danger;
-            font-size: 10px;
+        if root.jobs.length > 0 : ListView {
+            vertical-stretch: 1;
+            for job in root.jobs : Rectangle {
+                height: 66px;
+                width: parent.width;
+                border-radius: 9px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: job.failed ? Theme.danger : Theme.border;
+                clip: true;
+
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    VerticalLayout {
+                        spacing: 3px;
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: job.name;
+                                color: Theme.text;
+                                font-size: 12px;
+                                font-weight: 600;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: job.state;
+                                color: job.failed ? Theme.danger : (job.finished ? Theme.success : Theme.accent);
+                                font-size: 10px;
+                                font-weight: 600;
+                            }
+                        }
+                        Text {
+                            text: job.detail;
+                            color: Theme.muted;
+                            font-size: 9px;
+                            overflow: elide;
+                        }
+                        Rectangle {
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.surface-high;
+                            Rectangle {
+                                x: 0px;
+                                height: parent.height;
+                                width: job.has-progress ? parent.width * job.progress : 0px;
+                                border-radius: 2px;
+                                background: job.failed ? Theme.danger : Theme.accent;
+                                animate width { duration: root.motion-duration; easing: ease-out; }
+                            }
+                        }
+                    }
+                    AppButton {
+                        text: "Cancel";
+                        compact: true;
+                        enabled: job.cancellable;
+                        y: (parent.height - self.height) / 2;
+                        clicked => { root.cancel-job(job.id); }
+                    }
+                }
+            }
         }
-        if root.jobs.length == 0 : Text {
-            text: "No process was started. No progress is simulated.";
+
+        Text {
+            text: "Finished jobs stay until cleared; the engine keeps the last 50.";
             color: Theme.muted;
             font-size: 9px;
         }

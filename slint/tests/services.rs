@@ -655,7 +655,7 @@ fn metadata_refresh_updates_cached_rows_only() {
 
 #[test]
 fn jobs_are_empty_and_submission_is_rejected_without_side_effects() {
-    let mut jobs = JobsService::default();
+    let jobs = JobsService::default();
     assert!(jobs.jobs().is_empty());
     assert!(
         jobs.submit(JobRequest {
