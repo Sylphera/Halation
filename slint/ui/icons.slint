@@ -1,5 +1,7 @@
-// Lucide icons (ISC licence, see NOTICE.md) as the original Halation uses them: identity assets, tinted with
-// `colorize`. "mark" is the Halation mark; "jobs" is drawn as a path.
+import { Assets } from "assets.slint";
+
+// Lucide icons (ISC licence, see NOTICE.md) and the Halation mark, loaded from the assets folder and tinted with
+// `colorize`. "jobs" is drawn as a path.
 component IconJobs inherits Path {
     in property <color> tint: #f5f5f2;
     viewbox-width: 24;
@@ -18,7 +20,7 @@ export component ToolIcon inherits Rectangle {
     height: size;
 
     if name == "mark" : Image {
-        source: @image-url("../assets/halation-mark.png");
+        source: Assets.mark;
         width: parent.width * 1.4;
         height: parent.height * 0.7;
         x: (parent.width - self.width) / 2;
@@ -26,176 +28,8 @@ export component ToolIcon inherits Rectangle {
         image-fit: contain;
     }
     if name == "jobs" : IconJobs { width: parent.width; height: parent.height; tint: root.tint; }
-    if name == "download" : Image {
-        source: @image-url("icons/download.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "convert" : Image {
-        source: @image-url("icons/convert.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "vocal" : Image {
-        source: @image-url("icons/vocal.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "visualizer" : Image {
-        source: @image-url("icons/visualizer.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "grade" : Image {
-        source: @image-url("icons/grade.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "cover" : Image {
-        source: @image-url("icons/cover.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "removebg" : Image {
-        source: @image-url("icons/removebg.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "upscale" : Image {
-        source: @image-url("icons/upscale.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "interp" : Image {
-        source: @image-url("icons/interp.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "framegrab" : Image {
-        source: @image-url("icons/framegrab.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "library" : Image {
-        source: @image-url("icons/library.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "settings" : Image {
-        source: @image-url("icons/settings.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "upload" : Image {
-        source: @image-url("icons/upload.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "search" : Image {
-        source: @image-url("icons/search.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "warning" : Image {
-        source: @image-url("icons/warning.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "keyboard" : Image {
-        source: @image-url("icons/keyboard.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "folder-open" : Image {
-        source: @image-url("icons/folder-open.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "globe" : Image {
-        source: @image-url("icons/globe.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "save" : Image {
-        source: @image-url("icons/save.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "panel-left-open" : Image {
-        source: @image-url("icons/panel-left-open.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "panel-left-close" : Image {
-        source: @image-url("icons/panel-left-close.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "rotate-ccw" : Image {
-        source: @image-url("icons/rotate-ccw.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "refresh-cw" : Image {
-        source: @image-url("icons/refresh-cw.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "chevron-down" : Image {
-        source: @image-url("icons/chevron-down.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "file-text" : Image {
-        source: @image-url("icons/file-text.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "eraser" : Image {
-        source: @image-url("icons/eraser.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "circle-help" : Image {
-        source: @image-url("icons/circle-help.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "external-link" : Image {
-        source: @image-url("icons/external-link.svg");
-        colorize: root.tint;
-        width: parent.width;
-        height: parent.height;
-    }
-    if name == "house" : Image {
-        source: @image-url("icons/house.svg");
+    if name != "mark" && name != "jobs" : Image {
+        source: Assets.icon(root.name);
         colorize: root.tint;
         width: parent.width;
         height: parent.height;

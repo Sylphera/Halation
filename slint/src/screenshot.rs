@@ -220,6 +220,8 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     }))
     .map_err(|e| format!("could not install the headless platform: {e}"))?;
 
+    // Like a normal start: the typeface from the assets folder before the window exists
+    let _ = crate::assets::register_fonts(&crate::assets::locate());
     let ui = AppWindow::new()?;
     ui.show()?;
     window.set_size(PhysicalSize::new(spec.width, spec.height));

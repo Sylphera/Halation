@@ -1,14 +1,15 @@
 import { Palette } from "std-widgets.slint";
+import { Assets } from "assets.slint";
 import { Theme } from "theme.slint";
 import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 export { Theme } from "theme.slint";
+export { Assets } from "assets.slint";
 export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { RailItem } from "components/rail-item.slint";
 import { TopDock } from "components/top-dock.slint";
-import "../assets/fonts/Inter.ttf";
 
 // A divider between rail groups
 component RailDivider inherits Rectangle {
@@ -30,7 +31,7 @@ export component AppWindow inherits Window {
     min-width: 960px;
     min-height: 600px;
     background: Theme.ground;
-    icon: @image-url("../assets/halation-mark.png");
+    icon: Assets.mark;
     default-font-family: "Inter";
     default-font-size: Theme.font-body;
 
@@ -136,7 +137,7 @@ export component AppWindow inherits Window {
         Image {
             width: parent.width;
             height: parent.height;
-            source: @image-url("../assets/drape-grain.png");
+            source: Assets.grain;
             horizontal-tiling: repeat;
             vertical-tiling: repeat;
         }

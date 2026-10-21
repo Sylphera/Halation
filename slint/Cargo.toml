@@ -17,8 +17,6 @@ name = "halation-slint"
 path = "src/main.rs"
 
 [dependencies]
-# JPEG frames of Home's backdrop loop; the same image crate Slint already links, JPEG decoder only
-image = { version = "=0.25.10", default-features = false, features = ["jpeg"] }
 rfd = "=0.17.2"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
@@ -28,9 +26,16 @@ slint = { version = "=1.18.1", default-features = false, features = [
     "backend-winit",
     "renderer-skia",
     "accessibility",
+    # Inter is registered at run time from the assets folder (pinned Slint version)
+    "unstable-fontique-011",
 ] }
 
 [target.'cfg(windows)'.dependencies]
+# Media Foundation (Windows' own H.264 decoder) for Home's backdrop loop; already in the tree through winit
+windows = { version = "=0.62.2", features = [
+    "Win32_Media_MediaFoundation",
+    "Win32_System_Com",
+] }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",
     "Win32_Security",

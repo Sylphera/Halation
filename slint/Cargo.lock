@@ -1609,12 +1609,12 @@ name = "halation-slint"
 version = "0.1.0"
 dependencies = [
  "i-slint-backend-testing",
- "image",
  "rfd",
  "serde",
  "serde_json",
  "slint",
  "slint-build",
+ "windows",
  "windows-sys 0.61.2",
 ]
 

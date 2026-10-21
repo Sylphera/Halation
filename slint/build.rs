@@ -15,6 +15,8 @@ fn main() {
         rerun_on_git_path(&[branch.as_str()]);
     }
 
+    copy_assets();
+
     let sha = git_output(&["rev-parse", "--short=12", "HEAD"])
         .filter(|sha| !sha.is_empty())
         .map(|sha| {
@@ -32,6 +34,42 @@ fn main() {
         .with_debug_info(debug_info);
     slint_build::compile_with_config("ui/app.slint", config)
         .expect("the Slint UI must compile; fix the reported .slint diagnostics");
+}
+
+/// Development builds run from `target/<profile>`: put a copy of `assets/` next to the executable there, as the
+/// installer does beside the installed one. Only changed files are copied.
+fn copy_assets() {
+    let Some(out_dir) = std::env::var_os("OUT_DIR").map(PathBuf::from) else {
+        return;
+    };
+    // OUT_DIR is <target>/<profile>/build/<package>/out
+    let Some(profile_dir) = out_dir.ancestors().nth(3) else {
+        return;
+    };
+    let source =
+        PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap_or_default()).join("assets");
+    copy_tree(&source, &profile_dir.join("assets"));
+}
+
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(from) else {
+        return;
+    };
+    let _ = std::fs::create_dir_all(to);
+    for entry in entries.flatten() {
+        let (source, target) = (entry.path(), to.join(entry.file_name()));
+        if source.is_dir() {
+            copy_tree(&source, &target);
+            continue;
+        }
+        let same = match (std::fs::metadata(&source), std::fs::metadata(&target)) {
+            (Ok(a), Ok(b)) => a.len() == b.len() && a.modified().ok() <= b.modified().ok(),
+            _ => false,
+        };
+        if !same {
+            let _ = std::fs::copy(&source, &target);
+        }
+    }
 }
 
 fn git_output(arguments: &[&str]) -> Option<String> {

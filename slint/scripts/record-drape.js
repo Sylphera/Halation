@@ -4,13 +4,19 @@
 // Seamless loop: the copy used here makes the Drape's time periodic. Each time-dependent noise lookup moves on a
 // circle through the noise volume (time axis plus a small offset across) at the original speed, and the diagonal
 // slide becomes a wide circle at the original speed; at t = 0 both start like the original. Frame PERIOD equals frame 0.
+// The frames carry no dither (see the swaps below).
 //
 // Writes (in <out dir>):
 //   frames/f0000.png …  FRAMES lossless frames of 320 x 180, 15 per field second, no grain
-//   drape-loop.mp4      those frames as H.264 (x264 veryslow, CRF 18, one keyframe, BT.709), when FFMPEG names an
-//                       ffmpeg with libx264; the beta plays it with Windows' own decoder
+//   drape-loop.mp4      the frames' luma as H.264, when FFMPEG names an ffmpeg with libx264 (x264 veryslow, CRF 20,
+//                       aq-mode 3, one keyframe, full range): y' = 255 * sqrt(min(1, luma / LIFT)), so the dark field gets
+//                       most of the codes. The beta reads the Y plane with Windows' own decoder, undoes the curve and
+//                       colours each pixel from drape-tint.bin. Colour stays out of the codec: its 4:2:0 chroma at
+//                       320 x 180 made blocks and bands once scaled to the window.
+//   drape-tint.bin      256 x RGB (u8): the average colour of the frames for each luma, filled across gaps
 //   drape-still.jpg     frame 0, shown when the loop does not play (reduced motion, no decoder)
-//   drape-grain.png     256 x 256 RGBA tile of the stationary film grain (signed: white adds, black takes away)
+//   drape-grain.png     256 x 256 RGBA tile of the original's output dither and stationary film grain together (signed:
+//                       white adds, black takes away), laid over the scaled frame at the window's own resolution
 //   drape-original-1920.png, drape-periodic-1920.png  the unmodified and the periodic Drape at t = 0, full size
 // Usage: node record.js <dist dir of the original> <out dir>   (CHROME, NODE_PATH and FFMPEG as needed)
 const path = require("path");
@@ -18,7 +24,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const { chromium } = require("playwright");
 const [, , dist, out] = process.argv;
-const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, GRAIN = 256, QUALITY = 0.9;
+const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, GRAIN = 256, QUALITY = 0.9, LIFT = 80;
 
 // The periodic copy of drape.js: exact replacements, each must match once
 function periodic(src) {
@@ -42,7 +48,11 @@ const axisSpace = (px, py, t) => [(px * AXIS[0] + py * AXIS[1]) * F.along * F.sc
     ["fbm(ax + 1.1 * qx + 1.7, ay + 1.1 * qy + 9.2, t * 1.3)", "fbm(ax + 1.1 * qx + 1.7, ay + 1.1 * qy + 9.2 + ly(t, 1.3), lz(t, 1.3))"],
     ["fbm(ax + 1.1 * qx + 8.3, ay + 1.1 * qy + 2.8, t * 1.3)", "fbm(ax + 1.1 * qx + 8.3, ay + 1.1 * qy + 2.8 + ly(t, 1.3), lz(t, 1.3))"],
     ["const h = fbm(wx, wy, t * .7);", "const h = fbm(wx, wy + ly(t, .7), lz(t, .7));"],
-    ["snoise(ax * .3 + 3.1, ay * .54 + 7.7, t * .6)", "snoise(ax * .3 + 3.1, ay * .54 + 7.7 + ly(t, .6), lz(t, .6))"]
+    ["snoise(ax * .3 + 3.1, ay * .54 + 7.7, t * .6)", "snoise(ax * .3 + 3.1, ay * .54 + 7.7 + ly(t, .6), lz(t, .6))"],
+    // No dither in the recorded frames: at 320 px it would be smeared by the scaling and eaten by the codec. The beta
+    // dithers at the window's own resolution instead.
+    ["  col+=vec3(tpdf(fc,0.0),tpdf(fc+13.7,0.0),tpdf(fc+41.9,0.0))/255.0;", ""],
+    ['gl.uniform1f(f.u.u_dither, res.storage === "rgba8" ? 1 : 0);', "gl.uniform1f(f.u.u_dither, 0);"]
   ];
   for (const [from, to] of swaps) {
     const n = src.split(from).length - 1;
@@ -95,27 +105,54 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
   const second = await p.evaluate(([t]) => window.frameAt(t, 0), [PERIOD / FRAMES]);
   const [seam, seamMax] = mad(first, end), [step, stepMax] = mad(first, second);
   console.log(`seam (frame ${PERIOD} s vs 0 s): mean ${seam.toFixed(4)}, max ${seamMax}; one frame apart: mean ${step.toFixed(3)}, max ${stepMax}`);
-  const framesDir = path.join(out, "frames");
+  const framesDir = path.join(out, "frames"), frameFile = i => path.join(framesDir, `f${String(i).padStart(4, "0")}.png`);
   fs.mkdirSync(framesDir, { recursive: true });
+  // REUSE_FRAMES=1 keeps frames already rendered (the encoding can be redone without rendering again)
   for (let i = 0; i < FRAMES; i++) {
+    if (process.env.REUSE_FRAMES && fs.existsSync(frameFile(i))) continue;
     const url = await p.evaluate(([t]) => window.pngAt(t), [i * PERIOD / FRAMES]);
-    fs.writeFileSync(path.join(framesDir, `f${String(i).padStart(4, "0")}.png`), Buffer.from(url.split(",")[1], "base64"));
+    fs.writeFileSync(frameFile(i), Buffer.from(url.split(",")[1], "base64"));
   }
   const still = await p.evaluate(([t, q]) => window.jpegAt(t, q), [0, QUALITY]);
   fs.writeFileSync(path.join(out, "drape-still.jpg"), Buffer.from(still.split(",")[1], "base64"));
   if (process.env.FFMPEG) {
+    // Colour by luma, from every 30th frame
+    const raw = execFileSync(process.env.FFMPEG, ["-hide_banner", "-loglevel", "error", "-framerate", "15", "-i", path.join(framesDir, "f%04d.png"),
+      "-vf", "select='not(mod(n\\,30))'", "-vsync", "0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1 << 30 });
+    const luma = (r, g, b) => Math.round(.2126 * r + .7152 * g + .0722 * b);
+    const sums = Array.from({ length: 256 }, () => [0, 0, 0, 0]);
+    for (let j = 0; j < raw.length; j += 3) { const s4 = sums[luma(raw[j], raw[j + 1], raw[j + 2])]; s4[0] += raw[j]; s4[1] += raw[j + 1]; s4[2] += raw[j + 2]; s4[3]++; }
+    const known = sums.map((v, y) => v[3] ? y : -1).filter(y => y >= 0);
+    const tint = Buffer.alloc(256 * 3);
+    for (let y = 0; y < 256; y++) {
+      const lo = [...known].reverse().find(k => k <= y), hi = known.find(k => k >= y);
+      const avg = k => sums[k].slice(0, 3).map(c => c / sums[k][3]);
+      // past the brightest luma seen, keep that colour's proportions
+      const c = lo === undefined ? avg(hi) : hi === undefined ? avg(lo).map(v => v * y / Math.max(1, lo))
+        : lo === hi ? avg(lo) : avg(lo).map((v, i) => v + (avg(hi)[i] - v) * (y - lo) / (hi - lo));
+      c.forEach((v, i) => { tint[y * 3 + i] = Math.max(0, Math.min(255, Math.round(v))); });
+    }
+    fs.writeFileSync(path.join(out, "drape-tint.bin"), tint);
+    let err = 0, n = 0;
+    for (let j = 0; j < raw.length; j += 3, n++) { const y = luma(raw[j], raw[j + 1], raw[j + 2]); for (let i = 0; i < 3; i++) err += Math.abs(tint[y * 3 + i] - raw[j + i]); }
+    console.log(`tint: luma up to ${known[known.length - 1]}, mean colour error ${(err / n).toFixed(2)} levels (sum of RGB)`);
     execFileSync(process.env.FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", "-framerate", "15",
-      "-i", path.join(framesDir, "f%04d.png"), "-c:v", "libx264", "-preset", "veryslow", "-tune", "film", "-crf", "18",
-      "-g", String(FRAMES), "-keyint_min", String(FRAMES), "-pix_fmt", "yuv420p",
-      "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
+      "-i", path.join(framesDir, "f%04d.png"),
+      "-vf", `format=gray,lut=y='255*sqrt(min(1\\,val/${LIFT}))',scale=out_range=pc,format=yuvj420p`,
+      "-c:v", "libx264", "-preset", "veryslow", "-tune", "film", "-crf", "20", "-x264-params", "aq-mode=3",
+      "-g", String(FRAMES), "-keyint_min", String(FRAMES), "-pix_fmt", "yuvj420p", "-color_range", "pc", "-movflags", "+faststart",
       path.join(out, "drape-loop.mp4")]);
     console.log("drape-loop.mp4", (fs.statSync(path.join(out, "drape-loop.mp4")).size / 1024).toFixed(0), "KB");
   }
 
-  // The grain: a 1:1 render with and without it at the same moment; the difference is the grain
+  // The grain and the output dither: the original at 1:1 with both, against the dither-free copy without grain, at
+  // t = 0 where the two fields are identical; the difference is what the original adds at the window's resolution
   const q = await open(1920, 1080, original, "full.html");
-  const tile = await q.evaluate(([n]) => {
-    const withGrain = window.frameAt(0, .5), without = window.frameAt(0, 0), [cw] = window.sizeOf();
+  const r = await open(1920, 1080, copy, "full-periodic.html");
+  const withGrain = await q.evaluate(() => window.frameAt(0, .5));
+  const without = await r.evaluate(() => window.frameAt(0, 0));
+  const tile = await q.evaluate(([n, withGrain, without]) => {
+    const [cw] = window.sizeOf();
     const c = document.createElement("canvas"); c.width = n; c.height = n;
     const g = c.getContext("2d"), img = g.createImageData(n, n);
     // a patch from a dark, even area left of centre
@@ -129,11 +166,10 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
     }
     g.putImageData(img, 0, 0);
     return c.toDataURL("image/png");
-  }, [GRAIN]);
+  }, [GRAIN, withGrain, without]);
   fs.writeFileSync(path.join(out, "drape-grain.png"), Buffer.from(tile.split(",")[1], "base64"));
   await q.evaluate(() => window.frameAt(0, .5));
   await q.screenshot({ path: path.join(out, "drape-original-1920.png") });
-  const r = await open(1920, 1080, copy, "full-periodic.html");
   await r.evaluate(() => window.frameAt(0, .5));
   await r.screenshot({ path: path.join(out, "drape-periodic-1920.png") });
   await r.evaluate(() => window.frameAt(60, .5));

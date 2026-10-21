@@ -182,3 +182,6 @@ One line per decision in force and why. Add a line for every new decision; remov
 
 - The Rust backend is kept and may be imported into the native crate; only the visual layer (Slint and its Rust glue) stays clean-room (Java, 2026-10-21): the backend holds validated behaviour worth reusing, the interface is what is being redesigned.
 - Imported backend modules never carry `tauri::*`: a module coupled to Tauri gets its own interface; no path dependencies or FFI towards `app/src-tauri`, so both apps keep building on their own.
+
+- Assets ship apart from the executable, in `assets\` beside it (Java, 2026-10-21; installer only, no portable): images, icons, the Inter typeface and Home's backdrop are files the installer places, loaded at start; a missing one is reported, not fatal.
+- Home's backdrop is the original Drape recorded as a seamless 2-minute loop (Java, 2026-10-21): the recording tool may run the original `drape.js`, the beta only plays the result. Luma-only H.264 with a lifted curve plus a colour table (0.85 MB, no colour blocks), decoded by Media Foundation (Windows' own decoder, no added weight), scaled ×2 with dither in Rust so the 8-bit window does not band.

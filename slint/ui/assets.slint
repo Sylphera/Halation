@@ -1,0 +1,72 @@
+// Images of the assets folder next to the executable (assets.rs loads them at start; a missing file stays empty).
+export global Assets {
+    in-out property <image> mark;
+    in-out property <image> wordmark;
+    in-out property <image> drop-outline;
+    in-out property <image> grain;
+    in-out property <image> still;
+    in-out property <image> icon-chevron-down;
+    in-out property <image> icon-circle-help;
+    in-out property <image> icon-convert;
+    in-out property <image> icon-cover;
+    in-out property <image> icon-download;
+    in-out property <image> icon-eraser;
+    in-out property <image> icon-external-link;
+    in-out property <image> icon-file-text;
+    in-out property <image> icon-folder-open;
+    in-out property <image> icon-framegrab;
+    in-out property <image> icon-globe;
+    in-out property <image> icon-grade;
+    in-out property <image> icon-house;
+    in-out property <image> icon-interp;
+    in-out property <image> icon-keyboard;
+    in-out property <image> icon-library;
+    in-out property <image> icon-panel-left-close;
+    in-out property <image> icon-panel-left-open;
+    in-out property <image> icon-refresh-cw;
+    in-out property <image> icon-removebg;
+    in-out property <image> icon-rotate-ccw;
+    in-out property <image> icon-save;
+    in-out property <image> icon-search;
+    in-out property <image> icon-settings;
+    in-out property <image> icon-upload;
+    in-out property <image> icon-upscale;
+    in-out property <image> icon-visualizer;
+    in-out property <image> icon-vocal;
+    in-out property <image> icon-warning;
+
+    // The icon for a name of the catalog and the interface
+    public pure function icon(name: string) -> image {
+        name == "mark" ? root.mark
+            : name == "chevron-down" ? root.icon-chevron-down
+            : name == "circle-help" ? root.icon-circle-help
+            : name == "convert" ? root.icon-convert
+            : name == "cover" ? root.icon-cover
+            : name == "download" ? root.icon-download
+            : name == "eraser" ? root.icon-eraser
+            : name == "external-link" ? root.icon-external-link
+            : name == "file-text" ? root.icon-file-text
+            : name == "folder-open" ? root.icon-folder-open
+            : name == "framegrab" ? root.icon-framegrab
+            : name == "globe" ? root.icon-globe
+            : name == "grade" ? root.icon-grade
+            : name == "house" ? root.icon-house
+            : name == "interp" ? root.icon-interp
+            : name == "keyboard" ? root.icon-keyboard
+            : name == "library" ? root.icon-library
+            : name == "panel-left-close" ? root.icon-panel-left-close
+            : name == "panel-left-open" ? root.icon-panel-left-open
+            : name == "refresh-cw" ? root.icon-refresh-cw
+            : name == "removebg" ? root.icon-removebg
+            : name == "rotate-ccw" ? root.icon-rotate-ccw
+            : name == "save" ? root.icon-save
+            : name == "search" ? root.icon-search
+            : name == "settings" ? root.icon-settings
+            : name == "upload" ? root.icon-upload
+            : name == "upscale" ? root.icon-upscale
+            : name == "visualizer" ? root.icon-visualizer
+            : name == "vocal" ? root.icon-vocal
+            : name == "warning" ? root.icon-warning
+            : root.icon-settings
+    }
+}

@@ -78,24 +78,41 @@ first pass of this file (a launcher redesign, approved only as a starting point 
   (3 at most). What changes from the original: the slide turns slowly instead of always running along the diagonal.
 - **How much it covers:** in 2 minutes the slide travels about 0.9 screen heights (half a 16:9 width) and the folds
   reshape by about two thirds of a fold, so the loop only repeats every 2 minutes.
-- **Frames:** 1800 frames (15 fps, the Drape's own field rate) of 320 × 180, JPEG, about 3.7 KB each: 6.7 MB in
-  `slint/assets/drape-loop.bin`, embedded in the binary. No grain in them.
-- **Grain:** the original's stationary film grain as a fixed 256 × 256 tile (`drape-grain.png`, signed: white adds,
-  black takes away) laid over the scaled frame; it never moves.
-- **Playback (`backdrop.rs`, `app.rs`):** a 15 Hz timer decodes the next frame and hands it to Home's backdrop image;
-  only the frame on screen is held decoded. It runs only while Home is shown with motion on and the window is not
-  minimized; with reduced motion Home shows the first frame. Slint cannot tell when the window is covered, so a covered
-  but not minimized window keeps playing.
+- **Video (`assets/drape-loop.mp4`, 0.85 MB):** the 1800 frames (15 fps, the Drape's own field rate) of 320 × 180,
+  rendered without the original's dither, stored as **luma only** in H.264 (x264 veryslow, CRF 20, full range), lifted
+  so the dark field gets most of the codes: `y' = 255 × sqrt(min(1, luma / 80))`. Colour is restored per pixel from
+  `drape-tint.bin` (the frames' average colour for each luma; mean error 0.5 level). A first try with colour JPEG
+  frames (6.7 MB) showed blocks: 4:2:0 colour at 320 × 180 becomes large blocks once scaled to the window.
+- **Banding:** the window draws into 8 bits per channel, and grain laid over an image already drawn cannot break its
+  steps. So each decoded frame is scaled twice in floating point with a fixed one-level triangular dither (640 × 360,
+  1.5 ms) before Skia scales it the rest of the way; the bands that were left after the blocks went away are gone in
+  the captures (compared with the brightness multiplied by 8).
+- **Grain:** the original's output dither and stationary film grain together, as a fixed 256 × 256 tile
+  (`drape-grain.png`, signed: white adds, black takes away), laid over the scaled frame at the window's resolution.
+- **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
+  a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Only the
+  frame on screen is held decoded. It runs only while Home is shown with motion on and the window is not minimized;
+  with reduced motion, or if the video cannot play, Home shows `drape-still.jpg`. Slint cannot tell when the window is
+  covered, so a covered but not minimized window keeps playing.
 
 ## Measured cost (KernelPanic, i5-12400F, release, Skia OpenGL, Home maximized at 1920 × 1009, 30 s)
 
 | Home | Private working set | CPU |
 |---|---|---|
-| Static backdrop (previous pass) | about 55 MB | 0.00 % |
-| Recorded Drape playing | about 73 MB (peak 85) | about 0.5 % of all 12 threads (about 6 % of one) |
+| Still frame (loop off) | about 66 MB | 0.00 % |
+| Recorded Drape playing | about 90 MB (peak 100) | about 0.9 % of all 12 threads (about 11 % of one) |
 
-The binary grows by the 6.7 MB of frames. Most of the CPU is Skia redrawing the window 15 times a second, not the
-decoding (about 0.3 ms per frame). Hover cost is not measured: no input is injected into Java's desktop.
+On disk the loop takes 0.85 MB beside the executable. The extra memory is mostly Media Foundation and its decoder;
+the CPU is Skia redrawing the window 15 times a second plus the 1.5 ms scaling and dither of each frame (the decoding
+itself takes about 0.2 ms). Hover cost is not measured: no input is injected into Java's desktop.
+
+## Assets beside the executable
+
+Java (2026-10-21): assets ship apart from the exe; installer only, no portable. The mark, wordmark, drop outline,
+icons, the Inter typeface, the Drape loop, its colour table, still frame and grain live in `assets\` next to the
+executable and are loaded at start (`assets.rs`; Inter through Slint's run-time font collection). `build.rs` copies the
+crate's `assets/` beside the executable of development builds. A missing file is logged and named in a notice at the
+top of the window; the app still runs (icons stay blank, Home keeps its plain ground).
 
 ## Acceptance
 

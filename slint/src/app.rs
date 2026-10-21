@@ -108,6 +108,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let renderer = select_renderer()?;
     log_line(&profile, &format!("renderer requested: {renderer}"));
 
+    let assets = crate::assets::locate();
+    if let Err(error) = crate::assets::register_fonts(&assets) {
+        log_line(&profile, &format!("font not registered: {error}"));
+    }
     let window = AppWindow::new()?;
     let log_profile = profile.clone();
     if options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Empty) {
@@ -182,7 +186,7 @@ impl Controller {
             profile.links_path(),
         )));
 
-        let backdrop = Rc::new(BackdropPlayer::new(weak.clone()));
+        let backdrop = Rc::new(BackdropPlayer::new(weak.clone(), &crate::assets::locate()));
         Ok(Self {
             weak,
             diagnostic_timer: RefCell::new(None),
@@ -219,6 +223,26 @@ impl Controller {
             return;
         };
         apply_theme(&ui);
+        let assets = crate::assets::locate();
+        crate::assets::apply(&ui, &assets);
+        // Home shows the loop's first frame until the decoder delivers
+        ui.set_backdrop(ui.global::<crate::ui::Assets>().get_still());
+        let missing = crate::assets::missing(&assets);
+        if !missing.is_empty() {
+            let mut s = self.services.borrow_mut();
+            log_line(
+                &s.profile,
+                &format!(
+                    "assets missing in {}: {}",
+                    assets.display(),
+                    missing.join(", ")
+                ),
+            );
+            s.notice = format!(
+                "Some of Halation's files are missing ({}). Reinstall Halation to restore them.",
+                missing.join(", ")
+            );
+        }
         ui.set_build_label(SharedString::from(crate::build_label()));
         ui.set_profile_path(SharedString::from(
             self.services
@@ -1238,70 +1262,65 @@ fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
     });
 }
 
-/// Plays Home's backdrop loop (backdrop.rs): one frame every 1/15 s, decoded when due, so one frame is held at a time.
-/// It runs only while Home is shown with motion on and the window is not minimized; otherwise the timer is stopped
-/// and the frame on screen stays (the first frame with reduced motion).
+/// Plays Home's backdrop loop (backdrop.rs): a 15 Hz timer asks the decoding thread for the next frame, which comes
+/// back to the window as an image; only the frame on screen is held decoded. The timer runs only while Home is shown
+/// with motion on and the window is not minimized; otherwise the frame on screen stays (the still frame with reduced
+/// motion, or when the loop cannot play).
 struct BackdropPlayer {
     weak: Weak<AppWindow>,
-    drape: Option<Rc<crate::backdrop::DrapeLoop>>,
-    index: Rc<std::cell::Cell<usize>>,
+    player: Option<crate::backdrop::Player>,
     timer: slint::Timer,
-    shown: std::cell::Cell<bool>,
+    still: std::cell::Cell<bool>,
 }
 
 impl BackdropPlayer {
-    fn new(weak: Weak<AppWindow>) -> Self {
-        let drape = match crate::backdrop::DrapeLoop::embedded() {
-            Ok(drape) if !drape.is_empty() => Some(Rc::new(drape)),
-            // A broken build asset leaves Home on the plain ground rather than failing the app
-            _ => None,
-        };
+    fn new(weak: Weak<AppWindow>, assets: &Path) -> Self {
+        let deliver_to = weak.clone();
+        let player = crate::backdrop::Player::start(assets, move |frame| {
+            // A closed window is a normal lifecycle end
+            let _ = deliver_to
+                .upgrade_in_event_loop(move |ui| ui.set_backdrop(Image::from_rgb8(frame)));
+        });
         Self {
             weak,
-            drape,
-            index: Rc::new(std::cell::Cell::new(0)),
+            player,
             timer: slint::Timer::default(),
-            shown: std::cell::Cell::new(false),
+            still: std::cell::Cell::new(false),
         }
     }
 
-    fn show(weak: &Weak<AppWindow>, drape: &crate::backdrop::DrapeLoop, index: usize) {
-        if let (Some(ui), Ok(frame)) = (weak.upgrade(), drape.frame(index)) {
-            ui.set_backdrop(Image::from_rgb8(frame));
-        }
-    }
-
-    fn sync(&self, on_home: bool, reduced_motion: bool) {
-        let Some(drape) = &self.drape else {
-            return;
-        };
-        if reduced_motion && self.index.replace(0) != 0 {
-            self.shown.set(false);
-        }
-        if !self.shown.replace(true) {
-            Self::show(&self.weak, drape, self.index.get());
-        }
-        if !on_home || reduced_motion {
+    fn sync(self: &Rc<Self>, on_home: bool, reduced_motion: bool) {
+        let playing = on_home && !reduced_motion && self.player.is_some();
+        if !playing {
             self.timer.stop();
+            // The still frame where the loop does not move (reduced motion, no decoder), once
+            if (reduced_motion || self.player.is_none())
+                && !self.still.replace(true)
+                && let Some(ui) = self.weak.upgrade()
+            {
+                ui.set_backdrop(ui.global::<crate::ui::Assets>().get_still());
+            }
             return;
         }
+        self.still.set(false);
         if self.timer.running() {
             return;
         }
-        let (weak, drape, index) = (self.weak.clone(), drape.clone(), self.index.clone());
+        let this = Rc::downgrade(self);
         self.timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_micros(1_000_000 / crate::backdrop::FPS),
             move || {
-                let Some(ui) = weak.upgrade() else {
+                let Some(this) = this.upgrade() else {
                     return;
                 };
-                if ui.window().is_minimized() {
-                    return;
+                let minimized = this
+                    .weak
+                    .upgrade()
+                    .is_none_or(|ui| ui.window().is_minimized());
+                if let (false, Some(player)) = (minimized, &this.player) {
+                    player.request();
                 }
-                let next = (index.get() + 1) % drape.len();
-                index.set(next);
-                Self::show(&weak, &drape, next);
             },
         );
     }
