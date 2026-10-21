@@ -21,26 +21,31 @@ export global Theme {
     in-out property <color> danger-soft: #2a1717;
     in-out property <color> success: #9fd6b2;
 
+    // Size step chosen by the window from its size: 0 compact (under 1100 x 700), 1 regular, 2 large (from
+    // 1600 x 960, a maximized 1080p screen). Type, cards and the column grow with it; controls keep their size.
+    in-out property <int> step: 1;
+
     // Layout (px): rail, content column, paddings, radii
-    out property <length> rail-width: 68px;
-    out property <length> status-height: 28px;
-    out property <length> column-max: 1120px;
+    out property <length> rail-width: 76px;
+    out property <length> status-height: 30px;
+    out property <length> column-max: step == 2 ? 1440px : 1280px;
+    out property <length> card-height: step == 0 ? 64px : (step == 2 ? 80px : 72px);
     out property <length> radius-chip: 6px;
     out property <length> radius-control: 8px;
     out property <length> radius-card: 10px;
     out property <length> radius-panel: 12px;
 
-    // Type scale
-    out property <length> font-display: 24px;
-    out property <length> font-title: 15px;
-    out property <length> font-body: 13px;
-    out property <length> font-label: 12px;
-    out property <length> font-caption: 11px;
-    out property <length> font-micro: 10px;
+    // Type scale, one pixel per step (display four)
+    out property <length> font-display: step == 0 ? 24px : (step == 2 ? 32px : 28px);
+    out property <length> font-title: 16px + (step - 1) * 1px;
+    out property <length> font-body: 14px + (step - 1) * 1px;
+    out property <length> font-label: 13px + (step - 1) * 1px;
+    out property <length> font-caption: 12px + (step - 1) * 1px;
+    out property <length> font-micro: 11px + (step - 1) * 1px;
 
     // Side padding of the content column for a content area of `width`
     public pure function side-padding(width: length) -> length {
-        max(width >= 1180px ? 40px : 28px, (width - root.column-max) / 2)
+        max(width >= 1280px ? 48px : 28px, (width - root.column-max) / 2)
     }
     // Top padding of a page for a content area of `height`
     public pure function top-padding(height: length) -> length {

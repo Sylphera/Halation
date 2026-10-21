@@ -3,8 +3,8 @@
 // there and stay drawn as paths.
 component IconHome inherits Path {
     in property <color> tint: #f4f4f5;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     viewbox-width: 24;
     viewbox-height: 24;
     commands: "M3 11 L12 3 L21 11 M5 10 L5 21 L19 21 L19 10 M9 21 L9 14 L15 14 L15 21";
@@ -15,8 +15,8 @@ component IconHome inherits Path {
 
 component IconJobs inherits Path {
     in property <color> tint: #f4f4f5;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     viewbox-width: 24;
     viewbox-height: 24;
     commands: "M4 12 L8 12 L10 6 L14 18 L16 12 L20 12";
@@ -28,8 +28,8 @@ component IconJobs inherits Path {
 export component ToolIcon inherits Rectangle {
     in property <string> name: "download";
     in property <color> tint: #f4f4f5;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
 
     if name == "mark" : Image {
         source: @image-url("../assets/halation-mark.png");

@@ -117,6 +117,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let diagnostic_cycle = options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Cycle);
+    // A working window fills the screen; diagnostic scenes keep the fixed size their measurements expect.
+    if options.diagnostic_scene.is_none() {
+        window.window().set_maximized(true);
+    }
     let controller = Controller::new(window.as_weak(), profile, options)?;
     controller.install(diagnostic_cycle);
     log_line(&log_profile, "window created");

@@ -7,7 +7,12 @@ use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel, platform::WindowEvent};
 use std::rc::Rc;
 
-const SIZES: [(f32, f32); 3] = [(960.0, 600.0), (1100.0, 700.0), (1280.0, 800.0)];
+const SIZES: [(f32, f32); 4] = [
+    (960.0, 600.0),
+    (1100.0, 700.0),
+    (1280.0, 800.0),
+    (1920.0, 1080.0),
+];
 
 fn resize(ui: &AppWindow, w: f32, h: f32) {
     // The testing backend does not resize the root item by itself; a resize event is what a real window sends.

@@ -69,12 +69,12 @@ export component LibraryPage inherits Rectangle {
         }
 
         HorizontalLayout {
-            height: 32px;
+            height: 36px;
             spacing: 12px;
 
             // Segmented switch between the two views of the Library
             Rectangle {
-                width: 2 * 108px + 8px;
+                width: 2 * 116px + 8px;
                 border-radius: Theme.radius-control;
                 background: Theme.surface;
                 border-width: 1px;
@@ -83,7 +83,7 @@ export component LibraryPage inherits Rectangle {
                     padding: 3px;
                     spacing: 2px;
                     for label[index] in ["References", "Sections"] : Rectangle {
-                        width: 108px;
+                        width: 116px;
                         border-radius: Theme.radius-chip;
                         background: root.mode == index ? Theme.surface-high : (tab-touch.has-hover ? Theme.surface-raised : transparent);
                         accessible-role: tab;
@@ -226,7 +226,7 @@ export component LibraryPage inherits Rectangle {
                 width: parent.width;
                 height: parent.height;
                 for row in root.rows : Rectangle {
-                    height: 60px;
+                    height: 66px;
                     width: parent.width;
                     background: row-hover.has-hover ? Theme.surface-raised : transparent;
 
@@ -243,8 +243,8 @@ export component LibraryPage inherits Rectangle {
                         padding: 12px;
                         spacing: 12px;
                         Rectangle {
-                            width: 36px;
-                            height: 36px;
+                            width: 40px;
+                            height: 40px;
                             border-radius: Theme.radius-control;
                             background: Theme.surface-high;
                             ToolIcon {

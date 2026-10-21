@@ -16,10 +16,20 @@ export component AppWindow inherits Window {
     background: Theme.background;
     icon: @image-url("../assets/halation-mark.png");
     default-font-family: "Segoe UI";
-    default-font-size: 13px;
+    default-font-size: Theme.font-body;
+    min-width: 960px;
+    min-height: 600px;
 
     init => {
         Palette.color-scheme = ColorScheme.dark;
+        root.update-size-step();
+    }
+    changed width => { root.update-size-step(); }
+    changed height => { root.update-size-step(); }
+
+    function update-size-step() {
+        Theme.step = root.width < 1100px || root.height < 700px ? 0
+            : (root.width >= 1600px && root.height >= 960px ? 2 : 1);
     }
 
     in property <int> page: 0;
@@ -97,8 +107,8 @@ export component AppWindow inherits Window {
             }
 
             VerticalLayout {
-                padding-left: 6px;
-                padding-right: 6px;
+                padding-left: 8px;
+                padding-right: 8px;
                 padding-top: 14px;
                 padding-bottom: 10px;
                 spacing: 4px;
@@ -107,8 +117,8 @@ export component AppWindow inherits Window {
                     height: 34px;
                     Image {
                         source: @image-url("../assets/halation-mark.png");
-                        width: 32px;
-                        height: 16px;
+                        width: 36px;
+                        height: 18px;
                         image-fit: contain;
                         accessible-role: image;
                         accessible-label: "Halation";

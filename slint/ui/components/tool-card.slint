@@ -10,7 +10,7 @@ export component ToolCard inherits FocusScope {
     in property <duration> motion-duration: 160ms;
     callback activated;
 
-    height: 64px;
+    height: Theme.card-height;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: name + (available ? "" : " (engine not connected in this beta)");
@@ -42,8 +42,8 @@ export component ToolCard inherits FocusScope {
     Rectangle {
         x: 12px;
         y: (parent.height - self.height) / 2;
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border-radius: Theme.radius-control;
         background: Theme.surface-high;
         ToolIcon {
@@ -55,8 +55,8 @@ export component ToolCard inherits FocusScope {
     }
 
     VerticalLayout {
-        x: 60px;
-        width: parent.width - 72px;
+        x: 66px;
+        width: parent.width - 78px;
         alignment: center;
         spacing: 2px;
         Text {

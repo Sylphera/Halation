@@ -125,7 +125,7 @@ export component SectionsView inherits Rectangle {
             ListView {
                 vertical-stretch: 1;
                 for section in root.sections : Rectangle {
-                    height: 48px;
+                    height: 54px;
                     width: parent.width;
                     accessible-role: list-item;
                     accessible-label: section.name;
@@ -281,7 +281,7 @@ export component SectionsView inherits Rectangle {
                 if root.items.length > 0 : ListView {
                     vertical-stretch: 1;
                     for item in root.items : Rectangle {
-                        height: 32px;
+                        height: 36px;
                         width: parent.width;
                         HorizontalLayout {
                             spacing: 10px;

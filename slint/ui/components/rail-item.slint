@@ -9,8 +9,8 @@ export component RailItem inherits FocusScope {
     in property <duration> motion-duration: 160ms;
     callback activated;
 
-    width: 56px;
-    height: 52px;
+    width: 60px;
+    height: 58px;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -39,10 +39,10 @@ export component RailItem inherits FocusScope {
         }
     }
 
-    // Accent bar on the rail edge (the rail keeps 6 px left of the item)
+    // Accent bar on the rail edge (the rail keeps 8 px left of the item)
     if root.active : Rectangle {
-        x: -6px;
-        y: 16px;
+        x: -8px;
+        y: 19px;
         width: 3px;
         height: 20px;
         border-radius: 1.5px;
@@ -51,13 +51,13 @@ export component RailItem inherits FocusScope {
 
     ToolIcon {
         x: (parent.width - self.width) / 2;
-        y: 9px;
+        y: 10px;
         name: root.icon;
         tint: root.active || touch.has-hover ? Theme.text : Theme.muted;
     }
 
     Text {
-        y: 31px;
+        y: 35px;
         width: parent.width;
         text: root.label;
         color: root.active ? Theme.text : Theme.muted;

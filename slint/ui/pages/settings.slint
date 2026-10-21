@@ -9,7 +9,7 @@ component InfoRow inherits Rectangle {
     in property <string> label: "";
     in property <string> value: "";
     in property <bool> last: false;
-    height: 40px;
+    height: 44px;
 
     HorizontalLayout {
         padding-left: 16px;
@@ -20,7 +20,7 @@ component InfoRow inherits Rectangle {
             color: Theme.muted;
             font-size: Theme.font-label;
             vertical-alignment: center;
-            width: 128px;
+            width: 140px;
         }
         Text {
             text: root.value;
@@ -64,7 +64,7 @@ export component SettingsPage inherits Rectangle {
 
     // Settings read best on a narrower measure; it keeps the column's left edge.
     property <length> pad-x: Theme.side-padding(root.width);
-    property <length> measure: min(760px, root.width - 2 * root.pad-x);
+    property <length> measure: min(840px, root.width - 2 * root.pad-x);
 
     background: transparent;
 
@@ -106,7 +106,7 @@ export component SettingsPage inherits Rectangle {
         Rectangle { height: 8px; }
 
         Rectangle {
-            height: 64px;
+            height: 72px;
             border-radius: Theme.radius-panel;
             background: Theme.surface;
             border-width: 1px;

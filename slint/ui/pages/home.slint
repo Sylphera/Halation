@@ -69,7 +69,7 @@ export component HomePage inherits Rectangle {
 
         // Drop zone and recent files
         HorizontalLayout {
-            height: 116px;
+            height: 132px;
             spacing: root.gap;
 
             drop := Rectangle {
@@ -95,9 +95,9 @@ export component HomePage inherits Rectangle {
                 Rectangle {
                     x: 24px;
                     y: (parent.height - self.height) / 2;
-                    width: 52px;
-                    height: 52px;
-                    border-radius: 26px;
+                    width: 58px;
+                    height: 58px;
+                    border-radius: 29px;
                     background: Theme.accent-soft;
                     border-width: 1px;
                     border-color: #9fb4ea40;
@@ -110,8 +110,8 @@ export component HomePage inherits Rectangle {
                 }
 
                 VerticalLayout {
-                    x: 94px;
-                    width: parent.width - 94px - choose.width - 40px;
+                    x: 102px;
+                    width: parent.width - 102px - choose.width - 40px;
                     alignment: center;
                     spacing: 5px;
                     Text {
@@ -173,7 +173,7 @@ export component HomePage inherits Rectangle {
             }
 
             Rectangle {
-                width: root.column >= 1000px ? 300px : 260px;
+                width: root.column >= 1000px ? 320px : 280px;
                 border-radius: Theme.radius-panel;
                 background: Theme.surface;
                 border-width: 1px;
@@ -222,7 +222,7 @@ export component HomePage inherits Rectangle {
                     }
 
                     for item in root.recent : HorizontalLayout {
-                        height: 22px;
+                        height: 26px;
                         padding-right: 6px;
                         spacing: 10px;
                         Text {
@@ -252,7 +252,7 @@ export component HomePage inherits Rectangle {
 
         // Tools
         HorizontalLayout {
-            height: 24px;
+            height: 26px;
             spacing: 8px;
             Text {
                 text: "Tools";
@@ -291,10 +291,10 @@ export component HomePage inherits Rectangle {
         Rectangle { height: 12px; }
 
         Rectangle {
-            height: root.rows * 64px + max(0, root.rows - 1) * root.gap;
+            height: root.rows * Theme.card-height + max(0, root.rows - 1) * root.gap;
             for tool[index] in root.tools : ToolCard {
                 x: mod(index, root.columns) * (root.card-width + root.gap);
-                y: floor(index / root.columns) * (64px + root.gap);
+                y: floor(index / root.columns) * (Theme.card-height + root.gap);
                 width: root.card-width;
                 name: tool.name;
                 summary: tool.summary;

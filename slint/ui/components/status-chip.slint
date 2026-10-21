@@ -9,7 +9,7 @@ export component StatusChip inherits Rectangle {
     property <color> ink: tone == "warning" ? Theme.warning : tone == "danger" ? Theme.danger
         : tone == "success" ? Theme.success : tone == "accent" ? Theme.accent : Theme.muted;
 
-    height: 22px;
+    height: 24px;
     width: min(root.limit, label.preferred-width + 27px);
     border-radius: Theme.radius-chip;
     background: tone == "warning" ? Theme.warning-soft : tone == "danger" ? Theme.danger-soft
@@ -26,7 +26,7 @@ export component StatusChip inherits Rectangle {
         background: root.ink;
     }
     label := Text {
-        x: 20px;
+        x: 21px;
         y: (parent.height - self.height) / 2;
         width: parent.width - 27px;
         overflow: elide;
