@@ -189,6 +189,7 @@ change against a different background.
 
 | Variant | Home: chrome / content | Other pages: chrome / content | Reads as |
 |---|---|---|---|
+| 1 · Content only (first proposal, kept to compare) | 100 % / 0 % | 100 % / 100 % | Drape visible only inside Home's content rectangle, opaque frame; reads as a box, which is the problem above |
 | A · Home only | 0 % / 0 % | 100 % / 100 % | Drape is Home's moment; tools are plain dark (the first proposal) |
 | **B · Balanced (recommended)** | 55 % / 0 % | 80 % / 90 % | The Drape is the app's atmosphere: strong on Home, visible at the edges of every page, never behind running text |
 | C · Identity | 35 % / 0 % | 62 % / 78 % | The Drape is everywhere and clearly seen; reading surfaces get dimmer than they should |
