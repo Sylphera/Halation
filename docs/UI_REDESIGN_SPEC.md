@@ -1,6 +1,6 @@
 # Anchored UI redesign (Slint beta)
 
-Status: **approved by Java, 2026-10-21 ("se queda así la idea de rediseño")**, with the Drape decision of §8 as noted there; specification only, no code yet. Written for Java's review before any thread implements it (Java, 2026-10-21: "menos
+Status: **approved by Java, 2026-10-21 ("se queda así la idea de rediseño")**, including the Drape decision (§8), the Settings category list and the Figma-style tool frame with the Vocal Remover as reference (§9, "así se queda la idea", 2026-10-21); specification only, no code yet. Written for Java's review before any thread implements it (Java, 2026-10-21: "menos
 flotante… dock a la izquierda, jobs y todo el resto arriba… que todo se viera más sólido", reference: Linear).
 Annex of `docs/SLINT_SPEC.md`; it supersedes the *layout* parts of `docs/SLINT_VISUAL_SYSTEM.md` (floating rail,
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
