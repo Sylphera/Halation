@@ -1,6 +1,6 @@
 # Halation native beta
 
-Standalone clean-room Rust + Slint + Skia application. This is a technical beta, not a replacement or release of the
+Standalone Rust + Slint + Skia application (clean-room visual layer; reusable Rust backend). This is a technical beta, not a replacement or release of the
 Tauri application. See [`../docs/SLINT_SPEC.md`](../docs/SLINT_SPEC.md) for the canonical scope and gates.
 
 ## Build and test
@@ -64,10 +64,10 @@ RAM target is encoded and no memory improvement is claimed without comparable na
 
 ## Clean-room source provenance and audit
 
-- All Rust services, models, controller code and tests in this crate were authored for this clean-room implementation;
-  no prior Halation Rust implementation or old Rust tests were consulted, copied, translated, cherry-picked or used as a
-  template. The prior Tauri app is preserved as product-behavior reference only; its Rust source was not used to
-  implement this crate.
+- The visual layer (`.slint`, controller glue and their tests) was authored for this clean-room implementation; no prior
+  UI implementation was consulted, copied, translated, cherry-picked or used as a template. Since 2026-10-21 the Rust
+  backend may be reused: any module imported from the previous backend is listed in its plan under `docs/` and adapted
+  without Tauri types. As of this commit no backend module has been imported.
 - Requirements and documented contracts in the repository were used only to determine expected behavior. The Home
   reference image was used for composition guidance only. The existing Halation mark PNG is a pure identity asset.
 - Sources consulted: `AGENTS.md`, `CLAUDE.md`, `docs/SLINT_SPEC.md`, and the previous functional-only

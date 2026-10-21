@@ -177,3 +177,8 @@ One line per decision in force and why. Add a line for every new decision; remov
 - Candidate renderer: Skia over desktop OpenGL (`require_opengl()`), measured at 49.7 MB private on Home against 122.4 MB for Skia over Direct3D 12 and 8.0 MB for the software renderer (which excludes GPU memory); the choice is pending visual review. Virtual machines and PCs without an OpenGL driver are out of scope (Java, 2026-10-20).
 - Slint's default Skia OpenGL context (GLES 3.0) does not draw stroked `Path` elements with more than one segment or any arc on the AMD driver tested (`atio6axx.dll`); closed filled shapes, single-segment lines and PNGs do draw. Requesting desktop OpenGL draws every icon, antialiased, with no change to `icons.slint`; `anti-alias: false` also works but is jagged. Not checked on other GPU vendors.
 - Icons stay one stroked `Path` per icon in `ui/icons.slint` (viewbox 24, stroke 1.7): no per-driver adjustments, no SVG (it would need Slint's `svg` feature and its memory).
+
+## Source boundary (native beta)
+
+- The Rust backend is kept and may be imported into the native crate; only the visual layer (Slint and its Rust glue) stays clean-room (Java, 2026-10-21): the backend holds validated behaviour worth reusing, the interface is what is being redesigned.
+- Imported backend modules never carry `tauri::*`: a module coupled to Tauri gets its own interface; no path dependencies or FFI towards `app/src-tauri`, so both apps keep building on their own.

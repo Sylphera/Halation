@@ -7,10 +7,13 @@ preview until separately approved in the real window.
 
 ## Authority and boundaries
 
-- Rebuild the application clean-room with **new Rust + Slint + Skia code**. Do not copy, translate, cherry-pick, recreate
-  from, link to or wrap prior Halation Rust implementations: this prohibition covers the Tauri backend, `halation-core`,
-  Qt bridges/services/tests and Rust diagnostics, as well as any UI implementation. Do not use their source or tests as
-  templates. Tauri remains a product-behavior reference only, never an implementation source.
+- Rebuild the visual layer clean-room with **new Slint + Skia code**: `.slint` files, the Rust glue that drives them
+  and their tests are written from zero. Do not copy, translate, cherry-pick or recreate any prior UI implementation
+  (Tauri interface, Qt/QML, Qt bridges and their tests). Tauri's interface remains a product-behavior reference only.
+- The Rust backend (services, jobs, Library, settings, I/O; Java, 2026-10-21) is kept and may be reused: its modules
+  are imported into this repository's native crate or a new crate, adapted behind our own interfaces, with their tests.
+  They must not depend on `tauri::*` or other Tauri crates; a module coupled to Tauri gets an own trait/adapter instead of
+  dragging Tauri along. Each import is declared in a short plan under `docs/` and in the crate provenance notes.
 - Requirements, documented schemas and service contracts may be consulted only as information about expected behavior;
   they do not authorize moving code. Public crates may be used subject to their licenses. Pure identity assets and static
   reference images are allowed; neither is source code or a replacement for native UI.
@@ -19,8 +22,9 @@ preview until separately approved in the real window.
   is in scope for the beta.
 - The application is a standalone Cargo crate in `slint/`, on its own branch/worktree. It owns its profile, settings
   schema, Library index and tests. It must not read or write Tauri settings, Library data, sessions, presets or caches.
-- No local path dependency, FFI, wrapper, shared Rust module or other dependency edge may reach prior Halation Rust
-  implementation. New Rust services, models and tests are authored from zero.
+- No local path dependency or FFI edge may reach `app/src-tauri` or prior Qt code, so the Tauri app and the native
+  crate stay buildable on their own; backend reuse is by importing source, not by linking it. Code of the visual layer
+  is authored from zero.
 - The initial shell has Home, Library, Jobs and Settings. Welcome, the ten media tools, engines, data migration,
   packaging, updater and release are future work, not claims of completion in the beta.
 - Visible beta text is English. Visual identity follows the approved reference image and product marks, not a new

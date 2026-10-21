@@ -9,10 +9,11 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
 - Native rebuild: **Rust + Slint 1.18.1 + Skia** in the standalone `slint/` crate. All logic, I/O, persistence and
   heavy work in Rust; `.slint` files only for presentation, layout, simple bindings, native animation and events.
   Backend `winit`, renderer `skia`, selected explicitly. No Qt, QML, C++/CMake or cxx-qt.
-- Clean-room source boundary: write new Slint Rust services/models/tests from zero. Do not copy, translate, cherry-pick,
-  recreate from, link to or wrap any prior Halation Rust implementation (Tauri, `halation-core`, Qt bridges/services/tests
-  or Rust diagnostics). Prior Tauri is a product-behavior reference only; documented requirements/contracts and schemas
-  may inform behavior, and public crates plus pure identity/reference assets are allowed. No local path dependencies or FFI.
+- Source boundary (Java, 2026-10-21): the visual layer (`.slint` and the Rust glue that drives it, plus its tests) is
+  clean-room: do not copy, translate, cherry-pick or recreate prior UI (Tauri interface, Qt/QML, Qt bridges/tests). The
+  Rust backend (services, jobs, Library, settings; Tauri `app/src-tauri`, `halation-core`) is kept and may be imported and
+  adapted behind own interfaces, with no `tauri::*` types, a short plan in `docs/` and its tests. No path dependencies or
+  FFI towards `app/src-tauri` or Qt code; public crates plus pure identity/reference assets are allowed.
 - FFmpeg, yt-dlp, upscayl-bin, rife-ncnn-vulkan, the Cutout model (ONNX Runtime Web), Pandoc, LibreOffice and PDFium are
   downloadable components of the Tauri app. The Slint beta has no engines connected.
 - Tests: Playwright on headless Chromium with the backend mocked in Node (`app/tests/host.js`), plus `cargo test` for
