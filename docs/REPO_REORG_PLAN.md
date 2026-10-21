@@ -1,6 +1,6 @@
 # Plan de reorganización del repositorio
 
-Estado: propuesta, 2026-10-21. Nada de esto está ejecutado. Se ejecuta en un solo hilo, junto con la reestructuración en
+Estado: propuesta v2, 2026-10-21 (incorpora la propuesta integral de Java y las decisiones del hilo). Nada de esto está ejecutado. Se ejecuta en un solo hilo, junto con la reestructuración en
 crates ya aprobada, después de que Java revise este plan.
 
 Fuentes del inventario: `main` (Tauri 1.2.0, 466 ficheros, 75 `.md`), `slint/visual-home` (38 commits por delante) y
@@ -8,19 +8,24 @@ Fuentes del inventario: `main` (Tauri 1.2.0, 466 ficheros, 75 `.md`), `slint/vis
 Los datos de ramas y PRs salen de `git` y de la API de GitHub; lo que no se ha comprobado fichero a fichero se marca
 **(sin verificar)**.
 
-## Revisión 2026-10-21 (Java): dos líneas de repo
+## Decisiones de Java que fijan este plan (2026-10-21)
 
-Esta sección prevalece sobre el resto donde haya conflicto.
-
-- **Halation Tauri** = `main`, tal cual y con todo lo anterior. No se reorganiza; publica las 1.x. Se consulta en un
-  checkout local para importar backend.
-- **Halation Slint** = rama nueva, reestructurada y limpia desde el primer commit, lista para publicarse cuando termine
-  la migración. Sin `legacy/tauri/`, sin Playwright ni Node en la ruta de compilación, sin `.opencode/`. Se publica en
-  **este mismo repositorio** (las 1.x se actualizan desde sus releases con la misma clave minisign) y al corte pasa a
-  ser `main`; el Tauri actual queda en `tauri-final` y `archive/tauri`. El corte lo aprueba Java.
-- Efectos en el plan: §2.2 queda sustituida por lo anterior; en §4 desaparecen la fase 2 (mover `app/`) y el borrado de
-  `legacy/tauri/` de la fase 6; los mapeos de §2.4 que apuntan a `legacy/tauri/` pasan a «no se copia». Coste total
-  ≈ 4,5 – 5,5.
+1. **Dos líneas.** Halation Tauri = `main`, intacta mientras sea lo publicado y referencia de la migración. Halation
+   Slint = rama nueva ya reestructurada, sin `legacy/tauri/`, sin Playwright/WebView2/Tauri, sin scripts históricos ni
+   instrucciones de Chromium o Qt Quick, sin herramientas personales ajenas (`.opencode/`). Se publica en este mismo
+   repositorio (las 1.x se actualizan desde sus releases, misma clave minisign). El código viejo se consulta por Git,
+   tags (`v1.2.0`, `tauri-final`) y un checkout local; no se duplica dentro del árbol nuevo.
+2. **Nada se fusiona a `main` sin aprobación explícita**, también la migración de `main` a la línea nativa. Excepción
+   escrita para esta línea frente a la regla general de «merge automático con CI en verde» (registrar en `DECISIONS.md`).
+3. **Estructura evolutiva**: se crean solo las carpetas que tengan contenido real; la distinción conceptual
+   (`docs/` cómo funciona, `planning/` qué se quiere cambiar y por qué, `research/` qué se midió, `archive/` qué dejó de
+   valer) se mantiene.
+4. **Un solo lugar para instrucciones de agentes**: `AGENTS.md` como fuente; `CLAUDE.md` adaptador mínimo; sin
+   `.agents/`. Sin límite rígido de líneas.
+5. **Orden A1 → B → A2** y los hitos C (distribución) y D (migración de datos), sin que A dependa del updater.
+6. **Trazabilidad**: CI comprueba rutas y enlaces; el estado funcional sale de pruebas y revisiones, no de que exista
+   una ruta.
+7. **Condición de A1**: no elimina ninguna especificación que necesite el agente de B (ver §4).
 
 ## 1. Inventario
 
@@ -107,211 +112,220 @@ lo que `git branch --merged` no sirve: la comprobación por ramas es «¿el cont
 Etiquetas existentes: `v1.1.0`, `v1.1.1`, `v1.2.0`, `stems-v1`, `stems-v4`, `cutout-sam21-v1` (las tres últimas son
 releases de modelos). Se conservan. Se añade `tauri-final` sobre el último commit de Tauri en `main` antes del corte.
 
-## 2. Estructura objetivo
+## 2. Estructura objetivo (evolutiva)
 
-### 2.1 Árbol
-
-Respeta lo aprobado: workspace de Cargo con `halation-core` y `halation-app`, `assets\`, `locales\`, `presets\` y
-`licenses\` junto al exe, updater como ejecutable aparte, solo instalador, datos en `%APPDATA%\Halation`.
+Regla de creación: una carpeta o fichero existe el día 1 solo si hay contenido real que meter. El árbol marca lo que se
+crea al empezar y lo que aparece cuando exista contenido. Las rutas dentro de `crates/` son orientativas: se adaptan al
+código real tras la auditoría (hito 0); nada se parte por número de líneas.
 
 ```text
 Halation/
-├─ README.md                 entrada: qué es, descarga, mapa del repo (§3)
-├─ CONTRIBUTING.md           cómo compilar, probar y proponer cambios
-├─ AGENTS.md                 única fuente de reglas para agentes (≤ 60 líneas)
-├─ CLAUDE.md                 una línea: importa AGENTS.md
-├─ CHANGELOG.md  LICENSE  NOTICE.md  THIRD_PARTY.md  PRIVACY.md  SECURITY.md  TRADEMARKS.md
-├─ Cargo.toml  Cargo.lock  rust-toolchain.toml     workspace
+├─ README.md  CONTRIBUTING.md  AGENTS.md  CLAUDE.md (@AGENTS.md)  CHANGELOG.md
+├─ LICENSE  NOTICE.md  THIRD_PARTY.md  PRIVACY.md  SECURITY.md  TRADEMARKS.md
+├─ Cargo.toml  Cargo.lock  rust-toolchain.toml                       workspace (hito B)
 ├─ crates/
-│  ├─ halation-core/         backend sin Slint ni UI: process, queue, engine, sections, destinations, presets,
-│  │                         artist_profile, settings, profile, library (índice), rutas y datos de usuario
-│  ├─ halation-app/          UI Slint + controlador: ui/*.slint, src/ (app, navigation, theme, motion, folders,
-│  │                         jobs, settings…), build.rs, tests/ (layout y estado)
-│  └─ halation-updater/      ejecutable aparte: comprobar, descargar, verificar firma, lanzar el instalador
-├─ assets/                   lo que se instala junto al exe: Drape (loop, still, tint), fuentes, iconos, marca
-├─ locales/                  textos por idioma (en primero); vacío de claves hasta que exista el sistema de i18n
-├─ presets/                  presets incluidos (looks de Grade, perfiles de exportación…)
-├─ licenses/                 textos de licencias de terceros que viajan en el instalador (índice: THIRD_PARTY.md)
-├─ installer/                script NSIS, recursos del instalador, comprobaciones de paridad instalador/exe
-├─ tools/                    utilidades de desarrollo, nada de esto se distribuye
-│  ├─ release/               bump de versión, comprobación del icono del exe, smoke de release
-│  ├─ assets/                generadores de assets (blue-noise, record-drape, iconos, lucide)
-│  ├─ models/                exportadores de modelos (htdemucs, sam2.1) y sus pruebas
-│  └─ measure/               medición de memoria/renderers (ps1) y benchmarks que sigan vigentes
-├─ branding/                 marca fuente (SVG, PNG), botones y héroe del README
-├─ docs/
-│  ├─ README.md              índice: qué documento leer según lo que se vaya a tocar
-│  ├─ ARCHITECTURE.md        mapa de crates y módulos, flujo de datos, propiedad de hilos, capa de instalación
-│  ├─ DESIGN.md              sistema visual, color, movimiento, layout (§2.3)
-│  ├─ SPEC.md                spec canónica de la app nativa (ex `SLINT_SPEC.md`), con alcance y puertas
-│  ├─ DEVELOPMENT.md         compilar, probar, previsualizar, puerta de revisión visual, flujo de ramas y merge
-│  ├─ RELEASE.md             versionado, instalador, updater, firma del updater, firma Authenticode, badge
-│  ├─ DECISIONS.md           decisiones de producto y técnicas con fecha
-│  ├─ ROADMAP.md             ideas aparcadas, con su línea de encaje
-│  ├─ specs/                 una spec por función, cada una con cabecera `Estado:` (Implementada / En curso / Prevista)
-│  ├─ media/                 capturas del README (`.jpg`) regeneradas desde la app nativa
-│  └─ archive/               solo lo que sirve de referencia al portar desde Tauri (§2.3), con README «histórico, no autoritativo»
-├─ legacy/tauri/             SOLO hasta el corte: `app/` entero movido tal cual (ver §2.2). Se borra en la fase 6
-└─ .github/                  `ci.yml` (workspace), `release.yml`, `downloads-badge.yml`, plantillas
+│  ├─ halation-core/        lógica de negocio sin Slint (hito B): jobs/cola/engine, procesos, library, storage…
+│  ├─ halation-app/         ciclo de vida, UI Slint, navegación, controladores (hito B)
+│  └─ halation-updater/     hito C, no antes
+├─ assets/                  día 1: Drape, fuentes, iconos, marca (hoy en `slint/assets`)
+├─ tools/                   día 1: medición (`*.ps1`), `record-drape.js`, bump de versión; `models/` al portar herramientas
+├─ docs/                    cómo funciona Halation (vigente)
+│  ├─ README.md             índice
+│  ├─ architecture/         overview.md al empezar A2; se añaden backend/threading/persistence cuando haya texto real
+│  ├─ features/             README.md (índice de trazabilidad) + una spec por función con `Estado:`
+│  ├─ design/               design.md único (sistema visual, color, movimiento, layout); se divide cuando crezca
+│  ├─ development/          PROJECT_GUIDE.md y development.md (entorno, pruebas, flujo, convenciones)
+│  └─ reference/            solo cuando haya un contrato estable (p. ej. formatos de datos de usuario)
+├─ planning/                qué se quiere cambiar y por qué
+│  ├─ STATUS.md             ≤ 1 página, con fecha y enlaces; si pasa 2 semanas sin actualizarse se borra
+│  ├─ ROADMAP.md            ideas aparcadas con su línea de encaje
+│  ├─ decisions.md          decisiones aprobadas con fecha, motivo y alcance; una sustituida deja de figurar como vigente
+│  └─ active/               solo planes con documento propio (hoy: rediseño visual aprobado a medias)
+├─ research/                qué se investigó o midió
+│  └─ performance/          informes de render/CPU/GPU/RAM, Drape, frame budgets; con README-índice
+├─ archive/                 histórico no autoritativo; no es una copia del proyecto
+│  ├─ tauri/                documentos de la arquitectura retirada que sirven al portar
+│  ├─ qt-quick/             spec retirada
+│  └─ superseded/           documentos sustituidos
+├─ installer/               hito C
+├─ licenses/                hito C, cuando haya textos que viajen en el instalador
+├─ locales/  presets/       cuando existan: hoy la app nativa no tiene i18n ni presets conectados
+├─ .claude/                 solo agentes y skills que Claude Code descubre en esa ruta
+└─ .github/                 `ci.yml` del workspace, `release.yml` (hito C), `downloads-badge.yml`, plantillas
 ```
 
-`.claude/` queda con los agentes y skills que sigan siendo ciertos tras el corte (§2.5). `.opencode/` sale (§1.3).
+Qué no existe y por qué: `.agents/` (Claude Code no lo lee; sus reglas van a `docs/development/` y `AGENTS.md`),
+`planning/proposals/` (hoy no hay ninguna propuesta sin aprobar; los PRs e Issues cumplen ese papel),
+`docs/features/<función>/` en carpetas (una spec por fichero basta), `legacy/`, `app/`, `slint/` (el crate pasa a
+`crates/`), `archive/migrations/` (hasta que haya una migración terminada).
 
-### 2.2 Qué pasa con Tauri
+### 2.1 Qué pasa con Tauri
 
-Mientras la app nativa no sustituya a la publicada, `main` sigue publicando Tauri. Por eso:
+- `main` no se toca por esta reorganización (correcciones de Tauri aparte).
+- La rama Slint nace de la punta de la línea nativa (`claude/project-thread-sgjgrl`, que contiene `slint/visual-home`),
+  se prepara en rama aislada y no sustituye a `main` hasta la aprobación de Java con pruebas de compatibilidad.
+- Antes de ese corte se crea el tag `tauri-final` sobre el último commit de `main` y la rama `archive/tauri`.
+- El updater de las 1.x apunta a `latest.json` de Sylphera/Halation y a la clave minisign actual: el corte no puede
+  cambiar esa clave ni el formato de `latest.json` sin migración explícita (`docs/UPDATES.md`).
 
-- La reorganización se ejecuta en la **línea nativa**, no en `main`. `main` no se toca salvo correcciones de Tauri.
-- En la línea nativa, `app/` pasa a `legacy/tauri/` en un único commit de movimiento. Sirve de referencia a los imports
-  de backend (`docs/SLINT_BACKEND_IMPORT.md`) y a las specs de herramientas aún no portadas. No se compila en el CI nativo.
-  Los comentarios que cita `docs/*_SPEC.md` no se corrigen: el código se borra después.
-- Al corte (fase 6, aprobación de Java, regla del repo: nada a `main` sin su OK): el PR de la línea nativa a `main`
-  elimina `legacy/tauri/`. El código Tauri queda en el tag `v1.2.0`, el tag `tauri-final` y una rama `archive/tauri`.
-- El updater de los usuarios de 1.x apunta a `latest.json` de Sylphera/Halation y a la clave minisign actual. El corte no
-  puede cambiar esa clave ni el formato de `latest.json` sin una migración explícita (`docs/UPDATES.md`).
+### 2.2 Clasificación de documentos y destino
 
-### 2.3 Mapeo de documentos (origen → destino)
+Estados: **V** vigente · **P** parcial · **H** histórico · **R** redundante · **S** sin verificar. «Retener» = no se
+toca en A1 porque lo necesita B o el hilo de rediseño.
 
-Principio: no se parten ficheros por partir; los que se fusionan es porque describen lo mismo. Todo lo borrado queda en
-el historial y en los tags.
-
-| Origen | Destino |
-| --- | --- |
-| `AGENTS.md` + `CLAUDE.md` + `AI_DEVELOPMENT.md` | `AGENTS.md` (reglas, ≤ 60 líneas) + `CLAUDE.md` (`@AGENTS.md`); `AI_DEVELOPMENT.md` pasa a un apartado de `CONTRIBUTING.md` |
-| `docs/OPENCODE_*.md` (4), `.opencode/` | Borrar (historial) |
-| `docs/SLINT_SPEC.md` | `docs/SPEC.md`, actualizada: workspace, instalador, updater, `%APPDATA%\Halation`, Qt fuera |
-| `docs/SLINT_BACKEND_IMPORT.md` | Tabla de estado a `docs/ARCHITECTURE.md` (sección «Backend importado»); el resto se borra |
-| `docs/SLINT_VISUAL_SYSTEM.md`, `docs/COLOR_REWORK_SPEC.md`, `docs/MOTION.md`, `docs/UI_REDESIGN_SPEC.md` | `docs/DESIGN.md`. La parte de `UI_REDESIGN_SPEC` aún sin implementar se queda en `specs/UI_REDESIGN.md` hasta que lo esté; entonces se funde en `DESIGN.md` |
-| `docs/ARCHITECTURE.md` (Tauri) | `docs/archive/tauri/ARCHITECTURE.md`; nuevo `docs/ARCHITECTURE.md` nativo |
-| `docs/DECISIONS.md` | Se queda; las secciones de motivos solo-Tauri (Motion web, Export WebCodecs…) pasan a `archive/tauri/DECISIONS.md` |
-| `docs/ROADMAP.md` | Se queda; corregir las líneas de Qt Quick e `INTRO_SPEC`; añadir Motion Text como «base en archive» |
-| `docs/UPDATES.md`, `docs/SIGNING.md`, `docs/signing/build-signpath.patch`, partes de `docs/OPEN_SOURCE.md` | `docs/RELEASE.md` (un documento, secciones: versionado, instalador, updater nuevo, firma). El parche pasa a `archive/signing/` |
-| `docs/PREVIEW.md` | `archive/tauri/PREVIEW.md`; el equivalente nativo (launcher de la beta, capturas offscreen) en `DEVELOPMENT.md` |
-| `docs/JOBS_SPEC`, `LIBRARY_SPEC`, `SETTINGS_SPEC`, `SAVE_LOCATION_SPEC`, `PROCESS_MENU_SPEC`, `FRAMERATE_SPEC` | `docs/specs/` (mismo nombre, con `Estado:`) |
-| `docs/CONVERTER_SPEC`, `COVER_TEST_SPEC`, `GRADE_LOOKS_SPEC`, `VOCAL_REMOVER_SPEC`, `REMOVE_BG_SPEC`, `BACKGROUNDS_SPEC` | `docs/specs/` (herramientas aún no portadas: `Estado: Prevista`; Drape: `Implementada`) |
-| `docs/DOCK_SPEC.md`, `docs/WINDOW_SPEC.md` | `archive/tauri/` (el dock lo sustituye la barra lateral; la ventana nativa se rige por `SPEC.md`) |
-| `docs/QT_QUICK_SPEC.md` | Borrar (retirado) |
-| `docs/MOTION_TEXT_SPEC.md` | `archive/` (base de una idea futura, enlazada desde `ROADMAP.md`) |
-| `docs/performance/**`, `docs/performance-2026-10-04/**` | Borrar los informes (quedan en el historial); conservar en `docs/archive/performance.md` un resumen de ≤ 40 líneas con los presupuestos que siguen vigentes (frame budget, memoria) |
-| `docs/UPSCALE_VIDEO_CHECKPOINT.md`, `ui-corrections-2026-10-05.md`, `UI_DEFAULTS_BRANDING_111.md` | Borrar |
-| `docs/brand/**` | `branding/` (una sola copia de la marca; `slint/assets/halation-mark.png` deja de duplicarse) |
-| `docs/screenshots/*.jpg`, `docs/examples/**` | Se regeneran desde la app nativa a `docs/media/`; hasta el corte, `legacy/tauri/docs-media/`. Se borran 12 MB de `examples/` |
-| `app/dist/changelog.md` | Se borra: el instalador y la app nativa leen `CHANGELOG.md` (copiado por CI) |
-
-Resultado: de **75 `.md` versionados** a unos **30**, de los que 9 son legales/entrada de raíz, 8 documentos centrales,
-≈ 12 specs con estado y 1 índice de archivo. El nuevo lector entra por `README.md` → `docs/README.md`, con un orden de
-lectura de 3 documentos (`SPEC`, `ARCHITECTURE`, `DEVELOPMENT`).
-
-### 2.4 Mapeo de código y herramientas (origen → destino)
-
-| Origen | Destino |
-| --- | --- |
-| `slint/src/*` (UI, navegación, tema, movimiento, controlador, `folders.rs`, `jobs.rs`, `settings.rs` vista) | `crates/halation-app/src/` |
-| `slint/src/backend/*` (`process`, `queue`, `engine`, `sections`, `names`, `destinations`, `presets`, `artist_profile`, `atomic_file`) | `crates/halation-core/src/` |
-| `slint/src/{profile,settings,library,catalog}.rs` | Se parten por lo que contienen: modelo y persistencia a `halation-core`; modelos de Slint y callbacks a `halation-app` |
-| `slint/ui/**`, `slint/build.rs` | `crates/halation-app/ui/`, `crates/halation-app/build.rs` |
-| `slint/tests/{engine,folders,process,sections,services}.rs` | `crates/halation-core/tests/` |
-| `slint/tests/ui_layout.rs`, `slint/src/screenshot.rs` | `crates/halation-app/` (único con dependencia de `i-slint-backend-testing`) |
-| `slint/assets/**` | `assets/` (el binario las busca junto al exe; en `cargo run` por variable o ruta relativa al workspace) |
-| `slint/scripts/{launch-beta,measure-*}.ps1`, `record-drape.js` | `tools/measure/`, `tools/assets/` |
-| `app/src-tauri/icons/` | `assets/icons/` (iconos del exe e instalador) lo que siga vigente; resto a `legacy/tauri/` |
-| `app/dist/locales/en.json` | `locales/en.json` como punto de partida del i18n nativo (el esquema se decide en su spec) |
-| Presets de Grade/Converter hoy dentro de `app/dist` | `presets/` cuando cada herramienta se porte; hoy solo se crea la carpeta con su README |
-| `app/scripts/bump-beta.js`, `exe-icon.js`, `release-smoke.js`, `installer-parity.js` | `tools/release/` (adaptar al workspace) |
-| `app/scripts/{blue-noise,icons,lucide,look-sheet}.js`, `fixtures/` | `tools/assets/` |
-| `app/scripts/{htdemucs-export,htdemucs-dml,sam21-export}.py` | `tools/models/` |
-| `app/scripts/{*-benchmark,performance-*,ui-benchmark,drape-grain-…,process-ui-benchmark}.cjs/.ps1`, `i18n-missing.js`, `halation-preview.cjs`, `readme-*.js` | `legacy/tauri/scripts/` (dependen del frontend web). Tras el corte se borran; las mediciones nativas son los `.ps1` de `tools/measure/` |
-| `app/tests/**`, `app/package.json`, `app/package-lock.json`, `app/dist/**`, `app/src-tauri/**` | `legacy/tauri/` sin tocar |
-| Raíz de `package.json` | No existe tras el corte: el proyecto no tiene Node en su ruta de compilación (los scripts de `tools/` que lo usan declaran su `package.json` local) |
-
-### 2.5 `.claude/`
-
-- `agents/test-runner.md`, `agents/visual-reviewer.md`: reescribir para `cargo fmt/clippy/test` y revisión de capturas
-  offscreen; hoy ejecutan Playwright.
-- `skills/playwright-cli`, `skills/context7`: borrar al corte (Playwright y `ctx7` son del flujo web). `context7` puede
-  volver si Java lo quiere para consultar docs de crates **(decisión de Java)**.
-- `skills/frontend-design`: borrar (diseño web; la fuente de diseño pasa a ser `docs/DESIGN.md`).
-
-## 3. Entendible para una persona nueva y para agentes
-
-Reglas: cada fichero responde a «qué hay aquí y para qué» en las primeras líneas; los README de carpeta solo donde la
-carpeta no se explica sola.
-
-- **`README.md`**: lo que ya es (qué es Halation, descarga, licencia) más una sección nueva «Mapa del repositorio»: el
-  árbol de §2.1 reducido a un nivel con una línea por carpeta, y tres enlaces: «quiero compilar» (`DEVELOPMENT.md`),
-  «quiero entender el diseño» (`ARCHITECTURE.md`), «quiero tocar la interfaz» (`DESIGN.md`).
-- **`docs/README.md`**: tabla «Si vas a tocar X, lee Y» (Jobs → `specs/JOBS_SPEC.md`; Library → …; Slint UI → `DESIGN.md`;
-  release → `RELEASE.md`). Es el único índice; cada spec lleva `Estado:` y fecha en la primera línea.
-- **README corto por carpeta (5, 5–15 líneas cada uno)**: `crates/halation-core` (qué entra y qué no: sin tipos de
-  Slint ni de UI), `crates/halation-app` (estructura `ui/` y `src/`, regla clean-room de la capa visual),
-  `crates/halation-updater` (protocolo con la app), `tools/` (una línea por subcarpeta), `installer/`. No hay README en
-  `assets/`, `locales/`, `presets/` ni `licenses/`, salvo el que ya exista por avisos de licencia.
-- **`CONTRIBUTING.md`**: prerrequisitos (Rust 1.92+, MSVC), los 4 comandos de verificación del workspace, cómo se
-  nombra una rama y un commit, gate de revisión visual, qué necesita un cambio de interfaz, reglas fijas (local, sin
-  telemetría, solo metadatos públicos de Spotify, licencias en `THIRD_PARTY.md`), apartado «Desarrollo asistido por IA».
-- **`AGENTS.md`**: una sola fuente (≤ 60 líneas) con: pila, comandos, convenciones, restricciones fijas, autoría, límites
-  de merge/release, y enlaces a `docs/`. `CLAUDE.md` = `@AGENTS.md`. Las reglas que cambian cada semana (decisiones de
-  Java) van a `docs/DECISIONS.md` con fecha, no a estos ficheros.
-- **Mapa de código** en `docs/ARCHITECTURE.md`: por crate, módulo → responsabilidad → test que lo cubre, con enlace al
-  spec. Sustituye al «code map» de 443 líneas de Tauri, que se archiva.
-- **Documentación en el código**: cada `lib.rs`/`main.rs` y cada módulo de `halation-core` abre con un comentario `//!`
-  de 3–5 líneas (qué hace, qué no, de quién depende). `cargo doc` pasa a ser el mapa fino.
-- Comprobación automática en CI (fase 5): un test que falla si `docs/README.md` no enlaza un `.md` de `docs/` o si un
-  spec no tiene `Estado:`. Evita que el desorden vuelva.
-
-## 4. Orden de ejecución por fases
-
-Un solo hilo, un commit (o pocos) por fase, el CI de la rama en verde antes de pasar a la siguiente. Salvo indicación, se
-trabaja en la rama de integración nativa; **nada llega a `main` sin la aprobación de Java**.
-
-| Fase | Qué | Riesgo | Cómo no rompe CI |
-| --- | --- | --- | --- |
-| 0 | Decisiones abiertas de Java (§5); fast-forward de `slint/visual-home` a `sgjgrl`; congelar nuevas ramas de hilo; crear tag `tauri-final` | Bajo | Sin cambios de código |
-| 1 | Documentos: `AGENTS.md`/`CLAUDE.md`, `CONTRIBUTING.md`, índice `docs/README.md`, cabeceras `Estado:`, mover specs a `docs/specs/`, archivar, borrar según §2.3, corregir contradicciones de §1.2 | Bajo: solo `.md` y plantillas. Las referencias por ruta en comentarios Tauri se dejan | `build.yml` solo lee `docs/UPDATES.md` (cambiarlo a `RELEASE.md` en el mismo commit) |
-| 2 | Mover `app/` → `legacy/tauri/` y los scripts/fixtures de §2.4 que no son Tauri a `tools/`. Actualizar rutas de `build.yml` y de `.gitignore` | Medio: rutas relativas en scripts y en `tauri.conf.json` (`frontendDist`, `../dist`), `tauri build` desde otra ruta | Un commit solo de movimiento (`git mv`, sin editar contenido), y el CI de Tauri en `legacy/tauri/` se ejecuta una vez para confirmar que sigue verde; después se deja de ejecutar |
-| 3 | Workspace de Cargo: `crates/halation-core` y `crates/halation-app`, `Cargo.toml` raíz, `rust-toolchain.toml`, `assets/` `locales/` `presets/` `licenses/`; mover módulos según §2.4; localizador de `assets/` junto al exe y en `cargo run` | **Alto** (es la parte que toca código): dependencias circulares entre `app.rs`/controlador y el backend, `build.rs` y rutas de `@image-url`, fuentes y vídeo cargados en tiempo de ejecución | Primero crear el workspace con un solo crate que compila lo mismo; luego extraer `halation-core` módulo a módulo con `cargo test` en verde tras cada uno; el grafo de features (winit + Skia, sin Qt) se comprueba con `cargo tree -e features`. `ci.yml` nuevo corre `fmt`, `clippy -D warnings`, `test`, `build --release` |
-| 4 | Instalador: NSIS en `installer/`, estructura junto al exe, datos de usuario en `%APPDATA%\Halation`, desinstalación que conserva datos | Medio-alto: solo se valida de verdad en Windows (KernelPanic); `/UPDATE` mantiene datos | `release.yml` se prueba con un tag de prueba en un fork o con `workflow_dispatch` sin publicar |
-| 5 | `halation-updater`: protocolo (la app lanza el updater y sale; el updater espera, descarga a `%TEMP%`, verifica la firma minisign, ejecuta el instalador con `/UPDATE`, reabre la app), compatibilidad con `latest.json` de las 1.x, política de «guardar sesión y reiniciar» | **Alto**: seguridad (verificación de firma, rutas temporales, reintentos), reversión si falla, y la clave minisign es única | Tests de integración del protocolo contra un servidor local y un instalador falso; la prueba real de actualización de 1.2.0 → nativa se hace en KernelPanic antes de publicar |
-| 6 | Corte: PR de la línea nativa a `main`, borrado de `legacy/tauri/`, borrado de ramas obsoletas (§1.4), `package.json` de Node fuera, `.claude/` ajustado, regenerar `docs/media/`, test de salud de documentos | Medio: es la operación que cambia lo que publica `main`; irreversible en la práctica | Requiere aprobación explícita de Java; `tauri-final` y `archive/tauri` garantizan la vuelta atrás |
-
-Las fases 1 y 2 son independientes de la 3: pueden hacerse aunque la reestructuración de crates se retrase. La
-reestructuración visual (`docs/UI_REDESIGN_SPEC.md` §11) va **después** de la fase 3, porque toca los ficheros que esta
-mueve.
-
-## 5. Decisiones que necesitan a Java
-
-1. **Dónde se ejecuta** (recomendado: línea nativa, `main` congelada). Alternativa: tocar `main` primero para la fase 1;
-   genera conflictos con `CLAUDE.md`, `AGENTS.md`, `DECISIONS.md`, `ROADMAP.md`, `THIRD_PARTY.md` que la rama nativa ya
-   modificó.
-2. **Nombre de la rama de integración** nativa (`native` propuesto).
-3. **`.opencode/` y `docs/OPENCODE_*`**: borrar (recomendado) o conservar fuera del repo público.
-4. **Borrar los informes de rendimiento y de checkpoints** (recomendado, quedan en el historial) o archivarlos íntegros.
-5. **`context7`** como skill: conservar o no.
-6. Si `halation-updater` es parte de este mismo hilo o un hilo propio después de la fase 4 (recomendado: mismo hilo,
-   pero como fase 5, con pausa para la prueba real en KernelPanic).
-
-## 6. Coste de la ejecución (estimación, no medida)
-
-No hay una medida real de cuánto consume un hilo de estos; la escala siguiente es relativa a un hilo de implementación
-normal en High, que vale 1.
-
-| Fase | Coste relativo | Qué lo condiciona |
+| Origen | Estado | Destino y condición |
 | --- | --- | --- |
-| 0 | 0,1 | Solo git y decisiones |
-| 1 (documentos) | 0,5 | Reescribir ≈ 6 documentos y mover ≈ 40; sin compilar |
-| 2 (mover `app/`) | 0,3 | Mecánico, más una ejecución del CI de Tauri |
-| 3 (workspace y crates) | 1,5 – 2 | Es lo más caro: compilar y probar tras cada módulo extraído |
-| 4 (instalador) | 1 | NSIS + workflow + verificación en Windows |
-| 5 (updater) | 1,5 – 2 | Programa nuevo con seguridad y reversión; prueba real |
-| 6 (corte) | 0,5 | Borrados, PR, limpieza de ramas |
+| `AGENTS.md`, `CLAUDE.md`, `AI_DEVELOPMENT.md` | R/P | `AGENTS.md` (fuente única) + `CLAUDE.md` (`@AGENTS.md`); `AI_DEVELOPMENT.md` pasa a un apartado de `CONTRIBUTING.md`. Contradicciones de §1.2 resueltas en A1 |
+| `docs/SLINT_SPEC.md` | P | `docs/features/…` y `docs/architecture/overview.md` repartidos en A2; en A1 se corrige y **se retiene** (workspace, instalador, updater, `%APPDATA%\Halation`, Qt fuera) |
+| `docs/SLINT_BACKEND_IMPORT.md` | V | **Retener** hasta el fin de B; su tabla de estado pasa a `docs/architecture/` en A2 |
+| `docs/SLINT_VISUAL_SYSTEM.md`, `COLOR_REWORK_SPEC.md`, `MOTION.md` | V/P | **Retener**; A2 los funde en `docs/design/design.md` (la parte Tauri de `MOTION.md` y `COLOR_REWORK_SPEC.md` va a `archive/tauri/`) |
+| `docs/UI_REDESIGN_SPEC.md` | V (aprobado a medias) | `planning/active/ui-redesign.md` (**retener**); al implementarse se funde en `design.md` |
+| `docs/DECISIONS.md` | V/P | `planning/decisions.md`; lo exclusivo de Tauri (motion web, export WebCodecs…) a `archive/tauri/` |
+| `docs/ROADMAP.md` | P | `planning/ROADMAP.md`; corregir Qt Quick e `INTRO_SPEC` inexistente |
+| `docs/JOBS_SPEC`, `LIBRARY_SPEC`, `SETTINGS_SPEC`, `SAVE_LOCATION_SPEC`, `PROCESS_MENU_SPEC`, `FRAMERATE_SPEC` | V/P | `docs/features/` con `Estado:` (**retener**: B trabaja contra ellos) |
+| `docs/CONVERTER_SPEC`, `COVER_TEST_SPEC`, `GRADE_LOOKS_SPEC`, `VOCAL_REMOVER_SPEC`, `REMOVE_BG_SPEC`, `BACKGROUNDS_SPEC` | V (herramientas no portadas; Drape implementada) | `docs/features/` con `Estado: Prevista`/`Implementada` (**retener**) |
+| `docs/ARCHITECTURE.md` (Tauri) | H | `archive/tauri/` (referencia al portar) |
+| `docs/DOCK_SPEC.md`, `WINDOW_SPEC.md`, `PREVIEW.md`, `UPDATES.md`, `SIGNING.md`, `signing/` | H/P | `archive/tauri/`; el updater nuevo se especifica en el hito C; `SIGNING.md` y el parche SignPath van a `planning/ROADMAP.md` (firma aparcada) más `archive/` |
+| `docs/OPEN_SOURCE.md` | P | Lo vigente (licencia, política) a `CONTRIBUTING.md`/`docs/development/`; el resto `archive/superseded/` |
+| `docs/QT_QUICK_SPEC.md` | H | `archive/qt-quick/` |
+| `docs/MOTION_TEXT_SPEC.md` | H | `archive/superseded/`, enlazada desde `ROADMAP.md` |
+| `docs/performance/**`, `performance-2026-10-04/` | H con valor | `research/performance/` con README-índice: contexto (arquitectura Tauri/WebView), versión y condiciones de cada informe, y si aplica a Slint; sin tratarlos como características actuales |
+| `UPSCALE_VIDEO_CHECKPOINT`, `ui-corrections-2026-10-05`, `UI_DEFAULTS_BRANDING_111` | H | `archive/superseded/`; borrar solo con aprobación de Java |
+| `docs/OPENCODE_*` (4), `.opencode/` | R (ajeno al producto) | No entran en la rama Slint; quedan en el historial de la rama actual |
+| `docs/brand/**`, `screenshots/`, `examples/` | S | `assets/brand/` o `docs/media/` según uso (A1 comprueba qué enlaza el README); `examples/` (12 MB) no entra salvo lo que use el README |
+| `app/dist/changelog.md` | R | No existe: `CHANGELOG.md` es la fuente |
 
-Total ≈ 5,5 – 6,5 unidades. Las fases 0–2 (≈ 1) bastan para que el repo sea entendible; las fases 3–5 son la
-reestructuración técnica y el updater (≈ 4 – 5). Las **cosas que Java añada durante esta reestructuración** se miden
-contra esta tabla: un módulo nuevo en `halation-core` o un cambio de layout del instalador suma 0,3 – 1 según tamaño;
-cualquier cambio en el protocolo del updater suma a la fase 5.
+Cada fichero que se mueve conserva su historial (`git mv`). Cada documento archivado abre con una línea «Histórico, no
+autoritativo; vigente hasta <fecha>/<versión>».
+
+### 2.3 Código y herramientas
+
+La auditoría local (hito 0) y el análisis de los crates deciden el mapa exacto. Punto de partida, con los 20 módulos de
+`slint/src` conocidos hoy:
+
+| Origen | Destino |
+| --- | --- |
+| `slint/src/backend/*` (process, queue, engine, sections, names, destinations, presets, artist_profile, atomic_file) | `crates/halation-core/` |
+| `slint/src/{app,navigation,theme,motion,folders,jobs,backdrop,assets,screenshot}.rs`, `slint/ui/**`, `slint/build.rs` | `crates/halation-app/` |
+| `slint/src/{profile,settings,library,catalog}.rs` | Se parten solo si mezclan modelo/persistencia (core) con modelos de Slint (app); si un módulo es cohesivo se mueve entero |
+| `slint/tests/{engine,folders,process,sections,services}.rs` | `crates/halation-core/tests/` |
+| `slint/tests/ui_layout.rs` | `crates/halation-app/tests/` |
+| `slint/assets/**` | `assets/` |
+| `slint/scripts/*`, `record-drape.js` | `tools/` |
+| `app/scripts/{bump-beta,exe-icon,release-smoke,installer-parity}.js` | Se reescriben en `tools/` en B/C solo si la rama Slint los necesita; el original sigue en `main` |
+| `app/scripts/*.py` (htdemucs, sam2.1) | `tools/models/` cuando se porten esas herramientas |
+| `app/**` (frontend, `src-tauri`, tests, resto de scripts) | No se copian; viven en `main`, `v1.2.0` y `tauri-final` |
+
+## 3. Cómo se entiende el repo
+
+- `README.md`: función pública actual + mapa del repo (árbol a un nivel) + enlaces a compilar, contribuir, arquitectura,
+  interfaz y estado.
+- `docs/README.md`: tabla «si vas a tocar X, lee Y».
+- `docs/development/PROJECT_GUIDE.md`: recorridos reales de la app (p. ej. «el usuario inicia un trabajo → vista Slint →
+  controlador → cola de jobs → motor → resultado → UI»), salidos del código y no de un esquema, con errores,
+  cancelación y recursos.
+- README de carpeta solo en `crates/*` (qué entra y qué no, dependencias permitidas), `tools/` y `research/performance/`.
+- Módulos importantes de `halation-core`: comentario `//!` de 3–5 líneas (responsabilidad, comportamiento expuesto,
+  dependencias, invariantes). Sin comentarios que repitan el código.
+- **Índice de trazabilidad** (`docs/features/README.md`): función · pantalla · módulo · spec · pruebas · estado ·
+  evidencia. CI comprueba que rutas y enlaces existen y que cada spec tiene `Estado:`. **El estado no se infiere de la
+  existencia de una ruta**: «Implementado y verificado» exige una evidencia enlazada (test concreto, medición o OK
+  visual de Java con fecha). Una función con ruta y sin evidencia figura como «Implementada, sin verificar».
+- `AGENTS.md`: reglas globales imprescindibles con enlaces a `docs/development/`; reglas operativas de la propuesta
+  (leer lo relevante, no refactorizar fuera de alcance, no convertir lo provisional en contrato, no ocultar errores,
+  declarar lo no verificado, ningún merge/release/destructivo sin autorización).
+
+## 4. Hitos y fases
+
+Cada fase: commits pequeños y reversibles, tag de retorno antes de empezar (`pre-<hito>`), CI en verde, y sin tocar
+ramas o worktrees con agentes activos. Operaciones destructivas y el merge a `main`, solo con aprobación de Java.
+
+### Hito 0 — Auditoría local (previo a todo)
+
+Requiere una sesión Remote Control en KernelPanic (esta sesión solo ve GitHub). Salida: informe con árbol real, worktrees,
+ramas locales y remotas, commits sin subir, stashes, archivos sin seguimiento, qué hilos siguen activos y sobre qué
+ficheros. Solo lectura. **Criterio**: el informe distingue lo comprobado en local de lo visto en GitHub; si un
+agente trabaja en ficheros que el plan mueve, el hito siguiente se retrasa.
+
+### Hito A1 — Instrucciones y documentación
+
+1. Rama aislada desde la punta de la línea nativa. 2. `AGENTS.md`/`CLAUDE.md`/`CONTRIBUTING.md`, resolviendo las
+contradicciones de §1.2. 3. Clasificar cada `.md` (tabla §2.2) y crear `archive/`, `research/`, `planning/` solo con
+lo que tenga contenido. 4. Mover specs a `docs/features/` con `Estado:`. 5. Comprobador de enlaces Markdown (script en
+`tools/`, sin Node en la ruta de compilación).
+
+**Condición**: no se elimina ni se archiva ninguna spec marcada «retener» o con `Estado: Prevista/En curso`; los
+borrados de §2.2 requieren aprobación expresa. **Criterios**: cero enlaces rotos; cada documento con estado; un agente
+nuevo llega a sus instrucciones sin contradicciones leyendo `AGENTS.md`; `cargo build` y los tests del crate actual no
+cambian de resultado.
+
+### Hito B — Arquitectura Rust
+
+Lo ejecuta el hilo de la reestructuración en crates ya aprobado (un solo hilo mueve estos ficheros). Fases: B1 workspace con
+un crate que compila lo mismo; B2 extraer `halation-core` módulo a módulo con tests tras cada uno; B3 organizar
+`halation-app` por dominios solo donde haya cohesión probada; B4 `assets/`, `tools/` y rutas; B5 CI del workspace.
+**Criterios**: `cargo fmt --check`, `clippy --all-targets -D warnings`, `cargo test`, build release; `cargo tree -e features`
+mantiene winit + Skia sin Qt/FemtoVG/software en el runtime; `halation-core` no depende de Slint (comprobado por grafo de
+dependencias); sin ciclos; assets resueltos junto al exe y en `cargo run`; el comportamiento de las pantallas existentes
+se comprueba contra las capturas offscreen y la revisión visual de Java antes de cerrar. Compilar no prueba equivalencia
+funcional: cada módulo movido conserva sus tests y se añade la comprobación directa de lo no cubierto.
+
+### Hito A2 — Documentación de la arquitectura definitiva
+
+`docs/architecture/overview.md` (y backend/threading/persistence solo con texto real), `docs/design/design.md`,
+`PROJECT_GUIDE.md`, índice de trazabilidad con evidencias, `//!` en módulos, actualización de `AGENTS.md`.
+**Criterios**: prueba humana de la propuesta (encontrar una función, su UI, su backend y sus pruebas en pocos pasos) y
+prueba de agente (instrucciones sin contradicciones, autoridad clara); CI de rutas, enlaces y `Estado:` en verde.
+
+### Hito C — Distribución
+
+NSIS e `installer/` (layout `assets\`, `locales\`, `presets\`, `licenses\` junto al exe), datos en `%APPDATA%\Halation`,
+`halation-updater` (verificación de firma, instalador `/UPDATE`, reversión), compatibilidad con `latest.json` de las 1.x.
+**Criterios**: instalación y actualización real en KernelPanic; el updater no publica nada por sí mismo; releases solo con
+orden expresa.
+
+### Hito D — Migración de datos Tauri → nativa (requisito del corte)
+
+Hoy Tauri guarda en `Documents\Halation` (`Settings\app.json`, `Sessions\`, presets) y en `%LOCALAPPDATA%\Halation` (workspace);
+la nativa usa un perfil propio y está previsto `%APPDATA%\Halation`. Empieza con un inventario de qué datos existen y qué
+se migra. Cubre ajustes, Library (referencias y secciones), presets y sesiones; sin modificar ni borrar los datos
+originales. **Criterios**: migración idempotente y reversible con datos reales de prueba (hechos con nombres inventados),
+fallo cerrado si el origen está dañado, y prueba de actualización 1.2.0 → nativa antes de cualquier corte.
+
+### Orden y dependencias
+
+0 → A1 → B → A2 → C, y D en paralelo a C pero antes del corte. El rediseño visual (`UI_REDESIGN_SPEC` §11) va después de B.
+A1 y A2 no dependen del updater.
+
+## 5. Riesgos
+
+| Riesgo | Mitigación |
+| --- | --- |
+| Mover ficheros con un agente activo sobre ellos | Hito 0 y rama aislada; ninguna fase empieza si hay solapamiento |
+| Perder una spec que B necesita | Lista «retener» en §2.2; A1 no borra |
+| Dos hilos moviendo los mismos ficheros (crates y rediseño) | Un solo hilo para B; el rediseño espera |
+| Documentación que queda obsoleta durante B | A2 después de B |
+| Índice de trazabilidad con estado falso | Estado solo con evidencia; CI solo comprueba rutas |
+| Pérdida de datos de usuario al migrar | Hito D, solo lectura sobre el origen, sin corte hasta probar con datos reales |
+| Referencias a `docs/` desde el código Tauri | No afecta: el código Tauri queda en `main` |
+
+## 6. Coste de la ejecución (estimación relativa, no medida)
+
+Un hilo normal de implementación en High vale 1.
+
+| Hito | Coste | Condicionante |
+| --- | --- | --- |
+| 0 Auditoría local | 0,3 | Sesión Remote Control, solo lectura |
+| A1 | 0,5 | Reescribir y clasificar ≈ 45 `.md`, sin compilar |
+| B | 1,5 – 2 | Compilar y probar tras cada módulo extraído |
+| A2 | 0,5 – 0,7 | Documentación de lo ya estable |
+| C | 2 – 3 | NSIS, CI, updater con seguridad y prueba real |
+| D | 1 – 1,5 | Depende del inventario de datos |
+
+A1 + B + A2 ≈ 2,5 – 3,2 hacen el repo entendible y el workspace modular; C y D son proyectos propios.
 
 ## 7. Fuera de alcance
 
-Cambiar producto, UX o la spec de rediseño visual; portar herramientas de Tauri a Slint; el esquema de i18n nativo;
-firma Authenticode (sigue aparcada, `docs/SIGNING.md`); migración de datos de usuario Tauri → nativa (punto 4 de la
-hoja de ruta de `SPEC.md`: se diseña aparte antes del corte, **y es requisito del corte**).
+Diseño visual, UX o funciones; portar herramientas desde Tauri; reescribir código funcional; abstracciones sin problema
+demostrado; cambiar el comportamiento del instalador, updater o formatos de datos fuera de los hitos C y D; publicar
+versiones; fusionar la línea nativa con `main`.
