@@ -99,7 +99,7 @@ The durations are settle times, a ceiling: most of the move happens in the first
 - Hidden, Welcome-covered, unfocused and minimized Drape does zero work. Reduced motion retains the last image,
   invalidations redraw once, resize coalesces for160ms, restoration preserves phase. Static Drape remains a control.
   Atmosphere was not redesigned; Home's worker scene is black and static, so it does not duplicate this microtexture.
-  Evidence and protocol: docs/performance/auralis-2/GRAIN.md.
+  Evidence and protocol: research/performance/auralis-2/GRAIN.md.
 - Home's mark is static: no ambient levitation or recurring animation. Welcome handoff and navigation entrances remain finite transitions. The dock's mark also never moves.
 
 ## Tests

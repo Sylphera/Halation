@@ -62,7 +62,7 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 
 ## Example photos (Unsplash License)
 
-`docs/examples/<tool>.jpg` are used only for the README screenshots. They are cropped and resized from the originals. They are not part of the app.
+`docs/examples/<tool>.jpg` (kept on `main`) were used only for the README screenshots in `docs/media/screenshots/`. They are cropped and resized from the originals. They are not part of the app.
 `grade.jpg` is the exception: a widely shared still of The Weeknd on stage (After Hours til Dawn Tour), photographer and licence unknown, chosen by the project owner; it is not under the Unsplash License.
 
 | File | Photo by |

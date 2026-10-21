@@ -1,4 +1,4 @@
-//! Library sections on disk (imported from the Tauri backend's `library.rs`, docs/LIBRARY_SPEC.md): the user's own
+//! Library sections on disk (imported from the Tauri backend's `library.rs`, docs/features/library.md): the user's own
 //! sections (folders of the Library root), the folders of the PC linked as sections (read where they are, never
 //! copied), and the optional packs (`Packs/<pack>`, read-only). The module knows folders only; what the page keeps
 //! about them (order, links, favourites) belongs to the profile, and the reference index is `crate::library`.

@@ -20,13 +20,14 @@ preview until separately approved in the real window.
 - `app/` and its Rust/Tauri backend remain untouched and operational. The native application does not call, link,
   embed or claim compatibility with them. No Rust runtime sharing, cxx-qt, media engine, scheduler or tool execution
   is in scope for the beta.
-- The application is a standalone Cargo crate in `slint/`, on its own branch/worktree. It owns its profile, settings
-  schema, Library index and tests. It must not read or write Tauri settings, Library data, sessions, presets or caches.
+- The application is a Cargo workspace on its own line (branch `slint/native`): `crates/halation-core` (logic, no Slint)
+  and `crates/halation-app` (the app and its Slint UI). It owns its profile, settings schema, Library index and tests. It must not read or write Tauri settings, Library data, sessions, presets or caches.
 - No local path dependency or FFI edge may reach `app/src-tauri` or prior Qt code, so the Tauri app and the native
   crate stay buildable on their own; backend reuse is by importing source, not by linking it. Code of the visual layer
   is authored from zero.
-- The initial shell has Home, Library, Jobs and Settings. Welcome, the ten media tools, engines, data migration,
-  packaging, updater and release are future work, not claims of completion in the beta.
+- The initial shell has Home, Library and Settings (Jobs has no page; its queue stays in the backend). Welcome, the ten
+  media tools and engines are future work. Installer and updater (a separate executable) are milestone C and data
+  migration from Tauri is milestone D of [the reorganization plan](../planning/active/repo-reorg.md).
 - Visible beta text is English. Visual identity follows `docs/SLINT_VISUAL_SYSTEM.md` (a replica of the original
   Halation as rendered, pending Java's visual review) and the product marks, not a fullscreen raster copy.
 
@@ -130,8 +131,9 @@ slint/
 
 - Own schema (`schema_version`, `reduced_motion`, `library_limit`) and profile location, separate from Tauri's
   `Settings/app.json`. No implicit import, migration or shared path.
-- Default profile: `%LOCALAPPDATA%\Halation\slint-beta`, overridable with `--profile-root <dir>` or
-  `HALATION_SLINT_PROFILE` for review and tests. Tests use synthetic temporary roots and never read the real profile.
+- Default profile today: `%LOCALAPPDATA%\Halation\slint-beta`, overridable with `--profile-root <dir>` or
+  `HALATION_SLINT_PROFILE` for review and tests. The installed app will keep its data in `%APPDATA%\Halation`
+  (milestone C). Tests use synthetic temporary roots and never read the real profile.
 - Reads are capped (64 KiB). Values are validated and bounded (`library_limit` 100–5000). Missing file means defaults.
   Corrupt, oversized or invalid data reports an error and locks ordinary writes until an explicit reset.
 - Saves are atomic and small. A failed write reports the error and preserves both the in-memory previous value and the
@@ -276,11 +278,12 @@ representative UI slice and recur at every roadmap addition.
 
 - Replacing or changing the Tauri application, its UI, backend, data formats or release channel.
 - Connecting any media engine, model, scheduler or external tool, or simulating one.
-- Importing/migrating Tauri settings, Library, sessions, presets or downloaded components.
-- Packaging, installer, updater, code signing, CI release or public distribution.
+- Importing/migrating Tauri settings, Library, sessions, presets or downloaded components (milestone D).
+- Packaging, installer, updater, code signing, CI release or public distribution (milestone C; releases only on Java's
+  order).
 - macOS/Linux packaging, mobile or web targets.
 - Pixel parity with the reference image or with the Tauri/Qt interfaces.
-- Automated screenshots, video, frame sequences or performance evidence.
+- Automated video or frame sequences as visual evidence. Offscreen screenshots for review are allowed (`AGENTS.md`).
 
 ## Technical references (verified 2026-10-20)
 

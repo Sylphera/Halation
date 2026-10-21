@@ -1,18 +1,18 @@
 <div align="center">
 
-<img src="docs/brand/readme-hero.jpg" alt="Halation: focused tools for image, video and audio. Local, no account.">
+<img src="docs/media/brand/readme-hero.jpg" alt="Halation: focused tools for image, video and audio. Local, no account.">
 
 ### A local creative workspace for image, video and audio.
 
 Focused tools for the media work between the big apps — no account, no watermark, with media processing kept local by default.
 
 <p>
-  <a href="https://github.com/Sylphera/Halation/releases/latest"><img src="docs/brand/readme/download.png" alt="Download for Windows" height="52"></a>
+  <a href="https://github.com/Sylphera/Halation/releases/latest"><img src="docs/media/brand/readme/download.png" alt="Download for Windows" height="52"></a>
 </p>
 <p>
-  <a href="CHANGELOG.md"><img src="docs/brand/readme/changelog.png" alt="Changelog" height="44"></a>
-  <a href="PRIVACY.md"><img src="docs/brand/readme/privacy.png" alt="Privacy" height="44"></a>
-  <a href="LICENSE"><img src="docs/brand/readme/license.png" alt="License" height="44"></a>
+  <a href="CHANGELOG.md"><img src="docs/media/brand/readme/changelog.png" alt="Changelog" height="44"></a>
+  <a href="PRIVACY.md"><img src="docs/media/brand/readme/privacy.png" alt="Privacy" height="44"></a>
+  <a href="LICENSE"><img src="docs/media/brand/readme/license.png" alt="License" height="44"></a>
 </p>
 
 <p>
@@ -30,15 +30,15 @@ Focused tools for the media work between the big apps — no account, no waterma
   <table>
     <tr>
       <td colspan="2">
-        <img src="docs/screenshots/promo.jpg" alt="Halation: one local workspace. Home, Send to…, shared Cutout and Crop, Library, presets and looks, GPU or CPU, engines on demand, updates in place, local">
+        <img src="docs/media/screenshots/promo.jpg" alt="Halation: one local workspace. Home, Send to…, shared Cutout and Crop, Library, presets and looks, GPU or CPU, engines on demand, updates in place, local">
       </td>
     </tr>
     <tr>
       <td width="50%">
-        <img src="docs/screenshots/grade.jpg" alt="Halation Grade">
+        <img src="docs/media/screenshots/grade.jpg" alt="Halation Grade">
       </td>
       <td width="50%">
-        <img src="docs/screenshots/visualizer.jpg" alt="Halation Audio Visualizer">
+        <img src="docs/media/screenshots/visualizer.jpg" alt="Halation Audio Visualizer">
       </td>
     </tr>
   </table>
@@ -51,7 +51,7 @@ Focused tools for the media work between the big apps — no account, no waterma
 ## Features
 
 <div align="center">
-  <img src="docs/screenshots/showcase.jpg" alt="Halation tools: Downloader, Converter, Vocal Remover, Audio Visualizer, Grade, Cover Test, Background Remover, Upscale, AI Interpolate, Frame Capture and Library">
+  <img src="docs/media/screenshots/showcase.jpg" alt="Halation tools: Downloader, Converter, Vocal Remover, Audio Visualizer, Grade, Cover Test, Background Remover, Upscale, AI Interpolate, Frame Capture and Library">
 </div>
 
 - Download video, audio or artwork from supported links, and convert media, documents and PDF pages.
@@ -91,36 +91,35 @@ Some features intentionally use the network when invoked: Downloader and URL ana
 
 See **[PRIVACY.md](PRIVACY.md)** for the full network and data-handling boundary.
 
-## Building from source
+## This branch: the native rebuild
 
-Halation is a [Tauri 2](https://tauri.app) app: the interface is plain HTML, JavaScript and CSS in `app/dist` (no framework or bundler) and the backend is Rust in `app/src-tauri/src`.
-
-Requirements: Windows 10 or 11 with WebView2, [Rust](https://rustup.rs) (stable, MSVC), [Node.js](https://nodejs.org) 20 or later and the [Tauri prerequisites](https://tauri.app/start/prerequisites/).
-
-```powershell
-git clone https://github.com/Sylphera/Halation.git
-cd Halation/app
-npm ci
-npm run tauri dev      # run from source
-npm run tauri build    # local setup and executable (unsigned, no updater)
-```
-
-Tests run Playwright on headless Chromium against a mocked backend (`app/tests/host.js`), plus `cargo test`:
+This branch (`slint/native`) holds **Halation Slint**, the native rebuild in Rust, [Slint](https://slint.dev) and
+Skia. It is not released yet: the published app above is **Halation Tauri**, on
+[`main`](https://github.com/Sylphera/Halation/tree/main), which keeps its own build instructions. The native app has
+its own profile and does not read Tauri user data.
 
 ```powershell
-node tests/settings.js           # one area
-npm test                         # the frontend suite
-npm run verify                   # everything, including cargo check, clippy and cargo test
+git clone -b slint/native https://github.com/Sylphera/Halation.git
+cd Halation
+cargo run -p halation-app      # run from source (Windows 10/11, Rust with MSVC)
+cargo test --workspace         # tests
 ```
 
-`docs/ARCHITECTURE.md` maps the code (one file per tool, one Rust module per area). `CONTRIBUTING.md` explains how to propose changes.
+### Repository map
 
-## Native rebuild (in progress)
+| Path | What |
+| --- | --- |
+| `crates/halation-core/` | Logic without UI: jobs, processes, Library, sections, presets, storage |
+| `crates/halation-app/` | The app: lifecycle, Slint interface (`ui/`), navigation, controllers |
+| `assets/` | Files installed beside the executable: icons, fonts, brand, the Drape loop |
+| `tools/` | Developer scripts: launching and measuring the beta, recording the Drape, checking the docs |
+| `docs/` | How Halation works; start at [docs/README.md](docs/README.md) |
+| `planning/` | Status, roadmap, decisions and active plans |
+| `research/` | Measurements and experiments |
+| `archive/` | Documents that no longer apply (the Tauri app, superseded plans) |
 
-A separate clean-room native application is being built with Rust, [Slint](https://slint.dev) and Skia in the `slint/`
-crate. It has its own profile, schema and tests and does not read Tauri user data. It is a technical beta, not the
-published app; the Tauri application remains the release line. The canonical specification, current phase state and
-validation gates are in **[docs/SLINT_SPEC.md](docs/SLINT_SPEC.md)**.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes; [AGENTS.md](AGENTS.md) holds the rules every
+contributor follows, people and AI agents alike.
 
 ## Development
 

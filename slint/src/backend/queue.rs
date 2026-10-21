@@ -1,4 +1,4 @@
-//! The job scheduler of docs/JOBS_SPEC.md (§3 model, §4 planning): lanes with their own capacity, costs, priorities,
+//! The job scheduler of docs/features/jobs.md (§3 model, §4 planning): lanes with their own capacity, costs, priorities,
 //! backfill with a starvation guard, holding, cancelling by id or group. Pure state, no threads, no clock of its own:
 //! the caller passes `now`, so every rule is testable. `engine.rs` runs the jobs it admits.
 //!

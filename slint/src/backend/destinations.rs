@@ -1,4 +1,4 @@
-//! One destination policy for user exports (imported from the Tauri backend's `save_location.rs`; docs/SAVE_LOCATION_SPEC.md).
+//! One destination policy for user exports (imported from the Tauri backend's `save_location.rs`; docs/features/save-location.md).
 //! Temporary and cache writes never go through here. The save dialog becomes a `SavePicker` the caller provides, and the
 //! two facts the policy remembers (last manual folder, whether the Halation-folder explanation was shown) are an
 //! `ExportLocation` the caller persists. Tauri state, settings and the `Documents\Halation` layout stay out: the caller

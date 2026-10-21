@@ -1,4 +1,4 @@
-//! Runs the jobs the scheduler admits as external processes (docs/JOBS_SPEC.md: one planner, a process tree per job).
+//! Runs the jobs the scheduler admits as external processes (docs/features/jobs.md: one planner, a process tree per job).
 //! Event-driven: nothing runs while no job exists (no timer, no polling). A change listener is called from worker
 //! threads, after the state lock is released; the UI layer forwards it to the GUI thread.
 
