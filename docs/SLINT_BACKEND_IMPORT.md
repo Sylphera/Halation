@@ -36,3 +36,4 @@ Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and bou
 ## Status
 
 - `backend/process.rs`: imported 2026-10-21 (see the module header for the interface).
+- `backend/queue.rs` + `backend/engine.rs`: the scheduler of `docs/JOBS_SPEC.md` (lanes, costs, priorities, backfill, hold, cancel by id or group, last 50 finished) and an event-driven engine that runs admitted jobs through `process.rs` (2026-10-21). Written against the spec rather than ported from `workspace.rs`/`sessions.rs`, which are bound to `tauri::State`. Missing from the spec: VRAM/RAM/disk needs, measured statistics, `yield`, reordering, stage changes, minimized pause. The Jobs page still shows the honest no-engine capability: nothing is wired to the UI yet.
