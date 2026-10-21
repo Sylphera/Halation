@@ -1,6 +1,6 @@
 ---
 name: context7
-description: Look up current documentation of a library (Tauri, Mediabunny, WebCodecs, WebGL, FFmpeg…) with the Context7 CLI before using an API that is not already in Halation's code.
+description: Look up current documentation of a library (Slint, winit, Skia bindings, windows-rs, Media Foundation, FFmpeg…) with the Context7 CLI before using an API that is not already in Halation's code.
 ---
 
 # Context7 (CLI)
@@ -8,11 +8,11 @@ description: Look up current documentation of a library (Tauri, Mediabunny, WebC
 Use before writing code against an API that the repository does not already use, or when unsure of a signature.
 
 ```
-npx --prefix app ctx7 library <name> "<what you need>"      # → library id, e.g. /tauri-apps/tauri-docs
-npx --prefix app ctx7 docs <library id> "<question>"         # → current docs and examples
+npx ctx7 library <name> "<what you need>"      # → library id, e.g. /slint-ui/slint
+npx ctx7 docs <library id> "<question>"         # → current docs and examples
 ```
 
-- Libraries used here: Tauri 2 (`/tauri-apps/tauri-docs`), Mediabunny, WebCodecs and WebGL (MDN), FFmpeg.
-- Quote only what the answer shows; check it against the version in `app/package.json` / `Cargo.toml`.
-- Needs network access to `context7.com`; set `CTX7_TELEMETRY_DISABLED=1`. If the host is blocked, say so and
-  fall back to the crate or package sources in `node_modules` / `~/.cargo/registry`.
+- Libraries used here: Slint 1.18 (`/slint-ui/slint`), windows-rs, serde, FFmpeg.
+- Quote only what the answer shows; check it against the version in `Cargo.lock`.
+- Needs network access to `context7.com`; set `CTX7_TELEMETRY_DISABLED=1`. If the host is blocked, say so and fall back
+  to the crate sources in `~/.cargo/registry`.

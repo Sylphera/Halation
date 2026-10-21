@@ -6,6 +6,6 @@ After:
 
 ## How it was checked
 
-- [ ] Tests of the area touched (`node app/tests/<area>.js`)
-- [ ] `cargo check`, `cargo clippy -- -D warnings`, `cargo test` (if Rust changed)
+- [ ] `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
+- [ ] `python tools/check-docs.py` (if documents changed)
 - [ ] Screenshot (if the interface changed)
