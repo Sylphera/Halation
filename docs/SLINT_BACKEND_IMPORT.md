@@ -27,7 +27,7 @@ Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and bou
 | `save_location.rs` | Imported → `backend/destinations.rs` | See Status. |
 | `presets.rs` | Imported → `backend/presets.rs` | See Status. |
 | `profile.rs` | Imported → `backend/artist_profile.rs` | See Status. |
-| `state.rs`, `storage.rs` | Adapt for Settings and the profile | The native profile keeps its own folder and schema; only the logic (atomic writes, name validation, storage report) is reused. |
+| `state.rs`, `storage.rs` | Not imported (decided 2026-10-21) | The native profile keeps its own folder and schema; only the logic (atomic writes, name validation, storage report) is reused. |
 | `paths.rs`, `system.rs`, `window.rs`, `update.rs`, `web.rs`, `openwith.rs`, `assets.rs`, `migrate.rs` | Not imported now | Tauri/WebView specific, or updater/release scope. |
 | `download.rs`, `tools.rs`, `convert.rs`, `encode.rs`, `framegrab.rs`, `interp.rs`, `cutout.rs`, `stems.rs` | Out of scope for now | Engines and tools (FFmpeg, yt-dlp, upscaler, RIFE, ONNX, PDFium): connected later behind honest capabilities; the beta shows them as unavailable. |
 
@@ -45,3 +45,4 @@ Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and bou
 - `backend/destinations.rs`: the export destination policy of `save_location.rs` (managed folder under a free name with reservations, save dialog behind a `SavePicker` trait, remembered last folder and one-time explanation as an `ExportLocation` the caller stores, writes only to granted paths) (2026-10-21). Not wired to the UI: nothing exports until a tool engine exists. Not imported: the Tauri commands and the `Documents\Halation` folder layout (`paths.rs`).
 - `backend/presets.rs`: one `.json` per preset in a folder the caller gives (list, folder stamp, atomic write, delete, rename or copy without overwriting) (2026-10-21). Not wired to the UI: the tools that use presets are not in the beta.
 - `backend/artist_profile.rs`: the artist profile files (`profile.json`, avatar/banner/reference images) and the clearable platform feed cache, with restricted file names, atomic writes and prune by prefix (2026-10-21). Not wired to the UI: the Cover Test is not in the beta. Not imported: the Tauri commands and the web parsing, which stay with the pages.
+- `state.rs` and `storage.rs` stay out: `state.rs` is the Tauri tool-session store (temporary tool state, recovery, legacy migrations) and its generic part (one locked JSON object, damaged file kept aside) already exists in `slint/src/settings.rs`; `storage.rs` reports what the downloadable components take, which needs the engines. Revisit when sessions or engines arrive.
