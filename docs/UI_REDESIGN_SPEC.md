@@ -282,6 +282,17 @@ sidebar item is active, the top bar shows the tool's name, and its **page action
   scrubbing a number by dragging its label (Figma's) are parked.
 - Running work shows in the Activity popover and as a 28 px progress strip on top of the docked bar, not in the frame.
 
+**Reference tool: Vocal Remover** (mockup; current layout in `docs/VOCAL_REMOVER_SPEC.md` §1 was already
+queue | player | export, now mapped onto the frame):
+
+| Today | In the tool frame |
+|---|---|
+| Queue column with per-song status | Left panel, tab Queue (44 px rows: name, duration, status ✓ / % / ○), `+` to add, Separate all and the model credit at its foot |
+| Centre: player with Voice / Instrumental lanes, M / S | Canvas: file header (name, length, rate, device chip), time ruler, one 104 px lane per stem with a 136 px label column (name, M, S); the waveform fills in as chunks arrive, the rest stays dim |
+| Status line "chunk 14/33 · GPU · ~12 s" | Progress strip above the docked bar (4 px bar, text); transport and time in the docked bar |
+| Right column: format, tracks, export when done, Export, Send to | Inspector tab Separate: Model (one selectable card, v2's 4 stems as a disabled card), Device (Auto / CPU only); tab Export: format, save-to (global policy), track checks, Export when done, Send to… The primary Export and Cancel sit in the top bar |
+| Drop zone with no file | Canvas empty state with the drop line; Queue empty |
+
 **Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** No more single
 scrolling page with a tab bar that jumps. The content area splits in two:
 
