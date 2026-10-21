@@ -1,10 +1,10 @@
 //! The Library's sections as the page sees them: the user's own sections, folders of the PC linked as sections and
-//! the optional packs (`backend::sections`), plus the list of linked folders the profile remembers (`links.json`).
+//! the optional packs (`sections`), plus the list of linked folders the profile remembers (`links.json`).
 //! Every command returns a fresh view; the controller runs commands off the UI thread. The reference index
 //! (`crate::library`) is separate and untouched.
 
 use crate::atomic_file::write_atomic;
-use crate::backend::sections::{self, Item, SectionOp, Sections};
+use crate::sections::{self, Item, SectionOp, Sections};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

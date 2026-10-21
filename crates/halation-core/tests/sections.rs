@@ -1,6 +1,6 @@
 //! Library sections on disk: own sections, linked folders, packs and path checks.
 
-use halation_app::backend::{
+use halation_core::{
     names::unique_path,
     sections::{self, SectionOp},
 };

@@ -1,7 +1,7 @@
 //! The job engine against real child processes (Windows `cmd.exe`).
 #![cfg(windows)]
 
-use halation_app::backend::{
+use halation_core::{
     engine::JobEngine,
     process::ProcessSpec,
     queue::{JobSpec, JobState, Lane},
@@ -176,7 +176,7 @@ fn shutdown_stops_what_is_running() {
 
 #[test]
 fn the_jobs_service_lists_rows_for_the_page_and_clears_finished_ones() {
-    use halation_app::jobs::JobsService;
+    use halation_core::jobs::JobsService;
 
     let jobs = JobsService::default();
     let id = jobs.engine().submit(

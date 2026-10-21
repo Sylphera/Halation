@@ -1,8 +1,8 @@
-//! The Jobs page's service: a thin view over the scheduler and process engine (`backend::engine`).
+//! The Jobs page's service: a thin view over the scheduler and process engine (`engine`).
 //! No tool engine is registered in this beta, so nothing can be submitted from the UI (`submit` says so);
 //! the page lists whatever the engine holds and lets the user cancel or clear it.
 
-use crate::backend::{
+use crate::{
     engine::JobEngine,
     queue::{Job, JobState},
 };

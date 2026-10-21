@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/halation-app"]
+members = ["crates/halation-core", "crates/halation-app"]
 
 [workspace.package]
 version = "0.1.0"

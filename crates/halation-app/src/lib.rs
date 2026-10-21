@@ -1,20 +1,18 @@
 #![deny(unsafe_code)]
 
+// The logic lives in halation-core; these names keep the app's paths short
+pub use halation_core::{folders, jobs, settings};
+
 pub mod app;
 pub mod assets;
-pub mod atomic_file;
 pub mod backdrop;
-pub mod backend;
 pub mod catalog;
-pub mod folders;
-pub mod jobs;
 pub mod library;
 pub mod motion;
 pub mod navigation;
 pub mod profile;
 #[cfg(feature = "diag-screenshot")]
 pub mod screenshot;
-pub mod settings;
 pub mod theme;
 
 pub mod ui {

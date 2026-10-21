@@ -1,6 +1,6 @@
 //! The Library sections service: own sections, linked folders that persist, packs, and refusals.
 
-use halation_app::folders::{Command, FolderStore, Kind, size_label};
+use halation_core::folders::{Command, FolderStore, Kind, size_label};
 use std::{
     fs,
     path::{Path, PathBuf},

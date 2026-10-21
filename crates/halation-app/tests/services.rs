@@ -1,6 +1,4 @@
-use halation_app::atomic_file::write_atomic_new;
 use halation_app::catalog::{self, TOOLS};
-use halation_app::jobs::{JobRequest, JobsError, JobsService};
 use halation_app::library::{
     LibraryEntry, LibraryError, LibraryLoad, LibraryModel, LibraryStore, SaveCompletion,
     load_index, scan_reference, write_index,
@@ -8,10 +6,12 @@ use halation_app::library::{
 use halation_app::motion;
 use halation_app::navigation::{Navigation, Page};
 use halation_app::profile::{DiagnosticScene, Profile, ProfileError, parse_args, resolve_root};
-use halation_app::settings::{
+use halation_app::theme::{self, TEXT_PAIRS};
+use halation_core::atomic_file::write_atomic_new;
+use halation_core::jobs::{JobRequest, JobsError, JobsService};
+use halation_core::settings::{
     MAX_SETTINGS_BYTES, Settings, SettingsError, SettingsRead, SettingsStore, read_settings,
 };
-use halation_app::theme::{self, TEXT_PAIRS};
 use slint::Model;
 use std::ffi::OsString;
 use std::fs;

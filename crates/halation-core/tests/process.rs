@@ -1,7 +1,7 @@
 //! The process runner against real child processes (Windows `cmd.exe`).
 #![cfg(windows)]
 
-use halation_app::backend::process::{ProcessEvents, ProcessRunner, ProcessSpec, Stream};
+use halation_core::process::{ProcessEvents, ProcessRunner, ProcessSpec, Stream};
 use std::{
     path::PathBuf,
     sync::{

@@ -1608,6 +1608,7 @@ checksum = "b40ca9252762c466af32d0b1002e91e4e1bc5398f77455e55474deb466355ff5"
 name = "halation-app"
 version = "0.1.0"
 dependencies = [
+ "halation-core",
  "i-slint-backend-testing",
  "rfd",
  "serde",
@@ -1615,6 +1616,15 @@ dependencies = [
  "slint",
  "slint-build",
  "windows",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "halation-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
  "windows-sys 0.61.2",
 ]
 
