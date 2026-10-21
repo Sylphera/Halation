@@ -71,6 +71,13 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
   Java (Java, 2026-10-13 and 2026-10-14).
 - Spotify: public metadata only, the audio comes from YouTube. Never Spotify's audio.
 - No OmniRoute. No Supabase or cloud services.
+- On `slint/*` work branches, commit and push without asking (Java, 2026-10-21). Never without Java's explicit approval:
+  merge to `main`, `git push --force`, tags, releases (`gh release`), `git reset --hard`, deleting outside `.tools/`.
+  Creating a new `slint/*` worktree or branch for a task that was asked for needs no confirmation.
+- Do not re-confirm steps the user already authorized; if a step needs a permission you lack, skip it, continue with the
+  rest and note it in the report.
+- Backend, jobs and Library work continues on its own while no visual review is needed; the visual layer stays a demo
+  with screenshots until Java reviews it.
 
 ## Folders
 

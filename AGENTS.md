@@ -15,6 +15,9 @@
   enlaces a sesiones) y las descripciones de PR no llevan líneas "Generated with"; esta regla manda sobre la atribución
   por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash en `main` con CI en verde (Java, 13 y 14-10-2026).
 - El español no es prioridad. No actualizar `app/dist/locales/es.json` ni completar traducciones salvo petición explícita del usuario; los textos nuevos o corregidos van en `en.json`.
+- Ramas de trabajo `slint/*`: commits y push libres, sin esperar confirmación. Nunca sin aprobación explícita de Java: merge a `main`, `git push --force`, tags, releases (`gh release`), `git reset --hard` y borrados fuera de `.tools/`. Los worktrees y ramas `slint/*` nuevos para una tarea ya pedida se crean sin preguntar (Java, 2026-10-21).
+- Los pasos ya autorizados por el usuario no se vuelven a confirmar. Si una acción necesita un permiso que no se tiene, se salta, se sigue con el resto y se deja anotado en el informe.
+- El backend Rust, los jobs y la Library avanzan de forma autónoma mientras no haga falta revisión visual; la capa visual se queda en una demo con capturas hasta que Java la revise. La aprobación visual sigue siendo obligatoria para fusionar.
 
 ## Misión vigente
 
