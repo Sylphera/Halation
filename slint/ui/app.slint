@@ -10,7 +10,6 @@ import { LibraryPage } from "pages/library.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { RailItem } from "components/rail-item.slint";
 import { TopDock } from "components/top-dock.slint";
-import { Slider } from "components/controls.slint";
 
 // A divider between rail groups
 component RailDivider inherits Rectangle {
@@ -88,9 +87,6 @@ export component AppWindow inherits Window {
     in-out property <bool> rail-open: false;
     // Settings section to open at (headless snapshots)
     in property <int> settings-jump: -1;
-    // Grain opacity on Home, 0..100; 50 is the original Drape's default grain (the tile holds twice that). Preview
-    // only (Java is choosing the value): the slider on Home sets it and nothing saves it.
-    in-out property <int> grain-preview: 50;
 
     callback navigate(int);
     callback choose-reference();
@@ -125,7 +121,7 @@ export component AppWindow inherits Window {
     property <length> content-left: root.rail-open ? 254px : 80px;
     animate content-left { duration: root.motion-duration * 1.6; easing: ease-out; }
 
-    // Home's backdrop: the recorded Drape scaled to the window, with the original's fixed film grain over it. Nothing
+    // Home's backdrop: the recorded Drape scaled to the window, with a fixed film grain over it. Nothing
     // of it exists on other pages.
     if root.page == 0 && root.diagnostic-scene != 0 : Rectangle {
         width: parent.width;
@@ -144,7 +140,8 @@ export component AppWindow inherits Window {
             source: Assets.grain;
             horizontal-tiling: repeat;
             vertical-tiling: repeat;
-            opacity: root.grain-preview / 100;
+            // The grain's strength, Java's choice (2026-10-21)
+            opacity: 0.1;
         }
     }
     if root.page != 0 : Rectangle {
@@ -238,40 +235,6 @@ export component AppWindow inherits Window {
         open-folder => { root.dock-action("folder"); }
         language => { root.dock-action("language"); }
         save-session => { root.dock-action("session"); }
-    }
-
-    // Preview only: the grain strength slider, bottom right on Home
-    if root.diagnostic-scene != 0 && root.page == 0 : Rectangle {
-        x: parent.width - self.width - 24px;
-        y: parent.height - self.height - 24px;
-        width: 248px;
-        height: 64px;
-        border-radius: 14px;
-        background: Theme.glass;
-        border-width: 1px;
-        border-color: Theme.hairline;
-        Text {
-            x: 16px;
-            y: 12px;
-            text: "Grain (preview)";
-            color: Theme.muted;
-            font-size: Theme.font-small;
-        }
-        Text {
-            x: parent.width - self.width - 16px;
-            y: 12px;
-            text: root.grain-preview + " %";
-            color: Theme.text;
-            font-size: Theme.font-small;
-        }
-        Slider {
-            x: 16px;
-            y: 34px;
-            width: parent.width - 32px;
-            label: "Grain strength";
-            value: root.grain-preview;
-            changed(v) => { root.grain-preview = v; }
-        }
     }
 
     // Notice: one line at the top centre, closed with a click

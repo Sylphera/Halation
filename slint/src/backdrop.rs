@@ -194,17 +194,18 @@ fn tpdf(x: u32, y: u32) -> f32 {
     unit(seed) + unit(seed ^ 0x68e3_1da4) - 1.0
 }
 
-/// Side of the standard grain's tile, in pixels
-const GRAIN_TILE: u32 = 512;
+/// Side of the grain tile, in pixels
+pub const GRAIN_TILE: u32 = 512;
 /// The dark field's level, where white and black grain move the colour by the same amount
 const GRAIN_BASE: f32 = 24.0;
-/// Standard deviation of the standard grain at full strength, in levels over the dark field
-const GRAIN_SIGMA: f32 = 10.0;
+/// Standard deviation of the grain at full strength, in levels over the dark field
+pub const GRAIN_SIGMA: f32 = 10.0;
 
-/// Preview only (Java is comparing it with the original's grain, `HALATION_GRAIN=standard`): a standard static film
-/// grain, monochrome Gaussian noise with one value per pixel, as a tile at full strength; Home sets its opacity.
-/// White adds and black takes away, each scaled so that over the dark field it moves the colour by the noise value.
-pub fn standard_grain() -> SharedPixelBuffer<Rgba8Pixel> {
+/// Home's grain (Java, 2026-10-21): a standard static film grain, monochrome Gaussian noise with one value per pixel,
+/// as a tile at full strength laid over the backdrop at the window's resolution; Home draws it at 10 % opacity. White
+/// adds and black takes away, each scaled so that over the dark field it moves the colour by the noise value. Pixels
+/// are independent, so the tile repeats without seams or larger shapes.
+pub fn grain_tile() -> SharedPixelBuffer<Rgba8Pixel> {
     let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(GRAIN_TILE, GRAIN_TILE);
     for (i, pixel) in buffer.make_mut_slice().iter_mut().enumerate() {
         let (x, y) = (i as u32 % GRAIN_TILE, i as u32 / GRAIN_TILE);
@@ -501,6 +502,48 @@ mod tests {
         assert!((out[31] + out[32] - 15.0).abs() < 0.2, "centred");
         assert_eq!(frame_size(1920, 1080), (1920, 1080));
         assert_eq!(frame_size(3840, 2160), (2560, 1440));
+    }
+
+    #[test]
+    fn the_grain_is_even_and_centred() {
+        let tile = grain_tile();
+        assert_eq!((tile.width(), tile.height()), (GRAIN_TILE, GRAIN_TILE));
+        // The change each pixel makes over the dark field, in levels
+        let levels: Vec<f32> = tile
+            .as_slice()
+            .iter()
+            .map(|p| {
+                let alpha = f32::from(p.a) / 255.0;
+                if p.r == 255 {
+                    alpha * (255.0 - GRAIN_BASE)
+                } else {
+                    -alpha * GRAIN_BASE
+                }
+            })
+            .collect();
+        let deviation = |part: &[f32]| {
+            let mean = part.iter().sum::<f32>() / part.len() as f32;
+            let var = part.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / part.len() as f32;
+            (mean, var.sqrt())
+        };
+        let (mean, sd) = deviation(&levels);
+        assert!(mean.abs() < 0.1, "centred, got {mean}");
+        assert!((sd - GRAIN_SIGMA).abs() < 0.5, "deviation {sd}");
+        // No larger shapes: every quarter of the tile looks the same
+        let side = GRAIN_TILE as usize;
+        for (qx, qy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            let part: Vec<f32> = (0..side / 2)
+                .flat_map(|y| {
+                    let row = (qy * side / 2 + y) * side + qx * side / 2;
+                    levels[row..row + side / 2].to_vec()
+                })
+                .collect();
+            let (m, s) = deviation(&part);
+            assert!(
+                m.abs() < 0.2 && (s - sd).abs() < 0.3,
+                "quarter {qx},{qy}: {m} {s}"
+            );
+        }
     }
 
     #[cfg(windows)]
