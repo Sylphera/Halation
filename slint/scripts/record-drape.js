@@ -21,8 +21,6 @@
 //                       320 x 180 made blocks and bands once scaled to the window.
 //   drape-tint.bin      256 x RGB (u8): the average colour of every 30th frame for each luma, filled across gaps
 //   drape-still.jpg     frame 0, shown when the loop does not play (reduced motion, no decoder)
-//   drape-grain.png     256 x 256 RGBA tile of the original's output dither and stationary film grain together (signed:
-//                       white adds, black takes away), laid over the scaled frame at the window's own resolution
 //   drape-original-1920.png, drape-periodic-1920.png  the unmodified and the periodic Drape at t = 0, full size
 // Usage: node record.js <dist dir of the original> <out dir>   (CHROME, NODE_PATH and FFMPEG as needed)
 const path = require("path");
@@ -30,7 +28,7 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const { chromium } = require("playwright");
 const [, , dist, out] = process.argv;
-const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, GRAIN = 256, QUALITY = 0.9, LIFT = 80;
+const PERIOD = 120, FRAMES = 1800, W = 320, H = 180, QUALITY = 0.9, LIFT = 80;
 
 // The periodic copy of drape.js: exact replacements, each must match once
 function periodic(src, luma16 = false) {
@@ -174,29 +172,9 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
     console.log("drape-loop.mp4", (fs.statSync(path.join(out, "drape-loop.mp4")).size / 1024).toFixed(0), "KB");
   }
 
-  // The grain and the output dither: the original at 1:1 with both, against the dither-free copy without grain, at
-  // t = 0 where the two fields are identical; the difference is what the original adds at the window's resolution
+  // Reference shots: the original and the periodic copy at full size, with grain
   const q = await open(1920, 1080, original, "full.html");
   const r = await open(1920, 1080, copy, "full-periodic.html");
-  const withGrain = await q.evaluate(() => window.frameAt(0, .5));
-  const without = await r.evaluate(() => window.frameAt(0, 0));
-  const tile = await q.evaluate(([n, withGrain, without]) => {
-    const [cw] = window.sizeOf();
-    const c = document.createElement("canvas"); c.width = n; c.height = n;
-    const g = c.getContext("2d"), img = g.createImageData(n, n);
-    // a patch from a dark, even area left of centre
-    const x0 = 200, y0 = 400;
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const s = ((y0 + y) * cw + x0 + x) * 4, o = (y * n + x) * 4;
-      const diff = ((withGrain[s] - without[s]) + (withGrain[s + 1] - without[s + 1]) + (withGrain[s + 2] - without[s + 2])) / 3;
-      const base = Math.max(8, (without[s] + without[s + 1] + without[s + 2]) / 3);
-      if (diff >= 0) { img.data[o] = img.data[o + 1] = img.data[o + 2] = 255; img.data[o + 3] = Math.min(255, Math.round(diff * 255 / Math.max(1, 255 - base))); }
-      else { img.data[o] = img.data[o + 1] = img.data[o + 2] = 0; img.data[o + 3] = Math.min(255, Math.round(-diff * 255 / base)); }
-    }
-    g.putImageData(img, 0, 0);
-    return c.toDataURL("image/png");
-  }, [GRAIN, withGrain, without]);
-  fs.writeFileSync(path.join(out, "drape-grain.png"), Buffer.from(tile.split(",")[1], "base64"));
   await q.evaluate(() => window.frameAt(0, .5));
   await q.screenshot({ path: path.join(out, "drape-original-1920.png") });
   await r.evaluate(() => window.frameAt(0, .5));

@@ -10,6 +10,7 @@ import { LibraryPage } from "pages/library.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { RailItem } from "components/rail-item.slint";
 import { TopDock } from "components/top-dock.slint";
+import { Slider } from "components/controls.slint";
 
 // A divider between rail groups
 component RailDivider inherits Rectangle {
@@ -87,6 +88,9 @@ export component AppWindow inherits Window {
     in-out property <bool> rail-open: false;
     // Settings section to open at (headless snapshots)
     in property <int> settings-jump: -1;
+    // Grain strength on Home, 0..100 of the generated grain's full strength. Preview only (Java is choosing the value):
+    // the slider on Home sets it and nothing saves it.
+    in-out property <int> grain-preview: 25;
 
     callback navigate(int);
     callback choose-reference();
@@ -140,6 +144,7 @@ export component AppWindow inherits Window {
             source: Assets.grain;
             horizontal-tiling: repeat;
             vertical-tiling: repeat;
+            opacity: root.grain-preview / 100;
         }
     }
     if root.page != 0 : Rectangle {
@@ -233,6 +238,40 @@ export component AppWindow inherits Window {
         open-folder => { root.dock-action("folder"); }
         language => { root.dock-action("language"); }
         save-session => { root.dock-action("session"); }
+    }
+
+    // Preview only: the grain strength slider, bottom right on Home
+    if root.diagnostic-scene != 0 && root.page == 0 : Rectangle {
+        x: parent.width - self.width - 24px;
+        y: parent.height - self.height - 24px;
+        width: 248px;
+        height: 64px;
+        border-radius: 14px;
+        background: Theme.glass;
+        border-width: 1px;
+        border-color: Theme.hairline;
+        Text {
+            x: 16px;
+            y: 12px;
+            text: "Grain (preview)";
+            color: Theme.muted;
+            font-size: Theme.font-small;
+        }
+        Text {
+            x: parent.width - self.width - 16px;
+            y: 12px;
+            text: root.grain-preview + " %";
+            color: Theme.text;
+            font-size: Theme.font-small;
+        }
+        Slider {
+            x: 16px;
+            y: 34px;
+            width: parent.width - 32px;
+            label: "Grain strength";
+            value: root.grain-preview;
+            changed(v) => { root.grain-preview = v; }
+        }
     }
 
     // Notice: one line at the top centre, closed with a click
