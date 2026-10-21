@@ -1,16 +1,17 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 
-// One place in the rail: icon over a label. The active place is filled; the rail draws its accent bar.
+// One entry of the rail. Closed: a 44 px icon button with a tooltip; open: icon and label on one row.
 export component RailItem inherits FocusScope {
-    in property <string> icon: "home";
+    in property <string> icon: "download";
     in property <string> label: "";
     in property <bool> active: false;
+    in property <bool> open: false;
+    in property <length> icon-size: 20px;
     in property <duration> motion-duration: 160ms;
     callback activated;
 
-    width: 60px;
-    height: 58px;
+    height: 44px;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -29,41 +30,60 @@ export component RailItem inherits FocusScope {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-radius: Theme.radius-card;
-        background: root.active || touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface : transparent);
-        border-width: root.has-focus ? 2px : 0px;
-        border-color: Theme.accent;
-        animate background {
-            duration: touch.pressed ? 0ms : root.motion-duration;
-            easing: ease-out;
-        }
+        border-radius: Theme.radius-icon;
+        background: root.active ? Theme.raised : (touch.pressed ? #ffffff14 : (touch.has-hover ? #ffffff0d : transparent));
+        border-width: root.has-focus ? 2px : (root.active ? 1px : 0px);
+        border-color: root.has-focus ? Theme.accent : Theme.sheen;
+        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
     }
 
-    // Accent bar on the rail edge (the rail keeps 8 px left of the item)
+    // Accent bar on the rail's edge, 8 px left of the item
     if root.active : Rectangle {
         x: -8px;
-        y: 19px;
+        y: (parent.height - self.height) / 2;
         width: 3px;
-        height: 20px;
+        height: 18px;
         border-radius: 1.5px;
         background: Theme.accent;
     }
 
     ToolIcon {
-        x: (parent.width - self.width) / 2;
-        y: 10px;
+        x: (44px - self.width) / 2;
+        y: (parent.height - self.height) / 2;
         name: root.icon;
+        size: root.icon-size;
         tint: root.active || touch.has-hover ? Theme.text : Theme.muted;
     }
 
     Text {
-        y: 35px;
-        width: parent.width;
+        x: 44px;
+        y: (parent.height - self.height) / 2;
+        width: max(0px, parent.width - 52px);
         text: root.label;
         color: root.active ? Theme.text : Theme.muted;
-        font-size: Theme.font-micro;
-        font-weight: root.active ? 600 : 500;
-        horizontal-alignment: center;
+        font-size: Theme.font-title;
+        font-weight: 500;
+        overflow: elide;
+        opacity: root.open ? 1 : 0;
+        animate opacity { duration: root.motion-duration; easing: ease-out; }
+    }
+
+    // Tooltip of the closed rail
+    if !root.open && touch.has-hover : Rectangle {
+        x: parent.width + 16px;
+        y: (parent.height - self.height) / 2;
+        width: tip.preferred-width + 20px;
+        height: 26px;
+        border-radius: 13px;
+        background: Theme.text;
+        tip := Text {
+            text: root.label;
+            color: Theme.panel;
+            font-size: 13px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 
     touch := TouchArea {

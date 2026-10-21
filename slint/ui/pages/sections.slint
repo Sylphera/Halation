@@ -40,8 +40,7 @@ export component SectionsView inherits Rectangle {
                 spacing: 6px;
                 AppButton {
                     text: "New section";
-                    compact: true;
-                    primary: true;
+                    small: true;
                     width: 112px;
                     enabled: root.loaded && !root.busy;
                     clicked => {
@@ -53,7 +52,7 @@ export component SectionsView inherits Rectangle {
                 }
                 AppButton {
                     text: "Link folder";
-                    compact: true;
+                    small: true;
                     width: 112px;
                     enabled: root.loaded && !root.busy;
                     clicked => { root.link-folder(); }
@@ -64,8 +63,8 @@ export component SectionsView inherits Rectangle {
                 height: root.editing != "" ? 34px : 0px;
                 visible: root.editing != "";
                 clip: true;
-                border-radius: Theme.radius-control;
-                background: Theme.surface;
+                border-radius: Theme.radius-field;
+                background: Theme.panel;
                 border-width: 1px;
                 border-color: Theme.accent;
                 HorizontalLayout {
@@ -74,7 +73,7 @@ export component SectionsView inherits Rectangle {
                     name-input := TextInput {
                         single-line: true;
                         color: Theme.text;
-                        font-size: Theme.font-label;
+                        font-size: Theme.font-body;
                         vertical-alignment: center;
                         horizontal-stretch: 1;
                         accessible-role: text-input;
@@ -103,7 +102,7 @@ export component SectionsView inherits Rectangle {
                     visible: name-input.text == "";
                     text: root.editing == "create" ? "Section name, Enter to create" : "New name, Enter to rename";
                     color: Theme.muted;
-                    font-size: Theme.font-label;
+                    font-size: Theme.font-body;
                     x: 10px;
                     y: (parent.height - self.height) / 2;
                 }
@@ -112,13 +111,13 @@ export component SectionsView inherits Rectangle {
             if !root.loaded : Text {
                 text: "Reading sections…";
                 color: Theme.muted;
-                font-size: Theme.font-label;
+                font-size: Theme.font-body;
             }
 
             if root.loaded && root.sections.length == 0 : Text {
                 text: "No sections yet. Create one, or link a folder of your PC; linked files stay where they are.";
                 color: Theme.muted;
-                font-size: Theme.font-label;
+                font-size: Theme.font-body;
                 wrap: word-wrap;
             }
 
@@ -134,8 +133,8 @@ export component SectionsView inherits Rectangle {
                     Rectangle {
                         y: 2px;
                         height: parent.height - 4px;
-                        border-radius: Theme.radius-card;
-                        background: section.selected ? Theme.surface-high : (section-touch.has-hover ? Theme.surface : transparent);
+                        border-radius: Theme.radius-icon;
+                        background: section.selected ? Theme.raised : (section-touch.has-hover ? Theme.panel : transparent);
                         animate background { duration: root.motion-duration; easing: ease-out; }
                     }
 
@@ -150,20 +149,20 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: section.name;
                                 color: Theme.text;
-                                font-size: Theme.font-label;
+                                font-size: Theme.font-body;
                                 font-weight: 600;
                                 overflow: elide;
                             }
                             Text {
                                 text: section.missing ? "Folder missing" : section.count + (section.count == 1 ? " item" : " items");
                                 color: section.missing ? Theme.danger : Theme.subtle;
-                                font-size: Theme.font-caption;
+                                font-size: Theme.font-small;
                             }
                         }
                         Text {
                             text: section.kind == "own" ? "Own" : (section.kind == "linked" ? "Linked" : "Pack");
                             color: Theme.subtle;
-                            font-size: Theme.font-caption;
+                            font-size: Theme.font-small;
                             font-weight: 500;
                             vertical-alignment: center;
                         }
@@ -184,9 +183,9 @@ export component SectionsView inherits Rectangle {
         Rectangle {
             horizontal-stretch: 1;
             border-radius: Theme.radius-panel;
-            background: Theme.surface;
+            background: Theme.panel;
             border-width: 1px;
-            border-color: Theme.border;
+            border-color: Theme.line;
             clip: true;
 
             if root.selected-id == "" : VerticalLayout {
@@ -203,7 +202,7 @@ export component SectionsView inherits Rectangle {
                 Text {
                     text: "Its pictures and videos are listed here, read where they are.";
                     color: Theme.muted;
-                    font-size: Theme.font-label;
+                    font-size: Theme.font-body;
                     horizontal-alignment: center;
                     wrap: word-wrap;
                 }
@@ -226,7 +225,7 @@ export component SectionsView inherits Rectangle {
                     }
                     if root.selected-kind == "own" : AppButton {
                         text: "Rename";
-                        compact: true;
+                        small: true;
                         enabled: !root.busy;
                         clicked => {
                             root.confirm-delete = false;
@@ -237,16 +236,15 @@ export component SectionsView inherits Rectangle {
                     }
                     if root.selected-kind == "own" && !root.confirm-delete : AppButton {
                         text: "Delete";
-                        compact: true;
+                        small: true;
                         enabled: !root.busy;
                         clicked => { root.confirm-delete = true; }
                     }
                     if root.selected-kind == "own" && root.confirm-delete : AppButton {
                         text: "Delete with files";
-                        compact: true;
+                        small: true;
                         width: 112px;
-                        primary: true;
-                        enabled: !root.busy;
+                            enabled: !root.busy;
                         clicked => {
                             root.confirm-delete = false;
                             root.delete-section(root.selected-id);
@@ -254,7 +252,7 @@ export component SectionsView inherits Rectangle {
                     }
                     if root.selected-kind == "linked" : AppButton {
                         text: "Unlink";
-                        compact: true;
+                        small: true;
                         enabled: !root.busy;
                         clicked => { root.unlink-folder(root.selected-id); }
                     }
@@ -265,14 +263,14 @@ export component SectionsView inherits Rectangle {
                         : (root.selected-kind == "linked" ? "A folder of your PC, read in place. Unlinking never touches its files."
                         : "Installed pack, read only.");
                     color: root.confirm-delete ? Theme.danger : Theme.muted;
-                    font-size: Theme.font-caption;
+                    font-size: Theme.font-small;
                     wrap: word-wrap;
                 }
 
                 if root.items.length == 0 : Text {
                     text: "No pictures or videos here.";
                     color: Theme.muted;
-                    font-size: Theme.font-label;
+                    font-size: Theme.font-body;
                     vertical-stretch: 1;
                     vertical-alignment: center;
                     horizontal-alignment: center;
@@ -288,7 +286,7 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: item.name;
                                 color: Theme.text;
-                                font-size: Theme.font-label;
+                                font-size: Theme.font-body;
                                 vertical-alignment: center;
                                 overflow: elide;
                                 horizontal-stretch: 1;
@@ -296,14 +294,14 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: item.detail;
                                 color: Theme.muted;
-                                font-size: Theme.font-caption;
+                                font-size: Theme.font-small;
                                 vertical-alignment: center;
                             }
                         }
                         Rectangle {
                             y: parent.height - 1px;
                             height: 1px;
-                            background: Theme.border;
+                            background: Theme.line;
                             opacity: 0.6;
                         }
                     }
@@ -312,7 +310,7 @@ export component SectionsView inherits Rectangle {
                 if root.hidden > 0 : Text {
                     text: "+ " + root.hidden + " more not listed";
                     color: Theme.muted;
-                    font-size: Theme.font-caption;
+                    font-size: Theme.font-small;
                 }
             }
         }

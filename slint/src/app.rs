@@ -154,15 +154,15 @@ impl Controller {
         let library_model = LibraryModel::new(settings.current().library_limit);
         let library = LibraryStore::new(profile.library_path(), library_model);
 
-        // Home launches the media tools; Library is a place and lives in the rail.
         let tools: Vec<ToolItem> = catalog::TOOLS
             .iter()
-            .filter(|tool| tool.id != "library")
             .map(|tool| ToolItem {
                 id: SharedString::from(tool.id),
                 name: SharedString::from(tool.name),
                 icon: SharedString::from(tool.icon),
                 summary: SharedString::from(tool.summary),
+                group: tool.group,
+                beta: tool.beta,
                 available: tool.available,
                 reason: SharedString::from(tool.reason),
             })
@@ -971,24 +971,21 @@ fn parent_folder(path: &str) -> String {
 
 fn apply_theme(ui: &AppWindow) {
     let theme = ui.global::<Theme>();
-    theme.set_background(color(theme::BACKGROUND));
-    theme.set_rail(color(theme::RAIL));
-    theme.set_surface(color(theme::SURFACE));
-    theme.set_surface_raised(color(theme::SURFACE_RAISED));
-    theme.set_surface_high(color(theme::SURFACE_HIGH));
-    theme.set_border(color(theme::BORDER));
-    theme.set_border_strong(color(theme::BORDER_STRONG));
+    theme.set_ground(color(theme::GROUND));
+    theme.set_ground_top(color(theme::GROUND_TOP));
+    theme.set_panel(color(theme::PANEL));
+    theme.set_raised(color(theme::RAISED));
+    theme.set_field(color(theme::FIELD));
+    theme.set_line(color(theme::LINE));
+    theme.set_line_strong(color(theme::LINE_STRONG));
     theme.set_text(color(theme::TEXT));
     theme.set_muted(color(theme::MUTED));
     theme.set_subtle(color(theme::SUBTLE));
     theme.set_accent(color(theme::ACCENT));
-    theme.set_accent_soft(color(theme::ACCENT_SOFT));
-    theme.set_primary(color(theme::PRIMARY));
-    theme.set_on_primary(color(theme::ON_PRIMARY));
+    theme.set_activity(color(theme::ACTIVITY));
     theme.set_warning(color(theme::WARNING));
-    theme.set_warning_soft(color(theme::WARNING_SOFT));
+    theme.set_beta(color(theme::BETA));
     theme.set_danger(color(theme::DANGER));
-    theme.set_danger_soft(color(theme::DANGER_SOFT));
     theme.set_success(color(theme::SUCCESS));
 }
 

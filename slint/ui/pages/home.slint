@@ -1,308 +1,273 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
-import { ToolCard } from "../components/tool-card.slint";
-import { AppButton } from "../components/button.slint";
-import { StatusChip } from "../components/status-chip.slint";
 import { ToolItem, RecentItem } from "../models.slint";
 
-// Home is the tool launcher: start from a file, reopen a recent one, or pick a tool. Places live in the rail.
-// Layout rules: docs/SLINT_VISUAL_SYSTEM.md.
+// One entry of Home's tool strip: icon over its name
+component StripItem inherits FocusScope {
+    in property <string> icon;
+    in property <string> label;
+    in property <duration> motion-duration: 160ms;
+    callback activated;
+    width: name.preferred-width + 20px;
+    height: 52px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+    Rectangle {
+        border-radius: 12px;
+        background: touch.pressed ? #ffffff17 : (touch.has-hover ? #ffffff0f : transparent);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
+    }
+    ToolIcon {
+        x: (parent.width - self.width) / 2;
+        y: 9px;
+        name: root.icon;
+        size: 17px;
+        tint: touch.has-hover ? Theme.text : Theme.muted;
+    }
+    name := Text {
+        x: (parent.width - self.width) / 2;
+        y: 31px;
+        text: root.label;
+        color: touch.has-hover ? Theme.text : Theme.muted;
+        font-size: Theme.font-tiny;
+        font-weight: 500;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+    }
+}
+
+// Home as in the original: the mark and wordmark, the tagline, the strip of tools, and the drop zone with recent
+// files anchored to the bottom.
 export component HomePage inherits Rectangle {
     in property <[ToolItem]> tools;
     in property <[RecentItem]> recent;
     in property <bool> library-loaded: false;
-    in property <int> library-total: 0;
-    in property <string> notice: "";
     in property <duration> motion-duration: 160ms;
 
     callback tool-activated(string);
     callback choose-reference();
     callback file-dropped(data-transfer);
-    callback dismiss-notice();
-    callback open-library();
 
-    property <length> pad-x: Theme.side-padding(root.width);
-    property <length> column: root.width - 2 * root.pad-x;
-    property <int> columns: root.column >= 1000px ? 5 : 4;
-    property <length> gap: 12px;
-    property <length> card-width: (root.column - (root.columns - 1) * root.gap) / root.columns;
-    property <int> rows: ceil(root.tools.length / root.columns);
+    // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
+    property <length> hero-top: max(24px, root.height / 2 - 259px);
+    property <length> drop-top: max(root.hero-top + 286px, root.height - 70px - 55px - 15px - 150px);
 
-    background: transparent;
-
-    // Static halation: a faint pale-blue bloom behind the start of the page. No animation, no timer.
-    Rectangle {
-        x: root.pad-x - 220px;
-        y: content.y - 300px;
-        width: 760px;
-        height: 620px;
-        background: @radial-gradient(circle, #9fb4ea1c 0%, #9fb4ea08 45%, #9fb4ea00 70%);
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top;
+        width: 176px;
+        height: 87px;
+        source: @image-url("../../assets/halation-mark.png");
+        image-fit: contain;
+        accessible-role: image;
+        accessible-label: "Halation";
     }
 
-    // Top aligned on small windows; on tall ones the block sits a little above the optical centre.
-    content := VerticalLayout {
-        x: root.pad-x;
-        y: max(Theme.top-padding(root.height), (root.height - self.preferred-height) * 0.4);
-        width: root.column;
-        height: self.preferred-height;
-        spacing: 0px;
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 113px;
+        width: 241px;
+        height: 26px;
+        source: @image-url("../../assets/halation-wordmark.svg");
+        colorize: Theme.text;
+        image-fit: contain;
+    }
 
-        // Header
-        VerticalLayout {
-            spacing: 6px;
-            Text {
-                text: "Start with a file";
-                color: Theme.text;
-                font-size: Theme.font-display;
-                font-weight: 600;
-                letter-spacing: -0.3px;
-            }
-            Text {
-                text: "Add a song, an image or a video to your Library, then pick a tool.";
-                color: Theme.muted;
-                font-size: Theme.font-body;
-                overflow: elide;
-            }
-        }
+    Text {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 153px;
+        text: "Take your time. Everything else is instant.";
+        color: Theme.muted;
+        font-size: Theme.font-title;
+    }
 
-        Rectangle { height: 22px; }
-
-        // Drop zone and recent files
-        HorizontalLayout {
-            height: 132px;
-            spacing: root.gap;
-
-            drop := Rectangle {
-                horizontal-stretch: 1;
-                border-radius: Theme.radius-panel;
-                background: drop-area.has-drag ? Theme.accent-soft
-                    : (drop-touch.has-hover ? Theme.surface-raised : Theme.surface);
-                border-width: drop-focus.has-focus || drop-area.has-drag ? 2px : 1px;
-                border-color: drop-focus.has-focus || drop-area.has-drag ? Theme.accent
-                    : (drop-touch.has-hover ? Theme.border-strong : Theme.border);
-                clip: true;
-                animate background, border-color { duration: root.motion-duration; easing: ease-out; }
-
-                // The bloom around the drop target: the one bold accent on the page.
-                Rectangle {
-                    x: -116px;
-                    y: (parent.height - self.height) / 2;
-                    width: 300px;
-                    height: 300px;
-                    background: @radial-gradient(circle, #9fb4ea30 0%, #9fb4ea0c 40%, #9fb4ea00 68%);
-                }
-
-                Rectangle {
-                    x: 24px;
-                    y: (parent.height - self.height) / 2;
-                    width: 58px;
-                    height: 58px;
-                    border-radius: 29px;
-                    background: Theme.accent-soft;
-                    border-width: 1px;
-                    border-color: #9fb4ea40;
-                    ToolIcon {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        name: "upload";
-                        tint: Theme.accent;
-                    }
-                }
-
-                VerticalLayout {
-                    x: 102px;
-                    width: parent.width - 102px - choose.width - 40px;
-                    alignment: center;
-                    spacing: 5px;
-                    Text {
-                        text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song, an image or a video";
-                        color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
-                        overflow: elide;
-                    }
-                    Text {
-                        text: "Files stay where they are. Nothing is copied.";
-                        color: Theme.muted;
-                        font-size: Theme.font-label;
-                        overflow: elide;
-                    }
-                }
-
-                drop-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        drop-focus.focus();
-                        root.choose-reference();
-                    }
-                }
-
-                drop-focus := FocusScope {
-                    width: 0px;
-                    height: 0px;
-                    focus-on-tab-navigation: true;
-                    accessible-role: button;
-                    accessible-label: "Add a song, image or video reference";
-                    accessible-action-default => { root.choose-reference(); }
-                    key-pressed(event) => {
-                        if (event.text == Key.Return || event.text == Key.Space) {
-                            root.choose-reference();
-                            accept
-                        } else {
-                            reject
-                        }
-                    }
-                }
-
-                choose := AppButton {
-                    x: parent.width - self.width - 20px;
-                    y: (parent.height - self.height) / 2;
-                    text: "Choose file";
-                    primary: true;
-                    motion-duration: root.motion-duration;
-                    clicked => { root.choose-reference(); }
-                }
-
-                drop-area := DropArea {
-                    can-drop(event) => { DragAction.copy }
-                    dropped(event) => {
-                        root.file-dropped(event.data);
-                        event.proposed-action
-                    }
-                }
-            }
-
-            Rectangle {
-                width: root.column >= 1000px ? 320px : 280px;
-                border-radius: Theme.radius-panel;
-                background: Theme.surface;
-                border-width: 1px;
-                border-color: Theme.border;
-
-                VerticalLayout {
-                    padding-left: 16px;
-                    padding-right: 10px;
-                    padding-top: 10px;
-                    padding-bottom: 10px;
-                    spacing: 4px;
-
-                    HorizontalLayout {
-                        height: 26px;
-                        Text {
-                            text: "Recent";
-                            color: Theme.text;
-                            font-size: Theme.font-label;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
-                        }
-                        AppButton {
-                            text: "Open Library";
-                            ghost: true;
-                            compact: true;
-                            motion-duration: root.motion-duration;
-                            clicked => { root.open-library(); }
-                        }
-                    }
-
-                    if root.recent.length == 0 : VerticalLayout {
-                        vertical-stretch: 1;
-                        alignment: center;
-                        spacing: 3px;
-                        Text {
-                            text: root.library-loaded ? "Nothing added yet" : "Reading your Library…";
-                            color: Theme.muted;
-                            font-size: Theme.font-label;
-                        }
-                        if root.library-loaded : Text {
-                            text: "Files you add show up here.";
-                            color: Theme.subtle;
-                            font-size: Theme.font-caption;
-                        }
-                    }
-
-                    for item in root.recent : HorizontalLayout {
-                        height: 26px;
-                        padding-right: 6px;
-                        spacing: 10px;
-                        Text {
-                            text: item.name;
-                            color: Theme.text;
-                            font-size: Theme.font-label;
-                            vertical-alignment: center;
-                            overflow: elide;
-                            horizontal-stretch: 1;
-                        }
-                        Text {
-                            text: item.folder;
-                            color: Theme.subtle;
-                            font-size: Theme.font-caption;
-                            vertical-alignment: center;
-                            overflow: elide;
-                            max-width: 96px;
-                        }
-                    }
-
-                    if root.recent.length > 0 : Rectangle { vertical-stretch: 1; }
-                }
-            }
-        }
-
-        Rectangle { height: 32px; }
-
-        // Tools
-        HorizontalLayout {
-            height: 26px;
-            spacing: 8px;
-            Text {
-                text: "Tools";
-                color: Theme.text;
-                font-size: Theme.font-body;
-                font-weight: 600;
-                vertical-alignment: center;
-            }
-            Text {
-                text: root.tools.length;
-                color: Theme.subtle;
-                font-size: Theme.font-label;
-                vertical-alignment: center;
-            }
-            Rectangle { horizontal-stretch: 1; }
-            if root.notice == "" : StatusChip {
-                y: (parent.height - self.height) / 2;
-                text: "Engines not connected in this beta";
-                tone: "warning";
-            }
-            if root.notice != "" : StatusChip {
-                y: (parent.height - self.height) / 2;
-                limit: root.column - 120px;
-                text: root.notice;
-                tone: "accent";
-                accessible-role: button;
-                accessible-label: "Dismiss: " + root.notice;
-                accessible-action-default => { root.dismiss-notice(); }
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.dismiss-notice(); }
-                }
-            }
-        }
-
-        Rectangle { height: 12px; }
-
+    // Tool strip
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 202px;
+        width: strip.preferred-width;
+        height: 62px;
+        border-radius: 18px;
+        background: Theme.glass;
+        border-width: 1px;
+        border-color: Theme.hairline;
         Rectangle {
-            height: root.rows * Theme.card-height + max(0, root.rows - 1) * root.gap;
-            for tool[index] in root.tools : ToolCard {
-                x: mod(index, root.columns) * (root.card-width + root.gap);
-                y: floor(index / root.columns) * (Theme.card-height + root.gap);
-                width: root.card-width;
-                name: tool.name;
-                summary: tool.summary;
+            x: 18px;
+            y: 1px;
+            width: parent.width - 36px;
+            height: 1px;
+            background: Theme.sheen;
+        }
+        strip := HorizontalLayout {
+            padding-left: 5px;
+            padding-right: 5px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            spacing: 0px;
+            for tool in root.tools : StripItem {
                 icon: tool.icon;
-                available: tool.available;
+                label: tool.name;
                 motion-duration: root.motion-duration;
                 activated => { root.tool-activated(tool.id); }
             }
+        }
+    }
+
+    // Drop zone
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top;
+        width: 640px;
+        height: 150px;
+        border-radius: 24px;
+        background: drop-area.has-drag ? #a3a8dc1f : (drop-touch.has-hover ? #181818c0 : Theme.glass);
+        animate background { duration: root.motion-duration; easing: ease-out; }
+
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("../../assets/drop-outline.svg");
+            colorize: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
+        }
+        Rectangle {
+            x: 24px;
+            y: 1px;
+            width: parent.width - 48px;
+            height: 1px;
+            background: Theme.sheen;
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 23px;
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            background: Theme.raised;
+            border-width: 1px;
+            border-color: Theme.sheen;
+            ToolIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                name: "upload";
+                size: 22px;
+                tint: Theme.text;
+            }
+        }
+
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 83px;
+            text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
+            color: Theme.text;
+            font-size: 15.5px;
+            font-weight: 600;
+        }
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 108px;
+            text: "Or click to browse. Files are added to your Library, never copied.";
+            color: Theme.subtle;
+            font-size: Theme.font-body;
+        }
+
+        drop-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                drop-focus.focus();
+                root.choose-reference();
+            }
+        }
+        drop-focus := FocusScope {
+            width: 0px;
+            height: 0px;
+            focus-on-tab-navigation: true;
+            accessible-role: button;
+            accessible-label: "Drop a song or an image, or click to browse";
+            accessible-action-default => { root.choose-reference(); }
+            key-pressed(event) => {
+                if (event.text == Key.Return || event.text == Key.Space) {
+                    root.choose-reference();
+                    accept
+                } else {
+                    reject
+                }
+            }
+        }
+        drop-area := DropArea {
+            can-drop(event) => { DragAction.copy }
+            dropped(event) => {
+                root.file-dropped(event.data);
+                event.proposed-action
+            }
+        }
+    }
+
+    // Recent files
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top + 165px;
+        width: 593px;
+        height: 55px;
+        border-radius: 22px;
+        background: Theme.glass;
+        border-width: 1px;
+        border-color: Theme.hairline;
+        Rectangle {
+            x: 22px;
+            y: 1px;
+            width: parent.width - 44px;
+            height: 1px;
+            background: Theme.sheen;
+        }
+        Text {
+            x: 21px;
+            y: (parent.height - self.height) / 2;
+            text: "RECENT FILES";
+            color: Theme.subtle;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.32px;
+        }
+        if root.recent.length == 0 : Text {
+            x: 130px;
+            y: (parent.height - self.height) / 2;
+            width: parent.width - 150px;
+            text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
+            color: Theme.subtle;
+            font-size: Theme.font-small;
+            overflow: elide;
+        }
+        if root.recent.length > 0 : HorizontalLayout {
+            x: 130px;
+            width: parent.width - 150px;
+            spacing: 16px;
+            for item in root.recent : Text {
+                text: item.name;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+                overflow: elide;
+                max-width: 150px;
+            }
+            Rectangle { horizontal-stretch: 1; }
         }
     }
 }

@@ -1,0 +1,339 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+
+// The original's switch: 34 x 20, lavender when on
+export component Toggle inherits FocusScope {
+    in property <bool> checked: false;
+    in property <string> label: "";
+    in property <duration> motion-duration: 160ms;
+    callback toggled(bool);
+
+    width: 34px;
+    height: 20px;
+    focus-on-tab-navigation: true;
+    accessible-role: checkbox;
+    accessible-checked: checked;
+    accessible-label: label;
+    accessible-action-default => {
+        if (root.enabled) {
+            toggled(!checked);
+        }
+    }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            if (root.enabled) {
+                toggled(!checked);
+            }
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: 10px;
+        background: root.checked ? Theme.accent : Theme.line;
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.text;
+        opacity: root.enabled ? 1 : 0.45;
+        animate background { duration: root.motion-duration; easing: ease-out; }
+    }
+    Rectangle {
+        x: root.checked ? parent.width - 17px : 3px;
+        y: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: root.checked ? Theme.panel : Theme.text;
+        animate x { duration: root.motion-duration; easing: ease-out; }
+    }
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.toggled(!root.checked);
+        }
+    }
+}
+
+// A labelled row with a switch at the far right
+export component ToggleRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked;
+    in property <duration> motion-duration: 160ms;
+    callback toggled(bool);
+    height: 30px;
+    Text {
+        x: 0px;
+        y: (parent.height - self.height) / 2;
+        text: root.label;
+        color: Theme.muted;
+        font-size: Theme.font-body;
+    }
+    Toggle {
+        x: parent.width - self.width;
+        y: (parent.height - self.height) / 2;
+        label: root.label;
+        checked: root.checked;
+        motion-duration: root.motion-duration;
+        toggled(value) => { root.toggled(value); }
+    }
+}
+
+// Drop-down: the current choice and a caret; the choices open in a popup below
+export component Select inherits FocusScope {
+    in property <[string]> options;
+    in property <int> current: 0;
+    in property <string> label: "";
+    callback chosen(int);
+
+    height: 34px;
+    focus-on-tab-navigation: true;
+    accessible-role: combobox;
+    accessible-label: label;
+    accessible-value: root.options[root.current];
+    accessible-action-default => { popup.show(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            popup.show();
+            accept
+        } else if (event.text == Key.DownArrow && root.current < root.options.length - 1) {
+            root.chosen(root.current + 1);
+            accept
+        } else if (event.text == Key.UpArrow && root.current > 0) {
+            root.chosen(root.current - 1);
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: Theme.radius-field;
+        background: touch.has-hover ? #0e0e0e : Theme.field;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.accent : Theme.line;
+    }
+    Text {
+        x: 13px;
+        width: parent.width - 40px;
+        y: (parent.height - self.height) / 2;
+        text: root.options[root.current];
+        color: Theme.text;
+        font-size: Theme.font-title;
+        font-weight: 500;
+        overflow: elide;
+    }
+    Path {
+        x: parent.width - 23px;
+        y: (parent.height - self.height) / 2;
+        width: 9px;
+        height: 5px;
+        viewbox-width: 9;
+        viewbox-height: 5;
+        commands: "M0 0 L9 0 L4.5 5 Z";
+        fill: Theme.subtle;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            popup.show();
+        }
+    }
+    popup := PopupWindow {
+        x: 0px;
+        y: root.height + 4px;
+        width: root.width;
+        Rectangle {
+            border-radius: Theme.radius-field;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            VerticalLayout {
+                padding: 4px;
+                for option[index] in root.options : Rectangle {
+                    height: 30px;
+                    border-radius: 7px;
+                    background: option-touch.has-hover ? Theme.raised : transparent;
+                    Text {
+                        x: 9px;
+                        y: (parent.height - self.height) / 2;
+                        text: option;
+                        color: index == root.current ? Theme.text : Theme.muted;
+                        font-size: Theme.font-title;
+                        font-weight: index == root.current ? 600 : 400;
+                    }
+                    option-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.chosen(index); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Single-line text field; the value is handed back when Enter is pressed or the field loses focus
+export component Field inherits Rectangle {
+    in property <string> value;
+    in property <string> placeholder;
+    in property <string> label;
+    in property <bool> mono: false;
+    callback committed(string);
+
+    height: 34px;
+    border-radius: Theme.radius-field;
+    background: Theme.field;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.line;
+
+    input := TextInput {
+        x: 13px;
+        width: parent.width - 26px;
+        height: parent.height;
+        single-line: true;
+        vertical-alignment: center;
+        text: root.value;
+        color: Theme.text;
+        font-size: Theme.font-title;
+        font-family: root.mono ? "Consolas" : "Inter";
+        accessible-role: text-input;
+        accessible-label: root.label;
+        accepted => { root.committed(self.text); }
+        changed has-focus => {
+            if (!self.has-focus && self.text != root.value) {
+                root.committed(self.text);
+            }
+        }
+    }
+    if input.text == "" : Text {
+        x: 13px;
+        y: (parent.height - self.height) / 2;
+        text: root.placeholder;
+        color: Theme.subtle;
+        font-size: Theme.font-title;
+    }
+}
+
+// Label above a control, as the original stacks them
+export component Labelled inherits VerticalLayout {
+    in property <string> text;
+    spacing: 6px;
+    Text {
+        text: root.text;
+        color: Theme.muted;
+        font-size: Theme.font-body;
+    }
+    @children
+}
+
+// Help line under a control
+export component Help inherits Text {
+    color: Theme.muted;
+    font-size: Theme.font-body;
+    wrap: word-wrap;
+}
+
+// Small rounded tag: "Beta", "Always on", "Missing: …"
+export component Tag inherits Rectangle {
+    in property <string> text;
+    in property <color> ink: Theme.activity;
+    height: 20px;
+    width: tag-text.preferred-width + 16px;
+    border-radius: 10px;
+    background: ink.transparentize(88%);
+    border-width: 1px;
+    border-color: ink.transparentize(55%);
+    tag-text := Text {
+        x: 8px;
+        y: (parent.height - self.height) / 2;
+        text: root.text;
+        color: root.ink;
+        font-size: 11.5px;
+        font-weight: 500;
+    }
+}
+
+// "Advanced" disclosure at the foot of a settings section
+export component Advanced inherits VerticalLayout {
+    in-out property <bool> open: false;
+    spacing: 10px;
+    Rectangle {
+        height: 32px;
+        Rectangle {
+            y: 0px;
+            height: 1px;
+            background: Theme.hairline;
+        }
+        HorizontalLayout {
+            padding-left: 2px;
+            spacing: 6px;
+            alignment: start;
+            Text {
+                text: "Advanced";
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            VerticalLayout {
+                alignment: center;
+                Path {
+                    width: 9px;
+                    height: 5px;
+                    viewbox-width: 9;
+                    viewbox-height: 5;
+                    commands: root.open ? "M0.5 4.5 L4.5 0.5 L8.5 4.5" : "M0.5 0.5 L4.5 4.5 L8.5 0.5";
+                    stroke: Theme.muted;
+                    stroke-width: 1.4px;
+                    fill: transparent;
+                }
+            }
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            accessible-role: button;
+            accessible-label: "Advanced";
+            accessible-expanded: root.open;
+            accessible-action-default => { root.open = !root.open; }
+            clicked => { root.open = !root.open; }
+        }
+    }
+    if root.open : VerticalLayout {
+        spacing: 10px;
+        padding-bottom: 4px;
+        @children
+    }
+}
+
+// One settings section: a dark card with its title
+export component Section inherits Rectangle {
+    in property <string> title;
+    border-radius: Theme.radius-panel;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.hairline;
+    Rectangle {
+        x: 20px;
+        y: 1px;
+        width: parent.width - 40px;
+        height: 1px;
+        background: Theme.sheen;
+    }
+    VerticalLayout {
+        padding-left: 17px;
+        padding-right: 17px;
+        padding-top: 15px;
+        padding-bottom: 14px;
+        spacing: 10px;
+        Text {
+            text: root.title;
+            color: Theme.text;
+            font-size: Theme.font-title;
+            font-weight: 600;
+        }
+        @children
+    }
+}

@@ -1,6 +1,7 @@
 #![deny(unsafe_code)]
 
 pub mod app;
+pub mod atmosphere;
 pub mod atomic_file;
 pub mod backend;
 pub mod catalog;

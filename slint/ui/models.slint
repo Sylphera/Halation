@@ -3,6 +3,11 @@ export struct ToolItem {
     name: string,
     icon: string,
     summary: string,
+    group: int,
+    beta: bool,
+    enabled: bool,
+    // Components it still needs, as "Missing: …" shows them; empty when nothing is missing
+    missing: string,
     available: bool,
     reason: string,
 }
@@ -44,4 +49,49 @@ export struct SectionRow {
 export struct ItemRow {
     name: string,
     detail: string,
+}
+
+// Settings shown on the Settings page; Rust owns and saves them (settings.rs). Choices are indexes into the
+// option lists the page shows.
+export struct Prefs {
+    language: int,
+    reduce-motion: bool,
+    show-dock: bool,
+    notify: bool,
+    dock-mode: int,
+    dock-activity: bool,
+    open-window: int,
+    artist: string,
+    youtube: string,
+    spotify: string,
+    soundcloud: string,
+    instagram: string,
+    tiktok: string,
+    save-mode: int,
+    video-template: string,
+    image-template: string,
+    processing: int,
+    use-gpu: bool,
+    vocal-device: int,
+    cpu-jobs: int,
+    gpu-jobs: int,
+    downloads: int,
+    minimized: int,
+    budget: int,
+    updates: int,
+    whats-new: bool,
+}
+
+// A downloadable component as Settings > Tools lists it
+export struct ComponentRow {
+    name: string,
+    size: string,
+}
+
+// A folder of the beta's profile, as Settings > About lists it
+export struct FolderRow {
+    key: string,
+    name: string,
+    detail: string,
+    path: string,
 }

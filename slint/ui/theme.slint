@@ -1,54 +1,34 @@
-// Tokens of docs/SLINT_VISUAL_SYSTEM.md. Rust (`theme.rs`) applies the colour values at start-up; the defaults here
-// match them so the headless tests and snapshots render the same.
+// Tokens of docs/SLINT_VISUAL_SYSTEM.md, measured on the rendered original Halation. Rust (`theme.rs`) applies the
+// colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
 export global Theme {
-    in-out property <color> background: #000000;
-    in-out property <color> rail: #050504;
-    in-out property <color> surface: #111110;
-    in-out property <color> surface-raised: #181817;
-    in-out property <color> surface-high: #20201e;
-    in-out property <color> border: #262624;
-    in-out property <color> border-strong: #353532;
-    in-out property <color> text: #f4f4f2;
-    in-out property <color> muted: #a6a6a0;
-    in-out property <color> subtle: #8b8b85;
-    in-out property <color> accent: #9fb4ea;
-    in-out property <color> accent-soft: #141a28;
-    in-out property <color> primary: #eeeeeb;
-    in-out property <color> on-primary: #0a0a09;
-    in-out property <color> warning: #e2c27f;
-    in-out property <color> warning-soft: #1d1a12;
+    in-out property <color> ground: #070707;
+    in-out property <color> ground-top: #0b0b0c;
+    in-out property <color> panel: #111111;
+    in-out property <color> raised: #242424;
+    in-out property <color> field: #080808;
+    in-out property <color> line: #3d3d39;
+    in-out property <color> line-strong: #55554f;
+    in-out property <color> text: #f5f5f2;
+    in-out property <color> muted: #b5b5af;
+    in-out property <color> subtle: #9a9993;
+    in-out property <color> accent: #a3a8dc;
+    in-out property <color> activity: #82b5d6;
+    in-out property <color> warning: #e0b15e;
+    in-out property <color> beta: #e391a4;
     in-out property <color> danger: #f0a6a6;
-    in-out property <color> danger-soft: #2a1717;
     in-out property <color> success: #9fd6b2;
 
-    // Size step chosen by the window from its size: 0 compact (under 1100 x 700), 1 regular, 2 large (from
-    // 1600 x 960, a maximized 1080p screen). Type, cards and the column grow with it; controls keep their size.
-    in-out property <int> step: 1;
+    // Translucent layers over the backdrop (the original blurs behind them; here they are flat)
+    out property <color> glass: #111111ad;
+    out property <color> hairline: #fffffa1c;
+    out property <color> sheen: #fffffa1f;
 
-    // Layout (px): rail, content column, paddings, radii
-    out property <length> rail-width: 76px;
-    out property <length> status-height: 30px;
-    out property <length> column-max: step == 2 ? 1440px : 1280px;
-    out property <length> card-height: step == 0 ? 64px : (step == 2 ? 80px : 72px);
-    out property <length> radius-chip: 6px;
-    out property <length> radius-control: 8px;
-    out property <length> radius-card: 10px;
-    out property <length> radius-panel: 12px;
+    out property <length> radius-panel: 20px;
+    out property <length> radius-field: 10px;
+    out property <length> radius-icon: 12px;
 
-    // Type scale, one pixel per step (display four)
-    out property <length> font-display: step == 0 ? 24px : (step == 2 ? 32px : 28px);
-    out property <length> font-title: 16px + (step - 1) * 1px;
-    out property <length> font-body: 14px + (step - 1) * 1px;
-    out property <length> font-label: 13px + (step - 1) * 1px;
-    out property <length> font-caption: 12px + (step - 1) * 1px;
-    out property <length> font-micro: 11px + (step - 1) * 1px;
-
-    // Side padding of the content column for a content area of `width`
-    public pure function side-padding(width: length) -> length {
-        max(width >= 1280px ? 48px : 28px, (width - root.column-max) / 2)
-    }
-    // Top padding of a page for a content area of `height`
-    public pure function top-padding(height: length) -> length {
-        height >= 760px ? 44px : 28px
-    }
+    out property <length> font-title: 13.5px;
+    out property <length> font-body: 12.5px;
+    out property <length> font-small: 12px;
+    out property <length> font-tiny: 10.5px;
 }

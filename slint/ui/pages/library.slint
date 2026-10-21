@@ -1,13 +1,14 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { PageHeader } from "../components/page-header.slint";
-import { StatusChip } from "../components/status-chip.slint";
-import { Notice } from "../components/notice.slint";
+import { Tag } from "../components/controls.slint";
+import { PageTitle } from "settings.slint";
 import { LibraryRow, SectionRow, ItemRow } from "../models.slint";
 import { SectionsView } from "sections.slint";
 import { ListView } from "std-widgets.slint";
 
+// Library in the original's frame: title at the top left, a tab bar with the page actions, a search field, then the
+// list. Two views: references (files kept where they are) and sections.
 export component LibraryPage inherits Rectangle {
     in property <[LibraryRow]> rows;
     in property <string> query: "";
@@ -17,7 +18,6 @@ export component LibraryPage inherits Rectangle {
     in property <bool> busy: false;
     in property <bool> writable: false;
     in property <string> error: "";
-    in property <string> notice: "";
     in property <duration> motion-duration: 160ms;
     in property <[SectionRow]> sections;
     in property <[ItemRow]> section-items;
@@ -40,250 +40,233 @@ export component LibraryPage inherits Rectangle {
     callback sections-opened();
     callback remove-reference(string);
     callback set-query(string);
-    callback open-settings();
-    callback dismiss-notice();
 
-    background: transparent;
+    PageTitle {
+        x: 24px;
+        y: 11px;
+        icon: "library";
+        title: "Library";
+    }
 
     VerticalLayout {
-        padding-left: Theme.side-padding(root.width);
-        padding-right: Theme.side-padding(root.width);
-        padding-top: Theme.top-padding(root.height);
-        padding-bottom: 20px;
-        spacing: 16px;
+        x: 26px;
+        y: 52px;
+        width: root.width - 52px;
+        height: root.height - 52px - 24px;
+        spacing: 12px;
 
-        PageHeader {
-            title: "Library";
-            subtitle: "References, not copies. Adding or removing an entry never moves or deletes the original file.";
-            if root.busy : StatusChip {
-                text: "Saving";
-                tone: "accent";
-            }
-            if root.mode == 0 : AppButton {
-                text: "Add reference";
-                primary: true;
-                enabled: root.loaded && root.writable && !root.busy;
-                motion-duration: root.motion-duration;
-                clicked => { root.choose-reference(); }
-            }
-        }
-
-        HorizontalLayout {
-            height: 36px;
-            spacing: 12px;
-
-            // Segmented switch between the two views of the Library
+        // Tab bar with the page actions
+        Rectangle {
+            height: 48px;
+            border-radius: Theme.radius-panel;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.hairline;
             Rectangle {
-                width: 2 * 116px + 8px;
-                border-radius: Theme.radius-control;
-                background: Theme.surface;
-                border-width: 1px;
-                border-color: Theme.border;
-                HorizontalLayout {
-                    padding: 3px;
-                    spacing: 2px;
-                    for label[index] in ["References", "Sections"] : Rectangle {
-                        width: 116px;
-                        border-radius: Theme.radius-chip;
-                        background: root.mode == index ? Theme.surface-high : (tab-touch.has-hover ? Theme.surface-raised : transparent);
-                        accessible-role: tab;
-                        accessible-label: label;
-                        accessible-item-selected: root.mode == index;
-                        accessible-action-default => {
+                x: 20px;
+                y: 1px;
+                width: parent.width - 40px;
+                height: 1px;
+                background: Theme.sheen;
+            }
+            HorizontalLayout {
+                padding: 9px;
+                padding-left: 10px;
+                spacing: 2px;
+                for label[index] in ["References", "Sections"] : Rectangle {
+                    width: tab-label.preferred-width + 22px;
+                    border-radius: 14px;
+                    background: root.mode == index ? Theme.raised : (tab-touch.has-hover ? #ffffff0d : transparent);
+                    accessible-role: tab;
+                    accessible-label: label;
+                    accessible-item-selected: root.mode == index;
+                    accessible-action-default => {
+                        root.mode = index;
+                        if (index == 1) { root.sections-opened(); }
+                    }
+                    animate background { duration: root.motion-duration; easing: ease-out; }
+                    tab-label := Text {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        text: label;
+                        color: root.mode == index ? Theme.text : Theme.muted;
+                        font-size: Theme.font-title;
+                        font-weight: 600;
+                    }
+                    tab-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
                             root.mode = index;
                             if (index == 1) { root.sections-opened(); }
                         }
-                        animate background { duration: root.motion-duration; easing: ease-out; }
-                        Text {
-                            text: label;
-                            color: root.mode == index ? Theme.text : Theme.muted;
-                            font-size: Theme.font-label;
-                            font-weight: root.mode == index ? 600 : 500;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                        tab-touch := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.mode = index;
-                                if (index == 1) { root.sections-opened(); }
-                            }
-                        }
                     }
                 }
-            }
-
-            if root.mode == 0 && root.total > 0 : Text {
-                text: root.total + (root.total == 1 ? " reference" : " references");
-                color: Theme.subtle;
-                font-size: Theme.font-label;
-                vertical-alignment: center;
-            }
-            if root.mode == 0 && root.missing > 0 : VerticalLayout {
-                alignment: center;
-                StatusChip {
-                    text: root.missing + " missing";
-                    tone: "danger";
+                Rectangle { horizontal-stretch: 1; }
+                if root.busy : VerticalLayout {
+                    alignment: center;
+                    Tag { text: "Saving"; ink: Theme.accent; }
+                }
+                if root.mode == 0 : AppButton {
+                    small: true;
+                    icon: "upload";
+                    text: "Add";
+                    enabled: root.loaded && root.writable && !root.busy;
+                    clicked => { root.choose-reference(); }
                 }
             }
-            Rectangle { horizontal-stretch: 1; }
+        }
 
-            if root.mode == 0 : Rectangle {
-                width: min(320px, max(200px, parent.width * 0.38));
-                border-radius: Theme.radius-control;
-                background: Theme.surface;
+        if root.mode == 0 : HorizontalLayout {
+            height: 36px;
+            spacing: 10px;
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: Theme.radius-field;
+                background: Theme.panel;
                 border-width: input.has-focus ? 2px : 1px;
-                border-color: input.has-focus ? Theme.accent : Theme.border;
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 8px;
-                    VerticalLayout {
-                        alignment: center;
-                        ToolIcon { name: "search"; tint: Theme.subtle; }
-                    }
-                    input := TextInput {
-                        single-line: true;
-                        text: root.query;
-                        color: Theme.text;
-                        font-size: Theme.font-label;
-                        vertical-alignment: center;
-                        horizontal-stretch: 1;
-                        accessible-role: text-input;
-                        accessible-label: "Filter references";
-                        edited => { root.set-query(input.text); }
-                    }
-                }
-                if root.query == "" : Text {
-                    text: "Filter by name or path";
-                    color: Theme.subtle;
-                    font-size: Theme.font-label;
-                    x: 36px;
+                border-color: input.has-focus ? Theme.accent : Theme.hairline;
+                ToolIcon {
+                    x: 12px;
                     y: (parent.height - self.height) / 2;
+                    name: "search";
+                    size: 15px;
+                    tint: Theme.subtle;
                 }
-            }
-        }
-
-        if root.error != "" : Notice {
-            text: root.error;
-            error: true;
-        }
-
-        if root.notice != "" : Notice {
-            text: root.notice;
-            dismiss => { root.dismiss-notice(); }
-        }
-
-        if root.mode == 0 && !root.loaded : Rectangle {
-            vertical-stretch: 1;
-            background: transparent;
-            VerticalLayout {
-                alignment: center;
-                spacing: 8px;
-                Text {
-                    text: "Loading references…";
-                    color: Theme.muted;
-                    font-size: Theme.font-body;
-                    horizontal-alignment: center;
-                }
-            }
-        }
-
-        if root.mode == 0 && root.loaded && root.rows.length == 0 : Rectangle {
-            vertical-stretch: 1;
-            background: transparent;
-            VerticalLayout {
-                alignment: center;
-                spacing: 8px;
-                ToolIcon { name: "library"; tint: Theme.muted; }
-                Text {
-                    text: root.total == 0 ? "No references yet" : "No matches";
+                input := TextInput {
+                    x: 35px;
+                    width: parent.width - 47px;
+                    height: parent.height;
+                    single-line: true;
+                    vertical-alignment: center;
+                    text: root.query;
                     color: Theme.text;
                     font-size: Theme.font-title;
-                    font-weight: 600;
-                    horizontal-alignment: center;
+                    accessible-role: text-input;
+                    accessible-label: "Filter references";
+                    edited => { root.set-query(self.text); }
                 }
-                Text {
-                    text: root.total == 0
-                        ? "Add a song or an image with “Add reference”, or drop one on Home."
-                        : "Try a different name or path.";
-                    color: Theme.muted;
-                    font-size: Theme.font-label;
-                    horizontal-alignment: center;
+                if root.query == "" : Text {
+                    x: 35px;
+                    y: (parent.height - self.height) / 2;
+                    text: "Search everything...";
+                    color: Theme.subtle;
+                    font-size: Theme.font-title;
                 }
             }
+            if root.total > 0 : Text {
+                text: root.total + (root.total == 1 ? " reference" : " references");
+                color: Theme.subtle;
+                font-size: Theme.font-body;
+                vertical-alignment: center;
+            }
+            if root.missing > 0 : VerticalLayout {
+                alignment: center;
+                Tag { text: root.missing + " missing"; ink: Theme.danger; }
+            }
+        }
+
+        if root.error != "" : Rectangle {
+            height: 36px;
+            border-radius: 12px;
+            background: #2a1717;
+            Text {
+                x: 14px;
+                width: parent.width - 28px;
+                y: (parent.height - self.height) / 2;
+                text: root.error;
+                color: Theme.danger;
+                font-size: Theme.font-body;
+                overflow: elide;
+            }
+        }
+
+        if root.mode == 0 && !root.loaded : Text {
+            vertical-stretch: 1;
+            text: "Reading your Library…";
+            color: Theme.muted;
+            font-size: Theme.font-title;
+        }
+
+        if root.mode == 0 && root.loaded && root.rows.length == 0 : Text {
+            vertical-stretch: 1;
+            text: root.total == 0
+                ? "Nothing here yet. Add files of this PC with Add, or drop them on Home; they stay where they are."
+                : "No matches. Try a different name or path.";
+            color: Theme.muted;
+            font-size: Theme.font-title;
+            wrap: word-wrap;
         }
 
         if root.mode == 0 && root.loaded && root.rows.length > 0 : Rectangle {
             vertical-stretch: 1;
             border-radius: Theme.radius-panel;
-            background: Theme.surface;
+            background: Theme.panel;
             border-width: 1px;
-            border-color: Theme.border;
+            border-color: Theme.hairline;
             clip: true;
 
             ListView {
                 width: parent.width;
                 height: parent.height;
                 for row in root.rows : Rectangle {
-                    height: 66px;
+                    height: 60px;
                     width: parent.width;
-                    background: row-hover.has-hover ? Theme.surface-raised : transparent;
-
+                    background: row-hover.has-hover ? #ffffff08 : transparent;
                     Rectangle {
+                        x: 14px;
                         y: parent.height - 1px;
-                        x: 12px;
-                        width: parent.width - 24px;
+                        width: parent.width - 28px;
                         height: 1px;
-                        background: Theme.border;
+                        background: Theme.hairline;
                     }
                     row-hover := TouchArea { }
-
                     HorizontalLayout {
-                        padding: 12px;
+                        padding-left: 14px;
+                        padding-right: 12px;
                         spacing: 12px;
-                        Rectangle {
-                            width: 40px;
-                            height: 40px;
-                            border-radius: Theme.radius-control;
-                            background: Theme.surface-high;
-                            ToolIcon {
-                                name: "library";
-                                tint: Theme.muted;
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 10px;
+                                background: Theme.raised;
+                                ToolIcon {
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    name: "library";
+                                    size: 17px;
+                                    tint: Theme.muted;
+                                }
                             }
                         }
                         VerticalLayout {
+                            alignment: center;
                             spacing: 2px;
                             horizontal-stretch: 1;
-                            alignment: center;
                             Text {
                                 text: row.name;
                                 color: Theme.text;
-                                font-size: Theme.font-body;
+                                font-size: Theme.font-title;
                                 font-weight: 600;
                                 overflow: elide;
                             }
                             Text {
                                 text: row.path;
                                 color: Theme.subtle;
-                                font-size: Theme.font-caption;
+                                font-size: Theme.font-small;
                                 overflow: elide;
                             }
                         }
                         if row.missing : VerticalLayout {
                             alignment: center;
-                            StatusChip {
-                                text: "Missing";
-                                tone: "danger";
-                            }
+                            Tag { text: "Missing"; ink: Theme.danger; }
                         }
                         VerticalLayout {
                             alignment: center;
                             AppButton {
+                                small: true;
                                 text: "Remove";
-                                compact: true;
                                 enabled: root.writable && !root.busy;
                                 clicked => { root.remove-reference(row.id); }
                             }
@@ -311,6 +294,5 @@ export component LibraryPage inherits Rectangle {
             link-folder => { root.link-folder(); }
             unlink-folder(id) => { root.unlink-folder(id); }
         }
-
     }
 }

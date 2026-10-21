@@ -1,37 +1,44 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow } from "models.slint";
+import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs } from "models.slint";
 export { Theme } from "theme.slint";
-export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow } from "models.slint";
+export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs } from "models.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
-import { JobsPage } from "pages/jobs.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { RailItem } from "components/rail-item.slint";
+import { TopDock } from "components/top-dock.slint";
+import "../assets/fonts/Inter.ttf";
+
+// A divider between rail groups
+component RailDivider inherits Rectangle {
+    in property <length> gap;
+    height: 2 * gap + 1px;
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.gap;
+        width: 22px;
+        height: 1px;
+        background: Theme.line;
+    }
+}
 
 export component AppWindow inherits Window {
-    title: "Halation — Native Beta";
+    title: "Halation";
     preferred-width: 1280px;
     preferred-height: 800px;
-    background: Theme.background;
-    icon: @image-url("../assets/halation-mark.png");
-    default-font-family: "Segoe UI";
-    default-font-size: Theme.font-body;
     min-width: 960px;
     min-height: 600px;
+    background: Theme.ground;
+    icon: @image-url("../assets/halation-mark.png");
+    default-font-family: "Inter";
+    default-font-size: Theme.font-body;
 
     init => {
         Palette.color-scheme = ColorScheme.dark;
-        root.update-size-step();
-    }
-    changed width => { root.update-size-step(); }
-    changed height => { root.update-size-step(); }
-
-    function update-size-step() {
-        Theme.step = root.width < 1100px || root.height < 700px ? 0
-            : (root.width >= 1600px && root.height >= 960px ? 2 : 1);
     }
 
+    // Pages: 0 Home, 1 Library, 3 Settings (2 was Jobs; its queue stays in the backend without a page)
     in property <int> page: 0;
     in property <bool> reduced-motion: false;
     in property <int> diagnostic-scene: 1;
@@ -39,7 +46,9 @@ export component AppWindow inherits Window {
     in property <string> build-label: "";
     in property <string> profile-path: "";
     in property <string> library-query: "";
+    in property <image> backdrop;
     in property <[ToolItem]> tools;
+    in property <[ToolItem]> active-tools;
     in property <[LibraryRow]> library-rows;
     in property <[JobRow]> jobs;
     in property <[RecentItem]> recent;
@@ -52,9 +61,16 @@ export component AppWindow inherits Window {
     in property <int> library-limit: 2000;
     in property <bool> settings-writable: true;
     in property <string> settings-error: "";
+    in property <Prefs> prefs;
     in property <string> notice: "";
     in property <string> jobs-capability: "";
     in property <bool> jobs-has-finished: false;
+    in property <bool> jobs-busy: false;
+    in property <string> storage-used: "";
+    in property <string> app-size: "";
+    in property <string> workspace-size: "";
+    in property <[ComponentRow]> components;
+    in property <[FolderRow]> folders;
     in property <[SectionRow]> sections;
     in property <[ItemRow]> section-items;
     in property <string> section-id: "";
@@ -65,6 +81,8 @@ export component AppWindow inherits Window {
     in property <bool> sections-busy: false;
     // Library tab: 0 references, 1 sections (in-out so a headless snapshot can fix it)
     in-out property <int> library-mode: 0;
+    // The rail open with labels (the original's "dock")
+    in-out property <bool> rail-open: false;
 
     callback navigate(int);
     callback choose-reference();
@@ -72,8 +90,12 @@ export component AppWindow inherits Window {
     callback remove-reference(string);
     callback set-query(string);
     callback set-reduced-motion(bool);
+    callback set-pref(string, string);
+    callback set-tool-enabled(string, bool);
     callback reset-settings();
+    callback search-settings(string) -> int;
     callback tool-activated(string);
+    callback dock-action(string);
     callback dismiss-notice();
     callback cancel-job(string);
     callback clear-finished-jobs();
@@ -91,196 +113,217 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    if root.diagnostic-scene != 0 : HorizontalLayout {
+    // Where pages start, right of the rail
+    property <length> content-left: root.rail-open ? 254px : 80px;
+    animate content-left { duration: root.motion-duration * 1.6; easing: ease-out; }
+
+    // Home's backdrop, static (atmosphere.rs); other pages sit on a plain dark ground
+    if root.page == 0 && root.diagnostic-scene != 0 : Image {
         width: parent.width;
         height: parent.height;
+        source: root.backdrop;
+        image-fit: cover;
+        image-rendering: smooth;
+    }
+    if root.page != 0 : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: @linear-gradient(180deg, Theme.ground-top 0%, Theme.ground 30%, Theme.ground 100%);
+    }
 
-        // Rail: the places of the app. Tools are launched from Home.
-        Rectangle {
-            width: Theme.rail-width;
-            background: Theme.rail;
+    if root.diagnostic-scene != 0 : Rectangle {
+        x: root.content-left;
+        width: parent.width - root.content-left;
+        height: parent.height;
 
-            Rectangle {
-                x: parent.width - 1px;
-                width: 1px;
-                background: Theme.border;
-            }
-
-            VerticalLayout {
-                padding-left: 8px;
-                padding-right: 8px;
-                padding-top: 14px;
-                padding-bottom: 10px;
-                spacing: 4px;
-
-                Rectangle {
-                    height: 34px;
-                    Image {
-                        source: @image-url("../assets/halation-mark.png");
-                        width: 36px;
-                        height: 18px;
-                        image-fit: contain;
-                        accessible-role: image;
-                        accessible-label: "Halation";
-                    }
-                }
-
-                Rectangle { height: 10px; }
-
-                RailItem {
-                    icon: "home";
-                    label: "Home";
-                    active: root.page == 0;
-                    motion-duration: root.motion-duration;
-                    activated => { root.navigate(0); }
-                }
-
-                RailItem {
-                    icon: "library";
-                    label: "Library";
-                    active: root.page == 1;
-                    motion-duration: root.motion-duration;
-                    activated => { root.navigate(1); }
-                }
-
-                RailItem {
-                    icon: "jobs";
-                    label: "Jobs";
-                    active: root.page == 2;
-                    motion-duration: root.motion-duration;
-                    activated => { root.navigate(2); }
-                }
-
-                Rectangle { vertical-stretch: 1; }
-
-                RailItem {
-                    icon: "settings";
-                    label: "Settings";
-                    active: root.page == 3;
-                    motion-duration: root.motion-duration;
-                    activated => { root.navigate(3); }
-                }
-            }
+        if root.page == 0 : HomePage {
+            width: parent.width;
+            height: parent.height;
+            tools: root.active-tools;
+            recent: root.recent;
+            library-loaded: root.library-loaded;
+            motion-duration: root.motion-duration;
+            tool-activated(id) => { root.tool-activated(id); }
+            choose-reference => { root.choose-reference(); }
+            file-dropped(data) => { root.file-dropped(data); }
         }
 
+        if root.page == 1 : LibraryPage {
+            width: parent.width;
+            height: parent.height;
+            rows: root.library-rows;
+            query: root.library-query;
+            total: root.library-total;
+            missing: root.library-missing;
+            loaded: root.library-loaded;
+            busy: root.library-busy;
+            writable: root.library-writable;
+            error: root.library-error;
+            motion-duration: root.motion-duration;
+            choose-reference => { root.choose-reference(); }
+            remove-reference(id) => { root.remove-reference(id); }
+            set-query(value) => { root.set-query(value); }
+            mode <=> root.library-mode;
+            sections: root.sections;
+            section-items: root.section-items;
+            section-id: root.section-id;
+            section-name: root.section-name;
+            section-kind: root.section-kind;
+            section-hidden: root.section-hidden;
+            sections-loaded: root.sections-loaded;
+            sections-busy: root.sections-busy;
+            sections-opened => { root.sections-opened(); }
+            select-section(id) => { root.select-section(id); }
+            create-section(name) => { root.create-section(name); }
+            rename-section(id, name) => { root.rename-section(id, name); }
+            delete-section(id) => { root.delete-section(id); }
+            link-folder => { root.link-folder(); }
+            unlink-folder(id) => { root.unlink-folder(id); }
+        }
+
+        if root.page == 3 : SettingsPage {
+            width: parent.width;
+            height: parent.height;
+            prefs: root.prefs;
+            tools: root.tools;
+            writable: root.settings-writable;
+            error: root.settings-error;
+            profile-path: root.profile-path;
+            build-label: root.build-label;
+            library-limit: root.library-limit;
+            storage-used: root.storage-used;
+            app-size: root.app-size;
+            workspace-size: root.workspace-size;
+            components: root.components;
+            folders: root.folders;
+            search(text) => { return root.search-settings(text); }
+            motion-duration: root.motion-duration;
+            set-pref(key, value) => { root.set-pref(key, value); }
+            set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
+            reset-settings => { root.reset-settings(); }
+            action(name) => { root.dock-action(name); }
+        }
+    }
+
+    // Top-right dock
+    if root.diagnostic-scene != 0 && root.prefs.show-dock : TopDock {
+        x: parent.width - self.width - 24px;
+        y: 8px;
+        busy: root.jobs-busy;
+        activity => { root.dock-action("activity"); }
+        shortcuts => { root.dock-action("shortcuts"); }
+        open-folder => { root.dock-action("folder"); }
+        language => { root.dock-action("language"); }
+        save-session => { root.dock-action("session"); }
+    }
+
+    // Notice: one line at the top centre, closed with a click
+    if root.notice != "" : Rectangle {
+        x: root.content-left + (parent.width - root.content-left - self.width) / 2;
+        y: 8px;
+        width: min(notice-text.preferred-width + 72px, parent.width - root.content-left - 260px);
+        height: 32px;
+        border-radius: 14px;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        notice-text := Text {
+            x: 16px;
+            width: parent.width - 56px;
+            y: (parent.height - self.height) / 2;
+            text: root.notice;
+            color: Theme.muted;
+            font-size: Theme.font-body;
+            overflow: elide;
+        }
+        Text {
+            x: parent.width - 30px;
+            y: (parent.height - self.height) / 2;
+            text: "✕";
+            color: Theme.subtle;
+            font-size: 11px;
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            accessible-role: button;
+            accessible-label: "Dismiss: " + root.notice;
+            accessible-action-default => { root.dismiss-notice(); }
+            clicked => { root.dismiss-notice(); }
+        }
+    }
+
+    // Rail, drawn last so its tooltips sit above the pages. Its items keep 44 px while there is room; the gaps
+    // and divider margins take what is left, as in the original (4 and 10 px at 800 px of rail).
+    property <int> rail-count: root.active-tools.length + 2;
+    property <length> rail-height: root.rail-open ? root.height - 24px : min(800px, root.height - 90px);
+    property <length> rail-item: min(44px, (root.rail-height - 29px) / (root.rail-count + 0.8));
+    property <float> rail-give: max(0, (root.rail-height - (root.rail-count * 44px + 35px + 29px)) / 164px);
+    property <length> rail-gap: 4px * root.rail-give;
+    property <length> rail-margin: 10px * root.rail-give;
+
+    if root.diagnostic-scene != 0 : Rectangle {
+        x: 22px;
+        y: (parent.height - self.height) / 2;
+        width: root.rail-open ? 232px : 62px;
+        height: root.rail-height;
+        border-radius: 26px;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.hairline;
+        animate width, height { duration: root.motion-duration * 1.6; easing: ease-out; }
+
         VerticalLayout {
-            horizontal-stretch: 1;
+            padding-left: 9px;
+            padding-right: 9px;
+            padding-top: 11px;
+            padding-bottom: 11px;
+            spacing: root.rail-gap;
 
-            Rectangle {
-                vertical-stretch: 1;
-                clip: true;
-
-                if root.page == 0 : HomePage {
-                    width: parent.width;
-                    height: parent.height;
-                    tools: root.tools;
-                    recent: root.recent;
-                    library-loaded: root.library-loaded;
-                    library-total: root.library-total;
-                    notice: root.notice;
-                    motion-duration: root.motion-duration;
-                    tool-activated(id) => { root.tool-activated(id); }
-                    choose-reference => { root.choose-reference(); }
-                    file-dropped(data) => { root.file-dropped(data); }
-                    dismiss-notice => { root.dismiss-notice(); }
-                    open-library => { root.navigate(1); }
+            RailItem {
+                height: root.rail-item;
+                icon: "mark";
+                label: "Home";
+                open: root.rail-open;
+                active: root.page == 0;
+                motion-duration: root.motion-duration;
+                activated => { root.navigate(0); }
+            }
+            for tool[index] in root.active-tools : VerticalLayout {
+                spacing: root.rail-gap;
+                if index == 0 || tool.group != root.active-tools[index - 1].group : RailDivider {
+                    gap: max(0px, root.rail-margin - root.rail-gap);
                 }
-
-                if root.page == 1 : LibraryPage {
-                    width: parent.width;
-                    height: parent.height;
-                    rows: root.library-rows;
-                    query: root.library-query;
-                    total: root.library-total;
-                    missing: root.library-missing;
-                    loaded: root.library-loaded;
-                    busy: root.library-busy;
-                    writable: root.library-writable;
-                    error: root.library-error;
-                    notice: root.notice;
+                RailItem {
+                    height: root.rail-item;
+                    icon: tool.icon;
+                    label: tool.name;
+                    open: root.rail-open;
+                    active: tool.id == "library" && root.page == 1;
                     motion-duration: root.motion-duration;
-                    choose-reference => { root.choose-reference(); }
-                    remove-reference(id) => { root.remove-reference(id); }
-                    set-query(value) => { root.set-query(value); }
-                    dismiss-notice => { root.dismiss-notice(); }
-                    mode <=> root.library-mode;
-                    sections: root.sections;
-                    section-items: root.section-items;
-                    section-id: root.section-id;
-                    section-name: root.section-name;
-                    section-kind: root.section-kind;
-                    section-hidden: root.section-hidden;
-                    sections-loaded: root.sections-loaded;
-                    sections-busy: root.sections-busy;
-                    sections-opened => { root.sections-opened(); }
-                    select-section(id) => { root.select-section(id); }
-                    create-section(name) => { root.create-section(name); }
-                    rename-section(id, name) => { root.rename-section(id, name); }
-                    delete-section(id) => { root.delete-section(id); }
-                    link-folder => { root.link-folder(); }
-                    unlink-folder(id) => { root.unlink-folder(id); }
-                }
-
-                if root.page == 2 : JobsPage {
-                    width: parent.width;
-                    height: parent.height;
-                    jobs: root.jobs;
-                    capability: root.jobs-capability;
-                    has-finished: root.jobs-has-finished;
-                    motion-duration: root.motion-duration;
-                    cancel-job(id) => { root.cancel-job(id); }
-                    clear-finished => { root.clear-finished-jobs(); }
-                }
-
-                if root.page == 3 : SettingsPage {
-                    width: parent.width;
-                    height: parent.height;
-                    reduced-motion: root.reduced-motion;
-                    settings-writable: root.settings-writable;
-                    library-limit: root.library-limit;
-                    schema-version: 1;
-                    profile-path: root.profile-path;
-                    build-label: root.build-label;
-                    error: root.settings-error;
-                    notice: root.notice;
-                    motion-duration: root.motion-duration;
-                    set-reduced-motion(value) => { root.set-reduced-motion(value); }
-                    reset-settings => { root.reset-settings(); }
-                    dismiss-notice => { root.dismiss-notice(); }
+                    activated => { root.tool-activated(tool.id); }
                 }
             }
-
-            // Status bar: what this build is and the Library state, on every page.
-            Rectangle {
-                height: Theme.status-height;
-                background: Theme.rail;
-                Rectangle {
-                    y: 0px;
-                    height: 1px;
-                    background: Theme.border;
-                }
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 20px;
-                    Text {
-                        text: root.build-label;
-                        color: Theme.subtle;
-                        font-size: Theme.font-caption;
-                        vertical-alignment: center;
-                        overflow: elide;
-                        horizontal-stretch: 1;
-                    }
-                    Text {
-                        text: !root.library-loaded ? "Library loading"
-                            : "Library: " + root.library-total + (root.library-total == 1 ? " reference" : " references")
-                            + (root.library-missing > 0 ? ", " + root.library-missing + " missing" : "");
-                        color: root.library-missing > 0 ? Theme.warning : Theme.subtle;
-                        font-size: Theme.font-caption;
-                        vertical-alignment: center;
-                    }
-                }
+            RailDivider { gap: max(0px, root.rail-margin - root.rail-gap); }
+            RailItem {
+                height: root.rail-item;
+                icon: "settings";
+                label: "Settings";
+                open: root.rail-open;
+                active: root.page == 3;
+                motion-duration: root.motion-duration;
+                activated => { root.navigate(3); }
             }
+            RailDivider { gap: max(0px, root.rail-margin - root.rail-gap); }
+            RailItem {
+                height: root.rail-item * 35 / 44;
+                icon: root.rail-open ? "panel-left-close" : "panel-left-open";
+                icon-size: 18px;
+                label: root.rail-open ? "Close the dock" : "Open the dock";
+                open: root.rail-open;
+                motion-duration: root.motion-duration;
+                activated => { root.rail-open = !root.rail-open; }
+            }
+            Rectangle { vertical-stretch: 1; }
         }
     }
 }

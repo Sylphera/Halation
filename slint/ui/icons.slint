@@ -1,22 +1,7 @@
-// Tool, Library, Settings, Upload, Search and Warning icons are the Lucide SVGs the Tauri app already uses
-// (ISC licence, see NOTICE.md): reused as identity assets, tinted with `colorize`. Home and Jobs have no counterpart
-// there and stay drawn as paths.
-component IconHome inherits Path {
-    in property <color> tint: #f4f4f5;
-    width: 20px;
-    height: 20px;
-    viewbox-width: 24;
-    viewbox-height: 24;
-    commands: "M3 11 L12 3 L21 11 M5 10 L5 21 L19 21 L19 10 M9 21 L9 14 L15 14 L15 21";
-    stroke: tint;
-    stroke-width: 1.7px;
-    fill: transparent;
-}
-
+// Lucide icons (ISC licence, see NOTICE.md) as the original Halation uses them: identity assets, tinted with
+// `colorize`. "mark" is the Halation mark; "jobs" is drawn as a path.
 component IconJobs inherits Path {
-    in property <color> tint: #f4f4f5;
-    width: 20px;
-    height: 20px;
+    in property <color> tint: #f5f5f2;
     viewbox-width: 24;
     viewbox-height: 24;
     commands: "M4 12 L8 12 L10 6 L14 18 L16 12 L20 12";
@@ -27,17 +12,20 @@ component IconJobs inherits Path {
 
 export component ToolIcon inherits Rectangle {
     in property <string> name: "download";
-    in property <color> tint: #f4f4f5;
-    width: 20px;
-    height: 20px;
+    in property <color> tint: #f5f5f2;
+    in property <length> size: 20px;
+    width: size;
+    height: size;
 
     if name == "mark" : Image {
         source: @image-url("../assets/halation-mark.png");
-        width: 26px;
-        height: 13px;
+        width: parent.width * 1.4;
+        height: parent.height * 0.7;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
         image-fit: contain;
     }
-    if name == "home" : IconHome { tint: root.tint; }
+    if name == "jobs" : IconJobs { width: parent.width; height: parent.height; tint: root.tint; }
     if name == "download" : Image {
         source: @image-url("icons/download.svg");
         colorize: root.tint;
@@ -104,7 +92,6 @@ export component ToolIcon inherits Rectangle {
         width: parent.width;
         height: parent.height;
     }
-    if name == "jobs" : IconJobs { tint: root.tint; }
     if name == "settings" : Image {
         source: @image-url("icons/settings.svg");
         colorize: root.tint;
@@ -125,6 +112,90 @@ export component ToolIcon inherits Rectangle {
     }
     if name == "warning" : Image {
         source: @image-url("icons/warning.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "keyboard" : Image {
+        source: @image-url("icons/keyboard.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "folder-open" : Image {
+        source: @image-url("icons/folder-open.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "globe" : Image {
+        source: @image-url("icons/globe.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "save" : Image {
+        source: @image-url("icons/save.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "panel-left-open" : Image {
+        source: @image-url("icons/panel-left-open.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "panel-left-close" : Image {
+        source: @image-url("icons/panel-left-close.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "rotate-ccw" : Image {
+        source: @image-url("icons/rotate-ccw.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "refresh-cw" : Image {
+        source: @image-url("icons/refresh-cw.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "chevron-down" : Image {
+        source: @image-url("icons/chevron-down.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "file-text" : Image {
+        source: @image-url("icons/file-text.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "eraser" : Image {
+        source: @image-url("icons/eraser.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "circle-help" : Image {
+        source: @image-url("icons/circle-help.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "external-link" : Image {
+        source: @image-url("icons/external-link.svg");
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+    if name == "house" : Image {
+        source: @image-url("icons/house.svg");
         colorize: root.tint;
         width: parent.width;
         height: parent.height;

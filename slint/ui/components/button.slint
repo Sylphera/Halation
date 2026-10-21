@@ -1,18 +1,18 @@
 import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
 
-// Primary (light fill, one per view), secondary (surface and border) or ghost (accent text only).
+// The original's pill button: outlined, 13 px label, optional leading icon. `quiet` drops the outline.
 export component AppButton inherits FocusScope {
     in property <string> text: "";
-    in property <bool> primary: false;
-    in property <bool> ghost: false;
-    in property <bool> compact: false;
+    in property <string> icon: "";
+    in property <bool> quiet: false;
+    in property <bool> small: false;
     in property <duration> motion-duration: 160ms;
     callback clicked;
 
-    width: max(root.compact ? 68px : 96px, label.preferred-width + (root.compact ? 22px : 32px));
-    height: root.compact ? 28px : 36px;
+    width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
+    height: root.small ? 26px : 32px;
     focus-on-tab-navigation: true;
-
     accessible-role: button;
     accessible-label: text;
     accessible-action-default => {
@@ -35,29 +35,31 @@ export component AppButton inherits FocusScope {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-radius: Theme.radius-control;
-        background: root.primary
-            ? (touch.pressed ? Theme.muted : (touch.has-hover ? Theme.text : Theme.primary))
-            : root.ghost
-            ? (touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface-raised : transparent))
-            : (touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface-raised : Theme.surface));
-        border-width: root.has-focus ? 2px : (root.primary || root.ghost ? 0px : 1px);
-        border-color: root.has-focus ? Theme.accent : (touch.has-hover ? Theme.border-strong : Theme.border);
+        border-radius: self.height / 2;
+        background: touch.pressed ? #ffffff1a : (touch.has-hover ? #ffffff0f : transparent);
+        border-width: root.has-focus ? 2px : (root.quiet ? 0px : 1px);
+        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
         opacity: root.enabled ? 1 : 0.45;
-        animate background {
-            duration: touch.pressed ? 0ms : root.motion-duration;
-            easing: ease-out;
-        }
+        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
     }
 
-    label := Text {
-        text: root.text;
-        color: root.primary ? Theme.on-primary : (root.ghost ? Theme.accent : Theme.text);
-        font-size: root.compact ? Theme.font-caption : Theme.font-label;
-        font-weight: 600;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        overflow: elide;
+    HorizontalLayout {
+        padding-left: root.small ? 11px : 15px;
+        padding-right: root.small ? 11px : 15px;
+        spacing: 8px;
+        alignment: center;
+        if root.icon != "" : VerticalLayout {
+            alignment: center;
+            ToolIcon { name: root.icon; size: 15px; tint: root.quiet ? Theme.muted : Theme.text; }
+        }
+        label := Text {
+            text: root.text;
+            color: root.quiet ? Theme.muted : Theme.text;
+            font-size: root.quiet ? Theme.font-small : 13px;
+            font-weight: 500;
+            vertical-alignment: center;
+            opacity: root.enabled ? 1 : 0.6;
+        }
     }
 
     touch := TouchArea {

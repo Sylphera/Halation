@@ -1,0 +1,95 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+
+component DockButton inherits FocusScope {
+    in property <string> icon;
+    in property <string> label;
+    callback activated;
+    width: 36px;
+    height: 28px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+    Rectangle {
+        border-radius: 10px;
+        background: touch.has-hover ? #ffffff12 : transparent;
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    @children
+    ToolIcon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        name: root.icon;
+        size: 15px;
+        tint: touch.has-hover ? Theme.text : Theme.muted;
+    }
+    if touch.has-hover : Rectangle {
+        x: parent.width - self.width;
+        y: parent.height + 8px;
+        width: tip.preferred-width + 20px;
+        height: 26px;
+        border-radius: 13px;
+        background: Theme.text;
+        tip := Text {
+            text: root.label;
+            color: Theme.panel;
+            font-size: 13px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.activated(); }
+    }
+}
+
+// The small bar at the top right: activity, keyboard shortcuts, the Halation folder, language and saving the session.
+export component TopDock inherits Rectangle {
+    in property <bool> busy: false;
+    callback activity();
+    callback shortcuts();
+    callback open-folder();
+    callback language();
+    callback save-session();
+
+    width: 184px;
+    height: 32px;
+    border-radius: 14px;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.line;
+
+    HorizontalLayout {
+        padding: 2px;
+        spacing: 0px;
+        DockButton {
+            icon: "";
+            label: root.busy ? "Activity: working" : "Activity: all quiet";
+            activated => { root.activity(); }
+            Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: root.busy ? Theme.accent : Theme.activity;
+            }
+        }
+        DockButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
+        DockButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
+        DockButton { icon: "globe"; label: "Language"; activated => { root.language(); } }
+        DockButton { icon: "save"; label: "Save Session"; activated => { root.save-session(); } }
+    }
+}
