@@ -32,6 +32,7 @@ Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and bou
 
 - `windows-sys` (Windows only; features `Win32_Foundation`, `Win32_Security`, `Win32_System_JobObjects`, `Win32_System_ProcessStatus`, `Win32_System_Threading`):
   Job Object and process memory for `backend/process.rs`. Pinned with `=` in `slint/Cargo.toml`.
+- `i-slint-backend-testing` (dev-dependency only, pinned `=1.18.1`): headless layout tests (`slint/tests/ui_layout.rs`). Debug info for the element tree is compiled into non-release builds only (`build.rs`); it is not in the shipping graph.
 
 ## Status
 

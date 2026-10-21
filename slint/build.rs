@@ -25,8 +25,11 @@ fn main() {
         .unwrap_or_else(|| "unknown".to_owned());
     println!("cargo:rustc-env=HALATION_BUILD_SHA={sha}");
 
+    // Element debug info lets the headless layout tests find controls; the shipping (release) build omits it.
+    let debug_info = std::env::var("PROFILE").is_ok_and(|profile| profile != "release");
     let config = slint_build::CompilerConfiguration::new()
-        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles);
+        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles)
+        .with_debug_info(debug_info);
     slint_build::compile_with_config("ui/app.slint", config)
         .expect("the Slint UI must compile; fix the reported .slint diagnostics");
 }

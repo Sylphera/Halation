@@ -49,3 +49,7 @@ slint-build = { version = "=1.18.1", default-features = false, features = ["comp
 
 [profile.release]
 strip = "debuginfo"
+
+[dev-dependencies]
+# Headless UI tests (layout bounds at small window sizes); test builds only, never part of the shipped binary.
+i-slint-backend-testing = "=1.18.1"
