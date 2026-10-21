@@ -4,9 +4,13 @@ Status: **specification only**, for Java's review before any thread implements i
 flotante… dock a la izquierda, jobs y todo el resto arriba… que todo se viera más sólido", reference: Linear).
 Annex of `docs/SLINT_SPEC.md`; it supersedes the *layout* parts of `docs/SLINT_VISUAL_SYSTEM.md` (floating rail,
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
-Drape, lavender accent, near-black ground) does not change. Static mockup: published beside this spec as an Artifact.
+Drape, lavender accent, near-black ground) does not change. Static mockup: Artifact published with this spec (https://claude.ai/artifact/VaQf6JbL7m9DGtNa9xv2hX).
 
-## 1. Problem
+## 1. Problem and guiding criterion
+
+Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged
+by that: a fixed frame the user learns once, density over decoration, state shown by surface and line, and nothing
+that looks like a widget placed over a wallpaper.
 
 The replica is a set of floating objects over a background: a rail pill at x 22, a dock pill at the top right, a
 notice pill at the top centre, rounded panels (radius 20–26) in translucent grey, a tool strip pill, a dashed drop
