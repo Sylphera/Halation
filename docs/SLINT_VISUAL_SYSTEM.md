@@ -11,8 +11,11 @@ first pass of this file (a launcher redesign, approved only as a starting point 
    draw. Jobs has no page (its queue stays in the backend).
 2. **Clean-room.** The reference is only the original's rendered result: its frontend from `main` rendered over the
    mocked backend in headless Chromium at 1920 × 1080 and 1280 × 800, measured from the pixels and the computed boxes,
-   colours and fonts of the rendered page. No HTML, CSS or JS of the original is read or copied. Reused identity assets:
-   Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
+   colours and fonts of the rendered page. No HTML, CSS or JS of the original is read or copied into the beta. Reused
+   identity assets: Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
+   **One exception** (Java, 2026-10-21): the original's Drape code (`app/dist/drape.js`) may be reused **only to record
+   and modify the Drape** for the beta's backdrop. It runs only inside the recording tool (`slint/scripts/record-drape.js`),
+   never in the beta; the beta ships the recorded frames and the grain tile, which are allowed as rendered assets.
 3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
    Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
    `animate` on colour, opacity, position and size, only while something changes (hover, rail opening, toggles).
@@ -56,44 +59,54 @@ first pass of this file (a launcher redesign, approved only as a starting point 
 
 | Original | Here | Why |
 |---|---|---|
-| Animated "Auralis/Drape" silk on Home | Static silk computed once in Rust (`atmosphere.rs`, 800 × 450, dithered, scaled smoothly) | No per-frame cost; see the plan below |
+| Drape drawn live by a WebGL shader | The same Drape recorded as a seamless 2-minute loop of 15 fps frames, scaled by Skia | No shader or per-pixel work at run time |
 | Glass panels with `backdrop-filter: blur(20px)` | Same panels at 68 % opacity, no blur | Blur per frame is the costly part |
 | Text copy that names engines | Copy that says what the beta does (drop zone, recent files, folders) | No engines connected |
 | Settings > Storage per-folder list, codec list, folder list of `Documents\Halation` | Beta profile size and folders | The beta has its own profile only |
 | Native select menus | Slint popup lists | Same function |
 | Tool cards of varying height | Uniform cards, clipped | Simpler, cheap layout |
 
-## Animated background, later (not in this pass)
+## Home backdrop: the recorded Drape
 
-Preferred option (Java, 2026-10-21): a **pre-rendered loop of the silk at about 320 px wide and 15 fps**, scaled to the
-window, with a **fixed grain texture** on top (the original's grain was a static image, so it does not move). Notes:
+- **Source:** the latest original Drape (`main` at the "darker backgrounds" change, with the fixed banding on bright
+  crests), recorded by `slint/scripts/record-drape.js` from a checkout of the original. The original code is used only
+  there, as Java allowed.
+- **Seamless, no cross-fade:** the recording copy makes the Drape's time periodic over 120 s. Every time-dependent
+  noise lookup moves on a circle through the noise volume (the time axis plus a small offset across it) at the original
+  speed, and the diagonal slide becomes a wide circle at the original speed; at t = 0 both start like the original.
+  Measured: frame 120 s against frame 0 differs by 0.0001 of 255 on average (1 at most); neighbouring frames by 0.06
+  (3 at most). What changes from the original: the slide turns slowly instead of always running along the diagonal.
+- **How much it covers:** in 2 minutes the slide travels about 0.9 screen heights (half a 16:9 width) and the folds
+  reshape by about two thirds of a fold, so the loop only repeats every 2 minutes.
+- **Frames:** 1800 frames (15 fps, the Drape's own field rate) of 320 × 180, JPEG, about 3.7 KB each: 6.7 MB in
+  `slint/assets/drape-loop.bin`, embedded in the binary. No grain in them.
+- **Grain:** the original's stationary film grain as a fixed 256 × 256 tile (`drape-grain.png`, signed: white adds,
+  black takes away) laid over the scaled frame; it never moves.
+- **Playback (`backdrop.rs`, `app.rs`):** a 15 Hz timer decodes the next frame and hands it to Home's backdrop image;
+  only the frame on screen is held decoded. It runs only while Home is shown with motion on and the window is not
+  minimized; with reduced motion Home shows the first frame. Slint cannot tell when the window is covered, so a covered
+  but not minimized window keeps playing.
 
-- Decoding 320 px video costs very little CPU; drawing it scaled is one texture blit per frame in Skia.
-- It needs a codec: two minutes of raw RGBA frames at 320 × 180 are about 800 MB. Options: Media Foundation on Windows
-  (no new dependency beyond `windows`), a small pure-Rust decoder crate, or a shorter loop (a few seconds of frames
-  at low resolution fit in a few MB).
-- To hide the 15 fps steps, blend each pair of neighbouring frames (cross-fade) when presenting.
-- Pause the loop while the window is minimized or covered, and with reduced motion.
-- Slint has no custom shaders: the grain is a tiled noise image laid over the backdrop, drawn once.
+## Measured cost (KernelPanic, i5-12400F, release, Skia OpenGL, Home maximized at 1920 × 1009, 30 s)
 
-Fallbacks, cheapest first: (c) two or three baked silk images cross-faded or drifted very slowly with `animate`;
-(b) a short sequence of pre-rendered low-resolution frames held in memory; (a) a real video loop with a decoder, as
-above.
+| Home | Private working set | CPU |
+|---|---|---|
+| Static backdrop (previous pass) | about 55 MB | 0.00 % |
+| Recorded Drape playing | about 73 MB (peak 85) | about 0.5 % of all 12 threads (about 6 % of one) |
 
-## Measured cost (KernelPanic, release, Skia OpenGL, Home maximized at 1920 × 1009, idle 30 s)
-
-Private working set about 55 MB (peak 66 MB), commit about 198 MB, CPU 0.00 % at rest. The earlier shell measured
-about 50 MB. Hover cost is not measured: no input is injected into Java's desktop.
+The binary grows by the 6.7 MB of frames. Most of the CPU is Skia redrawing the window 15 times a second, not the
+decoding (about 0.3 ms per frame). Hover cost is not measured: no input is injected into Java's desktop.
 
 ## Acceptance
 
 1. Side by side with the original at 1920 × 1080, Home, rail (closed and open), top dock, Settings and Library match
    in layout, colour and type, except for the differences listed above.
-2. No timer, shader, blur or continuous animation; idle CPU stays at 0 % on Home.
+2. No shader or blur; the only continuous work is the backdrop's 15 Hz playback on Home, which stops on other pages,
+   when minimized and with reduced motion.
 3. `tests/ui_layout.rs` keeps every fixed control inside the window from 960 × 600 to 1920 × 1080 and checks the rail.
 4. fmt, strict Clippy, all tests and the release build pass.
 
 ## Out of scope
 
-The animated background (planned above), tool pages, a Library like the original's (collections, filters, grid),
+Tool pages, a Library like the original's (collections, filters, grid),
 Spanish text, the original's per-folder storage list and its native select menus.

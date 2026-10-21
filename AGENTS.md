@@ -38,6 +38,7 @@ Estas reglas rigen la reconstrucción de Halation con Rust + Slint + Skia (capa 
 - El backend Rust anterior (Tauri `app/src-tauri`, `halation-core`) puede importarse y adaptarse (2026-10-21): sin tipos ni crates de Tauri, detrás de interfaces propias, módulo a módulo con sus tests y declarado en un plan en `docs/`.
 - Se permite leer contratos, requisitos y formatos documentados para entender el comportamiento. Se permiten crates públicos estándar sujetos a licencia y assets estáticos puros de identidad/referencia.
 - No introducir path dependencies ni FFI hacia `app/src-tauri` o código Qt; la reutilización del backend es por importación de código, no por enlace.
+- Excepción única (Java, 2026-10-21): el código del Drape original (`app/dist/drape.js`) puede reutilizarse **solo para grabarlo y modificarlo** (loop sin costura, 320 px) dentro de la herramienta `slint/scripts/record-drape.js`; nunca entra en la beta, que solo lleva los frames grabados y el grano como assets.
 - Antes de cerrar, declarar las fuentes consultadas y los módulos de backend importados, y revisar `Cargo.toml`/`Cargo.lock`, imports y usos de rutas (sin `tauri`). Si se detecta código de interfaz anterior en la capa visual, retirarlo y reimplementar desde cero en esta misma unidad; no ocultarlo ni presentar la suite de pruebas como justificación de procedencia.
 
 ### 1. Separación estricta entre Rust y Slint

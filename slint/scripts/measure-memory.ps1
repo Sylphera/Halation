@@ -23,7 +23,7 @@ $sourceFiles = @(
     'slint/src/app.rs', 'slint/src/profile.rs', 'slint/src/library.rs',
     'slint/ui/app.slint', 'slint/ui/pages/home.slint',
     'slint/ui/components/button.slint', 'slint/ui/components/rail-item.slint',
-    'slint/src/atmosphere.rs', 'slint/scripts/measure-memory.ps1'
+    'slint/src/backdrop.rs', 'slint/scripts/measure-memory.ps1'
 )
 $sourceHashes = @($sourceFiles | ForEach-Object {
     $path = Join-Path $repoRoot $_

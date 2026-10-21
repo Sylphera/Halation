@@ -179,8 +179,9 @@ functional reference only.
   2026-10-21; `docs/SLINT_VISUAL_SYSTEM.md`): the mark, wordmark and tagline, the tool strip, the drop zone and recent
   files; a floating rail of all tools that opens with labels; Settings with its eight sections, stored in the beta
   profile. Jobs has no page; its queue stays in the backend.
-- Home's backdrop is a static silk image computed once in Rust and scaled by Skia. There is no shader, blur,
-  offscreen layer, particle system, timer or animated background; an animated loop is planned separately.
+- Home's backdrop is the original Drape recorded as a seamless two-minute loop of 15 fps frames (320 x 180 JPEG),
+  played by a 15 Hz timer only while Home is shown with motion on; Skia scales each frame and a fixed grain tile lies
+  over it. No shader, blur, offscreen layer or particle system (`docs/SLINT_VISUAL_SYSTEM.md`).
 - The catalog is Rust data. Ten media tools are marked unavailable with a clear reason; Library is available and opens
   the real page. Activating an unavailable tool shows an honest notice and never starts an engine, process or progress.
 - The drop zone accepts local file drops and the choose button opens the native picker. Either path adds a reference

@@ -9,3 +9,7 @@ It is used only as the product mark. The static Home reference image is kept out
 `drop-outline.svg` is the dashed outline of Home's drop zone, drawn for this crate.
 `fonts/Inter.ttf` is the Inter typeface (variable weight, Latin subset), SIL Open Font License 1.1, © The Inter
 Project Authors (https://github.com/rsms/inter); the original app uses the same typeface.
+
+`drape-loop.bin` and `drape-grain.png` are recordings of the original Halation's Drape background (seamless two-minute
+loop, 1800 JPEG frames of 320 x 180 at 15 fps, and its stationary grain as a 256 x 256 tile), made by
+`scripts/record-drape.js` from the original app (Java allowed reusing the Drape code for recording only, 2026-10-21).

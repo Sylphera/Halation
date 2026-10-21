@@ -14,6 +14,9 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
   Rust backend (services, jobs, Library, settings; Tauri `app/src-tauri`, `halation-core`) is kept and may be imported and
   adapted behind own interfaces, with no `tauri::*` types, a short plan in `docs/` and its tests. No path dependencies or
   FFI towards `app/src-tauri` or Qt code; public crates plus pure identity/reference assets are allowed.
+- Only exception (Java, 2026-10-21): the original Drape code (`app/dist/drape.js`) may be reused **only to record and
+  modify the Drape** (seamless loop, 320 px) inside `slint/scripts/record-drape.js`; it never enters the beta, which
+  ships only the recorded frames and grain tile as assets.
 - FFmpeg, yt-dlp, upscayl-bin, rife-ncnn-vulkan, the Cutout model (ONNX Runtime Web), Pandoc, LibreOffice and PDFium are
   downloadable components of the Tauri app. The Slint beta has no engines connected.
 - Tests: Playwright on headless Chromium with the backend mocked in Node (`app/tests/host.js`), plus `cargo test` for

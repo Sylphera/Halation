@@ -1,8 +1,8 @@
 #![deny(unsafe_code)]
 
 pub mod app;
-pub mod atmosphere;
 pub mod atomic_file;
+pub mod backdrop;
 pub mod backend;
 pub mod catalog;
 pub mod folders;

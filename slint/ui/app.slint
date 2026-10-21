@@ -46,6 +46,7 @@ export component AppWindow inherits Window {
     in property <string> build-label: "";
     in property <string> profile-path: "";
     in property <string> library-query: "";
+    // Home's backdrop: the frame of the Drape loop on screen (Rust's player sets it 15 times a second)
     in property <image> backdrop;
     in property <[ToolItem]> tools;
     in property <[ToolItem]> active-tools;
@@ -119,13 +120,26 @@ export component AppWindow inherits Window {
     property <length> content-left: root.rail-open ? 254px : 80px;
     animate content-left { duration: root.motion-duration * 1.6; easing: ease-out; }
 
-    // Home's backdrop, static (atmosphere.rs); other pages sit on a plain dark ground
-    if root.page == 0 && root.diagnostic-scene != 0 : Image {
+    // Home's backdrop: the recorded Drape scaled to the window, with the original's fixed film grain over it. Nothing
+    // of it exists on other pages.
+    if root.page == 0 && root.diagnostic-scene != 0 : Rectangle {
         width: parent.width;
         height: parent.height;
-        source: root.backdrop;
-        image-fit: cover;
-        image-rendering: smooth;
+        background: Theme.ground;
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: root.backdrop;
+            image-fit: cover;
+            image-rendering: smooth;
+        }
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("../assets/drape-grain.png");
+            horizontal-tiling: repeat;
+            vertical-tiling: repeat;
+        }
     }
     if root.page != 0 : Rectangle {
         width: parent.width;

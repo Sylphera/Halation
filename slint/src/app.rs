@@ -74,6 +74,7 @@ struct Services {
     jobs_model: Rc<VecModel<JobRow>>,
     recent_model: Rc<VecModel<RecentItem>>,
     recent_cache: RefCell<Vec<(String, String)>>,
+    backdrop: Rc<BackdropPlayer>,
 }
 
 pub(crate) struct Controller {
@@ -181,6 +182,7 @@ impl Controller {
             profile.links_path(),
         )));
 
+        let backdrop = Rc::new(BackdropPlayer::new(weak.clone()));
         Ok(Self {
             weak,
             diagnostic_timer: RefCell::new(None),
@@ -207,6 +209,7 @@ impl Controller {
                 jobs_model,
                 recent_model: Rc::new(VecModel::default()),
                 recent_cache: RefCell::new(Vec::new()),
+                backdrop,
             })),
         })
     }
@@ -230,7 +233,6 @@ impl Controller {
             let services = self.services.borrow();
             ui.set_tools(ModelRc::from(services.tools_model.clone()));
             ui.set_active_tools(ModelRc::from(services.active_tools_model.clone()));
-            ui.set_backdrop(Image::from_rgb8(crate::atmosphere::backdrop()));
             ui.set_components(ModelRc::new(VecModel::from(
                 catalog::COMPONENTS
                     .iter()
@@ -970,6 +972,10 @@ fn apply_folder_view(ui: &AppWindow, s: &Services) {
 }
 
 fn refresh(ui: &AppWindow, s: &Services) {
+    s.backdrop.sync(
+        s.nav.current() == Page::Home,
+        s.settings.current().reduced_motion,
+    );
     ui.set_page(s.nav.current().index());
     ui.set_reduced_motion(s.settings.current().reduced_motion);
     ui.set_motion_duration(
@@ -1230,6 +1236,75 @@ fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
             ui.set_storage_used(SharedString::from(size_label(profile_bytes + app_bytes)));
         });
     });
+}
+
+/// Plays Home's backdrop loop (backdrop.rs): one frame every 1/15 s, decoded when due, so one frame is held at a time.
+/// It runs only while Home is shown with motion on and the window is not minimized; otherwise the timer is stopped
+/// and the frame on screen stays (the first frame with reduced motion).
+struct BackdropPlayer {
+    weak: Weak<AppWindow>,
+    drape: Option<Rc<crate::backdrop::DrapeLoop>>,
+    index: Rc<std::cell::Cell<usize>>,
+    timer: slint::Timer,
+    shown: std::cell::Cell<bool>,
+}
+
+impl BackdropPlayer {
+    fn new(weak: Weak<AppWindow>) -> Self {
+        let drape = match crate::backdrop::DrapeLoop::embedded() {
+            Ok(drape) if !drape.is_empty() => Some(Rc::new(drape)),
+            // A broken build asset leaves Home on the plain ground rather than failing the app
+            _ => None,
+        };
+        Self {
+            weak,
+            drape,
+            index: Rc::new(std::cell::Cell::new(0)),
+            timer: slint::Timer::default(),
+            shown: std::cell::Cell::new(false),
+        }
+    }
+
+    fn show(weak: &Weak<AppWindow>, drape: &crate::backdrop::DrapeLoop, index: usize) {
+        if let (Some(ui), Ok(frame)) = (weak.upgrade(), drape.frame(index)) {
+            ui.set_backdrop(Image::from_rgb8(frame));
+        }
+    }
+
+    fn sync(&self, on_home: bool, reduced_motion: bool) {
+        let Some(drape) = &self.drape else {
+            return;
+        };
+        if reduced_motion && self.index.replace(0) != 0 {
+            self.shown.set(false);
+        }
+        if !self.shown.replace(true) {
+            Self::show(&self.weak, drape, self.index.get());
+        }
+        if !on_home || reduced_motion {
+            self.timer.stop();
+            return;
+        }
+        if self.timer.running() {
+            return;
+        }
+        let (weak, drape, index) = (self.weak.clone(), drape.clone(), self.index.clone());
+        self.timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_micros(1_000_000 / crate::backdrop::FPS),
+            move || {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                if ui.window().is_minimized() {
+                    return;
+                }
+                let next = (index.get() + 1) % drape.len();
+                index.set(next);
+                Self::show(&weak, &drape, next);
+            },
+        );
+    }
 }
 
 fn apply_theme(ui: &AppWindow) {
