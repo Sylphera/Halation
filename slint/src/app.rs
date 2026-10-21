@@ -1,4 +1,5 @@
 use crate::catalog;
+use crate::folders::{Command as FolderCommand, FolderStore, View as FolderView, size_label};
 use crate::jobs::{JobEntry, JobsService};
 use crate::library::{
     LibraryEntry, LibraryLoad, LibraryModel, LibraryStore, SaveCompletion, SaveRequest, load_index,
@@ -9,7 +10,7 @@ use crate::navigation::{Navigation, Page};
 use crate::profile::{LaunchOptions, Profile};
 use crate::settings::{Settings, SettingsStore};
 use crate::theme;
-use crate::ui::{AppWindow, JobRow, RecentItem, Theme, ToolItem};
+use crate::ui::{AppWindow, ItemRow, JobRow, RecentItem, SectionRow, Theme, ToolItem};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 use std::cell::RefCell;
 use std::io::Write;
@@ -37,6 +38,7 @@ struct AsyncInbox {
     load: Option<(u64, LibraryLoad)>,
     save: Option<(u64, Result<(), String>)>,
     references: Option<(u64, Vec<Result<LibraryEntry, String>>)>,
+    folders: Option<FolderView>,
 }
 
 fn lock_inbox(inbox: &Mutex<AsyncInbox>) -> MutexGuard<'_, AsyncInbox> {
@@ -51,6 +53,12 @@ struct Services {
     settings: SettingsStore,
     library: LibraryStore,
     jobs: JobsService,
+    folders: Arc<Mutex<FolderStore>>,
+    folders_busy: bool,
+    folders_loaded: bool,
+    folders_view: FolderView,
+    sections_model: Rc<VecModel<SectionRow>>,
+    section_items_model: Rc<VecModel<ItemRow>>,
     nav: Navigation,
     notice: String,
     library_loaded: bool,
@@ -149,6 +157,10 @@ impl Controller {
             // Called from engine threads. A closed window is a normal lifecycle end.
             let _ = jobs_weak.upgrade_in_event_loop(|ui| ui.invoke_jobs_changed());
         });
+        let folders = Arc::new(Mutex::new(FolderStore::load(
+            profile.sections_root(),
+            profile.links_path(),
+        )));
         let rail_tools: Vec<ToolItem> = tools
             .iter()
             .filter(|tool| !tool.available)
@@ -163,6 +175,12 @@ impl Controller {
                 settings,
                 library,
                 jobs,
+                folders,
+                folders_busy: false,
+                folders_loaded: false,
+                folders_view: FolderView::default(),
+                sections_model: Rc::new(VecModel::default()),
+                section_items_model: Rc::new(VecModel::default()),
                 nav: Navigation::default(),
                 notice: String::new(),
                 library_loaded: false,
@@ -202,6 +220,8 @@ impl Controller {
             ui.set_recent(ModelRc::from(services.recent_model.clone()));
             ui.set_library_rows(ModelRc::from(services.library.model().clone()));
             ui.set_jobs_capability(SharedString::from(services.jobs.capability()));
+            ui.set_sections(ModelRc::from(services.sections_model.clone()));
+            ui.set_section_items(ModelRc::from(services.section_items_model.clone()));
         }
 
         {
@@ -444,6 +464,107 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            ui.on_sections_opened(move || {
+                let needs_load = {
+                    let s = services.borrow();
+                    !s.folders_loaded && !s.folders_busy
+                };
+                if needs_load {
+                    run_folder_command(&services, &weak, FolderCommand::Refresh);
+                }
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_select_section(move |id| {
+                run_folder_command(&services, &weak, FolderCommand::Select(id.to_string()));
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_create_section(move |name| {
+                run_folder_command(&services, &weak, FolderCommand::Create(name.to_string()));
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_rename_section(move |id, to| {
+                run_folder_command(
+                    &services,
+                    &weak,
+                    FolderCommand::Rename {
+                        id: id.to_string(),
+                        to: to.to_string(),
+                    },
+                );
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_delete_section(move |id| {
+                run_folder_command(&services, &weak, FolderCommand::Delete(id.to_string()));
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_unlink_folder(move |id| {
+                run_folder_command(&services, &weak, FolderCommand::Unlink(id.to_string()));
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_link_folder(move || {
+                let idle = {
+                    let s = services.borrow();
+                    !s.folders_busy
+                };
+                if !idle {
+                    return;
+                }
+                let picked = rfd::FileDialog::new()
+                    .set_title("Link a folder as a Library section")
+                    .pick_folder();
+                if let Some(path) = picked {
+                    run_folder_command(&services, &weak, FolderCommand::Link(path));
+                }
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_sections_finished(move || {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let mut s = services.borrow_mut();
+                let view = lock_inbox(&s.inbox).folders.take();
+                if let Some(view) = view {
+                    s.folders_busy = false;
+                    s.folders_loaded = true;
+                    s.notice = view.notice.clone().unwrap_or_default();
+                    s.folders_view = view;
+                    apply_folder_view(&ui, &s);
+                }
+                refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
             ui.on_load_finished(move || {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -648,6 +769,79 @@ fn stage_scanned_references(
     }
 }
 
+/// Runs one Library-sections command on a worker thread; the view comes back through the inbox.
+fn run_folder_command(
+    services: &Rc<RefCell<Services>>,
+    weak: &Weak<AppWindow>,
+    command: FolderCommand,
+) {
+    let (store, inbox, profile) = {
+        let mut s = services.borrow_mut();
+        if s.folders_busy {
+            return;
+        }
+        s.folders_busy = true;
+        (s.folders.clone(), s.inbox.clone(), s.profile.clone())
+    };
+    let thread_weak = weak.clone();
+    let spawn = std::thread::Builder::new()
+        .name("library-sections".to_owned())
+        .spawn(move || {
+            let view = store
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .run(command);
+            lock_inbox(&inbox).folders = Some(view);
+            let _ = thread_weak.upgrade_in_event_loop(|ui| ui.invoke_sections_finished());
+        });
+    if let Err(error) = spawn {
+        let mut s = services.borrow_mut();
+        s.folders_busy = false;
+        s.notice = format!("Could not start the sections worker: {error}");
+        log_line(
+            &profile,
+            &format!("could not start sections worker: {error}"),
+        );
+        if let Some(ui) = weak.upgrade() {
+            refresh(&ui, &s);
+        }
+    }
+}
+
+fn apply_folder_view(ui: &AppWindow, s: &Services) {
+    let view = &s.folders_view;
+    s.sections_model.set_vec(
+        view.sections
+            .iter()
+            .map(|section| SectionRow {
+                id: SharedString::from(section.id.as_str()),
+                name: SharedString::from(section.name.as_str()),
+                kind: SharedString::from(section.kind.label()),
+                count: section.count.min(i32::MAX as u64) as i32,
+                missing: section.missing,
+                selected: view.selected.as_deref() == Some(section.id.as_str()),
+            })
+            .collect::<Vec<_>>(),
+    );
+    s.section_items_model.set_vec(
+        view.items
+            .iter()
+            .map(|item| ItemRow {
+                name: SharedString::from(item.name.as_str()),
+                detail: SharedString::from(size_label(item.size)),
+            })
+            .collect::<Vec<_>>(),
+    );
+    let selected = view
+        .selected
+        .as_deref()
+        .and_then(|id| view.sections.iter().find(|section| section.id == id));
+    ui.set_section_id(SharedString::from(selected.map_or("", |e| e.id.as_str())));
+    ui.set_section_name(SharedString::from(selected.map_or("", |e| e.name.as_str())));
+    ui.set_section_kind(SharedString::from(selected.map_or("", |e| e.kind.label())));
+    ui.set_section_hidden(view.hidden_items.min(i32::MAX as u64) as i32);
+}
+
 fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_page(s.nav.current().index());
     ui.set_reduced_motion(s.settings.current().reduced_motion);
@@ -666,6 +860,8 @@ fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_settings_writable(!s.settings.is_locked());
     ui.set_settings_error(SharedString::from(s.settings.error().unwrap_or_default()));
     ui.set_notice(SharedString::from(s.notice.as_str()));
+    ui.set_sections_loaded(s.folders_loaded);
+    ui.set_sections_busy(s.folders_busy);
 
     update_recent_model(model, &s.recent_cache, &s.recent_model);
     update_jobs_model(ui, &s.jobs.jobs(), &s.jobs_model);

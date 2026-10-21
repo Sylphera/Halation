@@ -152,6 +152,16 @@ impl Profile {
         self.root.join("library.json")
     }
 
+    /// Folder of the user's own Library sections and packs
+    pub fn sections_root(&self) -> PathBuf {
+        self.root.join("library")
+    }
+
+    /// Folders of the PC linked as Library sections
+    pub fn links_path(&self) -> PathBuf {
+        self.root.join("links.json")
+    }
+
     pub fn log_path(&self) -> PathBuf {
         self.root.join("halation-slint.log")
     }

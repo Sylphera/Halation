@@ -1,8 +1,8 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ToolItem, LibraryRow, JobRow, RecentItem } from "models.slint";
+import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow } from "models.slint";
 export { Theme } from "theme.slint";
-export { ToolItem, LibraryRow, JobRow, RecentItem } from "models.slint";
+export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow } from "models.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
 import { JobsPage } from "pages/jobs.slint";
@@ -46,6 +46,14 @@ export component AppWindow inherits Window {
     in property <string> notice: "";
     in property <string> jobs-capability: "";
     in property <bool> jobs-has-finished: false;
+    in property <[SectionRow]> sections;
+    in property <[ItemRow]> section-items;
+    in property <string> section-id: "";
+    in property <string> section-name: "";
+    in property <string> section-kind: "";
+    in property <int> section-hidden: 0;
+    in property <bool> sections-loaded: false;
+    in property <bool> sections-busy: false;
 
     callback navigate(int);
     callback choose-reference();
@@ -59,6 +67,14 @@ export component AppWindow inherits Window {
     callback cancel-job(string);
     callback clear-finished-jobs();
     callback jobs-changed();
+    callback sections-opened();
+    callback select-section(string);
+    callback create-section(string);
+    callback rename-section(string, string);
+    callback delete-section(string);
+    callback link-folder();
+    callback unlink-folder(string);
+    callback sections-finished();
     // Internal async notifications; the UI does not trigger these.
     callback load-finished();
     callback save-finished();
@@ -179,6 +195,21 @@ export component AppWindow inherits Window {
                 remove-reference(id) => { root.remove-reference(id); }
                 set-query(value) => { root.set-query(value); }
                 dismiss-notice => { root.dismiss-notice(); }
+                sections: root.sections;
+                section-items: root.section-items;
+                section-id: root.section-id;
+                section-name: root.section-name;
+                section-kind: root.section-kind;
+                section-hidden: root.section-hidden;
+                sections-loaded: root.sections-loaded;
+                sections-busy: root.sections-busy;
+                sections-opened => { root.sections-opened(); }
+                select-section(id) => { root.select-section(id); }
+                create-section(name) => { root.create-section(name); }
+                rename-section(id, name) => { root.rename-section(id, name); }
+                delete-section(id) => { root.delete-section(id); }
+                link-folder => { root.link-folder(); }
+                unlink-folder(id) => { root.unlink-folder(id); }
             }
 
             if root.page == 2 : JobsPage {

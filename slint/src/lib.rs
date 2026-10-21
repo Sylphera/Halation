@@ -4,6 +4,7 @@ pub mod app;
 pub mod atomic_file;
 pub mod backend;
 pub mod catalog;
+pub mod folders;
 pub mod jobs;
 pub mod library;
 pub mod motion;

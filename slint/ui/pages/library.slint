@@ -1,7 +1,8 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { LibraryRow } from "../models.slint";
+import { LibraryRow, SectionRow, ItemRow } from "../models.slint";
+import { SectionsView } from "sections.slint";
 import { ListView } from "std-widgets.slint";
 
 export component LibraryPage inherits Rectangle {
@@ -15,8 +16,25 @@ export component LibraryPage inherits Rectangle {
     in property <string> error: "";
     in property <string> notice: "";
     in property <duration> motion-duration: 160ms;
+    in property <[SectionRow]> sections;
+    in property <[ItemRow]> section-items;
+    in property <string> section-name: "";
+    in property <string> section-kind: "";
+    in property <string> section-id: "";
+    in property <int> section-hidden: 0;
+    in property <bool> sections-loaded: false;
+    in property <bool> sections-busy: false;
+    // Presentation only: 0 = references, 1 = sections
+    in-out property <int> mode: 0;
 
     callback choose-reference();
+    callback select-section(string);
+    callback create-section(string);
+    callback rename-section(string, string);
+    callback delete-section(string);
+    callback link-folder();
+    callback unlink-folder(string);
+    callback sections-opened();
     callback remove-reference(string);
     callback set-query(string);
     callback open-settings();
@@ -44,7 +62,7 @@ export component LibraryPage inherits Rectangle {
                 font-size: 11px;
                 vertical-alignment: center;
             }
-            AppButton {
+            if root.mode == 0 : AppButton {
                 text: "Add reference";
                 primary: true;
                 enabled: root.loaded && root.writable && !root.busy;
@@ -52,7 +70,38 @@ export component LibraryPage inherits Rectangle {
             }
         }
 
-        Text {
+        HorizontalLayout {
+            spacing: 6px;
+            height: 30px;
+            for label[index] in ["References", "Sections"] : Rectangle {
+                width: 104px;
+                height: 28px;
+                border-radius: 14px;
+                background: root.mode == index ? Theme.accent-soft : transparent;
+                border-width: 1px;
+                border-color: root.mode == index ? Theme.accent : Theme.border;
+                accessible-role: tab;
+                accessible-label: label;
+                animate background { duration: root.motion-duration; easing: ease-out; }
+                Text {
+                    text: label;
+                    color: root.mode == index ? Theme.accent : Theme.muted;
+                    font-size: 11px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.mode = index;
+                        if (index == 1) { root.sections-opened(); }
+                    }
+                }
+            }
+        }
+
+        if root.mode == 0 : Text {
             text: "References, not copies. Adding or removing an entry never moves or deletes the original file."
                 + (root.total > 0 ? "  ·  " + root.total + " references" + (root.missing > 0 ? "  ·  " + root.missing + " missing" : "") : "");
             color: Theme.muted;
@@ -106,7 +155,7 @@ export component LibraryPage inherits Rectangle {
             TouchArea { mouse-cursor: pointer; clicked => { root.dismiss-notice(); } }
         }
 
-        Rectangle {
+        if root.mode == 0 : Rectangle {
             height: 38px;
             border-radius: 9px;
             background: Theme.surface;
@@ -135,7 +184,7 @@ export component LibraryPage inherits Rectangle {
             }
         }
 
-        if !root.loaded : Rectangle {
+        if root.mode == 0 && !root.loaded : Rectangle {
             vertical-stretch: 1;
             background: transparent;
             VerticalLayout {
@@ -156,7 +205,7 @@ export component LibraryPage inherits Rectangle {
             }
         }
 
-        if root.loaded && root.rows.length == 0 : Rectangle {
+        if root.mode == 0 && root.loaded && root.rows.length == 0 : Rectangle {
             vertical-stretch: 1;
             background: transparent;
             VerticalLayout {
@@ -181,7 +230,7 @@ export component LibraryPage inherits Rectangle {
             }
         }
 
-        if root.loaded && root.rows.length > 0 : ListView {
+        if root.mode == 0 && root.loaded && root.rows.length > 0 : ListView {
             vertical-stretch: 1;
             for row in root.rows : Rectangle {
                 height: 58px;
@@ -249,7 +298,26 @@ export component LibraryPage inherits Rectangle {
             }
         }
 
-        Text {
+        if root.mode == 1 : SectionsView {
+            vertical-stretch: 1;
+            sections: root.sections;
+            items: root.section-items;
+            selected-id: root.section-id;
+            selected-name: root.section-name;
+            selected-kind: root.section-kind;
+            hidden: root.section-hidden;
+            loaded: root.sections-loaded;
+            busy: root.sections-busy;
+            motion-duration: root.motion-duration;
+            select-section(id) => { root.select-section(id); }
+            create-section(name) => { root.create-section(name); }
+            rename-section(id, name) => { root.rename-section(id, name); }
+            delete-section(id) => { root.delete-section(id); }
+            link-folder => { root.link-folder(); }
+            unlink-folder(id) => { root.unlink-folder(id); }
+        }
+
+        if root.mode == 0 : Text {
             text: "Profile: " + root.total + " / bounded reference index · no deletion, no copying, no Tauri data.";
             color: Theme.muted;
             font-size: 9px;

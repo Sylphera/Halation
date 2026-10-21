@@ -1,0 +1,316 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+import { AppButton } from "../components/button.slint";
+import { SectionRow, ItemRow } from "../models.slint";
+import { ListView } from "std-widgets.slint";
+
+// The Library's sections: own folders, folders of the PC linked in place, and optional packs.
+export component SectionsView inherits Rectangle {
+    in property <[SectionRow]> sections;
+    in property <[ItemRow]> items;
+    in property <string> selected-id: "";
+    in property <string> selected-name: "";
+    in property <string> selected-kind: "";
+    in property <int> hidden: 0;
+    in property <bool> loaded: false;
+    in property <bool> busy: false;
+    in property <duration> motion-duration: 160ms;
+
+    callback select-section(string);
+    callback create-section(string);
+    callback rename-section(string, string);
+    callback delete-section(string);
+    callback link-folder();
+    callback unlink-folder(string);
+
+    // Presentation only: what the name field does ("" hidden, "create", "rename") and the delete confirmation.
+    property <string> editing: "";
+    property <bool> confirm-delete: false;
+
+    background: transparent;
+
+    HorizontalLayout {
+        spacing: 12px;
+
+        VerticalLayout {
+            width: 236px;
+            spacing: 8px;
+
+            HorizontalLayout {
+                spacing: 6px;
+                AppButton {
+                    text: "New section";
+                    compact: true;
+                    primary: true;
+                    width: 112px;
+                    enabled: root.loaded && !root.busy;
+                    clicked => {
+                        root.confirm-delete = false;
+                        root.editing = "create";
+                        name-input.text = "";
+                        name-input.focus();
+                    }
+                }
+                AppButton {
+                    text: "Link folder";
+                    compact: true;
+                    width: 112px;
+                    enabled: root.loaded && !root.busy;
+                    clicked => { root.link-folder(); }
+                }
+            }
+
+            Rectangle {
+                height: root.editing != "" ? 34px : 0px;
+                visible: root.editing != "";
+                clip: true;
+                border-radius: 8px;
+                background: Theme.surface;
+                border-width: 1px;
+                border-color: Theme.accent;
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    name-input := TextInput {
+                        single-line: true;
+                        color: Theme.text;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                        accessible-role: text-input;
+                        accessible-label: root.editing == "create" ? "New section name" : "New name";
+                        accepted => {
+                            if (self.text != "") {
+                                if (root.editing == "create") {
+                                    root.create-section(self.text);
+                                } else {
+                                    root.rename-section(root.selected-id, self.text);
+                                }
+                            }
+                            root.editing = "";
+                        }
+                        key-pressed(event) => {
+                            if (event.text == Key.Escape) {
+                                root.editing = "";
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+                    }
+                }
+                Text {
+                    visible: name-input.text == "";
+                    text: root.editing == "create" ? "Section name, Enter to create" : "New name, Enter to rename";
+                    color: Theme.muted;
+                    font-size: 11px;
+                    x: 10px;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            if !root.loaded : Text {
+                text: "Reading sections…";
+                color: Theme.muted;
+                font-size: 11px;
+            }
+
+            if root.loaded && root.sections.length == 0 : Text {
+                text: "No sections yet. Create one, or link a folder of your PC; linked files stay where they are.";
+                color: Theme.muted;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+
+            ListView {
+                vertical-stretch: 1;
+                for section in root.sections : Rectangle {
+                    height: 44px;
+                    width: parent.width;
+                    border-radius: 9px;
+                    background: section.selected ? Theme.accent-soft : Theme.surface;
+                    border-width: 1px;
+                    border-color: section.selected ? Theme.accent : Theme.border;
+                    accessible-role: list-item;
+                    accessible-label: section.name;
+                    animate background { duration: root.motion-duration; easing: ease-out; }
+
+                    HorizontalLayout {
+                        padding: 9px;
+                        spacing: 8px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 1px;
+                            Text {
+                                text: section.name;
+                                color: Theme.text;
+                                font-size: 12px;
+                                font-weight: 600;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: section.missing ? "Folder missing" : section.count + (section.count == 1 ? " item" : " items");
+                                color: section.missing ? Theme.danger : Theme.muted;
+                                font-size: 9px;
+                            }
+                        }
+                        Text {
+                            text: section.kind == "own" ? "OWN" : (section.kind == "linked" ? "LINKED" : "PACK");
+                            color: Theme.muted;
+                            font-size: 8px;
+                            font-weight: 700;
+                            letter-spacing: 0.6px;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        enabled: !root.busy;
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.confirm-delete = false;
+                            root.editing = "";
+                            root.select-section(section.id);
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 12px;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            clip: true;
+
+            if root.selected-id == "" : VerticalLayout {
+                alignment: center;
+                spacing: 8px;
+                ToolIcon { name: "library"; tint: Theme.muted; }
+                Text {
+                    text: "Pick a section";
+                    color: Theme.text;
+                    font-size: 15px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "Its pictures and videos are listed here, read where they are.";
+                    color: Theme.muted;
+                    font-size: 11px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+
+            if root.selected-id != "" : VerticalLayout {
+                padding: 14px;
+                spacing: 10px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: root.selected-name;
+                        color: Theme.text;
+                        font-size: 16px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                    if root.selected-kind == "own" : AppButton {
+                        text: "Rename";
+                        compact: true;
+                        enabled: !root.busy;
+                        clicked => {
+                            root.confirm-delete = false;
+                            root.editing = "rename";
+                            name-input.text = root.selected-name;
+                            name-input.focus();
+                        }
+                    }
+                    if root.selected-kind == "own" && !root.confirm-delete : AppButton {
+                        text: "Delete";
+                        compact: true;
+                        enabled: !root.busy;
+                        clicked => { root.confirm-delete = true; }
+                    }
+                    if root.selected-kind == "own" && root.confirm-delete : AppButton {
+                        text: "Delete with files";
+                        compact: true;
+                        width: 112px;
+                        primary: true;
+                        enabled: !root.busy;
+                        clicked => {
+                            root.confirm-delete = false;
+                            root.delete-section(root.selected-id);
+                        }
+                    }
+                    if root.selected-kind == "linked" : AppButton {
+                        text: "Unlink";
+                        compact: true;
+                        enabled: !root.busy;
+                        clicked => { root.unlink-folder(root.selected-id); }
+                    }
+                }
+
+                Text {
+                    text: root.selected-kind == "own" ? "Your section. Deleting it deletes the folder and the files in it."
+                        : (root.selected-kind == "linked" ? "A folder of your PC, read in place. Unlinking never touches its files."
+                        : "Installed pack, read only.");
+                    color: root.confirm-delete ? Theme.danger : Theme.muted;
+                    font-size: 10px;
+                    wrap: word-wrap;
+                }
+
+                if root.items.length == 0 : Text {
+                    text: "No pictures or videos here.";
+                    color: Theme.muted;
+                    font-size: 12px;
+                    vertical-stretch: 1;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                if root.items.length > 0 : ListView {
+                    vertical-stretch: 1;
+                    for item in root.items : Rectangle {
+                        height: 32px;
+                        width: parent.width;
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Text {
+                                text: item.name;
+                                color: Theme.text;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: item.detail;
+                                color: Theme.muted;
+                                font-size: 10px;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            y: parent.height - 1px;
+                            height: 1px;
+                            background: Theme.border;
+                            opacity: 0.6;
+                        }
+                    }
+                }
+
+                if root.hidden > 0 : Text {
+                    text: "+ " + root.hidden + " more not listed";
+                    color: Theme.muted;
+                    font-size: 10px;
+                }
+            }
+        }
+    }
+}
