@@ -73,7 +73,7 @@ struct Services {
     recent_cache: RefCell<Vec<(String, String)>>,
 }
 
-struct Controller {
+pub(crate) struct Controller {
     weak: Weak<AppWindow>,
     services: Rc<RefCell<Services>>,
     diagnostic_timer: RefCell<Option<Rc<slint::Timer>>>,
@@ -88,6 +88,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     if options.print_version {
         println!("{}", crate::build_label());
         return Ok(());
+    }
+    #[cfg(feature = "diag-screenshot")]
+    if let Some(spec) = options.screenshot.clone() {
+        return crate::screenshot::run(spec);
     }
     let profile = Profile::resolve(&options)?;
     if options.print_profile {
@@ -127,12 +131,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl Controller {
+    /// The job engine, for headless fixtures
+    #[cfg(feature = "diag-screenshot")]
+    pub(crate) fn jobs_engine(&self) -> crate::backend::engine::JobEngine {
+        self.services.borrow().jobs.engine().clone()
+    }
+
     /// Closing the window: every job process still running stops with it.
-    fn shutdown(&self) {
+    pub(crate) fn shutdown(&self) {
         self.services.borrow().jobs.shutdown();
     }
 
-    fn new(
+    pub(crate) fn new(
         weak: Weak<AppWindow>,
         profile: Profile,
         _options: LaunchOptions,
@@ -197,7 +207,7 @@ impl Controller {
         })
     }
 
-    fn install(&self, diagnostic_cycle: bool) {
+    pub(crate) fn install(&self, diagnostic_cycle: bool) {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };

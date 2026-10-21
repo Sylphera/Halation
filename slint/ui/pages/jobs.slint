@@ -145,7 +145,7 @@ export component JobsPage inherits Rectangle {
                             }
                         }
                     }
-                    AppButton {
+                    if !job.finished : AppButton {
                         text: "Cancel";
                         compact: true;
                         enabled: job.cancellable;

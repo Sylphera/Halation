@@ -54,6 +54,8 @@ export component AppWindow inherits Window {
     in property <int> section-hidden: 0;
     in property <bool> sections-loaded: false;
     in property <bool> sections-busy: false;
+    // Library tab: 0 references, 1 sections (in-out so a headless snapshot can fix it)
+    in-out property <int> library-mode: 0;
 
     callback navigate(int);
     callback choose-reference();
@@ -195,6 +197,7 @@ export component AppWindow inherits Window {
                 remove-reference(id) => { root.remove-reference(id); }
                 set-query(value) => { root.set-query(value); }
                 dismiss-notice => { root.dismiss-notice(); }
+                mode <=> root.library-mode;
                 sections: root.sections;
                 section-items: root.section-items;
                 section-id: root.section-id;

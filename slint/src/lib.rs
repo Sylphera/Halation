@@ -10,6 +10,8 @@ pub mod library;
 pub mod motion;
 pub mod navigation;
 pub mod profile;
+#[cfg(feature = "diag-screenshot")]
+pub mod screenshot;
 pub mod settings;
 pub mod theme;
 

@@ -12,6 +12,18 @@ pub struct LaunchOptions {
     pub print_version: bool,
     pub print_profile: bool,
     pub help: bool,
+    #[cfg(feature = "diag-screenshot")]
+    pub screenshot: Option<ScreenshotSpec>,
+}
+
+/// `--screenshot <page> <width>x<height> <out.png>`: one headless snapshot of a page (diag-screenshot builds only)
+#[cfg(feature = "diag-screenshot")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScreenshotSpec {
+    pub page: String,
+    pub width: u32,
+    pub height: u32,
+    pub out: PathBuf,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +76,27 @@ where
             "--version" | "-V" => options.print_version = true,
             "--print-profile" => options.print_profile = true,
             "--help" | "-h" => options.help = true,
+            #[cfg(feature = "diag-screenshot")]
+            "--screenshot" => {
+                let page = args
+                    .next()
+                    .ok_or_else(|| ProfileError::MissingValue(arg.clone()))?;
+                let size = args
+                    .next()
+                    .ok_or_else(|| ProfileError::MissingValue(arg.clone()))?;
+                let out = args.next().ok_or(ProfileError::MissingValue(arg))?;
+                let (w, h) = size
+                    .split_once('x')
+                    .and_then(|(w, h)| Some((w.parse::<u32>().ok()?, h.parse::<u32>().ok()?)))
+                    .filter(|(w, h)| (200..=4096).contains(w) && (200..=4096).contains(h))
+                    .ok_or_else(|| ProfileError::UnknownArgument(size.clone()))?;
+                options.screenshot = Some(ScreenshotSpec {
+                    page,
+                    width: w,
+                    height: h,
+                    out: PathBuf::from(out),
+                });
+            }
             "--diagnostic-scene" => {
                 let value = args.next().ok_or(ProfileError::MissingValue(arg))?;
                 options.diagnostic_scene = Some(parse_diagnostic_scene(&value)?);

@@ -41,6 +41,8 @@ windows-sys = { version = "=0.61.2", features = [
 # Diagnostic renderer comparison only; the shipping beta uses winit + Skia.
 diag-femtovg = ["slint/renderer-femtovg"]
 diag-software = ["slint/renderer-software"]
+# Headless page snapshots (`--screenshot`) through the software renderer; never part of the shipping build.
+diag-screenshot = ["slint/renderer-software"]
 diag-skia-opengl = ["slint/renderer-skia-opengl"]
 diag-skia-vulkan = ["slint/renderer-skia-vulkan"]
 
