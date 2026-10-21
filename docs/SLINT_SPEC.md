@@ -73,27 +73,28 @@ performance qualification or release.
 
 ### Source provenance and boundary self-review
 
-- Implementation provenance for this beta: newly authored Rust and Slint code in `slint/`; public crates pinned through
+- Implementation provenance for this beta: newly authored Rust and Slint code in `crates/`; public crates pinned through
   Cargo; documented functional requirements/contracts and schemas as behavior-only information; the existing Halation
   mark and static Home reference image as identity/composition references.
 - No prior Tauri, `halation-core`, Qt bridge/service/test or Rust diagnostic implementation was consulted or used as a
   code/test template. The Tauri checkout was treated only as a product-behavior reference; no Tauri Rust source was read
   to implement this crate. Existing Rust tests were not used as templates.
 - Before technical close, inspect direct/transitive dependencies, imports and filesystem/path references to verify no
-  local dependency edge or call reaches old Rust. Record the actual audit and any source consulted in `slint/README.md`;
+  local dependency edge or call reaches old Rust. Record the actual audit and any source consulted in the task's report and, for backend imports, in `docs/SLINT_BACKEND_IMPORT.md`;
   if contamination is found, remove it and implement the affected unit anew before validation.
 
-### Crate layout
+### Workspace layout
 
 ```text
-slint/
-  Cargo.toml / Cargo.lock / build.rs
-  src/        main.rs, controller, settings, library, jobs, catalog, navigation, motion, theme, profile
-  ui/         app.slint, theme.slint, pages/, components/, icons.slint
-  assets/     product mark and asset notes
-  tests/      headless Rust service/model tests (no UI screenshots)
-  scripts/    opt-in beta launcher and manifest
+Cargo.toml / Cargo.lock / rust-toolchain.toml   the workspace
+crates/halation-core/   logic without UI: jobs, processes, Library index and sections, settings, presets (+ tests/)
+crates/halation-app/    the app: build.rs, src/ (controller, navigation, catalog, theme, motion, profile, backdrop),
+                        ui/ (app.slint, pages/, components/), tests/ (services, headless layout)
+assets/                 files installed beside the executable (icons, fonts, mark, Drape loop)
+tools/                  opt-in beta launcher, measurement runners, Drape recorder, docs checker
 ```
+
+Each crate's README says what belongs in it; `halation-core` never depends on Slint.
 
 - One native Slint `Window`; a small declarative shell and typed Rust services/models.
 - Navigation has one explicit owner in Rust. The active page is instantiated conditionally; leaving a page destroys
@@ -222,12 +223,11 @@ or shorten motion to mask cost. Report renderer/runtime information only when ob
 Focal checks for the beta:
 
 ```powershell
-cd slint
 cargo fmt --check
-cargo clippy --all-targets -- -D warnings
-cargo test
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 cargo build --release
-cargo tree -e features
+cargo tree -e features -p halation-app
 ```
 
 - Tests cover Settings schema/missing/corrupt/oversized/atomic write/write-failure rollback/reset; Library
@@ -309,8 +309,8 @@ implementation, tests and product decisions; no broader authority is inferred fr
 
 The response/composition/memory follow-up adds only a bounded, opt-in diagnostic path. Its six real-window runs and
 manual review are still gates; a one-time process counter sample or the Task Manager value alone establishes neither a
-fixed Skia cost nor an optimization result. Memory fields and limits are recorded in `slint/README.md` with the runner.
+fixed Skia cost nor an optimization result. Memory fields and limits are recorded with the runner (`tools/measure-memory.ps1`, notes in `archive/superseded/native-beta-readme.md`).
 
 ## Reused identity assets (Java, 2026-10-21)
 
-The tool icons (and the product mark) of the Tauri app are reused as identity assets, outside the clean-room rule: the Lucide SVGs are copied unchanged in shape to `slint/ui/icons/` and tinted in Slint with `colorize` (`ui/icons.slint`). Only the SVG files are reused, no visual code. Home and Jobs have no icon in the Tauri app and stay drawn as paths.
+The tool icons (and the product mark) of the Tauri app are reused as identity assets, outside the clean-room rule: the Lucide SVGs are copied unchanged in shape to `assets/icons/` and tinted in Slint with `colorize` (`ui/icons.slint`). Only the SVG files are reused, no visual code. Home and Jobs have no icon in the Tauri app and stay drawn as paths.

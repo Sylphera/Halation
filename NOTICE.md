@@ -22,7 +22,7 @@ GSAP used, and GSAP keeps its own license.
 
 - The source code, interface, scripts, tests and documentation in this repository, except the files listed in
   `THIRD_PARTY.md`, which keep their own licenses.
-- The tool icons of the native beta (`slint/ui/icons/*.svg`) are the Lucide icons the Tauri interface already uses,
+- The tool icons of the native beta (`assets/icons/*.svg`) are the Lucide icons the Tauri interface already uses,
   reused as identity assets under their ISC licence (`THIRD_PARTY.md`); no visual code of the Tauri interface is reused.
 - The name "Halation", the Halation logo and the app icon are not licensed under the GPL. See `TRADEMARKS.md`.
 

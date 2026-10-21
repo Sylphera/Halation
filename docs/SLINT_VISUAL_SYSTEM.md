@@ -14,7 +14,7 @@ first pass of this file (a launcher redesign, approved only as a starting point 
    colours and fonts of the rendered page. No HTML, CSS or JS of the original is read or copied into the beta. Reused
    identity assets: Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
    **One exception** (Java, 2026-10-21): the original's Drape code (`app/dist/drape.js`) may be reused **only to record
-   and modify the Drape** for the beta's backdrop. It runs only inside the recording tool (`slint/scripts/record-drape.js`),
+   and modify the Drape** for the beta's backdrop. It runs only inside the recording tool (`tools/record-drape.js`),
    never in the beta; the beta ships the recorded frames, which are allowed as rendered assets.
 3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
    Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
@@ -69,7 +69,7 @@ first pass of this file (a launcher redesign, approved only as a starting point 
 ## Home backdrop: the recorded Drape
 
 - **Source:** the latest original Drape (`main` at the "darker backgrounds" change, with the fixed banding on bright
-  crests), recorded by `slint/scripts/record-drape.js` from a checkout of the original. The original code is used only
+  crests), recorded by `tools/record-drape.js` from a checkout of the original. The original code is used only
   there, as Java allowed.
 - **Seamless, no cross-fade:** the recording copy makes the Drape's time periodic over 120 s. Every time-dependent
   noise lookup moves on a circle through the noise volume (the time axis plus a small offset across it) at the original

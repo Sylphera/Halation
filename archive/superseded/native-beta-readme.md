@@ -4,7 +4,7 @@
 > notes and its first provenance audit. The workspace is described in the crate READMEs and `docs/`.
 
 Standalone Rust + Slint + Skia application (clean-room visual layer; reusable Rust backend). This is a technical beta, not a replacement or release of the
-Tauri application. See [`../docs/SLINT_SPEC.md`](../docs/SLINT_SPEC.md) for the canonical scope and gates.
+Tauri application. See [`../docs/SLINT_SPEC.md`](../../docs/SLINT_SPEC.md) for the canonical scope and gates.
 
 ## Build and test
 
@@ -28,7 +28,7 @@ Default profile: `%LOCALAPPDATA%\Halation\slint-beta`. Override with `--profile-
 `HALATION_SLINT_PROFILE`. The crate does not read/write Tauri settings, Library, sessions or caches. Tests use synthetic
 temporary directories, never the real profile.
 
-The opt-in [`scripts/launch-beta.ps1`](scripts/launch-beta.ps1) writes a release manifest by default and launches only
+The opt-in [`scripts/launch-beta.ps1`](../../tools/launch-beta.ps1) writes a release manifest by default and launches only
 when explicitly passed `-Launch`. Its metadata-only dry-run verifies the resolved profile with `--print-profile`
 through `HALATION_SLINT_PROFILE` (including paths with spaces), writes no profile data and computes the executable hash
 with .NET SHA-256. The launcher does not build the application.

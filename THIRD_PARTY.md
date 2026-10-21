@@ -31,7 +31,7 @@ The full text of the SIL Open Font License 1.1 is at the end of this file.
 |---|---|---|
 | [Mediabunny](https://github.com/Vanilagy/mediabunny) 1.60.0 by Vanilagy and contributors | MPL-2.0 | `app/dist/mediabunny.js` (unmodified minified ES module build; source at https://github.com/Vanilagy/mediabunny) |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.30.0, Copyright (c) Microsoft Corporation | MIT | `app/dist/onnxruntime.js` (`ort.webgpu.bundle.min.mjs` without its source-map line; runs Cutout's model) |
-| [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses), `slint/ui/icons/*.svg` (the same icons as SVG files for the native beta) |
+| [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses), `assets/icons/*.svg` (the same icons as SVG files for the native app) |
 | [GSAP](https://gsap.com) 3.15.0 and its Flip plugin, Copyright 2026 GreenSock | [GSAP Standard License](https://gsap.com/standard-license) | `app/dist/gsap.min.js`, `app/dist/Flip.min.js` (unmodified; combined with Halation under the additional permission in `NOTICE.md`) |
 | [webgl-noise](https://github.com/ashima/webgl-noise) (3D simplex noise), Copyright (C) 2011 by Ashima Arts and Copyright (C) 2011-2016 by Stefan Gustavson | MIT | `app/dist/drape.js` (the Drape background; the GLSL function, with the integer steps rewritten for exact 32-bit arithmetic, and its JavaScript port) |
 
@@ -484,10 +484,10 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 
 ## Rust crates — native Slint beta (not released)
 
-The standalone `slint/` beta has not been released. These are the direct crates and graphics/windowing licenses
+The native app (`crates/`) has not been released. These are the direct crates and graphics/windowing licenses
 resolved by its `Cargo.lock` (Slint 1.18.1 / Rust 1.99 MSVC validation, 2026-10-20). This section supplements the
 Tauri dependency list above; it is not a complete transitive notice set. Generate and review all notices from
-`slint/Cargo.lock` before any distribution.
+`Cargo.lock` before any distribution.
 
 | Crate | Resolved version | License | Use |
 |---|---:|---|---|
