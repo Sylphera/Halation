@@ -45,7 +45,7 @@ no margin, no radius at the frame).
 │               │                                                              │
 │ GET           │                                                              │
 │  Downloader   │                      CONTENT AREA                            │
-│  Converter    │      (one scroll per page; Drape only on Home)               │
+│  Converter    │      (one scroll per page; Drape ground, loop only on Home)               │
 │ AUDIO         │                                                              │
 │  Vocal Rem.   │                                                              │
 │  Visualizer   │                                                              │
@@ -76,12 +76,12 @@ bar is out of scope (§12).
 ## 4. Surfaces and borders
 
 Depth comes from three flat levels and 1 px lines. No shadow, no blur, no translucency, no radius on anything that is
-part of the frame. Chrome and canvas are opaque everywhere except Home, where they lose their fill over the Drape (§8).
+part of the frame. Chrome and canvas are fills at the tint of §8 over the Drape's ground (variant B).
 
 | Level | Token | Used by |
 |---|---|---|
 | 0 Chrome | `chrome` | Sidebar, top bar, sub-header |
-| 1 Canvas | `canvas` | Content area of every page except Home (Home shows the Drape) |
+| 1 Canvas | `canvas` | Content area of every page (a tint over the Drape, §8) |
 | 2 Control | `control` | Inputs, selects, buttons (secondary), drop zone, search fields |
 | 3 Hover | `control-hover` | Hover of any row, item or control |
 | 4 Active | `control-active` | Pressed, selected row, active sidebar item, open menu item |
@@ -177,26 +177,40 @@ bar: text tabs, the active one with `text` colour and a 2 px `accent` underline 
 
 ## 8. Role of the Drape
 
-Problem (Java, 2026-10-21): inside a rectangle the Drape reads as a bubble, a picture in a box.
+Two problems (Java, 2026-10-21): inside a rectangle the Drape reads as a bubble, and with an unfilled frame the
+background does not differ from the rest of the UI. The balance is a question of **how much of the Drape each layer
+of the frame lets through**, so it is specified as a tint per layer instead of a yes/no.
 
-Recommendation: **on Home the Drape is the window's ground, edge to edge, and the frame is drawn over it with no
-fill.** The sidebar and top bar lose their `chrome` fill on Home and keep only their 1 px `line`s, text and icons; the
-content has no panels. There is then no rectangle whose edge the eye can find, so nothing reads as a bubble: the
-Drape runs under the sidebar, under the top bar and under the content as one surface, and the lines are the only
-structure. On every other page the frame is the opaque `chrome` and `canvas`; the fill fades in over `motion-duration`
-when leaving Home (instant with reduced motion).
+**Model.** The Drape is the window's ground on every page, edge to edge. Over it, three layers, each a `#0b0b0c` /
+`#101011` fill at a set opacity (the "tint"), from most to least present: the content where text is read (canvas), the
+sidebar and top bar (chrome), and the bare ground of Home. Lines (1 px) and text stay opaque. There is no rectangle
+edge anywhere, so nothing is a bubble; what separates frame from content is the tint step and the line, not a fill
+change against a different background.
 
-Why: a bubble comes from a bounded, differently-lit area; the cure is to remove the boundary, not to soften it (a
-vignette or a fade to `canvas` would be a glow, which is the floating look again). The Drape is near-black, so text
-and icons stay above 4.5:1 on it (to be measured on the recorded frames at their brightest crest; if a crest fails,
-the sidebar and top bar get a `#0b0b0c` fill at 60 % on Home only). Cost: the video is the full window as it is today,
-so no regression and no gain; blending is limited to the sidebar's hover/active fills (translucent white) and the
-grain.
+| Variant | Home: chrome / content | Other pages: chrome / content | Reads as |
+|---|---|---|---|
+| A · Home only | 0 % / 0 % | 100 % / 100 % | Drape is Home's moment; tools are plain dark (the first proposal) |
+| **B · Balanced (recommended)** | 55 % / 0 % | 80 % / 90 % | The Drape is the app's atmosphere: strong on Home, visible at the edges of every page, never behind running text |
+| C · Identity | 35 % / 0 % | 62 % / 78 % | The Drape is everywhere and clearly seen; reading surfaces get dimmer than they should |
 
-Rejected: Drape only in the content area (a box, as above); Drape under translucent panels (the glass look being
-removed); a different Drape crop per region (the seam would show).
+Recommendation: **B**. It gives Home a clear difference from the rest (the content has no tint, the chrome 55 %) and
+carries the identity to every page through the chrome and the margins around the content. Text sits on at least
+80 % of near-black on every page but Home, so contrast is fixed by the tint and does not depend on a Drape crest. Home's
+text sits on the bare Drape and on 55 % chrome; it is measured on the recorded frames' brightest crest and, if it
+fails 4.5:1, the Home chrome rises to 70 %.
 
-Home's grain stays the 10 % static grain, over the whole window.
+**Cost and the rest-state rule.** The moving loop plays **only on Home**. On every other page the ground is the
+Drape's still frame (`assets/drape-still.jpg`, the loop's first frame), so nothing animates at rest and the idle cost
+of tools is that of one static image. The still and the loop share their first frame, so leaving Home is a fade of the
+tints, not a jump. Home's grain stays the 10 % static grain, now drawn on every page over the ground.
+
+**Tint tokens.** `chrome-tint` and `canvas-tint` per page class (`home`, `page`) in the table above, set in Rust
+`theme` and exposed as `Theme` alpha values, so Java can change them by number. Tints fade over `motion-duration`
+(instant with reduced motion). Hover/active fills are translucent white (8 % / 12 %).
+
+Rejected: Drape only in the content area (a box); a vignette or fade to `canvas` at its edges (a glow, the floating
+look again); a different Drape crop per region (the seam would show); a live loop on every page (idle CPU on a tool
+the user stares at for an hour).
 
 ## 9. Screens
 
@@ -246,12 +260,11 @@ right. Search and Add live in the top bar's page-actions slot.
 
 1. At 960 × 600, 1280 × 800 and 1920 × 1080, with the sidebar open and collapsed, nothing overlaps or clips; the top
    bar and sidebar header share one baseline and line (`tests/ui_layout.rs` checks bounds).
-2. No element of the frame or content has a drop shadow or blur, and none has a translucent fill except hover/active
-   fills and Home's unfilled frame; only overlays have a border and
+2. No element has a drop shadow or blur, and no fill is translucent except the §8 tints and hover/active fills; only overlays have a border and
    radius 8. A search of `ui/` finds no `glass`, `hairline` or `sheen` token left.
 3. Exactly one sidebar item is active and it matches the page; turned-off tools leave no gap or empty group label.
-4. The Drape and grain are drawn only on Home, over the whole window, with no visible rectangle edge; leaving Home
-   frees them as today.
+4. The Drape is the ground on every page with no visible rectangle edge; the loop runs only on Home and every other
+   page shows the still frame (no timer, no video); tint values come from `theme`.
 5. Every text token passes 4.5:1 on every surface it is drawn on (existing test, extended to the new grounds).
 6. Notice, Activity, shortcuts, language and Save session work from the top bar exactly as from the dock today.
 7. Collapsing/opening the sidebar and `Ctrl+B` work; reduced motion turns the 1.6× transition off.
