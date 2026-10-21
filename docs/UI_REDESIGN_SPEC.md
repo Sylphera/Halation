@@ -76,7 +76,7 @@ bar is out of scope (§12).
 ## 4. Surfaces and borders
 
 Depth comes from three flat levels and 1 px lines. No shadow, no blur, no translucency, no radius on anything that is
-part of the frame. Chrome and canvas are opaque, so nothing is blended over the Drape video.
+part of the frame. Chrome and canvas are opaque everywhere except Home, where they lose their fill over the Drape (§8).
 
 | Level | Token | Used by |
 |---|---|---|
@@ -177,28 +177,53 @@ bar: text tabs, the active one with `text` colour and a 2 px `accent` underline 
 
 ## 8. Role of the Drape
 
-Recommendation: **the Drape lives only inside Home's content area** (the region right of the sidebar and under the
-top bar), with the existing 10 % static grain over it. The sidebar, top bar and every other page are flat `chrome` /
-`canvas`.
+Problem (Java, 2026-10-21): inside a rectangle the Drape reads as a bubble, a picture in a box.
 
-Why: (1) the frame is what makes the window read as solid, and a moving field behind it would put back what is being
-removed; (2) opaque chrome means no alpha blending over video frames, and the video is decoded and scaled to a smaller
-rectangle than today's full window, which is cheaper; (3) Home keeps the identity moment, as `docs/DECISIONS.md`
-already has it ("Home is lit and moving, the tools almost black and nearly still"). Header and sidebar are *not*
-translucent over it, because translucency is the floating look in another form.
+Recommendation: **on Home the Drape is the window's ground, edge to edge, and the frame is drawn over it with no
+fill.** The sidebar and top bar lose their `chrome` fill on Home and keep only their 1 px `line`s, text and icons; the
+content has no panels. There is then no rectangle whose edge the eye can find, so nothing reads as a bubble: the
+Drape runs under the sidebar, under the top bar and under the content as one surface, and the lines are the only
+structure. On every other page the frame is the opaque `chrome` and `canvas`; the fill fades in over `motion-duration`
+when leaving Home (instant with reduced motion).
 
-Edge case: Home at the top-left corner meets the sidebar line and the top bar line directly, with no fade. The Drape
-loop's frames are scaled with `image-fit: cover` to the content area, not the window, so its composition stays centred
-on what is visible.
+Why: a bubble comes from a bounded, differently-lit area; the cure is to remove the boundary, not to soften it (a
+vignette or a fade to `canvas` would be a glow, which is the floating look again). The Drape is near-black, so text
+and icons stay above 4.5:1 on it (to be measured on the recorded frames at their brightest crest; if a crest fails,
+the sidebar and top bar get a `#0b0b0c` fill at 60 % on Home only). Cost: the video is the full window as it is today,
+so no regression and no gain; blending is limited to the sidebar's hover/active fills (translucent white) and the
+grain.
+
+Rejected: Drape only in the content area (a box, as above); Drape under translucent panels (the glass look being
+removed); a different Drape crop per region (the seam would show).
+
+Home's grain stays the 10 % static grain, over the whole window.
 
 ## 9. Screens
 
-**Home.** Top bar title "Home"; Drape in the content area. Centre: mark, wordmark, tagline as today. The **tool strip
-is removed**: the sidebar now carries every tool with labels, and a second list was the duplication the first visual
-pass already flagged (this is the one change to Home's content, and it is easy to restore as a row under the tagline).
-The drop zone is a level-2 rectangle (fill, 1 px dashed `line-strong`, radius 8) 560 px wide, and the Recent files
-strip becomes a single line under it with no filled bar. The temporary "Grain (preview)" slider is dropped from the
-frame; if it stays for Java's tuning it is a small control in the content's bottom-right, not a panel.
+**Home.** Top bar title "Home". The Drape is the ground (§8). The tool strip is removed: the sidebar carries every
+tool with labels, and a second list was duplicated navigation. Home becomes a **starting point**, not a launcher:
+what is there to continue, what to add, what is going on. One column, 720 px, centred horizontally, starting under
+the top bar; blocks are separated by 1 px `line`s and carry no fill, so they sit on the Drape without forming boxes.
+
+1. **Header (left aligned):** the mark (28 px) and "Halation" wordmark small, with the tagline in `muted`. The big
+   centred logo of the replica goes; Java can ask for it back as an opening splash on first launch.
+2. **Add (primary action):** one wide drop line, 96 px tall, 1 px dashed `line-strong`, no fill, radius 8: "Drop a
+   song or an image, or click to browse. Files are added to your Library, never copied."
+3. **Recent files:** the last 6 Library references as rows of 40 px (icon by type, name, folder, relative date),
+   `line` between, hover `control-hover` at 8 % white. Click opens it in Library selected. Empty: one line "Files you
+   add to the Library show up here." "Show all" at the block's right opens Library.
+4. **Side by side under Recent, two short blocks of the same style:**
+   - **Library:** counts (references, sections, linked folders) and a warning row when files are missing ("3 files
+     moved or deleted", opens Library filtered to them).
+   - **Activity:** the processes queue summary: "All quiet", or running and finished jobs with a progress line; the
+     engines status ("Engines not connected" while the beta has none) with its action. Same content as the top bar's
+     Activity popover, so the popover only adds the details.
+5. **Footer line:** build label in `subtle`, bottom-left of the content. The "Grain (preview)" slider stays only while
+   Java tunes it, as a 28 px control bottom-right.
+
+Everything on Home is data the beta already has (`recent`, library counts, `jobs`, `library-missing`, build label),
+so the page needs no new services. Not on Home on purpose: any tool launcher, tips, news. Parked for later, to
+`docs/ROADMAP.md` if Java wants them: "Continue where you left" per tool once tool pages exist, pinned sections.
 
 **Tool pages (future, when engines exist).** The sidebar item is active and the top bar shows the tool name. Content is
 a canvas plus an optional **inspector** on the right: 300 px, `chrome` fill, 1 px `line` on its left edge, collapsible
@@ -221,10 +246,12 @@ right. Search and Add live in the top bar's page-actions slot.
 
 1. At 960 × 600, 1280 × 800 and 1920 × 1080, with the sidebar open and collapsed, nothing overlaps or clips; the top
    bar and sidebar header share one baseline and line (`tests/ui_layout.rs` checks bounds).
-2. No element of the frame or content has a drop shadow, blur or translucent fill; only overlays have a border and
+2. No element of the frame or content has a drop shadow or blur, and none has a translucent fill except hover/active
+   fills and Home's unfilled frame; only overlays have a border and
    radius 8. A search of `ui/` finds no `glass`, `hairline` or `sheen` token left.
 3. Exactly one sidebar item is active and it matches the page; turned-off tools leave no gap or empty group label.
-4. The Drape and grain are drawn only in Home's content rectangle; leaving Home frees them as today.
+4. The Drape and grain are drawn only on Home, over the whole window, with no visible rectangle edge; leaving Home
+   frees them as today.
 5. Every text token passes 4.5:1 on every surface it is drawn on (existing test, extended to the new grounds).
 6. Notice, Activity, shortcuts, language and Save session work from the top bar exactly as from the dock today.
 7. Collapsing/opening the sidebar and `Ctrl+B` work; reduced motion turns the 1.6× transition off.
