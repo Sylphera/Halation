@@ -131,7 +131,7 @@ try {
         finally {
             if (-not $process.HasExited) {
                 [void]$process.CloseMainWindow()
-                if (-not $process.WaitForExit(8000)) { $record.closeNote = 'did not close after WM_CLOSE (own PID, not force-terminated)' }
+                if (-not $process.WaitForExit(8000)) { $record.closeNote = 'did not close after WM_CLOSE (own PID, not force-terminated)'; Write-Warning "PID $($process.Id) of $label is still running; close it by PID." }
             }
             $process.Dispose()
         }

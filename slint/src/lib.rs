@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod atomic_file;
+pub mod backend;
 pub mod catalog;
 pub mod jobs;
 pub mod library;

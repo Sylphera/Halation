@@ -28,6 +28,15 @@ slint = { version = "=1.18.1", default-features = false, features = [
     "accessibility",
 ] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
+
 [features]
 # Diagnostic renderer comparison only; the shipping beta uses winit + Skia.
 diag-femtovg = ["slint/renderer-femtovg"]
