@@ -305,3 +305,7 @@ implementation, tests and product decisions; no broader authority is inferred fr
 The response/composition/memory follow-up adds only a bounded, opt-in diagnostic path. Its six real-window runs and
 manual review are still gates; a one-time process counter sample or the Task Manager value alone establishes neither a
 fixed Skia cost nor an optimization result. Memory fields and limits are recorded in `slint/README.md` with the runner.
+
+## Reused identity assets (Java, 2026-10-21)
+
+The tool icons (and the product mark) of the Tauri app are reused as identity assets, outside the clean-room rule: the Lucide SVGs are copied unchanged in shape to `slint/ui/icons/` and tinted in Slint with `colorize` (`ui/icons.slint`). Only the SVG files are reused, no visual code. Home and Jobs have no icon in the Tauri app and stay drawn as paths.
