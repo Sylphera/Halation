@@ -6,12 +6,15 @@
 // slide becomes a wide circle at the original speed; at t = 0 both start like the original. Frame PERIOD equals frame 0.
 //
 // Writes (in <out dir>):
-//   drape-loop.bin   FRAMES JPEG frames of 320 x 180, 15 per field second: "HDL1", count (u32 LE), the byte length
-//                    of each frame (u32 LE), then the frames. No grain.
-//   drape-grain.png  256 x 256 RGBA tile of the stationary film grain (signed: white adds, black takes away)
+//   frames/f0000.png …  FRAMES lossless frames of 320 x 180, 15 per field second, no grain
+//   drape-loop.mp4      those frames as H.264 (x264 veryslow, CRF 18, one keyframe, BT.709), when FFMPEG names an
+//                       ffmpeg with libx264; the beta plays it with Windows' own decoder
+//   drape-still.jpg     frame 0, shown when the loop does not play (reduced motion, no decoder)
+//   drape-grain.png     256 x 256 RGBA tile of the stationary film grain (signed: white adds, black takes away)
 //   drape-original-1920.png, drape-periodic-1920.png  the unmodified and the periodic Drape at t = 0, full size
-// Usage: node record.js <dist dir of the original> <out dir>   (CHROME and NODE_PATH as for the reference shots)
+// Usage: node record.js <dist dir of the original> <out dir>   (CHROME, NODE_PATH and FFMPEG as needed)
 const path = require("path");
+const { execFileSync } = require("child_process");
 const fs = require("fs");
 const { chromium } = require("playwright");
 const [, , dist, out] = process.argv;
@@ -64,6 +67,7 @@ const d = window.__drape.create(document.getElementById("s"), {});
 const grab = () => { const c = document.querySelector("canvas"), k = document.createElement("canvas"); k.width = c.width; k.height = c.height;
   const g = k.getContext("2d"); g.drawImage(c, 0, 0); return [k, g.getImageData(0, 0, k.width, k.height).data]; };
 window.frameAt = (t, grain) => { d.canvas.__drapeReview.setGrainStrength(grain); d.sceneAt({ time: t }); return Array.from(grab()[1]); };
+window.pngAt = t => { d.canvas.__drapeReview.setGrainStrength(0); d.sceneAt({ time: t }); return grab()[0].toDataURL("image/png"); };
 window.jpegAt = (t, q) => { d.canvas.__drapeReview.setGrainStrength(0); d.sceneAt({ time: t }); return grab()[0].toDataURL("image/jpeg", q); };
 window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.width, c.height]; };
 </script></body></html>`;
@@ -91,17 +95,22 @@ window.sizeOf = () => { const c = document.querySelector("canvas"); return [c.wi
   const second = await p.evaluate(([t]) => window.frameAt(t, 0), [PERIOD / FRAMES]);
   const [seam, seamMax] = mad(first, end), [step, stepMax] = mad(first, second);
   console.log(`seam (frame ${PERIOD} s vs 0 s): mean ${seam.toFixed(4)}, max ${seamMax}; one frame apart: mean ${step.toFixed(3)}, max ${stepMax}`);
-  const jpegs = [];
+  const framesDir = path.join(out, "frames");
+  fs.mkdirSync(framesDir, { recursive: true });
   for (let i = 0; i < FRAMES; i++) {
-    const url = await p.evaluate(([t, q]) => window.jpegAt(t, q), [i * PERIOD / FRAMES, QUALITY]);
-    jpegs.push(Buffer.from(url.split(",")[1], "base64"));
+    const url = await p.evaluate(([t]) => window.pngAt(t), [i * PERIOD / FRAMES]);
+    fs.writeFileSync(path.join(framesDir, `f${String(i).padStart(4, "0")}.png`), Buffer.from(url.split(",")[1], "base64"));
   }
-  const header = Buffer.alloc(8 + 4 * FRAMES);
-  header.write("HDL1", 0, "ascii"); header.writeUInt32LE(FRAMES, 4);
-  jpegs.forEach((j, i) => header.writeUInt32LE(j.length, 8 + 4 * i));
-  fs.writeFileSync(path.join(out, "drape-loop.bin"), Buffer.concat([header, ...jpegs]));
-  const sizes = jpegs.map(j => j.length);
-  console.log(`frames ${FRAMES}, ${(sizes.reduce((a, b) => a + b) / 1024).toFixed(0)} KB, ${(Math.min(...sizes) / 1024).toFixed(1)}-${(Math.max(...sizes) / 1024).toFixed(1)} KB each`);
+  const still = await p.evaluate(([t, q]) => window.jpegAt(t, q), [0, QUALITY]);
+  fs.writeFileSync(path.join(out, "drape-still.jpg"), Buffer.from(still.split(",")[1], "base64"));
+  if (process.env.FFMPEG) {
+    execFileSync(process.env.FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", "-framerate", "15",
+      "-i", path.join(framesDir, "f%04d.png"), "-c:v", "libx264", "-preset", "veryslow", "-tune", "film", "-crf", "18",
+      "-g", String(FRAMES), "-keyint_min", String(FRAMES), "-pix_fmt", "yuv420p",
+      "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart",
+      path.join(out, "drape-loop.mp4")]);
+    console.log("drape-loop.mp4", (fs.statSync(path.join(out, "drape-loop.mp4")).size / 1024).toFixed(0), "KB");
+  }
 
   // The grain: a 1:1 render with and without it at the same moment; the difference is the grain
   const q = await open(1920, 1080, original, "full.html");
