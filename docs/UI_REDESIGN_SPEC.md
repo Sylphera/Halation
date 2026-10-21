@@ -25,7 +25,7 @@ it.
 | Linear | Full-height sidebar with labelled groups; compact rows (28 px); a thin top bar with title left and actions right; 1 px dividers instead of cards; list rows as the basic unit; one accent used for state only | The inset rounded content panel with a margin (it floats; Java asked for solid, so content is flush) |
 | Raycast | Density and keyboard-first feel: every sidebar item and top-bar action has a shortcut and a tooltip with it | Overlay command window (kept as a parked idea, §11) |
 | Arc | Collapsible sidebar that keeps icons; collapse by button and shortcut | Hover-reveal overlay sidebar, tab/space model |
-| Figma | Fixed-width inspector on the right of a canvas for tool pages; toolbar actions as 28 px icon buttons | Floating toolbars over the canvas |
+| Figma | The tool frame (§9): left panel (layers/pages), central canvas, right inspector with collapsible sections and compact fields, one primary action at the top right; Settings with categories at the left and a dense pane at the right | Floating toolbars over the canvas (the toolbar is docked), multiplayer, free-form canvas |
 | DaVinci Resolve | Flush panels separated by 1 px gaps in neutral near-black; the surface level, not shadows, tells what is on top | Page tabs at the bottom |
 | VS Code | Activity/sidebar split and a status line only when it carries state | Always-on status bar (Halation has no use for one) |
 
@@ -110,6 +110,7 @@ Existing text and accent tokens are kept. Surface tokens replace `ground`, `grou
 | `control-active` | `#232325` | `raised` (selected) |
 | `line` | `#1f1f21` | `hairline`, `sheen` |
 | `line-strong` | `#2d2d30` | `line` (control borders) |
+| `canvas-deep` | `#0a0a0b` | (new) the canvas of tool pages |
 | `text` / `muted` / `subtle` | `#f5f5f2` / `#b5b5af` / `#9a9993` | unchanged |
 | `accent` | `#a3a8dc` | unchanged (state, focus, links, active icon) |
 | `activity` / `warning` / `danger` / `success` | unchanged | unchanged |
@@ -171,7 +172,7 @@ Left to right, on `chrome`, with a 1 px `line` underneath and no inner dividers.
    folder, language, Save session. Icon buttons, 28 px, tooltip with name and shortcut. "Show processes dock" in
    Settings (`prefs.show-dock`) hides the whole global group, as it hides the dock today.
 
-Tabs for Settings (General … About) and Library (References, Sections) sit in a 36 px **sub-header** under the top
+Tabs for Library (References, Sections) sit in a 36 px **sub-header** under the top
 bar: text tabs, the active one with `text` colour and a 2 px `accent` underline on the sub-header's own line; same
 `chrome` fill.
 
@@ -249,15 +250,55 @@ Everything on Home is data the beta already has (`recent`, library counts, `jobs
 so the page needs no new services. Not on Home on purpose: any tool launcher, tips, news. Parked for later, to
 `docs/ROADMAP.md` if Java wants them: "Continue where you left" per tool once tool pages exist, pinned sections.
 
-**Tool pages (future, when engines exist).** The sidebar item is active and the top bar shows the tool name. Content is
-a canvas plus an optional **inspector** on the right: 300 px, `chrome` fill, 1 px `line` on its left edge, collapsible
-with a top-bar action. Its sections are headings with rows, never cards. Running work shows in the Activity popover and
-as a 28 px progress strip at the bottom of the tool's own canvas when needed, not in the frame.
+**Tool pages: the tool frame (Java, 2026-10-21: inspired by Figma).** Every tool page uses one frame, so a person
+who learned one knows all of them. Filled in when each tool gets its engine; the frame itself is specified now. The
+sidebar item is active, the top bar shows the tool's name, and its **page actions** hold the tool's one primary action
+(Export, Run, Download: white fill, one per page, like Figma's Share).
 
-**Settings.** Sub-header with the tabs and the existing scroll-follow behaviour. Content: one column, 760 px maximum,
-centred in the canvas (narrower windows use 24 px side padding). Each section: heading (13.5 px / 600), rows of 48 px
-with name and help text on the left, the control right-aligned at 260 px, `line` between rows, 32 px between
-sections. No panel fill, no radius on groups. "Advanced" stays a disclosure row.
+```
+┌ left panel 220 ┬──────── canvas ────────────────┬ inspector 280 ┐
+│ Layers│Looks│… │                                 │ Adjust│Output │
+│ rows 28 px     │   the work, on `canvas-deep`    │ ▾ Colour    + │
+│ (eye, name)    │                                 │   Temp ──●── │
+│                │                                 │ ▾ Tone      + │
+│                ├─────────────────────────────────┤ ▾ Grain       │
+│                │ docked bar 40: ◀ ▶ time  Fit 100%│   [Amt][Size] │
+└────────────────┴─────────────────────────────────┴───────────────┘
+```
+
+- **Left panel (220 px, `chrome`):** a 36 px tab strip (Layers, Looks, Files… as the tool needs) over rows of 28 px:
+  the list the person works with (layers, queue of inputs, looks). Selected row `control-active`. Optional per tool.
+- **Canvas (flexible):** `canvas-deep` (`#0a0a0b`, darker than `canvas`, so the work reads as the centre); the preview
+  centred with no frame or shadow; zoom and fit in the docked bar. Pan/zoom keep the Slint-only rule (no shader).
+- **Docked bar (40 px, `chrome`, 1 px line above):** transport, time, zoom. It replaces Figma's floating toolbar, which
+  would reintroduce the floating look.
+- **Inspector (280 px, `chrome`, 1 px line on its left):** a 36 px tab strip (Adjust, Output…) and **sections**: a 32 px
+  header (name 600, `+` or chevron at the right), content inside the section, a 1 px line between sections. Content
+  types, all compact: **slider row** (label 76 px, 4 px track in `accent`, value right-aligned, 26 px tall), **field**
+  (28 px, level 2, label inside at the left), **two-column field pairs**, segmented control, switch, swatch grid and
+  thumbnail grid (for looks). Nothing is a card; density target is 8–12 controls visible at 1280 × 800.
+- **Panels:** fixed widths in v1, each collapsible (left: `Ctrl+Alt+B`, inspector: `Ctrl+Alt+I`) with the width
+  animating at `motion-duration`; below 1180 px of window width the left panel starts collapsed. Drag-resize and
+  scrubbing a number by dragging its label (Figma's) are parked.
+- Running work shows in the Activity popover and as a 28 px progress strip on top of the docked bar, not in the frame.
+
+**Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** No more single
+scrolling page with a tab bar that jumps. The content area splits in two:
+
+- **Category list (200 px, left, `canvas`, 1 px line on its right):** General, Interface, You, Files, Processing,
+  Tools, Storage, About, as 28 px items in the sidebar's style (hover, active `control-active`). A "Settings" group
+  label on top. Selection is interface state, kept only while the app runs.
+- **Pane (right):** the selected category alone, so it can be denser and better presented: the category title
+  (16 px / 600), then **groups** (heading 13.5 px / 600, e.g. Startup, Behaviour, Frame, Home, Save location, Jobs,
+  Advanced) of cells in **two columns** (gap 32 px, `line` above each cell, 44 px minimum height: name with a help
+  line on the left, control on the right, selects 150 px). Long controls (a path, a list) take the full width. Max pane
+  width 880 px, left aligned to the list, 32 px padding. **Advanced** is a normal group at the foot of its
+  category, not a hidden disclosure. Storage and About show values and actions in the same cells.
+- **Search and Restore defaults** stay in the top bar's page actions: the search lists matching settings across
+  categories in the pane (name, category) and a click opens that category with the cell highlighted for 1.2 s.
+  Restore defaults acts on the whole app as today and keeps the same exceptions (language, artist name and links,
+  tools turned on or off).
+- The sub-header with tabs is gone from Settings; Library keeps its own (References, Sections).
 
 **Library.** Sub-header with References / Sections. References: table full width of the canvas (header 32 px, rows
 40 px, `line` between, selected row `control-active`); empty state centred on the canvas with the drop zone style of
@@ -272,7 +313,9 @@ right. Search and Add live in the top bar's page-actions slot.
    bar and sidebar header share one baseline and line (`tests/ui_layout.rs` checks bounds).
 2. No element has a drop shadow, blur or translucent fill except hover/active fills; only overlays have a border and
    radius 8. A search of `ui/` finds no `glass`, `hairline` or `sheen` token left.
-3. Exactly one sidebar item is active and it matches the page; turned-off tools leave no gap or empty group label.
+3. Settings shows the category list and one category pane; every setting of today is reachable in exactly one
+   category and from search. The tool frame has the §9 regions (left panel 220, inspector 280, docked bar 40).
+3b. Exactly one sidebar item is active and it matches the page; turned-off tools leave no gap or empty group label.
 4. The Drape and grain are drawn only inside Home's content rectangle; leaving Home frees them as today.
 5. Every text token passes 4.5:1 on every surface it is drawn on (existing test, extended to the new grounds).
 6. Notice, Activity, shortcuts, language and Save session work from the top bar exactly as from the dock today.
@@ -290,10 +333,10 @@ right. Search and Add live in the top bar's page-actions slot.
 - Slint cannot draw custom shaders; everything above is rectangles, 1 px lines, text and icons.
 - This work edits the same files the crates restructuring (core and app) moves: implement after that merges.
 - Parked, to `docs/ROADMAP.md` only if Java wants them: command palette (`Ctrl+K`) in the top bar centre; custom title
-  bar merged into the top bar; collapsible sidebar groups; a right-hand inspector pattern for tools.
+  bar merged into the top bar; collapsible sidebar groups; drag-resizable panels and drag-to-scrub numbers in the tool frame.
 
 ## 12. Out of scope
 
-Custom title bar and window controls; command palette or global search; light theme; tool pages and engines; a status
+Custom title bar and window controls; any tool's own content and engine; Figma's canvas, comments or multiplayer; command palette or global search; light theme; tool pages and engines; a status
 bar; sidebar groups the user can reorder or collapse; hover-reveal sidebar; changes to Drape, grain, copy, icons or
 the Settings/Library feature set; Spanish strings.
