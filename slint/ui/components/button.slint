@@ -37,9 +37,11 @@ export component AppButton inherits FocusScope {
         background: root.primary ? Theme.accent : Theme.surface-high;
         border-width: root.has-focus ? 2px : 1px;
         border-color: root.has-focus ? Theme.accent : Theme.border;
-        opacity: root.enabled ? 1 : 0.45;
+        opacity: root.enabled ? (touch.pressed ? 0.82 : 1) : 0.45;
         animate background { duration: root.motion-duration; easing: ease-out; }
-        animate opacity { duration: root.motion-duration; }
+        animate opacity {
+            duration: touch.pressed ? 0ms : root.motion-duration;
+        }
     }
 
     Text {
@@ -52,7 +54,7 @@ export component AppButton inherits FocusScope {
         overflow: elide;
     }
 
-    TouchArea {
+    touch := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => {

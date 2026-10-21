@@ -128,6 +128,18 @@ impl LibraryModel {
             .collect()
     }
 
+    pub fn recent_matches(&self, signature: &[(String, String)], limit: usize) -> bool {
+        let entries = self.entries.borrow();
+        let count = entries.len().min(limit);
+        count == signature.len()
+            && entries
+                .iter()
+                .rev()
+                .take(count)
+                .zip(signature.iter())
+                .all(|(entry, (id, name))| entry.id == *id && entry.display_name == *name)
+    }
+
     pub fn len(&self) -> usize {
         self.entries.borrow().len()
     }

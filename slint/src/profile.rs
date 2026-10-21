@@ -8,14 +8,23 @@ pub const PROFILE_ENV: &str = "HALATION_SLINT_PROFILE";
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LaunchOptions {
     pub profile_root: Option<PathBuf>,
+    pub diagnostic_scene: Option<DiagnosticScene>,
     pub print_version: bool,
     pub print_profile: bool,
     pub help: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticScene {
+    Empty,
+    Home,
+    Cycle,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProfileError {
     UnknownArgument(String),
+    InvalidDiagnosticScene(String),
     MissingValue(String),
     EmptyPath,
     NoLocalAppData,
@@ -25,6 +34,10 @@ impl fmt::Display for ProfileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownArgument(arg) => write!(f, "unknown argument: {arg}"),
+            Self::InvalidDiagnosticScene(scene) => write!(
+                f,
+                "invalid diagnostic scene '{scene}'; expected empty, home, or cycle"
+            ),
             Self::MissingValue(arg) => write!(f, "missing value after {arg}"),
             Self::EmptyPath => write!(f, "profile root cannot be empty"),
             Self::NoLocalAppData => {
@@ -51,6 +64,10 @@ where
             "--version" | "-V" => options.print_version = true,
             "--print-profile" => options.print_profile = true,
             "--help" | "-h" => options.help = true,
+            "--diagnostic-scene" => {
+                let value = args.next().ok_or(ProfileError::MissingValue(arg))?;
+                options.diagnostic_scene = Some(parse_diagnostic_scene(&value)?);
+            }
             "--profile-root" => {
                 let value = args.next().ok_or(ProfileError::MissingValue(arg))?;
                 if value.trim().is_empty() {
@@ -64,6 +81,8 @@ where
                         return Err(ProfileError::EmptyPath);
                     }
                     options.profile_root = Some(PathBuf::from(value));
+                } else if let Some(value) = arg.strip_prefix("--diagnostic-scene=") {
+                    options.diagnostic_scene = Some(parse_diagnostic_scene(value)?);
                 } else {
                     return Err(ProfileError::UnknownArgument(arg));
                 }
@@ -71,6 +90,15 @@ where
         }
     }
     Ok(options)
+}
+
+fn parse_diagnostic_scene(value: &str) -> Result<DiagnosticScene, ProfileError> {
+    match value {
+        "empty" => Ok(DiagnosticScene::Empty),
+        "home" => Ok(DiagnosticScene::Home),
+        "cycle" => Ok(DiagnosticScene::Cycle),
+        _ => Err(ProfileError::InvalidDiagnosticScene(value.to_owned())),
+    }
 }
 
 /// Resolve the profile root with explicit precedence: CLI, environment, default.

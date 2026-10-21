@@ -7,7 +7,7 @@ use halation_slint::library::{
 };
 use halation_slint::motion;
 use halation_slint::navigation::{Navigation, Page};
-use halation_slint::profile::{Profile, ProfileError, parse_args, resolve_root};
+use halation_slint::profile::{DiagnosticScene, Profile, ProfileError, parse_args, resolve_root};
 use halation_slint::settings::{
     MAX_SETTINGS_BYTES, Settings, SettingsError, SettingsRead, SettingsStore, read_settings,
 };
@@ -89,10 +89,33 @@ fn profile_precedence_and_argument_parsing_are_explicit() {
         "--profile-root".to_owned(),
         "C:/test-profile".to_owned(),
         "--print-profile".to_owned(),
+        "--diagnostic-scene".to_owned(),
+        "cycle".to_owned(),
     ])
     .unwrap();
     assert_eq!(options.profile_root, Some(PathBuf::from("C:/test-profile")));
     assert!(options.print_profile);
+    assert_eq!(options.diagnostic_scene, Some(DiagnosticScene::Cycle));
+    assert_eq!(
+        parse_args(["--diagnostic-scene=empty".to_owned()])
+            .unwrap()
+            .diagnostic_scene,
+        Some(DiagnosticScene::Empty)
+    );
+    assert_eq!(
+        parse_args(["--diagnostic-scene".to_owned(), "home".to_owned()])
+            .unwrap()
+            .diagnostic_scene,
+        Some(DiagnosticScene::Home)
+    );
+    assert!(matches!(
+        parse_args(["--diagnostic-scene=continuous".to_owned()]),
+        Err(ProfileError::InvalidDiagnosticScene(_))
+    ));
+    assert!(matches!(
+        parse_args(["--diagnostic-scene".to_owned()]),
+        Err(ProfileError::MissingValue(value)) if value == "--diagnostic-scene"
+    ));
     assert_eq!(
         parse_args(["--profile-root".to_owned()]),
         Err(ProfileError::MissingValue("--profile-root".to_owned()))

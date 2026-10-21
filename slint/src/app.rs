@@ -25,6 +25,7 @@ Usage: halation-slint [OPTIONS]
 
 Options:
   --profile-root <DIR>   Use an isolated profile root (also HALATION_SLINT_PROFILE)
+  --diagnostic-scene <SCENE> Run a bounded native memory scenario (empty, home, cycle)
   --print-profile        Print the resolved profile root and exit
   --version, -V          Print version and build identity
   --help, -h             Show this help
@@ -60,11 +61,14 @@ struct Services {
     tools_model: Rc<VecModel<ToolItem>>,
     rail_tools_model: Rc<VecModel<ToolItem>>,
     jobs_model: Rc<VecModel<JobRow>>,
+    recent_model: Rc<VecModel<RecentItem>>,
+    recent_cache: RefCell<Vec<(String, String)>>,
 }
 
 struct Controller {
     weak: Weak<AppWindow>,
     services: Rc<RefCell<Services>>,
+    diagnostic_timer: RefCell<Option<Rc<slint::Timer>>>,
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -93,8 +97,20 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let window = AppWindow::new()?;
     let log_profile = profile.clone();
+    if options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Empty) {
+        window.set_diagnostic_scene(0);
+        log_line(&log_profile, "diagnostic scene: empty renderer window");
+        log_line(&log_profile, "window created (empty diagnostic scene)");
+        window
+            .run()
+            .map_err(|error| format!("event loop failed: {error}"))?;
+        log_line(&log_profile, "event loop finished");
+        return Ok(());
+    }
+
+    let diagnostic_cycle = options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Cycle);
     let controller = Controller::new(window.as_weak(), profile, options)?;
-    controller.install();
+    controller.install(diagnostic_cycle);
     log_line(&log_profile, "window created");
 
     window
@@ -133,6 +149,7 @@ impl Controller {
 
         Ok(Self {
             weak,
+            diagnostic_timer: RefCell::new(None),
             services: Rc::new(RefCell::new(Services {
                 profile,
                 settings,
@@ -148,21 +165,34 @@ impl Controller {
                 tools_model: Rc::new(VecModel::from(tools)),
                 rail_tools_model: Rc::new(VecModel::from(rail_tools)),
                 jobs_model,
+                recent_model: Rc::new(VecModel::default()),
+                recent_cache: RefCell::new(Vec::new()),
             })),
         })
     }
 
-    fn install(&self) {
+    fn install(&self, diagnostic_cycle: bool) {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
         apply_theme(&ui);
+        ui.set_build_label(SharedString::from(crate::build_label()));
+        ui.set_profile_path(SharedString::from(
+            self.services
+                .borrow()
+                .profile
+                .root()
+                .to_string_lossy()
+                .into_owned(),
+        ));
 
         {
             let services = self.services.borrow();
             ui.set_tools(ModelRc::from(services.tools_model.clone()));
             ui.set_rail_tools(ModelRc::from(services.rail_tools_model.clone()));
             ui.set_jobs(ModelRc::from(services.jobs_model.clone()));
+            ui.set_recent(ModelRc::from(services.recent_model.clone()));
+            ui.set_library_rows(ModelRc::from(services.library.model().clone()));
             ui.set_jobs_capability(SharedString::from(services.jobs.capability()));
         }
 
@@ -442,6 +472,9 @@ impl Controller {
             refresh(&ui, &services);
         }
         start_load(&self.services, &self.weak);
+        if diagnostic_cycle {
+            *self.diagnostic_timer.borrow_mut() = Some(start_diagnostic_cycle(&self.weak));
+        }
     }
 }
 
@@ -574,13 +607,7 @@ fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_motion_duration(
         motion::duration(s.settings.current().reduced_motion).as_millis() as i64,
     );
-    ui.set_build_label(SharedString::from(crate::build_label()));
-    ui.set_profile_path(SharedString::from(
-        s.profile.root().to_string_lossy().into_owned(),
-    ));
-
     let model = s.library.model();
-    ui.set_library_rows(ModelRc::from(model.clone()));
     ui.set_library_total(model.len() as i32);
     ui.set_library_missing(model.missing_count() as i32);
     ui.set_library_query(SharedString::from(model.query()));
@@ -592,17 +619,63 @@ fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_settings_writable(!s.settings.is_locked());
     ui.set_settings_error(SharedString::from(s.settings.error().unwrap_or_default()));
     ui.set_notice(SharedString::from(s.notice.as_str()));
-    ui.set_jobs_capability(SharedString::from(s.jobs.capability()));
 
-    let recent: Vec<RecentItem> = model
-        .recent_entries(3)
+    update_recent_model(model, &s.recent_cache, &s.recent_model);
+}
+
+fn start_diagnostic_cycle(weak: &Weak<AppWindow>) -> Rc<slint::Timer> {
+    let timer = Rc::new(slint::Timer::default());
+    let stop_timer = Rc::downgrade(&timer);
+    let weak = weak.clone();
+    let mut visits = 0_u32;
+    timer.start(
+        slint::TimerMode::Repeated,
+        std::time::Duration::from_secs(1),
+        move || {
+            const PAGE_SEQUENCE: [i32; 4] = [1, 2, 3, 0];
+            if let Some(ui) = weak.upgrade() {
+                ui.invoke_navigate(PAGE_SEQUENCE[(visits as usize) % PAGE_SEQUENCE.len()]);
+                visits += 1;
+                if visits >= 90
+                    && let Some(timer) = stop_timer.upgrade()
+                {
+                    timer.stop();
+                }
+            } else {
+                if let Some(timer) = stop_timer.upgrade() {
+                    timer.stop();
+                }
+            }
+        },
+    );
+    timer
+}
+
+fn update_recent_model(
+    library: &crate::library::LibraryModel,
+    cache: &RefCell<Vec<(String, String)>>,
+    model: &VecModel<RecentItem>,
+) -> bool {
+    let mut cached = cache.borrow_mut();
+    if library.recent_matches(&cached, 3) {
+        return false;
+    }
+
+    let entries = library.recent_entries(3);
+    *cached = entries
         .iter()
-        .map(|entry| RecentItem {
-            id: SharedString::from(entry.id.as_str()),
-            name: SharedString::from(entry.display_name.as_str()),
-        })
+        .map(|entry| (entry.id.clone(), entry.display_name.clone()))
         .collect();
-    ui.set_recent(ModelRc::from(Rc::new(VecModel::from(recent))));
+    model.set_vec(
+        entries
+            .iter()
+            .map(|entry| RecentItem {
+                id: SharedString::from(entry.id.as_str()),
+                name: SharedString::from(entry.display_name.as_str()),
+            })
+            .collect::<Vec<_>>(),
+    );
+    true
 }
 
 fn apply_theme(ui: &AppWindow) {
@@ -636,5 +709,44 @@ fn log_line(profile: &Profile, message: &str) {
             .map(|duration| duration.as_secs())
             .unwrap_or(0);
         let _ = writeln!(file, "{stamp} {message}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::update_recent_model;
+    use crate::library::{LibraryEntry, LibraryLoad, LibraryModel, LibraryStore};
+    use crate::ui::RecentItem;
+    use slint::{Model, VecModel};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn entry(id: &str, name: &str) -> LibraryEntry {
+        LibraryEntry {
+            id: id.to_owned(),
+            path: format!("C:/fixture/{id}.png"),
+            display_name: name.to_owned(),
+            missing: false,
+            added_at: 1,
+        }
+    }
+
+    #[test]
+    fn recent_model_is_not_reset_when_recent_entries_are_unchanged() {
+        let library_model = LibraryModel::new(2000);
+        let mut library = LibraryStore::new("unused.json", library_model.clone());
+        library.apply_load(LibraryLoad::Loaded(vec![entry("a", "Alpha.png")]));
+
+        let cache = RefCell::new(Vec::new());
+        let model = Rc::new(VecModel::<RecentItem>::default());
+        assert!(update_recent_model(&library_model, &cache, &model));
+        assert_eq!(model.row_count(), 1);
+        assert!(!update_recent_model(&library_model, &cache, &model));
+        assert_eq!(model.row_count(), 1);
+
+        library.apply_load(LibraryLoad::Loaded(vec![entry("a", "Renamed.png")]));
+        assert!(update_recent_model(&library_model, &cache, &model));
+        assert_eq!(model.row_count(), 1);
+        assert_eq!(model.row_data(0).unwrap().name.as_str(), "Renamed.png");
     }
 }

@@ -30,6 +30,38 @@ when explicitly passed `-Launch`. Its metadata-only dry-run verifies the resolve
 through `HALATION_SLINT_PROFILE` (including paths with spaces), writes no profile data and computes the executable hash
 with .NET SHA-256. The launcher does not build the application.
 
+## Bounded native memory diagnostic
+
+`--diagnostic-scene empty|home|cycle` is an opt-in measurement mode for comparing the same release executable and
+explicit winit + Skia selection. `empty` creates only the native Slint window/background and skips controller/services;
+`home` runs the normal shell and Home with a new empty profile; `cycle` runs the normal shell and automatically visits
+Home, Library, Jobs and Settings for a bounded 90-second period, then leaves the app idle. The diagnostic cycle timer
+is absent from ordinary launches. These modes add no production navigation behavior.
+
+From the repository root, build once and inspect the runner's plan first:
+
+```powershell
+cd slint
+cargo build --release --locked
+./scripts/measure-memory.ps1
+```
+
+The script is dry-run by default. Only the coordinator/user starts its six real native windows with
+`./scripts/measure-memory.ps1 -Run` (two repeats of each scene, sequentially; about 11 minutes plus startup/close).
+It writes private manifests and raw/summary CSVs under ignored `.tools/ui-rebuild-native/response-memory-*`, uses a
+fresh empty isolated profile per process, samples `Win32_PerfFormattedData_PerfProc_Process` for the exact owned PID,
+and closes only its own process with normal `WM_CLOSE`. It never targets a process by name for termination, injects
+input, or captures frames. Starting native windows can activate them through normal Windows behavior; the coordinator
+must manage the review session accordingly. On a failed/interrupted run, inspect `partial-manifest.json` and
+`samples.csv`; incomplete samples are not comparable results.
+
+The runner records total resident working set, private resident working set, and private commit as separate byte
+counters, plus the provider's processor percentage, window client size and DPI. Do not equate these counters with one
+another or with Task Manager's displayed “Memory” column. The first visible window is not a first-present measurement;
+the runner cannot observe presentation completion, renderer CPU/GPU path, GPU memory, frame pacing or input-to-photon
+latency. A small number of page cycles can reveal bounded observed changes, not prove the absence of leaks. No expected
+RAM target is encoded and no memory improvement is claimed without comparable native measurements.
+
 ## Clean-room source provenance and audit
 
 - All Rust services, models, controller code and tests in this crate were authored for this clean-room implementation;
@@ -57,6 +89,10 @@ with .NET SHA-256. The launcher does not build the application.
   wrappers. Cargo manifest `path` keys are only this crate's own `src/lib.rs` and `src/main.rs` targets. The service
   tests are new and use made-up data in temporary sandboxes. The actual native renderer/presentation is intentionally
   not inferred from this audit or the release link; visual review remains pending.
+- Sources consulted for the response/composition/memory unit: the current Slint crate sources in this worktree,
+  `AGENTS.md`, `CLAUDE.md`, `docs/SLINT_SPEC.md`, the permitted static Home reference and mark asset, and official Slint
+  1.18 documentation for VerticalLayout cross-axis alignment, `VecModel::set_vec`, native `Timer`, and `TouchArea`
+  `pressed`. No Tauri, Qt, `halation-core`, prior Rust diagnostics, or old implementation/test source was read or used.
 - If a later audit finds contamination, remove it and implement the affected unit anew before validation.
 
 The focused tests are new tests of the contracts above; no test file from the former Rust implementations was used as a

@@ -32,8 +32,9 @@ export component RailButton inherits FocusScope {
         background: root.active ? Theme.accent-soft : (touch.has-hover ? Theme.surface-high : transparent);
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.accent;
-        opacity: root.available ? 1 : 0.55;
+        opacity: root.available ? (touch.pressed ? 0.82 : 1) : 0.55;
         animate background { duration: root.motion-duration; easing: ease-out; }
+        animate opacity { duration: touch.pressed ? 0ms : root.motion-duration; }
     }
 
     if icon == "mark" : Image {

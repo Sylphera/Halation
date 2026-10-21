@@ -64,6 +64,7 @@ export component HomePage inherits Rectangle {
         padding: 22px;
         spacing: 12px;
         alignment: center;
+        cross-axis-alignment: center;
 
         Image {
             source: @image-url("../../assets/halation-mark.png");
@@ -153,6 +154,7 @@ export component HomePage inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 spacing: 5px;
+                cross-axis-alignment: center;
                 ToolIcon {
                     name: "upload";
                     tint: Theme.muted;

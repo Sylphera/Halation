@@ -33,13 +33,19 @@ export component ToolTile inherits FocusScope {
         background: touch.has-hover ? Theme.surface-high : transparent;
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.accent;
-        animate background { duration: root.motion-duration; easing: ease-out; }
+        opacity: touch.pressed ? 0.86 : 1;
+        animate background {
+            duration: touch.pressed ? 0ms : root.motion-duration;
+            easing: ease-out;
+        }
+        animate opacity { duration: touch.pressed ? 0ms : root.motion-duration; }
     }
 
     VerticalLayout {
         padding: 3px;
         spacing: 4px;
         alignment: center;
+        cross-axis-alignment: center;
         ToolIcon {
             name: root.icon;
             tint: root.available ? Theme.text : Theme.muted;

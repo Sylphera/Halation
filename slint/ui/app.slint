@@ -24,6 +24,7 @@ export component AppWindow inherits Window {
 
     in property <int> page: 0;
     in property <bool> reduced-motion: false;
+    in property <int> diagnostic-scene: 1;
     in property <duration> motion-duration: 160ms;
     in property <string> build-label: "";
     in property <string> profile-path: "";
@@ -65,7 +66,7 @@ export component AppWindow inherits Window {
         background: @linear-gradient(155deg, #08080a 0%, #0f0f14 58%, #0b0b0d 100%);
     }
 
-    HorizontalLayout {
+    if root.diagnostic-scene != 0 : HorizontalLayout {
         width: parent.width;
         height: parent.height;
         padding: 8px;
