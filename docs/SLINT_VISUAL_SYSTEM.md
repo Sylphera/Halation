@@ -1,123 +1,99 @@
 # Native beta visual system (Slint)
 
-Status: first visual pass of the native beta, delegated by Java on 2026-10-21 ("se tiene que ver como una herramienta…
-cuando se vea profesional y logrado, al menos el menú Home, empezaré a iterar"). It is a starting point for Java's
-visual iteration, not an approved design. Annex of `docs/SLINT_SPEC.md`; that spec still owns architecture, services
-and gates. Clean-room: written for Slint from zero; only the Lucide icon SVGs and the Halation mark are reused assets.
+Status: replica of the original Halation (Java, 2026-10-21: "que la aplicación se vea exactamente igual al halation
+original … mismos settings, se quita jobs, mismo home; desde ahí podremos empezar a iterar"). Implemented, pending
+Java's visual review. Annex of `docs/SLINT_SPEC.md`, which keeps architecture, services and gates. It replaces the
+first pass of this file (a launcher redesign, approved only as a starting point and then superseded).
 
-## Problems this pass fixes
+## Principles
 
-| Before | After |
-|---|---|
-| Inverted hierarchy: a 154 px logo and a 38 px wordmark were the loudest things on Home. | The task is the loudest thing: page title, then the drop zone. The mark lives small at the top of the rail. |
-| Tools twice: icon list in the rail and an 11-tile strip on Home. | One owner each: the rail navigates **places**, Home launches **tools**. |
-| Everything centred on different widths (980, 610 px), no shared edge. | One content column, one left edge for every block and every page. |
-| Low contrast: grey on grey, 9–10 px captions. | Near-black ground, three text levels checked ≥ 4.5:1, nothing under 10 px. |
-| Rail with no clear active state. | Filled item plus a 3 px accent bar on the rail edge, label under every icon. |
-| Generic, borderless tiles and identical buttons. | Cards with icon well, name and one-line purpose; primary/secondary/ghost buttons. |
+1. **Look like the original.** Same Home, rail, top dock, Settings and Library frame, within what Slint and Skia
+   draw. Jobs has no page (its queue stays in the backend).
+2. **Clean-room.** The reference is only the original's rendered result: its frontend from `main` rendered over the
+   mocked backend in headless Chromium at 1920 × 1080 and 1280 × 800, measured from the pixels and the computed boxes,
+   colours and fonts of the rendered page. No HTML, CSS or JS of the original is read or copied. Reused identity assets:
+   Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
+3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
+   Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
+   `animate` on colour, opacity, position and size, only while something changes (hover, rail opening, toggles).
 
-## Navigation owner
+## Measured layout (1920 × 1080; 1280 × 800 checked too)
 
-- **Rail = places**: Home, Library, Jobs (top group), Settings (bottom). Always visible, labelled, one active item.
-- **Home = tool launcher**: the ten media tools as cards. Library is a place, so it is in the rail, not in the grid.
-- When tools get engines, the open tool will show as a fifth rail entry under Jobs (future; not in this pass).
+- **Ground:** `#070707`, `#0b0b0c` at the top on pages other than Home. Panels `#111111` with a 1 px
+  `rgba(255,255,250,0.11)` border and a 1 px top sheen; raised items `#242424`; fields `#080808` with a `#3d3d39`
+  border. Text `#f5f5f2`, secondary `#b5b5af`, tertiary `#9a9993`; accent lavender `#a3a8dc`; activity `#82b5d6`.
+- **Type:** Inter. Section titles 13.5 px / 600, body 12.5 px, small 12 px, Home strip labels 10.5 px / 500.
+- **Rail:** floating at x 22, 62 px wide, radius 26, height `min(800, window − 90)` and centred. 44 px items with
+  4 px gaps and 10 px divider margins at 800 px; both shrink with the window, items too below 726 px. Groups: mark |
+  Downloader, Converter | Vocal Remover, Audio Visualizer | Grade, Cover Test, Background Remover, Upscale | AI
+  Interpolate, Frame Capture | Library | Settings | open/close. Active item: raised fill and a 3 × 18 px accent bar on
+  the rail edge. Closed items show a white tooltip pill on hover. **Open** ("the dock"): 232 px wide, full height,
+  labels at 13.5 px; pages move right with it.
+- **Top dock:** 184 × 32 at the top right, radius 14: activity dot, keyboard shortcuts, Halation folder, language,
+  save session.
+- **Home:** content centred right of the rail. Mark 176 × 87 at `window/2 − 259`; wordmark 241 × 26 at +113; tagline at
+  +153; tool strip (all tools, 62 px tall, radius 18) at +202. Drop zone 640 × 150 (radius 24, dashed border) and
+  recent files bar 593 × 55 (radius 22) anchored 70 px above the bottom.
+- **Settings:** page title at the top left (26 px icon box + name); 880 px column with a fixed tab bar (General,
+  Interface, You, Files, Processing, Tools, Storage, About, search, Restore defaults) over sections that scroll; a tab
+  jumps to its section and follows the scroll. Each section is a panel with its rows, selects (260 × 34), switches
+  (34 × 20) and an "Advanced" disclosure.
+- **Library:** same page title and tab bar frame (References, Sections, Add), search field and list panel.
 
-## Layout grid
+## What the beta does with each control
 
-- Rail: 68 px, flush to the window edge, 1 px right hairline. Items 56 × 52 px.
-- Content column: max 1120 px, centred in the area right of the rail; side padding 28 px under 1180 px of content
-  width, 40 px from there. Every page and every Home block starts on the column's left edge.
-- Top padding: 28 px when the window is under 760 px tall, 44 px from there. Home's block sits at 40 % of the free
-  height when the window is taller than it needs (optical centre), so 1280 × 800 is not top-heavy.
-- Status bar: 28 px, along the bottom of the content area on every page: build on the left, Library state on the right.
-- Home tool grid: 5 columns from 1000 px of column width, 4 below; gap 12 px. 10 tools = 2 rows (5 col) or 3 rows
-  (4 col). Card height 64 px.
-- Home top band: drop zone (flexible) + Recent panel (300 px, 260 px under 1000 px of column); height 112 px.
-- Settings keeps the same left edge with a 760 px measure for readability.
-- Supported window: 960 × 600 and up; nothing scrolls on Home at 960 × 600.
+- Every Settings value is stored in the beta's own `settings.json` (`settings.rs`, additive fields with defaults;
+  older files load). Real effects today: reduce animations, show processes dock, dock mode (keep open opens the
+  rail), open the window (maximized or full screen; "as I left it" opens maximized until the size is stored), tools
+  turned off leave the rail and Home, Settings search jumps to a section, folder buttons open the beta profile's
+  folders, Restore defaults.
+- Stored only, no engine yet: language (Spanish is saved, the beta is English), notifications, artist and links,
+  save location, name templates, processing and job counts, workspace budget, updates.
+- Buttons with nothing behind them in the beta (Install, Update engine, test notification, search other sites,
+  check for updates, changelog, keyboard shortcuts, language, save session) show an honest notice at the top.
 
-## Type scale (Segoe UI)
+## Differences from the original
 
-| Token | Size / weight | Use |
+| Original | Here | Why |
 |---|---|---|
-| display | 24 px / 600 | Page title (one per page) |
-| title | 15 px / 600 | Drop zone headline, empty-state headline |
-| body-strong | 13 px / 600 | Card names, row names, setting names |
-| body | 13 px / 400 | Page subtitle, body copy |
-| label | 12 px / 500 | Buttons, section headers, rail is 10 px / 500 |
-| caption | 11 px / 400 | Card purpose, row details, status bar |
+| Animated "Auralis/Drape" silk on Home | Static silk computed once in Rust (`atmosphere.rs`, 800 × 450, dithered, scaled smoothly) | No per-frame cost; see the plan below |
+| Glass panels with `backdrop-filter: blur(20px)` | Same panels at 68 % opacity, no blur | Blur per frame is the costly part |
+| Text copy that names engines | Copy that says what the beta does (drop zone, recent files, folders) | No engines connected |
+| Settings > Storage per-folder list, codec list, folder list of `Documents\Halation` | Beta profile size and folders | The beta has its own profile only |
+| Native select menus | Slint popup lists | Same function |
+| Tool cards of varying height | Uniform cards, clipped | Simpler, cheap layout |
 
-Nothing visible is smaller than 10 px. Sentence case everywhere; no upper-case tracked labels.
+## Animated background, later (not in this pass)
 
-## Colour tokens (Rust `theme` → Slint `Theme`)
+Preferred option (Java, 2026-10-21): a **pre-rendered loop of the silk at about 320 px wide and 15 fps**, scaled to the
+window, with a **fixed grain texture** on top (the original's grain was a static image, so it does not move). Notes:
 
-| Token | Value | Role |
-|---|---|---|
-| background | #000000 | Window and page ground (pure black, Java's brand direction) |
-| rail | #050504 | Rail and status bar |
-| surface | #111110 | Cards, panels, inputs |
-| surface-raised | #181817 | Hover |
-| surface-high | #20201e | Pressed, icon wells, active rail item, selected row |
-| border | #262624 | Hairlines, card borders |
-| border-strong | #353532 | Hover borders |
-| text | #f4f4f2 | Primary text |
-| muted | #a6a6a0 | Secondary text |
-| subtle | #8b8b85 | Tertiary text (hints, purposes) |
-| accent | #9fb4ea | Pale blue: active indicator, focus ring, links, drop highlight |
-| accent-soft | #141a28 | Accent fills (drop highlight, notices) |
-| primary / on-primary | #eeeeeb / #0a0a09 | Primary button (one per view) |
-| warning / warning-soft | #e2c27f / #1d1a12 | Honest "not connected" status |
-| danger / danger-soft | #f0a6a6 / #2a1717 | Errors and missing files |
-| success | #9fd6b2 | Finished jobs |
+- Decoding 320 px video costs very little CPU; drawing it scaled is one texture blit per frame in Skia.
+- It needs a codec: two minutes of raw RGBA frames at 320 × 180 are about 800 MB. Options: Media Foundation on Windows
+  (no new dependency beyond `windows`), a small pure-Rust decoder crate, or a shorter loop (a few seconds of frames
+  at low resolution fit in a few MB).
+- To hide the 15 fps steps, blend each pair of neighbouring frames (cross-fade) when presenting.
+- Pause the loop while the window is minimized or covered, and with reduced motion.
+- Slint has no custom shaders: the grain is a tiled noise image laid over the backdrop, drawn once.
 
-Greys lean slightly warm, after the #050504 tone Java set for UI surfaces.
+Fallbacks, cheapest first: (c) two or three baked silk images cross-faded or drifted very slowly with `animate`;
+(b) a short sequence of pre-rendered low-resolution frames held in memory; (a) a real video loop with a decoder, as
+above.
 
-Accent is used sparingly (state, focus, links); surfaces stay neutral. Contrast is asserted in `tests/services.rs`
-for every text token on the grounds it is drawn on.
+## Measured cost (KernelPanic, release, Skia OpenGL, Home maximized at 1920 × 1009, idle 30 s)
 
-## Spacing and shape
+Private working set about 55 MB (peak 66 MB), commit about 198 MB, CPU 0.00 % at rest. The earlier shell measured
+about 50 MB. Hover cost is not measured: no input is injected into Java's desktop.
 
-- Spacing steps: 4, 8, 12, 16, 20, 24, 32, 40 px.
-- Radii: 6 px chips, 8 px buttons and inputs, 10 px cards and rail items, 12 px panels.
-- Depth comes from surface steps and 1 px borders only: no drop shadow, no blur (decided earlier for cost).
-- Halation, the one bold element: a static pale-blue radial bloom around the drop target (and a fainter one behind the
-  Home header), like the glow film shows around a bright light. No animation, no timer, no blur.
+## Acceptance
 
-## States
-
-| State | Treatment |
-|---|---|
-| Hover | surface → surface-raised, border → border-strong, icon tint muted → text |
-| Pressed | surface-high, immediate (0 ms) |
-| Focus (keyboard) | 2 px accent border; never removed |
-| Active (rail, tab) | surface-high fill, text colour, 3 px accent bar (rail) |
-| Disabled | 45 % opacity, no hover |
-| Drag over drop zone | accent border + accent-soft fill |
-| Unavailable tool | Card stays legible; a single "Engines not connected" warning chip in the Tools header, and the accessible label says it. Clicking shows an honest notice in that chip. |
-| Error | danger text on danger-soft with a warning icon |
-
-Motion: native Slint `animate` on colours only, `Theme`-independent duration from Rust (160 ms, 0 ms with reduced
-motion). No new animations in this pass.
-
-## Components
-
-`RailItem`, `AppButton` (primary, secondary, ghost; compact), `ToolCard`, `StatusChip`, `PageHeader`, `Notice`.
-Pages build only from these plus layout.
-
-## Acceptance criteria
-
-1. Home at 960 × 600 and 1280 × 800 shows: title, drop zone, Recent, ten tool cards, status bar; nothing clipped, no
-   scrolling, all on one left edge (`tests/ui_layout.rs` checks the bounds).
-2. The rail has no tool icons; exactly one rail item is active and it matches the page.
-3. The largest text on Home is the page title (24 px); the mark is 32 px wide, in the rail.
-4. Every text token passes 4.5:1 on its ground (test).
-5. Library, Jobs and Settings use the same column, `PageHeader`, buttons and chips.
-6. No shadow, blur, timer or animated background; idle CPU/GPU unchanged (no new property animations at rest).
-7. fmt, strict Clippy, all tests and the release build pass.
+1. Side by side with the original at 1920 × 1080, Home, rail (closed and open), top dock, Settings and Library match
+   in layout, colour and type, except for the differences listed above.
+2. No timer, shader, blur or continuous animation; idle CPU stays at 0 % on Home.
+3. `tests/ui_layout.rs` keeps every fixed control inside the window from 960 × 600 to 1920 × 1080 and checks the rail.
+4. fmt, strict Clippy, all tests and the release build pass.
 
 ## Out of scope
 
-- Auralis or any animated background; window-transition motion; tool pages (no engines yet).
-- Search/command palette, tooltips, light theme, custom title bar.
-- Pixel parity with the Tauri app; Spanish strings.
-- Java's visual approval: this pass stays "implemented, pending visual review" until Java reviews the native window.
+The animated background (planned above), tool pages, a Library like the original's (collections, filters, grid),
+Spanish text, the original's per-folder storage list and its native select menus.

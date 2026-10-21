@@ -172,7 +172,10 @@ fn settings_missing_file_defaults_then_atomic_save_reopens() {
     };
     store.save(next.clone()).unwrap();
     assert_eq!(store.current(), &next);
-    assert_eq!(read_settings(&path), SettingsRead::Loaded(next.clone()));
+    assert_eq!(
+        read_settings(&path),
+        SettingsRead::Loaded(Box::new(next.clone()))
+    );
 
     let reopened = SettingsStore::load(&path);
     assert_eq!(reopened.current(), &next);
@@ -202,7 +205,7 @@ fn failed_settings_write_keeps_old_memory_and_disk_snapshot() {
     assert!(matches!(result, Err(SettingsError::Io(_))));
     assert_eq!(store.current(), &old);
     assert!(store.error().is_some());
-    assert_eq!(read_settings(&path), SettingsRead::Loaded(old));
+    assert_eq!(read_settings(&path), SettingsRead::Loaded(Box::new(old)));
 }
 
 #[test]
@@ -220,10 +223,7 @@ fn invalid_or_corrupt_settings_fail_closed_until_explicit_reset() {
     store.reset().unwrap();
     assert!(!store.is_locked());
     assert_eq!(store.current(), &Settings::default());
-    assert_eq!(
-        read_settings(&path),
-        SettingsRead::Loaded(Settings::default())
-    );
+    assert_eq!(read_settings(&path), SettingsRead::Loaded(Box::default()));
     assert!(fs::read_dir(temp.path()).unwrap().any(|item| {
         item.unwrap()
             .file_name()
@@ -685,4 +685,57 @@ fn finite_library_worker_returns_ack_without_ui_or_external_processes() {
     assert!(rx.recv_timeout(Duration::from_secs(5)).unwrap().is_ok());
     worker.join().expect("finite worker completed");
     assert!(matches!(load_index(&index, 10), LibraryLoad::Loaded(_)));
+}
+
+#[test]
+fn settings_page_values_change_one_at_a_time_and_stay_bounded() {
+    let base = Settings::default();
+    let next = base.with_pref("dock-mode", "2").unwrap();
+    assert_eq!(next.dock_mode, 2);
+    assert!(!next.with_pref("show-dock", "0").unwrap().show_dock);
+    assert_eq!(base.with_pref("artist", "  Nova ").unwrap().artist, "Nova");
+    assert!(
+        base.with_pref("dock-mode", "3").is_err(),
+        "a choice past the list"
+    );
+    assert!(base.with_pref("budget", "x").is_err());
+    assert!(base.with_pref("show-dock", "maybe").is_err());
+    assert!(base.with_pref("no-such-setting", "1").is_err());
+    assert!(base.with_pref("artist", &"a".repeat(301)).is_err());
+
+    let off = base.with_tool("grade", false).unwrap();
+    assert!(!off.tool_enabled("grade"));
+    assert!(off.tool_enabled("upscale"));
+    let on = off.with_tool("grade", true).unwrap();
+    assert!(on.tool_enabled("grade"));
+    assert_eq!(on.disabled_tools, Vec::<String>::new());
+}
+
+#[test]
+fn an_older_settings_file_loads_with_the_new_values_at_their_defaults() {
+    let temp = TestDir::new();
+    let path = temp.path().join("settings.json");
+    fs::write(
+        &path,
+        br#"{"schema_version":1,"reduced_motion":true,"library_limit":1500}"#,
+    )
+    .unwrap();
+    let SettingsRead::Loaded(settings) = read_settings(&path) else {
+        panic!("an older file must load");
+    };
+    assert!(settings.reduced_motion);
+    assert_eq!(settings.library_limit, 1500);
+    assert!(settings.show_dock);
+    assert_eq!(settings.dock_mode, 1);
+    assert_eq!(settings.video_template, "{title}");
+}
+
+#[test]
+fn settings_search_finds_the_section_that_holds_the_words() {
+    assert_eq!(catalog::settings_section("Dock"), Some(0));
+    assert_eq!(catalog::settings_section("open window"), Some(1));
+    assert_eq!(catalog::settings_section("ffmpeg"), Some(5));
+    assert_eq!(catalog::settings_section("changelog"), Some(7));
+    assert_eq!(catalog::settings_section("   "), None);
+    assert_eq!(catalog::settings_section("zzz"), None);
 }

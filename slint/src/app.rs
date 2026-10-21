@@ -10,8 +10,11 @@ use crate::navigation::{Navigation, Page};
 use crate::profile::{LaunchOptions, Profile};
 use crate::settings::{Settings, SettingsStore};
 use crate::theme;
-use crate::ui::{AppWindow, ItemRow, JobRow, RecentItem, SectionRow, Theme, ToolItem};
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
+use crate::ui::{
+    AppWindow, ComponentRow, FolderRow, ItemRow, JobRow, Prefs, RecentItem, SectionRow, Theme,
+    ToolItem,
+};
+use slint::{ComponentHandle, Image, Model, ModelRc, SharedString, VecModel, Weak};
 use std::cell::RefCell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -67,6 +70,7 @@ struct Services {
     reference_busy: bool,
     inbox: Arc<Mutex<AsyncInbox>>,
     tools_model: Rc<VecModel<ToolItem>>,
+    active_tools_model: Rc<VecModel<ToolItem>>,
     jobs_model: Rc<VecModel<JobRow>>,
     recent_model: Rc<VecModel<RecentItem>>,
     recent_cache: RefCell<Vec<(String, String)>>,
@@ -117,29 +121,40 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let diagnostic_cycle = options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Cycle);
-    // A working window fills the screen; diagnostic scenes keep the fixed size their measurements expect.
-    if options.diagnostic_scene.is_none() {
-        window.window().set_maximized(true);
-    }
+    // Diagnostic scenes keep the fixed size their measurements expect
+    let place_window = options.diagnostic_scene.is_none();
     let controller = Controller::new(window.as_weak(), profile, options)?;
     controller.install(diagnostic_cycle);
+    // The native window exists only once shown, so it is placed after `show`
+    window
+        .show()
+        .map_err(|error| format!("could not show the window: {error}"))?;
+    if place_window {
+        // "As I left it" has no stored size in the beta yet, so it opens maximized like "Maximized". The platform
+        // window is created inside the event loop, so the request is queued to run there.
+        let fullscreen = controller.services.borrow().settings.current().open_window == 2;
+        let weak = window.as_weak();
+        slint::Timer::single_shot(std::time::Duration::from_millis(300), move || {
+            if let Some(window) = weak.upgrade() {
+                if fullscreen {
+                    window.window().set_fullscreen(true);
+                } else {
+                    window.window().set_maximized(true);
+                }
+            }
+        });
+    }
     log_line(&log_profile, "window created");
 
-    window
-        .run()
-        .map_err(|error| format!("event loop failed: {error}"))?;
+    slint::run_event_loop().map_err(|error| format!("event loop failed: {error}"))?;
+    // A closed window ends the loop; hiding it again is harmless
+    let _ = window.hide();
     controller.shutdown();
     log_line(&log_profile, "event loop finished");
     Ok(())
 }
 
 impl Controller {
-    /// The job engine, for headless fixtures
-    #[cfg(feature = "diag-screenshot")]
-    pub(crate) fn jobs_engine(&self) -> crate::backend::engine::JobEngine {
-        self.services.borrow().jobs.engine().clone()
-    }
-
     /// Closing the window: every job process still running stops with it.
     pub(crate) fn shutdown(&self) {
         self.services.borrow().jobs.shutdown();
@@ -154,19 +169,7 @@ impl Controller {
         let library_model = LibraryModel::new(settings.current().library_limit);
         let library = LibraryStore::new(profile.library_path(), library_model);
 
-        let tools: Vec<ToolItem> = catalog::TOOLS
-            .iter()
-            .map(|tool| ToolItem {
-                id: SharedString::from(tool.id),
-                name: SharedString::from(tool.name),
-                icon: SharedString::from(tool.icon),
-                summary: SharedString::from(tool.summary),
-                group: tool.group,
-                beta: tool.beta,
-                available: tool.available,
-                reason: SharedString::from(tool.reason),
-            })
-            .collect();
+        let tools = tool_items(settings.current());
         let jobs_model = Rc::new(VecModel::from(Vec::<JobRow>::new()));
         let jobs_weak = weak.clone();
         let jobs = JobsService::new(move || {
@@ -199,6 +202,7 @@ impl Controller {
                 reference_generation: 0,
                 reference_busy: false,
                 inbox: Arc::new(Mutex::new(AsyncInbox::default())),
+                active_tools_model: Rc::new(VecModel::from(active_tools(&tools))),
                 tools_model: Rc::new(VecModel::from(tools)),
                 jobs_model,
                 recent_model: Rc::new(VecModel::default()),
@@ -225,6 +229,25 @@ impl Controller {
         {
             let services = self.services.borrow();
             ui.set_tools(ModelRc::from(services.tools_model.clone()));
+            ui.set_active_tools(ModelRc::from(services.active_tools_model.clone()));
+            ui.set_backdrop(Image::from_rgb8(crate::atmosphere::backdrop()));
+            ui.set_components(ModelRc::new(VecModel::from(
+                catalog::COMPONENTS
+                    .iter()
+                    .map(|(name, size)| ComponentRow {
+                        name: SharedString::from(*name),
+                        size: SharedString::from(*size),
+                    })
+                    .collect::<Vec<_>>(),
+            )));
+            ui.set_folders(ModelRc::new(VecModel::from(folder_rows(&services.profile))));
+            ui.set_app_size(SharedString::from(
+                std::env::current_exe()
+                    .and_then(std::fs::metadata)
+                    .map(|meta| size_label(meta.len()))
+                    .unwrap_or_default(),
+            ));
+            ui.set_rail_open(services.settings.current().dock_mode == 2);
             ui.set_jobs(ModelRc::from(services.jobs_model.clone()));
             ui.set_recent(ModelRc::from(services.recent_model.clone()));
             ui.set_library_rows(ModelRc::from(services.library.model().clone()));
@@ -245,10 +268,105 @@ impl Controller {
                     && s.nav.select(page)
                 {
                     s.notice.clear();
+                    if page == Page::Settings {
+                        measure_storage(&s.profile, &weak);
+                    }
                 }
                 refresh(&ui, &s);
             });
         }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_set_pref(move |key, value| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let mut s = services.borrow_mut();
+                let next = match s.settings.current().with_pref(key.as_str(), value.as_str()) {
+                    Ok(next) => next,
+                    Err(error) => {
+                        s.notice = format!("Could not change that setting: {error}");
+                        refresh(&ui, &s);
+                        return;
+                    }
+                };
+                match s.settings.save(next) {
+                    Ok(()) => {
+                        let current = s.settings.current();
+                        match key.as_str() {
+                            "dock-mode" => ui.set_rail_open(current.dock_mode == 2),
+                            "language" if current.language == 1 => {
+                                s.notice = "Saved. The beta is in English only for now.".to_owned();
+                            }
+                            "open-window" => {
+                                s.notice =
+                                    "Saved. It applies the next time the beta opens.".to_owned();
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(error) => {
+                        s.notice = format!("Could not save settings: {error}");
+                        log_line(&s.profile, &format!("settings save failed: {error}"));
+                    }
+                }
+                refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_set_tool_enabled(move |id, enabled| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let mut s = services.borrow_mut();
+                let saved = s
+                    .settings
+                    .current()
+                    .with_tool(id.as_str(), enabled)
+                    .and_then(|next| s.settings.save(next));
+                if let Err(error) = saved {
+                    s.notice = format!("Could not save settings: {error}");
+                }
+                let tools = tool_items(s.settings.current());
+                s.active_tools_model.set_vec(active_tools(&tools));
+                s.tools_model.set_vec(tools);
+                refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_dock_action(move |action| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let mut s = services.borrow_mut();
+                s.notice = match action.as_str() {
+                    "folder" => open_folder(s.profile.root()),
+                    "open:main" => open_folder(s.profile.root()),
+                    "open:library" => open_folder(&s.profile.sections_root()),
+                    "open:settings" => open_folder(
+                        s.profile
+                            .settings_path()
+                            .parent()
+                            .unwrap_or(s.profile.root()),
+                    ),
+                    "activity" => format!("Activity: {}.", s.jobs.capability()),
+                    other => unavailable_notice(other).to_owned(),
+                };
+                refresh(&ui, &s);
+            });
+        }
+
+        ui.on_search_settings(|query| {
+            catalog::settings_section(query.as_str()).map_or(-1, |index| index as i32)
+        });
 
         {
             let weak = self.weak.clone();
@@ -403,7 +521,7 @@ impl Controller {
                 };
                 let mut s = services.borrow_mut();
                 if let Some(tool) = catalog::tool(id.as_str()) {
-                    if tool.available {
+                    if tool.id == "library" {
                         if let Some(page) = Page::from_index(1) {
                             s.nav.select(page);
                         }
@@ -869,6 +987,7 @@ fn refresh(ui: &AppWindow, s: &Services) {
     ui.set_settings_writable(!s.settings.is_locked());
     ui.set_settings_error(SharedString::from(s.settings.error().unwrap_or_default()));
     ui.set_notice(SharedString::from(s.notice.as_str()));
+    ui.set_prefs(prefs(s.settings.current()));
     ui.set_sections_loaded(s.folders_loaded);
     ui.set_sections_busy(s.folders_busy);
 
@@ -878,6 +997,7 @@ fn refresh(ui: &AppWindow, s: &Services) {
 
 fn update_jobs_model(ui: &AppWindow, jobs: &[JobEntry], model: &VecModel<JobRow>) {
     ui.set_jobs_has_finished(jobs.iter().any(|job| job.finished));
+    ui.set_jobs_busy(jobs.iter().any(|job| !job.finished));
     let rows: Vec<JobRow> = jobs
         .iter()
         .map(|job| JobRow {
@@ -967,6 +1087,149 @@ fn parent_folder(path: &str) -> String {
         .and_then(Path::file_name)
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default()
+}
+
+/// Every tool of the catalog, as Settings > Tools lists it
+fn tool_items(settings: &Settings) -> Vec<ToolItem> {
+    catalog::TOOLS
+        .iter()
+        .map(|tool| ToolItem {
+            id: SharedString::from(tool.id),
+            name: SharedString::from(tool.name),
+            icon: SharedString::from(tool.icon),
+            summary: SharedString::from(tool.summary),
+            group: tool.group,
+            beta: tool.beta,
+            enabled: settings.tool_enabled(tool.id),
+            missing: SharedString::from(tool.missing),
+            available: tool.available,
+            reason: SharedString::from(tool.reason),
+        })
+        .collect()
+}
+
+/// The tools turned on: the rail and Home show only these
+fn active_tools(tools: &[ToolItem]) -> Vec<ToolItem> {
+    tools.iter().filter(|tool| tool.enabled).cloned().collect()
+}
+
+fn prefs(settings: &Settings) -> Prefs {
+    let choice = |value: u8| i32::from(value);
+    Prefs {
+        language: choice(settings.language),
+        reduce_motion: settings.reduced_motion,
+        show_dock: settings.show_dock,
+        notify: settings.notify,
+        dock_mode: choice(settings.dock_mode),
+        dock_activity: settings.dock_activity,
+        open_window: choice(settings.open_window),
+        artist: SharedString::from(settings.artist.as_str()),
+        youtube: SharedString::from(settings.youtube.as_str()),
+        spotify: SharedString::from(settings.spotify.as_str()),
+        soundcloud: SharedString::from(settings.soundcloud.as_str()),
+        instagram: SharedString::from(settings.instagram.as_str()),
+        tiktok: SharedString::from(settings.tiktok.as_str()),
+        save_mode: choice(settings.save_mode),
+        video_template: SharedString::from(settings.video_template.as_str()),
+        image_template: SharedString::from(settings.image_template.as_str()),
+        processing: choice(settings.processing),
+        use_gpu: settings.use_gpu,
+        vocal_device: choice(settings.vocal_device),
+        cpu_jobs: choice(settings.cpu_jobs),
+        gpu_jobs: choice(settings.gpu_jobs),
+        downloads: choice(settings.downloads),
+        minimized: choice(settings.minimized),
+        budget: choice(settings.budget),
+        updates: choice(settings.updates),
+        whats_new: settings.whats_new,
+    }
+}
+
+/// The beta profile's folders, as Settings > About lists them
+fn folder_rows(profile: &Profile) -> Vec<FolderRow> {
+    let settings_dir = profile
+        .settings_path()
+        .parent()
+        .map_or_else(|| profile.root().to_path_buf(), Path::to_path_buf);
+    [
+        (
+            "main",
+            "Main folder",
+            "Beta profile",
+            profile.root().to_path_buf(),
+        ),
+        (
+            "library",
+            "Library",
+            "Sections and packs",
+            profile.sections_root(),
+        ),
+        ("settings", "Settings", "settings.json", settings_dir),
+    ]
+    .into_iter()
+    .map(|(key, name, detail, path)| FolderRow {
+        key: SharedString::from(key),
+        name: SharedString::from(name),
+        detail: SharedString::from(detail),
+        path: SharedString::from(path.to_string_lossy().as_ref()),
+    })
+    .collect()
+}
+
+/// Opens a folder in Explorer on a human gesture; the returned text is the notice to show
+fn open_folder(path: &Path) -> String {
+    match std::process::Command::new("explorer").arg(path).spawn() {
+        Ok(_) => String::new(),
+        Err(error) => format!("Could not open {}: {error}", path.display()),
+    }
+}
+
+/// What the buttons without an engine behind them say in the beta
+fn unavailable_notice(action: &str) -> &'static str {
+    match action {
+        "install" | "update-engine" => "Components cannot be installed in this beta yet.",
+        "shortcuts" => "Keyboard shortcuts come with the tools.",
+        "language" => "The beta is in English only for now.",
+        "session" => "There is no session to save until the tools are connected.",
+        "test-notification" => "Notifications are not connected in this beta yet.",
+        "search-sites" => "Searching other sites is not connected in this beta yet.",
+        "check-updates" | "changelog" => {
+            "The native beta is updated from its launcher, not by itself."
+        }
+        "license" | "notices" => "LICENSE and NOTICE.md are in the repository root.",
+        _ => "Not available in this beta yet.",
+    }
+}
+
+/// Size of the beta profile, read off the GUI thread; Settings > Storage shows it when it arrives
+fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
+    fn walk(path: &Path, depth: u8) -> u64 {
+        let Ok(entries) = std::fs::read_dir(path) else {
+            return 0;
+        };
+        entries
+            .flatten()
+            .map(|entry| match entry.metadata() {
+                Ok(meta) if meta.is_dir() && depth < 8 => walk(&entry.path(), depth + 1),
+                Ok(meta) => meta.len(),
+                Err(_) => 0,
+            })
+            .sum()
+    }
+    let root = profile.root().to_path_buf();
+    let weak = weak.clone();
+    std::thread::spawn(move || {
+        let profile_bytes = walk(&root, 0);
+        let app_bytes = std::env::current_exe()
+            .and_then(std::fs::metadata)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        // A closed window is a normal lifecycle end
+        let _ = weak.upgrade_in_event_loop(move |ui| {
+            ui.set_workspace_size(SharedString::from(size_label(profile_bytes)));
+            ui.set_storage_used(SharedString::from(size_label(profile_bytes + app_bytes)));
+        });
+    });
 }
 
 fn apply_theme(ui: &AppWindow) {

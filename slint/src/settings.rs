@@ -15,12 +15,53 @@ pub const DEFAULT_LIBRARY_LIMIT: usize = 2_000;
 
 static RESET_BACKUP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Longest text a settings field keeps (artist name, profile links, name templates)
+pub const MAX_TEXT: usize = 300;
+
+/// Settings of the beta. Fields missing from an older file take their defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct Settings {
     pub schema_version: u32,
     pub reduced_motion: bool,
     pub library_limit: usize,
+    /// 0 English, 1 Spanish
+    pub language: u8,
+    pub show_dock: bool,
+    pub notify: bool,
+    /// 0 compact (icons only), 1 expand when needed, 2 keep open
+    pub dock_mode: u8,
+    pub dock_activity: bool,
+    /// 0 as I left it, 1 maximized, 2 full screen
+    pub open_window: u8,
+    pub artist: String,
+    pub youtube: String,
+    pub spotify: String,
+    pub soundcloud: String,
+    pub instagram: String,
+    pub tiktok: String,
+    /// 0 ask every time, 1 the Halation folder
+    pub save_mode: u8,
+    pub video_template: String,
+    pub image_template: String,
+    /// 0 quiet, 1 balanced, 2 fast
+    pub processing: u8,
+    pub use_gpu: bool,
+    /// 0 auto, 1 processor only
+    pub vocal_device: u8,
+    /// 0 auto, else that many
+    pub cpu_jobs: u8,
+    pub gpu_jobs: u8,
+    pub downloads: u8,
+    /// 0 keep working, 1 pause queued jobs
+    pub minimized: u8,
+    /// Index into 2, 4, 8, 16, 32 GB
+    pub budget: u8,
+    /// 0 ask when Halation opens, 1 only in Activity, 2 never by itself
+    pub updates: u8,
+    pub whats_new: bool,
+    /// Ids of the tools turned off in Settings > Tools
+    pub disabled_tools: Vec<String>,
 }
 
 impl Default for Settings {
@@ -29,6 +70,32 @@ impl Default for Settings {
             schema_version: SCHEMA_VERSION,
             reduced_motion: false,
             library_limit: DEFAULT_LIBRARY_LIMIT,
+            language: 0,
+            show_dock: true,
+            notify: true,
+            dock_mode: 1,
+            dock_activity: true,
+            open_window: 0,
+            artist: String::new(),
+            youtube: String::new(),
+            spotify: String::new(),
+            soundcloud: String::new(),
+            instagram: String::new(),
+            tiktok: String::new(),
+            save_mode: 0,
+            video_template: "{title}".to_owned(),
+            image_template: "{title}".to_owned(),
+            processing: 1,
+            use_gpu: true,
+            vocal_device: 0,
+            cpu_jobs: 0,
+            gpu_jobs: 0,
+            downloads: 0,
+            minimized: 0,
+            budget: 2,
+            updates: 0,
+            whats_new: true,
+            disabled_tools: Vec::new(),
         }
     }
 }
@@ -46,7 +113,110 @@ impl Settings {
                 "library_limit must be between {MIN_LIBRARY_LIMIT} and {MAX_LIBRARY_LIMIT}"
             )));
         }
+        let choices = [
+            ("language", self.language, 1),
+            ("dock_mode", self.dock_mode, 2),
+            ("open_window", self.open_window, 2),
+            ("save_mode", self.save_mode, 1),
+            ("processing", self.processing, 2),
+            ("vocal_device", self.vocal_device, 1),
+            ("cpu_jobs", self.cpu_jobs, 4),
+            ("gpu_jobs", self.gpu_jobs, 2),
+            ("downloads", self.downloads, 4),
+            ("minimized", self.minimized, 1),
+            ("budget", self.budget, 4),
+            ("updates", self.updates, 2),
+        ];
+        if let Some((name, value, max)) = choices.iter().find(|(_, value, max)| value > max) {
+            return Err(SettingsError::Invalid(format!(
+                "{name} must be at most {max}, got {value}"
+            )));
+        }
+        let texts = [
+            &self.artist,
+            &self.youtube,
+            &self.spotify,
+            &self.soundcloud,
+            &self.instagram,
+            &self.tiktok,
+            &self.video_template,
+            &self.image_template,
+        ];
+        if texts.iter().any(|text| text.chars().count() > MAX_TEXT) {
+            return Err(SettingsError::Invalid(format!(
+                "text settings keep at most {MAX_TEXT} characters"
+            )));
+        }
+        if self.disabled_tools.len() > 32 || self.disabled_tools.iter().any(|id| id.len() > 64) {
+            return Err(SettingsError::Invalid(
+                "disabled_tools holds at most 32 short ids".to_owned(),
+            ));
+        }
         Ok(())
+    }
+
+    /// A copy with one setting changed from the Settings page: `key` names it, `value` is "0"/"1" for switches,
+    /// the index for choices and the text for fields. The result is validated.
+    pub fn with_pref(&self, key: &str, value: &str) -> Result<Settings, SettingsError> {
+        let mut next = self.clone();
+        let flag = || match value {
+            "1" | "true" => Ok(true),
+            "0" | "false" => Ok(false),
+            _ => Err(SettingsError::Invalid(format!("{key} expects on or off"))),
+        };
+        let choice = || {
+            value
+                .trim()
+                .parse::<u8>()
+                .map_err(|_| SettingsError::Invalid(format!("{key} expects a choice")))
+        };
+        let text = || value.trim().to_owned();
+        match key {
+            "reduce-motion" => next.reduced_motion = flag()?,
+            "language" => next.language = choice()?,
+            "show-dock" => next.show_dock = flag()?,
+            "notify" => next.notify = flag()?,
+            "dock-mode" => next.dock_mode = choice()?,
+            "dock-activity" => next.dock_activity = flag()?,
+            "open-window" => next.open_window = choice()?,
+            "artist" => next.artist = text(),
+            "youtube" => next.youtube = text(),
+            "spotify" => next.spotify = text(),
+            "soundcloud" => next.soundcloud = text(),
+            "instagram" => next.instagram = text(),
+            "tiktok" => next.tiktok = text(),
+            "save-mode" => next.save_mode = choice()?,
+            "video-template" => next.video_template = text(),
+            "image-template" => next.image_template = text(),
+            "processing" => next.processing = choice()?,
+            "use-gpu" => next.use_gpu = flag()?,
+            "vocal-device" => next.vocal_device = choice()?,
+            "cpu-jobs" => next.cpu_jobs = choice()?,
+            "gpu-jobs" => next.gpu_jobs = choice()?,
+            "downloads" => next.downloads = choice()?,
+            "minimized" => next.minimized = choice()?,
+            "budget" => next.budget = choice()?,
+            "updates" => next.updates = choice()?,
+            "whats-new" => next.whats_new = flag()?,
+            _ => return Err(SettingsError::Invalid(format!("unknown setting {key}"))),
+        }
+        next.validate()?;
+        Ok(next)
+    }
+
+    /// A copy with a tool turned on or off in Settings > Tools
+    pub fn with_tool(&self, id: &str, enabled: bool) -> Result<Settings, SettingsError> {
+        let mut next = self.clone();
+        next.disabled_tools.retain(|tool| tool != id);
+        if !enabled {
+            next.disabled_tools.push(id.to_owned());
+        }
+        next.validate()?;
+        Ok(next)
+    }
+
+    pub fn tool_enabled(&self, id: &str) -> bool {
+        !self.disabled_tools.iter().any(|tool| tool == id)
     }
 }
 
@@ -80,7 +250,7 @@ impl From<io::Error> for SettingsError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SettingsRead {
     Missing,
-    Loaded(Settings),
+    Loaded(Box<Settings>),
     Corrupt(String),
 }
 
@@ -102,7 +272,7 @@ pub fn read_settings(path: &Path) -> SettingsRead {
     };
     match serde_json::from_slice::<Settings>(&bytes) {
         Ok(settings) => match settings.validate() {
-            Ok(()) => SettingsRead::Loaded(settings),
+            Ok(()) => SettingsRead::Loaded(Box::new(settings)),
             Err(error) => SettingsRead::Corrupt(error.to_string()),
         },
         Err(error) => SettingsRead::Corrupt(error.to_string()),
@@ -129,7 +299,7 @@ impl SettingsStore {
             },
             SettingsRead::Loaded(settings) => Self {
                 path,
-                current: settings,
+                current: *settings,
                 locked: false,
                 error: None,
             },

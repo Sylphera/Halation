@@ -1,8 +1,8 @@
 import { Palette } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs } from "models.slint";
+import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 export { Theme } from "theme.slint";
-export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs } from "models.slint";
+export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
 import { SettingsPage } from "pages/settings.slint";
@@ -83,6 +83,8 @@ export component AppWindow inherits Window {
     in-out property <int> library-mode: 0;
     // The rail open with labels (the original's "dock")
     in-out property <bool> rail-open: false;
+    // Settings section to open at (headless snapshots)
+    in property <int> settings-jump: -1;
 
     callback navigate(int);
     callback choose-reference();
@@ -185,6 +187,7 @@ export component AppWindow inherits Window {
             width: parent.width;
             height: parent.height;
             prefs: root.prefs;
+            jump-to: root.settings-jump;
             tools: root.tools;
             writable: root.settings-writable;
             error: root.settings-error;
@@ -258,8 +261,9 @@ export component AppWindow inherits Window {
     property <length> rail-height: root.rail-open ? root.height - 24px : min(800px, root.height - 90px);
     property <length> rail-item: min(44px, (root.rail-height - 29px) / (root.rail-count + 0.8));
     property <float> rail-give: max(0, (root.rail-height - (root.rail-count * 44px + 35px + 29px)) / 164px);
-    property <length> rail-gap: 4px * root.rail-give;
-    property <length> rail-margin: 10px * root.rail-give;
+    // Open, the rail runs the window's height: gaps grow to 17 px and divider margins to 20 px
+    property <length> rail-gap: root.rail-give <= 1 ? 4px * root.rail-give : 4px + 13px * min(1, root.rail-give - 1);
+    property <length> rail-margin: 10px * min(2, root.rail-give);
 
     if root.diagnostic-scene != 0 : Rectangle {
         x: 22px;

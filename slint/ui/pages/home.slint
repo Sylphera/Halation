@@ -8,7 +8,9 @@ component StripItem inherits FocusScope {
     in property <string> label;
     in property <duration> motion-duration: 160ms;
     callback activated;
-    width: name.preferred-width + 20px;
+    // Shrinks towards the label's width when the window is narrow
+    preferred-width: name.preferred-width + 20px;
+    min-width: name.preferred-width + 4px;
     height: 52px;
     focus-on-tab-navigation: true;
     accessible-role: button;
@@ -102,7 +104,7 @@ export component HomePage inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.hero-top + 202px;
-        width: strip.preferred-width;
+        width: min(strip.preferred-width, parent.width - 24px);
         height: 62px;
         border-radius: 18px;
         background: Theme.glass;

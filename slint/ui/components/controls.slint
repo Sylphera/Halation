@@ -240,14 +240,18 @@ export component Help inherits Text {
 export component Tag inherits Rectangle {
     in property <string> text;
     in property <color> ink: Theme.activity;
+    // Widest the tag may grow; longer text is elided
+    in property <length> limit: 2000px;
     height: 20px;
-    width: tag-text.preferred-width + 16px;
+    width: min(root.limit, tag-text.preferred-width + 16px);
     border-radius: 10px;
     background: ink.transparentize(88%);
     border-width: 1px;
     border-color: ink.transparentize(55%);
     tag-text := Text {
         x: 8px;
+        width: parent.width - 16px;
+        overflow: elide;
         y: (parent.height - self.height) / 2;
         text: root.text;
         color: root.ink;
@@ -259,7 +263,7 @@ export component Tag inherits Rectangle {
 // "Advanced" disclosure at the foot of a settings section
 export component Advanced inherits VerticalLayout {
     in-out property <bool> open: false;
-    spacing: 10px;
+    spacing: 0px;
     Rectangle {
         height: 32px;
         Rectangle {
@@ -301,10 +305,19 @@ export component Advanced inherits VerticalLayout {
             clicked => { root.open = !root.open; }
         }
     }
-    if root.open : VerticalLayout {
-        spacing: 10px;
-        padding-bottom: 4px;
-        @children
+    // Kept in the tree and clipped while closed (a placeholder for children cannot be conditional)
+    Rectangle {
+        height: root.open ? body.preferred-height : 0px;
+        clip: true;
+        visible: root.open;
+        body := VerticalLayout {
+            y: 0px;
+            height: self.preferred-height;
+            spacing: 10px;
+            padding-top: 6px;
+            padding-bottom: 4px;
+            @children
+        }
     }
 }
 

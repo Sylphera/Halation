@@ -11,6 +11,8 @@ export component PageTitle inherits Rectangle {
     width: 26px + 9px + name.preferred-width;
     height: 26px;
     Rectangle {
+        x: 0px;
+        y: 0px;
         width: 26px;
         height: 26px;
         border-radius: 9px;
@@ -47,6 +49,7 @@ component ToolCard inherits Rectangle {
 
     border-radius: 14px;
     background: #141414;
+    clip: true;
     border-width: 1px;
     border-color: Theme.hairline;
 
@@ -76,6 +79,7 @@ component ToolCard inherits Rectangle {
                 horizontal-stretch: 1;
                 spacing: 3px;
                 alignment: center;
+                // Long names put their Beta tag on the next line, as the original wraps it
                 HorizontalLayout {
                     spacing: 6px;
                     alignment: start;
@@ -85,8 +89,13 @@ component ToolCard inherits Rectangle {
                         font-size: Theme.font-title;
                         font-weight: 600;
                         vertical-alignment: center;
+                        overflow: elide;
                     }
-                    if root.tool.beta : Tag { text: "Beta"; ink: Theme.beta; }
+                    if root.tool.beta && root.tool.name.character-count <= 15 : Tag { text: "Beta"; ink: Theme.beta; }
+                }
+                if root.tool.beta && root.tool.name.character-count > 15 : HorizontalLayout {
+                    alignment: start;
+                    Tag { text: "Beta"; ink: Theme.beta; }
                 }
                 Text {
                     text: root.tool.summary;
@@ -106,11 +115,17 @@ component ToolCard inherits Rectangle {
                 }
             }
         }
-        if root.tool.missing != "" : HorizontalLayout {
+        if root.tool.missing != "" : VerticalLayout {
             spacing: 8px;
             alignment: start;
-            Tag { text: "Missing: " + root.tool.missing; ink: Theme.warning; }
-            AppButton { text: "Install"; small: true; clicked => { root.install(); } }
+            HorizontalLayout {
+                alignment: start;
+                Tag { text: "Missing: " + root.tool.missing; ink: Theme.warning; limit: root.width - 26px; }
+            }
+            HorizontalLayout {
+                alignment: start;
+                AppButton { text: "Install"; small: true; clicked => { root.install(); } }
+            }
         }
     }
 }
@@ -143,13 +158,26 @@ export component SettingsPage inherits Rectangle {
     property <[string]> tabs: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
     // Section tops inside the scrolled content, for the tabs
     property <[length]> tops: [s0.y, s1.y, s2.y, s3.y, s4.y, s5.y, s6.y, s7.y];
-    property <int> current: -flick.viewport-y >= s7.y - 40px ? 7 : -flick.viewport-y >= s6.y - 40px ? 6
-        : -flick.viewport-y >= s5.y - 40px ? 5 : -flick.viewport-y >= s4.y - 40px ? 4
-        : -flick.viewport-y >= s3.y - 40px ? 3 : -flick.viewport-y >= s2.y - 40px ? 2
-        : -flick.viewport-y >= s1.y - 40px ? 1 : 0;
+    property <int> current: -flick.content-y + 100px >= s7.y ? 7 : -flick.content-y + 100px >= s6.y ? 6
+        : -flick.content-y + 100px >= s5.y ? 5 : -flick.content-y + 100px >= s4.y ? 4
+        : -flick.content-y + 100px >= s3.y ? 3 : -flick.content-y + 100px >= s2.y ? 2
+        : -flick.content-y + 100px >= s1.y ? 1 : 0;
+
+    // Section to show first (headless snapshots); -1 leaves the page at the top
+    in property <int> jump-to: -1;
+    init => {
+        if (root.jump-to >= 0) {
+            root.jump(root.jump-to);
+        }
+    }
+    changed jump-to => {
+        if (root.jump-to >= 0) {
+            root.jump(root.jump-to);
+        }
+    }
 
     function jump(index: int) {
-        flick.viewport-y = -min(root.tops[index] - 12px, max(0px, flick.viewport-height - flick.height));
+        flick.content-y = -min(root.tops[index] - 12px, max(0px, flick.content-height - flick.height));
     }
 
     PageTitle {
@@ -164,13 +192,14 @@ export component SettingsPage inherits Rectangle {
         y: 100px;
         width: root.width;
         height: root.height - 100px;
-        viewport-width: root.width;
-        viewport-height: content.preferred-height + 24px;
+        content-width: root.width;
+        content-height: content.preferred-height + 36px;
 
         content := VerticalLayout {
             x: root.column-x;
             y: 12px;
             width: root.column;
+            height: self.preferred-height;
             spacing: 12px;
 
             s0 := Section {
@@ -282,10 +311,11 @@ export component SettingsPage inherits Rectangle {
                 HorizontalLayout {
                     spacing: 10px;
                     Labelled {
+                        horizontal-stretch: 1;
                         text: "TikTok";
                         Field { label: "TikTok"; placeholder: "tiktok.com/@name"; value: root.prefs.tiktok; committed(v) => { root.set-pref("tiktok", v); } }
                     }
-                    Rectangle { }
+                    Rectangle { horizontal-stretch: 1; }
                 }
                 HorizontalLayout {
                     alignment: start;
@@ -462,22 +492,22 @@ export component SettingsPage inherits Rectangle {
                 Help { text: "Turn tools on or off. A tool turned off leaves the rail and Home at once; its files and settings stay."; }
                 Rectangle {
                     property <length> cell: (self.width - 2 * 10px) / 3;
-                    property <length> row: 140px;
-                    height: ceil((root.tools.length + 2) / 3) * (self.row + 10px) - 10px;
+                    property <length> card-h: 188px;
+                    height: ceil((root.tools.length + 2) / 3) * (self.card-h + 10px) - 10px;
                     ToolCard {
                         x: 0px;
                         y: 0px;
                         width: parent.cell;
-                        height: parent.row;
+                        height: parent.card-h;
                         tool: { name: "Home", summary: "Needs nothing extra", enabled: true };
                         icon: "mark";
                         always-on: true;
                     }
                     for tool[index] in root.tools : ToolCard {
                         x: mod(index + 1, 3) * (parent.cell + 10px);
-                        y: floor((index + 1) / 3) * (parent.row + 10px);
+                        y: floor((index + 1) / 3) * (parent.card-h + 10px);
                         width: parent.cell;
-                        height: parent.row;
+                        height: parent.card-h;
                         tool: tool;
                         icon: tool.icon;
                         motion-duration: root.motion-duration;
@@ -486,9 +516,9 @@ export component SettingsPage inherits Rectangle {
                     }
                     ToolCard {
                         x: mod(root.tools.length + 1, 3) * (parent.cell + 10px);
-                        y: floor((root.tools.length + 1) / 3) * (parent.row + 10px);
+                        y: floor((root.tools.length + 1) / 3) * (parent.card-h + 10px);
                         width: parent.cell;
-                        height: parent.row;
+                        height: parent.card-h;
                         tool: { name: "Settings", summary: "Needs nothing extra", enabled: true };
                         icon: "settings";
                         always-on: true;
@@ -710,19 +740,19 @@ export component SettingsPage inherits Rectangle {
             padding: 9px;
             padding-left: 10px;
             spacing: 2px;
-            for tab[index] in root.tabs : Rectangle {
-                width: tab-label.preferred-width + 22px;
+            for tab-name[index] in root.tabs : Rectangle {
+                width: tab-label.preferred-width + 18px;
                 border-radius: 14px;
                 background: root.current == index ? Theme.raised : (tab-touch.has-hover ? #ffffff0d : transparent);
                 accessible-role: tab;
-                accessible-label: tab;
+                accessible-label: tab-name;
                 accessible-item-selected: root.current == index;
                 accessible-action-default => { root.jump(index); }
                 animate background { duration: root.motion-duration; easing: ease-out; }
                 tab-label := Text {
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
-                    text: tab;
+                    text: tab-name;
                     color: root.current == index ? Theme.text : Theme.muted;
                     font-size: Theme.font-body;
                     font-weight: 600;
@@ -735,7 +765,8 @@ export component SettingsPage inherits Rectangle {
             Rectangle { horizontal-stretch: 1; }
             // Search: Enter jumps to the section that holds the words (Rust matches them)
             Rectangle {
-                width: 198px;
+                preferred-width: 198px;
+                min-width: 110px;
                 border-radius: 14px;
                 background: #191919;
                 border-width: search.has-focus ? 2px : 1px;

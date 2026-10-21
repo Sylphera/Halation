@@ -5,11 +5,6 @@
 //! Fixtures (made-up names, tiny files) are written next to the output, never in a real profile.
 
 use crate::app::Controller;
-use crate::backend::{
-    engine::ProgressParser,
-    process::ProcessSpec,
-    queue::{JobSpec, Lane},
-};
 use crate::folders::{Command, FolderStore};
 use crate::library::{LibraryEntry, write_index};
 use crate::profile::{LaunchOptions, Profile, ScreenshotSpec};
@@ -85,14 +80,6 @@ fn pump(queue: &Queue, span: Duration) {
         slint::platform::update_timers_and_animations();
         std::thread::sleep(Duration::from_millis(10));
     }
-}
-
-fn percent(line: &str) -> Option<f32> {
-    line.trim()
-        .strip_suffix('%')?
-        .parse::<f32>()
-        .ok()
-        .map(|p| p / 100.0)
 }
 
 fn touch(path: &Path) -> std::io::Result<()> {
@@ -198,18 +185,25 @@ fn write_png(path: &Path, width: u32, height: u32, pixels: &[Rgb8Pixel]) -> std:
 }
 
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
-    let (page, mode) = match spec.page.as_str() {
-        "home" => (0, 0),
-        "library" | "references" => (1, 0),
-        "sections" => (1, 1),
-        "jobs" => (2, 0),
-        "settings" => (3, 0),
-        other => {
-            return Err(format!(
-                "unknown page '{other}'; expected home, library, sections, jobs or settings"
-            )
-            .into());
-        }
+    // home, home-open (rail open), library, sections, settings, settings-<0..7> (a section)
+    let (page, mode, section) = match spec.page.as_str() {
+        "home" => (0, 0, -1),
+        "home-open" => (0, 2, -1),
+        "library" | "references" => (1, 0, -1),
+        "sections" => (1, 1, -1),
+        "settings" => (3, 0, -1),
+        other => match other
+            .strip_prefix("settings-")
+            .and_then(|n| n.parse::<i32>().ok())
+        {
+            Some(section) if (0..8).contains(&section) => (3, 0, section),
+            _ => {
+                return Err(format!(
+                    "unknown page '{other}'; expected home, home-open, library, sections, settings or settings-<0..7>"
+                )
+                .into());
+            }
+        },
     };
     let out_dir = spec
         .out
@@ -237,40 +231,10 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     let controller = Controller::new(ui.as_weak(), profile, LaunchOptions::default())?;
     controller.install(false);
 
-    if page == 2 {
-        let engine = controller.jobs_engine();
-        let cmd = |script: &str| ProcessSpec {
-            program: PathBuf::from("cmd.exe"),
-            args: vec!["/C".into(), script.into()],
-            ..ProcessSpec::default()
-        };
-        let parse: Option<ProgressParser> = Some(percent);
-        engine.submit(
-            JobSpec::new("sample", "Finished sample job", Lane::Cpu),
-            cmd("echo 100%"),
-            parse,
-        );
-        engine.submit(
-            JobSpec::new("sample", "Failed sample job", Lane::Cpu),
-            ProcessSpec {
-                program: PathBuf::from("Z:/no/such/program.exe"),
-                ..ProcessSpec::default()
-            },
-            None,
-        );
-        engine.submit(
-            JobSpec::new(
-                "sample",
-                "A running sample job with a deliberately long title to check eliding in the row",
-                Lane::Cpu,
-            ),
-            cmd("echo 40%& ping -n 30 127.0.0.1 >nul"),
-            parse,
-        );
-        pump(&queue, Duration::from_millis(1500));
-    }
-
     ui.invoke_navigate(page);
+    if mode == 2 {
+        ui.set_rail_open(true);
+    }
     if mode == 1 {
         ui.set_library_mode(1);
         ui.invoke_sections_opened();
@@ -278,6 +242,15 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.invoke_select_section(SharedString::from("own:Covers"));
     }
     pump(&queue, Duration::from_millis(800));
+    if section >= 0 {
+        // After the page has laid out, so the section tops are known
+        ui.set_settings_jump(section);
+        pump(&queue, Duration::from_millis(300));
+        // Once more, now that the content height has settled too
+        ui.set_settings_jump(-1);
+        ui.set_settings_jump(section);
+        pump(&queue, Duration::from_millis(300));
+    }
 
     let (w, h) = (spec.width as usize, spec.height as usize);
     let mut buffer = vec![Rgb8Pixel::new(0, 0, 0); w * h];

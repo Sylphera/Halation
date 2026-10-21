@@ -15,17 +15,18 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 /// Brightness (0..1, linear-ish) of the silk at normalized position `u` (0..aspect) and `v` (0..1)
 fn silk(u: f32, v: f32) -> f32 {
     // Domain warp: the cloth's large, slow curves
-    let wu = u + 0.32 * (1.7 * u + 2.1 * v + 0.3).sin();
-    let wv = v + 0.30 * (2.3 * u - 1.4 * v + 1.1).cos();
-    // The folds: one family of curved bands, bent again by a second, softer wave
-    let fold = (3.1 * wu + 2.2 * wv + 1.6 * (2.0 * wv - 0.9 * wu).sin()).sin();
-    let ridge = (fold * 0.5 + 0.5).powi(7);
-    let sheen = 0.5 + 0.5 * (1.2 * wu - 1.9 * wv + 0.4).sin();
+    let wu = u + 0.30 * (1.6 * u + 2.0 * v + 0.3).sin() + 0.08 * (4.1 * v - 1.3 * u).sin();
+    let wv = v + 0.28 * (2.2 * u - 1.3 * v + 1.1).cos();
+    // The folds: thin bright crests on a curved family of bands, bent again by a softer wave
+    let phase = 3.4 * wu + 2.4 * wv + 1.7 * (2.1 * wv - 0.9 * wu).sin();
+    let crest = (phase.sin() * 0.5 + 0.5).powi(18);
+    let second = ((1.9 * phase + 0.8).sin() * 0.5 + 0.5).powi(30);
+    let sheen = 0.5 + 0.5 * (1.1 * wu - 1.8 * wv + 0.4).sin();
     // Darker in the middle, where Home's content sits; folds show towards the edges
     let du = u / (WIDTH as f32 / HEIGHT as f32) - 0.5;
     let dv = v - 0.5;
-    let edge = 0.45 + 0.55 * smoothstep(0.12, 0.62, (du * du + dv * dv).sqrt());
-    0.018 + edge * (0.030 * sheen + 0.10 * ridge)
+    let edge = 0.35 + 0.65 * smoothstep(0.10, 0.60, (du * du + dv * dv).sqrt());
+    0.014 + 0.016 * sheen + edge * (0.13 * crest + 0.05 * second)
 }
 
 /// The backdrop as RGB pixels
@@ -37,7 +38,9 @@ pub fn backdrop() -> SharedPixelBuffer<Rgb8Pixel> {
         let v = y as f32 / HEIGHT as f32;
         for x in 0..WIDTH {
             let u = x as f32 / WIDTH as f32 * aspect;
-            let l = silk(u, v);
+            // A tiny ordered dither keeps the dark gradients from banding once scaled up
+            let dither = ((x * 7 + y * 13) % 16) as f32 / 16.0 - 0.5;
+            let l = silk(u, v) + dither / 255.0;
             // A faint pale-blue cast in the light parts only
             let to_byte = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
             pixels[(y * WIDTH + x) as usize] = Rgb8Pixel {
