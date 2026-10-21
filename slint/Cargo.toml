@@ -28,6 +28,13 @@ slint = { version = "=1.18.1", default-features = false, features = [
     "accessibility",
 ] }
 
+[features]
+# Diagnostic renderer comparison only; the shipping beta uses winit + Skia.
+diag-femtovg = ["slint/renderer-femtovg"]
+diag-software = ["slint/renderer-software"]
+diag-skia-opengl = ["slint/renderer-skia-opengl"]
+diag-skia-vulkan = ["slint/renderer-skia-vulkan"]
+
 [build-dependencies]
 slint-build = { version = "=1.18.1", default-features = false, features = ["compat-1-18"] }
 

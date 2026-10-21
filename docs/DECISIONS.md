@@ -170,3 +170,10 @@ One line per decision in force and why. Add a line for every new decision; remov
 - Tests wait for conditions, not fixed times, except `motion.js`'s scenario pauses and warm-ups before a measurement.
 - Fixtures are made once per run: FFmpeg's unseeded `gradients` picks random colours.
 - A passed check is skipped while the hash of what it reads is unchanged; the hash includes `$SHOTS`.
+
+## Slint beta renderer
+
+- Reference metric for the beta is private resident memory (`WorkingSetPrivate`), measured on Home, with total working set and commit reported next to it and never alone (Java, 2026-10-20): a single favourable counter would make the app look lighter than it is.
+- Candidate renderer: Skia over desktop OpenGL (`require_opengl()`), measured at 49.7 MB private on Home against 122.4 MB for Skia over Direct3D 12 and 8.0 MB for the software renderer (which excludes GPU memory); the choice is pending visual review. Virtual machines and PCs without an OpenGL driver are out of scope (Java, 2026-10-20).
+- Slint's default Skia OpenGL context (GLES 3.0) does not draw stroked `Path` elements with more than one segment or any arc on the AMD driver tested (`atio6axx.dll`); closed filled shapes, single-segment lines and PNGs do draw. Requesting desktop OpenGL draws every icon, antialiased, with no change to `icons.slint`; `anti-alias: false` also works but is jagged. Not checked on other GPU vendors.
+- Icons stay one stroked `Path` per icon in `ui/icons.slint` (viewbox 24, stroke 1.7): no per-driver adjustments, no SVG (it would need Slint's `svg` feature and its memory).

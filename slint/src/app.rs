@@ -89,11 +89,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     profile.ensure()?;
     log_line(&profile, "starting native beta");
 
-    slint::BackendSelector::new()
-        .backend_name("winit".into())
-        .renderer_name("skia".into())
-        .select()
-        .map_err(|error| format!("could not select winit + Skia: {error}"))?;
+    let renderer = select_renderer()?;
+    log_line(&profile, &format!("renderer requested: {renderer}"));
 
     let window = AppWindow::new()?;
     let log_profile = profile.clone();
@@ -694,6 +691,41 @@ fn apply_theme(ui: &AppWindow) {
 
 fn color(value: theme::Rgb) -> slint::Color {
     slint::Color::from_rgb_u8(value.0, value.1, value.2)
+}
+
+/// Diagnostic renderer selection (`HALATION_RENDERER`, default `skia`). A renderer that is not
+/// compiled in or cannot start is an error; there is no fallback to another renderer.
+fn select_renderer() -> Result<String, Box<dyn std::error::Error>> {
+    let requested = std::env::var("HALATION_RENDERER").unwrap_or_else(|_| "skia".to_owned());
+    let selector = slint::BackendSelector::new().backend_name("winit".into());
+    let selector = match requested.as_str() {
+        "skia" => selector.renderer_name("skia".into()),
+        "skia-d3d" => selector.renderer_name("skia".into()).require_d3d(),
+        #[cfg(feature = "diag-skia-vulkan")]
+        "skia-vulkan" => selector.renderer_name("skia".into()).require_vulkan(),
+        #[cfg(feature = "diag-skia-opengl")]
+        // Desktop OpenGL: Slint's default GLES 3.0 context does not draw stroked paths on some drivers.
+        "skia-opengl" => selector
+            .renderer_name("skia-opengl".into())
+            .require_opengl(),
+        #[cfg(feature = "diag-skia-opengl")]
+        "skia-opengl-es" => selector
+            .renderer_name("skia-opengl".into())
+            .require_opengl_es(),
+        #[cfg(feature = "diag-femtovg")]
+        "femtovg" => selector.renderer_name("femtovg".into()),
+        #[cfg(feature = "diag-software")]
+        "software" => selector.renderer_name("software".into()),
+        other => {
+            return Err(
+                format!("renderer '{other}' is unknown or not compiled into this binary").into(),
+            );
+        }
+    };
+    selector
+        .select()
+        .map_err(|error| format!("could not select renderer '{requested}': {error}"))?;
+    Ok(requested)
 }
 
 fn log_line(profile: &Profile, message: &str) {
