@@ -8,7 +8,7 @@
 //! the frame is scaled to the window's size, turned back into colour and handed to the window. Only the frame on
 //! screen is held decoded. Plan and costs: docs/SLINT_VISUAL_SYSTEM.md.
 
-use slint::{Rgb8Pixel, SharedPixelBuffer};
+use slint::{Rgb8Pixel, Rgba8Pixel, SharedPixelBuffer};
 use std::path::Path;
 
 /// Frames per second of the loop; the player asks for one frame per tick of this rate
@@ -178,18 +178,61 @@ fn taps(out: usize, len: usize, scale: f32) -> Vec<[(usize, f32); 4]> {
         .collect()
 }
 
+/// A uniform value in [0, 1) for a 32-bit key
+fn unit(mut v: u32) -> f32 {
+    v ^= v >> 16;
+    v = v.wrapping_mul(0x7feb_352d);
+    v ^= v >> 15;
+    v = v.wrapping_mul(0x846c_a68b);
+    v ^= v >> 16;
+    (v >> 8) as f32 / (1 << 24) as f32
+}
+
 /// Triangular noise in (-1, 1) for a pixel: the sum of two uniform hashes, minus one
 fn tpdf(x: u32, y: u32) -> f32 {
-    let hash = |mut v: u32| {
-        v ^= v >> 16;
-        v = v.wrapping_mul(0x7feb_352d);
-        v ^= v >> 15;
-        v = v.wrapping_mul(0x846c_a68b);
-        v ^= v >> 16;
-        (v >> 8) as f32 / (1 << 24) as f32
-    };
     let seed = x.wrapping_mul(0x9e37_79b9) ^ y.wrapping_mul(0x85eb_ca6b);
-    hash(seed) + hash(seed ^ 0x68e3_1da4) - 1.0
+    unit(seed) + unit(seed ^ 0x68e3_1da4) - 1.0
+}
+
+/// Side of the standard grain's tile, in pixels
+const GRAIN_TILE: u32 = 512;
+/// The dark field's level, where white and black grain move the colour by the same amount
+const GRAIN_BASE: f32 = 24.0;
+/// Standard deviation of the standard grain at full strength, in levels over the dark field
+const GRAIN_SIGMA: f32 = 10.0;
+
+/// Preview only (Java is comparing it with the original's grain, `HALATION_GRAIN=standard`): a standard static film
+/// grain, monochrome Gaussian noise with one value per pixel, as a tile at full strength; Home sets its opacity.
+/// White adds and black takes away, each scaled so that over the dark field it moves the colour by the noise value.
+pub fn standard_grain() -> SharedPixelBuffer<Rgba8Pixel> {
+    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(GRAIN_TILE, GRAIN_TILE);
+    for (i, pixel) in buffer.make_mut_slice().iter_mut().enumerate() {
+        let (x, y) = (i as u32 % GRAIN_TILE, i as u32 / GRAIN_TILE);
+        let level = gaussian(x, y) * GRAIN_SIGMA;
+        let (value, alpha) = if level >= 0.0 {
+            (255, level / (255.0 - GRAIN_BASE))
+        } else {
+            (0, -level / GRAIN_BASE)
+        };
+        let a = (alpha.min(1.0) * 255.0 + 0.5) as u8;
+        *pixel = Rgba8Pixel {
+            r: value,
+            g: value,
+            b: value,
+            a,
+        };
+    }
+    buffer
+}
+
+/// Close to a standard normal value for a pixel: four uniforms summed (variance 1/3), centred and scaled
+fn gaussian(x: u32, y: u32) -> f32 {
+    let seed = x.wrapping_mul(0x27d4_eb2f) ^ y.wrapping_mul(0x1656_67b1) ^ 0x5bd1_e995;
+    let sum: f32 = [0, 0x68e3_1da4, 0xb529_7a4d, 0x1b56_c4e9]
+        .iter()
+        .map(|salt| unit(seed ^ salt))
+        .sum();
+    (sum - 2.0) * 3.0_f32.sqrt()
 }
 
 /// Plays the loop on a decoding thread: `request` asks for the next frame at a size, `deliver` gets it on that thread

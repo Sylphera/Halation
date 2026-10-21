@@ -132,7 +132,13 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     assets.set_mark(load("halation-mark.png"));
     assets.set_wordmark(load("halation-wordmark.svg"));
     assets.set_drop_outline(load("drop-outline.svg"));
-    assets.set_grain(load("drape-grain.png"));
+    // Preview only: HALATION_GRAIN=standard shows a standard grain instead of the original's, at 10 %
+    if std::env::var("HALATION_GRAIN").is_ok_and(|grain| grain == "standard") {
+        assets.set_grain(Image::from_rgba8(crate::backdrop::standard_grain()));
+        ui.set_grain_preview(10);
+    } else {
+        assets.set_grain(load("drape-grain.png"));
+    }
     assets.set_still(load("drape-still.jpg"));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));
