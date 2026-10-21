@@ -1,7 +1,8 @@
 //! Headless layout checks on the real `.slint` UI (testing backend, no window, no GPU): at the supported window
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
-use halation_slint::ui::{AppWindow, ItemRow, JobRow, SectionRow};
+use halation_slint::catalog::TOOLS;
+use halation_slint::ui::{AppWindow, ItemRow, JobRow, RecentItem, SectionRow, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel, platform::WindowEvent};
 use std::rc::Rc;
@@ -49,11 +50,42 @@ fn outside(ui: &AppWindow, w: f32, h: f32) -> Vec<String> {
         .collect()
 }
 
+/// The Home launcher content the controller installs: every tool except Library, and three recent files
+fn fill_home(ui: &AppWindow) {
+    let tools: Vec<ToolItem> = TOOLS
+        .iter()
+        .filter(|tool| tool.id != "library")
+        .map(|tool| ToolItem {
+            id: tool.id.into(),
+            name: tool.name.into(),
+            icon: tool.icon.into(),
+            summary: tool.summary.into(),
+            available: tool.available,
+            reason: tool.reason.into(),
+        })
+        .collect();
+    ui.set_tools(ModelRc::from(Rc::new(VecModel::from(tools))));
+    let recent: Vec<RecentItem> = [
+        "a-rather-long-song-title-for-the-panel.wav",
+        "b.png",
+        "c.mp4",
+    ]
+    .iter()
+    .map(|name| RecentItem {
+        id: (*name).into(),
+        name: (*name).into(),
+        folder: "A folder with a long name".into(),
+    })
+    .collect();
+    ui.set_recent(ModelRc::from(Rc::new(VecModel::from(recent))));
+}
+
 #[test]
 fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
+    fill_home(&ui);
     ui.set_jobs(ModelRc::from(Rc::new(VecModel::from(vec![JobRow {
         id: "j_000001".into(),
         name: "A very long job title that must be elided instead of pushing the Cancel button out of the row.png".into(),
@@ -120,4 +152,41 @@ fn the_check_does_detect_a_window_that_is_too_small() {
         !outside(&ui, 300.0, 200.0).is_empty(),
         "a 300x200 window must report controls outside it, or the check proves nothing"
     );
+}
+
+#[test]
+fn the_rail_holds_places_only_and_marks_the_current_one() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    let places = ["Home", "Library", "Jobs", "Settings"];
+    for page in 0..4 {
+        ui.set_page(page);
+        slint::platform::update_timers_and_animations();
+        for (index, place) in places.iter().enumerate() {
+            let item = ElementHandle::find_by_accessible_label(&ui, place)
+                .next()
+                .unwrap_or_else(|| panic!("rail item {place} exists"));
+            assert_eq!(
+                item.accessible_item_selected(),
+                Some(index == page as usize),
+                "rail item {place} on page {page}"
+            );
+        }
+        // Tools are launched from Home only: away from Home no tool control exists.
+        let tool_controls = ElementQuery::from_root(&ui)
+            .match_descendants()
+            .match_predicate(|e| {
+                e.accessible_label()
+                    .is_some_and(|label| label.starts_with("Downloader"))
+            })
+            .find_all();
+        assert_eq!(
+            !tool_controls.is_empty(),
+            page == 0,
+            "Downloader controls on page {page}"
+        );
+    }
 }

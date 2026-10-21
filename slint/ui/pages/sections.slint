@@ -64,7 +64,7 @@ export component SectionsView inherits Rectangle {
                 height: root.editing != "" ? 34px : 0px;
                 visible: root.editing != "";
                 clip: true;
-                border-radius: 8px;
+                border-radius: Theme.radius-control;
                 background: Theme.surface;
                 border-width: 1px;
                 border-color: Theme.accent;
@@ -74,7 +74,7 @@ export component SectionsView inherits Rectangle {
                     name-input := TextInput {
                         single-line: true;
                         color: Theme.text;
-                        font-size: 12px;
+                        font-size: Theme.font-label;
                         vertical-alignment: center;
                         horizontal-stretch: 1;
                         accessible-role: text-input;
@@ -103,7 +103,7 @@ export component SectionsView inherits Rectangle {
                     visible: name-input.text == "";
                     text: root.editing == "create" ? "Section name, Enter to create" : "New name, Enter to rename";
                     color: Theme.muted;
-                    font-size: 11px;
+                    font-size: Theme.font-label;
                     x: 10px;
                     y: (parent.height - self.height) / 2;
                 }
@@ -112,31 +112,36 @@ export component SectionsView inherits Rectangle {
             if !root.loaded : Text {
                 text: "Reading sections…";
                 color: Theme.muted;
-                font-size: 11px;
+                font-size: Theme.font-label;
             }
 
             if root.loaded && root.sections.length == 0 : Text {
                 text: "No sections yet. Create one, or link a folder of your PC; linked files stay where they are.";
                 color: Theme.muted;
-                font-size: 11px;
+                font-size: Theme.font-label;
                 wrap: word-wrap;
             }
 
             ListView {
                 vertical-stretch: 1;
                 for section in root.sections : Rectangle {
-                    height: 44px;
+                    height: 48px;
                     width: parent.width;
-                    border-radius: 9px;
-                    background: section.selected ? Theme.accent-soft : Theme.surface;
-                    border-width: 1px;
-                    border-color: section.selected ? Theme.accent : Theme.border;
                     accessible-role: list-item;
                     accessible-label: section.name;
-                    animate background { duration: root.motion-duration; easing: ease-out; }
+                    accessible-item-selected: section.selected;
+
+                    Rectangle {
+                        y: 2px;
+                        height: parent.height - 4px;
+                        border-radius: Theme.radius-card;
+                        background: section.selected ? Theme.surface-high : (section-touch.has-hover ? Theme.surface : transparent);
+                        animate background { duration: root.motion-duration; easing: ease-out; }
+                    }
 
                     HorizontalLayout {
-                        padding: 9px;
+                        padding-left: 12px;
+                        padding-right: 12px;
                         spacing: 8px;
                         VerticalLayout {
                             horizontal-stretch: 1;
@@ -145,26 +150,25 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: section.name;
                                 color: Theme.text;
-                                font-size: 12px;
+                                font-size: Theme.font-label;
                                 font-weight: 600;
                                 overflow: elide;
                             }
                             Text {
                                 text: section.missing ? "Folder missing" : section.count + (section.count == 1 ? " item" : " items");
-                                color: section.missing ? Theme.danger : Theme.muted;
-                                font-size: 9px;
+                                color: section.missing ? Theme.danger : Theme.subtle;
+                                font-size: Theme.font-caption;
                             }
                         }
                         Text {
-                            text: section.kind == "own" ? "OWN" : (section.kind == "linked" ? "LINKED" : "PACK");
-                            color: Theme.muted;
-                            font-size: 8px;
-                            font-weight: 700;
-                            letter-spacing: 0.6px;
+                            text: section.kind == "own" ? "Own" : (section.kind == "linked" ? "Linked" : "Pack");
+                            color: Theme.subtle;
+                            font-size: Theme.font-caption;
+                            font-weight: 500;
                             vertical-alignment: center;
                         }
                     }
-                    TouchArea {
+                    section-touch := TouchArea {
                         enabled: !root.busy;
                         mouse-cursor: pointer;
                         clicked => {
@@ -179,7 +183,7 @@ export component SectionsView inherits Rectangle {
 
         Rectangle {
             horizontal-stretch: 1;
-            border-radius: 12px;
+            border-radius: Theme.radius-panel;
             background: Theme.surface;
             border-width: 1px;
             border-color: Theme.border;
@@ -192,14 +196,14 @@ export component SectionsView inherits Rectangle {
                 Text {
                     text: "Pick a section";
                     color: Theme.text;
-                    font-size: 15px;
+                    font-size: Theme.font-title;
                     font-weight: 600;
                     horizontal-alignment: center;
                 }
                 Text {
                     text: "Its pictures and videos are listed here, read where they are.";
                     color: Theme.muted;
-                    font-size: 11px;
+                    font-size: Theme.font-label;
                     horizontal-alignment: center;
                     wrap: word-wrap;
                 }
@@ -214,7 +218,7 @@ export component SectionsView inherits Rectangle {
                     Text {
                         text: root.selected-name;
                         color: Theme.text;
-                        font-size: 16px;
+                        font-size: Theme.font-title;
                         font-weight: 700;
                         vertical-alignment: center;
                         overflow: elide;
@@ -261,14 +265,14 @@ export component SectionsView inherits Rectangle {
                         : (root.selected-kind == "linked" ? "A folder of your PC, read in place. Unlinking never touches its files."
                         : "Installed pack, read only.");
                     color: root.confirm-delete ? Theme.danger : Theme.muted;
-                    font-size: 10px;
+                    font-size: Theme.font-caption;
                     wrap: word-wrap;
                 }
 
                 if root.items.length == 0 : Text {
                     text: "No pictures or videos here.";
                     color: Theme.muted;
-                    font-size: 12px;
+                    font-size: Theme.font-label;
                     vertical-stretch: 1;
                     vertical-alignment: center;
                     horizontal-alignment: center;
@@ -284,7 +288,7 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: item.name;
                                 color: Theme.text;
-                                font-size: 11px;
+                                font-size: Theme.font-label;
                                 vertical-alignment: center;
                                 overflow: elide;
                                 horizontal-stretch: 1;
@@ -292,7 +296,7 @@ export component SectionsView inherits Rectangle {
                             Text {
                                 text: item.detail;
                                 color: Theme.muted;
-                                font-size: 10px;
+                                font-size: Theme.font-caption;
                                 vertical-alignment: center;
                             }
                         }
@@ -308,7 +312,7 @@ export component SectionsView inherits Rectangle {
                 if root.hidden > 0 : Text {
                     text: "+ " + root.hidden + " more not listed";
                     color: Theme.muted;
-                    font-size: 10px;
+                    font-size: Theme.font-caption;
                 }
             }
         }

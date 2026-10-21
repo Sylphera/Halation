@@ -1,0 +1,38 @@
+import { Theme } from "../theme.slint";
+
+// A small state label with a coloured dot. Tone: "warning", "danger", "success", "accent" or "neutral".
+export component StatusChip inherits Rectangle {
+    in property <string> text: "";
+    in property <string> tone: "neutral";
+    // Widest the chip may grow; longer text is elided
+    in property <length> limit: 640px;
+    property <color> ink: tone == "warning" ? Theme.warning : tone == "danger" ? Theme.danger
+        : tone == "success" ? Theme.success : tone == "accent" ? Theme.accent : Theme.muted;
+
+    height: 22px;
+    width: min(root.limit, label.preferred-width + 27px);
+    border-radius: Theme.radius-chip;
+    background: tone == "warning" ? Theme.warning-soft : tone == "danger" ? Theme.danger-soft
+        : tone == "accent" ? Theme.accent-soft : Theme.surface;
+    border-width: tone == "neutral" ? 1px : 0px;
+    border-color: Theme.border;
+
+    Rectangle {
+        x: 9px;
+        y: (parent.height - self.height) / 2;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        background: root.ink;
+    }
+    label := Text {
+        x: 20px;
+        y: (parent.height - self.height) / 2;
+        width: parent.width - 27px;
+        overflow: elide;
+        text: root.text;
+        color: root.ink;
+        font-size: Theme.font-caption;
+        font-weight: 500;
+    }
+}

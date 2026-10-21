@@ -1,14 +1,16 @@
 import { Theme } from "../theme.slint";
 
+// Primary (light fill, one per view), secondary (surface and border) or ghost (accent text only).
 export component AppButton inherits FocusScope {
     in property <string> text: "";
     in property <bool> primary: false;
+    in property <bool> ghost: false;
     in property <bool> compact: false;
     in property <duration> motion-duration: 160ms;
     callback clicked;
 
-    width: compact ? 82px : 124px;
-    height: compact ? 27px : 34px;
+    width: max(root.compact ? 64px : 88px, label.preferred-width + (root.compact ? 20px : 28px));
+    height: root.compact ? 26px : 32px;
     focus-on-tab-navigation: true;
 
     accessible-role: button;
@@ -33,21 +35,25 @@ export component AppButton inherits FocusScope {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-radius: 8px;
-        background: root.primary ? Theme.accent : Theme.surface-high;
-        border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.accent : Theme.border;
-        opacity: root.enabled ? (touch.pressed ? 0.82 : 1) : 0.45;
-        animate background { duration: root.motion-duration; easing: ease-out; }
-        animate opacity {
+        border-radius: Theme.radius-control;
+        background: root.primary
+            ? (touch.pressed ? Theme.muted : (touch.has-hover ? Theme.text : Theme.primary))
+            : root.ghost
+            ? (touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface-raised : transparent))
+            : (touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface-raised : Theme.surface));
+        border-width: root.has-focus ? 2px : (root.primary || root.ghost ? 0px : 1px);
+        border-color: root.has-focus ? Theme.accent : (touch.has-hover ? Theme.border-strong : Theme.border);
+        opacity: root.enabled ? 1 : 0.45;
+        animate background {
             duration: touch.pressed ? 0ms : root.motion-duration;
+            easing: ease-out;
         }
     }
 
-    Text {
+    label := Text {
         text: root.text;
-        color: root.primary ? Theme.background : Theme.text;
-        font-size: root.compact ? 11px : 13px;
+        color: root.primary ? Theme.on-primary : (root.ghost ? Theme.accent : Theme.text);
+        font-size: root.compact ? Theme.font-caption : Theme.font-label;
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;

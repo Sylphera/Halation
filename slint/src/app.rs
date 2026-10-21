@@ -67,7 +67,6 @@ struct Services {
     reference_busy: bool,
     inbox: Arc<Mutex<AsyncInbox>>,
     tools_model: Rc<VecModel<ToolItem>>,
-    rail_tools_model: Rc<VecModel<ToolItem>>,
     jobs_model: Rc<VecModel<JobRow>>,
     recent_model: Rc<VecModel<RecentItem>>,
     recent_cache: RefCell<Vec<(String, String)>>,
@@ -151,12 +150,15 @@ impl Controller {
         let library_model = LibraryModel::new(settings.current().library_limit);
         let library = LibraryStore::new(profile.library_path(), library_model);
 
+        // Home launches the media tools; Library is a place and lives in the rail.
         let tools: Vec<ToolItem> = catalog::TOOLS
             .iter()
+            .filter(|tool| tool.id != "library")
             .map(|tool| ToolItem {
                 id: SharedString::from(tool.id),
                 name: SharedString::from(tool.name),
                 icon: SharedString::from(tool.icon),
+                summary: SharedString::from(tool.summary),
                 available: tool.available,
                 reason: SharedString::from(tool.reason),
             })
@@ -171,11 +173,6 @@ impl Controller {
             profile.sections_root(),
             profile.links_path(),
         )));
-        let rail_tools: Vec<ToolItem> = tools
-            .iter()
-            .filter(|tool| !tool.available)
-            .cloned()
-            .collect();
 
         Ok(Self {
             weak,
@@ -199,7 +196,6 @@ impl Controller {
                 reference_busy: false,
                 inbox: Arc::new(Mutex::new(AsyncInbox::default())),
                 tools_model: Rc::new(VecModel::from(tools)),
-                rail_tools_model: Rc::new(VecModel::from(rail_tools)),
                 jobs_model,
                 recent_model: Rc::new(VecModel::default()),
                 recent_cache: RefCell::new(Vec::new()),
@@ -225,7 +221,6 @@ impl Controller {
         {
             let services = self.services.borrow();
             ui.set_tools(ModelRc::from(services.tools_model.clone()));
-            ui.set_rail_tools(ModelRc::from(services.rail_tools_model.clone()));
             ui.set_jobs(ModelRc::from(services.jobs_model.clone()));
             ui.set_recent(ModelRc::from(services.recent_model.clone()));
             ui.set_library_rows(ModelRc::from(services.library.model().clone()));
@@ -954,23 +949,42 @@ fn update_recent_model(
             .map(|entry| RecentItem {
                 id: SharedString::from(entry.id.as_str()),
                 name: SharedString::from(entry.display_name.as_str()),
+                folder: SharedString::from(parent_folder(&entry.path)),
             })
             .collect::<Vec<_>>(),
     );
     true
 }
 
+/// Name of the folder that holds `path`, shown under a recent file
+fn parent_folder(path: &str) -> String {
+    Path::new(path)
+        .parent()
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 fn apply_theme(ui: &AppWindow) {
     let theme = ui.global::<Theme>();
     theme.set_background(color(theme::BACKGROUND));
+    theme.set_rail(color(theme::RAIL));
     theme.set_surface(color(theme::SURFACE));
+    theme.set_surface_raised(color(theme::SURFACE_RAISED));
     theme.set_surface_high(color(theme::SURFACE_HIGH));
     theme.set_border(color(theme::BORDER));
+    theme.set_border_strong(color(theme::BORDER_STRONG));
     theme.set_text(color(theme::TEXT));
     theme.set_muted(color(theme::MUTED));
+    theme.set_subtle(color(theme::SUBTLE));
     theme.set_accent(color(theme::ACCENT));
     theme.set_accent_soft(color(theme::ACCENT_SOFT));
+    theme.set_primary(color(theme::PRIMARY));
+    theme.set_on_primary(color(theme::ON_PRIMARY));
+    theme.set_warning(color(theme::WARNING));
+    theme.set_warning_soft(color(theme::WARNING_SOFT));
     theme.set_danger(color(theme::DANGER));
+    theme.set_danger_soft(color(theme::DANGER_SOFT));
     theme.set_success(color(theme::SUCCESS));
 }
 

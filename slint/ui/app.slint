@@ -7,7 +7,7 @@ import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
 import { JobsPage } from "pages/jobs.slint";
 import { SettingsPage } from "pages/settings.slint";
-import { RailButton } from "components/rail-button.slint";
+import { RailItem } from "components/rail-item.slint";
 
 export component AppWindow inherits Window {
     title: "Halation — Native Beta";
@@ -30,7 +30,6 @@ export component AppWindow inherits Window {
     in property <string> profile-path: "";
     in property <string> library-query: "";
     in property <[ToolItem]> tools;
-    in property <[ToolItem]> rail-tools;
     in property <[LibraryRow]> library-rows;
     in property <[JobRow]> jobs;
     in property <[RecentItem]> recent;
@@ -82,58 +81,51 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    Rectangle {
-        width: parent.width;
-        height: parent.height;
-        background: @linear-gradient(155deg, #08080a 0%, #0f0f14 58%, #0b0b0d 100%);
-    }
-
     if root.diagnostic-scene != 0 : HorizontalLayout {
         width: parent.width;
         height: parent.height;
-        padding: 8px;
-        spacing: 8px;
 
+        // Rail: the places of the app. Tools are launched from Home.
         Rectangle {
             width: Theme.rail-width;
-            height: parent.height;
-            border-radius: 16px;
-            background: #101012;
-            border-width: 1px;
-            border-color: Theme.border;
-            clip: true;
+            background: Theme.rail;
+
+            Rectangle {
+                x: parent.width - 1px;
+                width: 1px;
+                background: Theme.border;
+            }
 
             VerticalLayout {
-                padding: 8px;
-                spacing: 2px;
+                padding-left: 6px;
+                padding-right: 6px;
+                padding-top: 14px;
+                padding-bottom: 10px;
+                spacing: 4px;
 
-                RailButton {
-                    icon: "mark";
+                Rectangle {
+                    height: 34px;
+                    Image {
+                        source: @image-url("../assets/halation-mark.png");
+                        width: 32px;
+                        height: 16px;
+                        image-fit: contain;
+                        accessible-role: image;
+                        accessible-label: "Halation";
+                    }
+                }
+
+                Rectangle { height: 10px; }
+
+                RailItem {
+                    icon: "home";
                     label: "Home";
                     active: root.page == 0;
                     motion-duration: root.motion-duration;
                     activated => { root.navigate(0); }
                 }
 
-                Rectangle { height: 5px; background: transparent; }
-
-                for tool in root.rail-tools : RailButton {
-                    icon: tool.icon;
-                    label: tool.name;
-                    available: false;
-                    motion-duration: root.motion-duration;
-                    activated => { root.tool-activated(tool.id); }
-                }
-
-                Rectangle {
-                    height: 1px;
-                    background: Theme.border;
-                    opacity: 0.7;
-                }
-
-                Rectangle { vertical-stretch: 1; background: transparent; }
-
-                RailButton {
+                RailItem {
                     icon: "library";
                     label: "Library";
                     active: root.page == 1;
@@ -141,7 +133,7 @@ export component AppWindow inherits Window {
                     activated => { root.navigate(1); }
                 }
 
-                RailButton {
+                RailItem {
                     icon: "jobs";
                     label: "Jobs";
                     active: root.page == 2;
@@ -149,7 +141,9 @@ export component AppWindow inherits Window {
                     activated => { root.navigate(2); }
                 }
 
-                RailButton {
+                Rectangle { vertical-stretch: 1; }
+
+                RailItem {
                     icon: "settings";
                     label: "Settings";
                     active: root.page == 3;
@@ -159,88 +153,123 @@ export component AppWindow inherits Window {
             }
         }
 
-        Rectangle {
+        VerticalLayout {
             horizontal-stretch: 1;
-            height: parent.height;
-            clip: true;
 
-            if root.page == 0 : HomePage {
-                width: parent.width;
-                height: parent.height;
-                tools: root.tools;
-                recent: root.recent;
-                library-loaded: root.library-loaded;
-                library-total: root.library-total;
-                notice: root.notice;
-                motion-duration: root.motion-duration;
-                tool-activated(id) => { root.tool-activated(id); }
-                choose-reference => { root.choose-reference(); }
-                file-dropped(data) => { root.file-dropped(data); }
-                dismiss-notice => { root.dismiss-notice(); }
-                open-library => { root.navigate(1); }
+            Rectangle {
+                vertical-stretch: 1;
+                clip: true;
+
+                if root.page == 0 : HomePage {
+                    width: parent.width;
+                    height: parent.height;
+                    tools: root.tools;
+                    recent: root.recent;
+                    library-loaded: root.library-loaded;
+                    library-total: root.library-total;
+                    notice: root.notice;
+                    motion-duration: root.motion-duration;
+                    tool-activated(id) => { root.tool-activated(id); }
+                    choose-reference => { root.choose-reference(); }
+                    file-dropped(data) => { root.file-dropped(data); }
+                    dismiss-notice => { root.dismiss-notice(); }
+                    open-library => { root.navigate(1); }
+                }
+
+                if root.page == 1 : LibraryPage {
+                    width: parent.width;
+                    height: parent.height;
+                    rows: root.library-rows;
+                    query: root.library-query;
+                    total: root.library-total;
+                    missing: root.library-missing;
+                    loaded: root.library-loaded;
+                    busy: root.library-busy;
+                    writable: root.library-writable;
+                    error: root.library-error;
+                    notice: root.notice;
+                    motion-duration: root.motion-duration;
+                    choose-reference => { root.choose-reference(); }
+                    remove-reference(id) => { root.remove-reference(id); }
+                    set-query(value) => { root.set-query(value); }
+                    dismiss-notice => { root.dismiss-notice(); }
+                    mode <=> root.library-mode;
+                    sections: root.sections;
+                    section-items: root.section-items;
+                    section-id: root.section-id;
+                    section-name: root.section-name;
+                    section-kind: root.section-kind;
+                    section-hidden: root.section-hidden;
+                    sections-loaded: root.sections-loaded;
+                    sections-busy: root.sections-busy;
+                    sections-opened => { root.sections-opened(); }
+                    select-section(id) => { root.select-section(id); }
+                    create-section(name) => { root.create-section(name); }
+                    rename-section(id, name) => { root.rename-section(id, name); }
+                    delete-section(id) => { root.delete-section(id); }
+                    link-folder => { root.link-folder(); }
+                    unlink-folder(id) => { root.unlink-folder(id); }
+                }
+
+                if root.page == 2 : JobsPage {
+                    width: parent.width;
+                    height: parent.height;
+                    jobs: root.jobs;
+                    capability: root.jobs-capability;
+                    has-finished: root.jobs-has-finished;
+                    motion-duration: root.motion-duration;
+                    cancel-job(id) => { root.cancel-job(id); }
+                    clear-finished => { root.clear-finished-jobs(); }
+                }
+
+                if root.page == 3 : SettingsPage {
+                    width: parent.width;
+                    height: parent.height;
+                    reduced-motion: root.reduced-motion;
+                    settings-writable: root.settings-writable;
+                    library-limit: root.library-limit;
+                    schema-version: 1;
+                    profile-path: root.profile-path;
+                    build-label: root.build-label;
+                    error: root.settings-error;
+                    notice: root.notice;
+                    motion-duration: root.motion-duration;
+                    set-reduced-motion(value) => { root.set-reduced-motion(value); }
+                    reset-settings => { root.reset-settings(); }
+                    dismiss-notice => { root.dismiss-notice(); }
+                }
             }
 
-            if root.page == 1 : LibraryPage {
-                width: parent.width;
-                height: parent.height;
-                rows: root.library-rows;
-                query: root.library-query;
-                total: root.library-total;
-                missing: root.library-missing;
-                loaded: root.library-loaded;
-                busy: root.library-busy;
-                writable: root.library-writable;
-                error: root.library-error;
-                notice: root.notice;
-                motion-duration: root.motion-duration;
-                choose-reference => { root.choose-reference(); }
-                remove-reference(id) => { root.remove-reference(id); }
-                set-query(value) => { root.set-query(value); }
-                dismiss-notice => { root.dismiss-notice(); }
-                mode <=> root.library-mode;
-                sections: root.sections;
-                section-items: root.section-items;
-                section-id: root.section-id;
-                section-name: root.section-name;
-                section-kind: root.section-kind;
-                section-hidden: root.section-hidden;
-                sections-loaded: root.sections-loaded;
-                sections-busy: root.sections-busy;
-                sections-opened => { root.sections-opened(); }
-                select-section(id) => { root.select-section(id); }
-                create-section(name) => { root.create-section(name); }
-                rename-section(id, name) => { root.rename-section(id, name); }
-                delete-section(id) => { root.delete-section(id); }
-                link-folder => { root.link-folder(); }
-                unlink-folder(id) => { root.unlink-folder(id); }
-            }
-
-            if root.page == 2 : JobsPage {
-                width: parent.width;
-                height: parent.height;
-                jobs: root.jobs;
-                capability: root.jobs-capability;
-                has-finished: root.jobs-has-finished;
-                motion-duration: root.motion-duration;
-                cancel-job(id) => { root.cancel-job(id); }
-                clear-finished => { root.clear-finished-jobs(); }
-            }
-
-            if root.page == 3 : SettingsPage {
-                width: parent.width;
-                height: parent.height;
-                reduced-motion: root.reduced-motion;
-                settings-writable: root.settings-writable;
-                library-limit: root.library-limit;
-                schema-version: 1;
-                profile-path: root.profile-path;
-                build-label: root.build-label;
-                error: root.settings-error;
-                notice: root.notice;
-                motion-duration: root.motion-duration;
-                set-reduced-motion(value) => { root.set-reduced-motion(value); }
-                reset-settings => { root.reset-settings(); }
-                dismiss-notice => { root.dismiss-notice(); }
+            // Status bar: what this build is and the Library state, on every page.
+            Rectangle {
+                height: Theme.status-height;
+                background: Theme.rail;
+                Rectangle {
+                    y: 0px;
+                    height: 1px;
+                    background: Theme.border;
+                }
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    spacing: 20px;
+                    Text {
+                        text: root.build-label;
+                        color: Theme.subtle;
+                        font-size: Theme.font-caption;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        text: !root.library-loaded ? "Library loading"
+                            : "Library: " + root.library-total + (root.library-total == 1 ? " reference" : " references")
+                            + (root.library-missing > 0 ? ", " + root.library-missing + " missing" : "");
+                        color: root.library-missing > 0 ? Theme.warning : Theme.subtle;
+                        font-size: Theme.font-caption;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
     }

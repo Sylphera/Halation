@@ -1,6 +1,8 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
+import { PageHeader } from "../components/page-header.slint";
+import { StatusChip } from "../components/status-chip.slint";
 import { JobRow } from "../models.slint";
 import { ListView } from "std-widgets.slint";
 
@@ -16,150 +18,157 @@ export component JobsPage inherits Rectangle {
     background: transparent;
 
     VerticalLayout {
-        padding: Theme.page-padding;
-        spacing: 12px;
+        padding-left: Theme.side-padding(root.width);
+        padding-right: Theme.side-padding(root.width);
+        padding-top: Theme.top-padding(root.height);
+        padding-bottom: 20px;
+        spacing: 16px;
 
-        HorizontalLayout {
-            spacing: 12px;
-            Text {
-                text: "Jobs";
-                color: Theme.text;
-                font-size: 27px;
-                font-weight: 700;
-                vertical-alignment: center;
-            }
-            Rectangle { horizontal-stretch: 1; }
-            Rectangle {
-                width: 154px;
-                height: 24px;
-                border-radius: 12px;
-                background: #2a1c1c;
-                border-width: 1px;
-                border-color: Theme.danger;
-                y: (parent.height - self.height) / 2;
-                Text {
-                    text: "DISCONNECTED";
-                    color: Theme.danger;
-                    font-size: 8px;
-                    font-weight: 700;
-                    letter-spacing: 0.8px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
+        PageHeader {
+            title: "Jobs";
+            subtitle: "Long tasks from the tools run here, one queue for the whole app.";
+            StatusChip {
+                text: "No tool connected";
+                tone: "warning";
             }
             AppButton {
                 text: "Clear finished";
-                compact: true;
                 enabled: root.has-finished;
+                motion-duration: root.motion-duration;
                 clicked => { root.clear-finished(); }
             }
         }
 
-        Text {
-            text: "The queue and process engine are live, but no tool is connected in this beta: nothing can be added here. Nothing pretends to run.";
-            color: Theme.muted;
-            font-size: 12px;
-            wrap: word-wrap;
-        }
-
         if root.jobs.length == 0 : Rectangle {
             vertical-stretch: 1;
-            border-radius: 16px;
+            border-radius: Theme.radius-panel;
             background: Theme.surface;
             border-width: 1px;
             border-color: Theme.border;
 
             VerticalLayout {
                 alignment: center;
-                spacing: 9px;
-                ToolIcon { name: "jobs"; tint: Theme.muted; }
+                spacing: 8px;
+                HorizontalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: Theme.radius-card;
+                        background: Theme.surface-high;
+                        ToolIcon {
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            name: "jobs";
+                            tint: Theme.muted;
+                        }
+                    }
+                }
+                Rectangle { height: 4px; }
                 Text {
-                    text: "No jobs";
+                    text: "No jobs yet";
                     color: Theme.text;
-                    font-size: 18px;
+                    font-size: Theme.font-title;
                     font-weight: 600;
                     horizontal-alignment: center;
                 }
                 Text {
                     text: root.capability;
                     color: Theme.muted;
-                    font-size: 12px;
+                    font-size: Theme.font-label;
                     horizontal-alignment: center;
                     wrap: word-wrap;
                 }
             }
         }
 
-        if root.jobs.length > 0 : ListView {
+        if root.jobs.length > 0 : Rectangle {
             vertical-stretch: 1;
-            for job in root.jobs : Rectangle {
-                height: 66px;
-                width: parent.width;
-                border-radius: 9px;
-                background: Theme.surface;
-                border-width: 1px;
-                border-color: job.failed ? Theme.danger : Theme.border;
-                clip: true;
+            border-radius: Theme.radius-panel;
+            background: Theme.surface;
+            border-width: 1px;
+            border-color: Theme.border;
+            clip: true;
 
-                HorizontalLayout {
-                    padding: 12px;
-                    spacing: 10px;
-                    VerticalLayout {
-                        spacing: 3px;
-                        horizontal-stretch: 1;
-                        alignment: center;
-                        HorizontalLayout {
-                            spacing: 8px;
-                            Text {
-                                text: job.name;
-                                color: Theme.text;
-                                font-size: 12px;
-                                font-weight: 600;
-                                overflow: elide;
-                                horizontal-stretch: 1;
-                            }
-                            Text {
-                                text: job.state;
-                                color: job.failed ? Theme.danger : (job.finished ? Theme.success : Theme.accent);
-                                font-size: 10px;
-                                font-weight: 600;
-                            }
-                        }
-                        Text {
-                            text: job.detail;
-                            color: Theme.muted;
-                            font-size: 9px;
-                            overflow: elide;
-                        }
-                        Rectangle {
-                            height: 4px;
-                            border-radius: 2px;
-                            background: Theme.surface-high;
-                            Rectangle {
-                                x: 0px;
-                                height: parent.height;
-                                width: job.has-progress ? parent.width * job.progress : 0px;
-                                border-radius: 2px;
-                                background: job.failed ? Theme.danger : Theme.accent;
-                                animate width { duration: root.motion-duration; easing: ease-out; }
-                            }
-                        }
+            ListView {
+                width: parent.width;
+                height: parent.height;
+                for job in root.jobs : Rectangle {
+                    height: 68px;
+                    width: parent.width;
+
+                    Rectangle {
+                        x: 14px;
+                        y: parent.height - 1px;
+                        width: parent.width - 28px;
+                        height: 1px;
+                        background: Theme.border;
                     }
-                    if !job.finished : AppButton {
-                        text: "Cancel";
-                        compact: true;
-                        enabled: job.cancellable;
-                        y: (parent.height - self.height) / 2;
-                        clicked => { root.cancel-job(job.id); }
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 14px;
+                        spacing: 14px;
+                        VerticalLayout {
+                            spacing: 5px;
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            HorizontalLayout {
+                                spacing: 10px;
+                                Text {
+                                    text: job.name;
+                                    color: Theme.text;
+                                    font-size: Theme.font-body;
+                                    font-weight: 600;
+                                    overflow: elide;
+                                    horizontal-stretch: 1;
+                                }
+                                Text {
+                                    text: job.state;
+                                    color: job.failed ? Theme.danger : (job.finished ? Theme.success : Theme.accent);
+                                    font-size: Theme.font-caption;
+                                    font-weight: 600;
+                                }
+                            }
+                            Text {
+                                text: job.detail;
+                                color: Theme.subtle;
+                                font-size: Theme.font-caption;
+                                overflow: elide;
+                            }
+                            Rectangle {
+                                height: 3px;
+                                border-radius: 1.5px;
+                                background: Theme.surface-high;
+                                Rectangle {
+                                    x: 0px;
+                                    height: parent.height;
+                                    width: job.has-progress ? parent.width * job.progress : 0px;
+                                    border-radius: 1.5px;
+                                    background: job.failed ? Theme.danger : (job.finished ? Theme.success : Theme.accent);
+                                    animate width { duration: root.motion-duration; easing: ease-out; }
+                                }
+                            }
+                        }
+                        if !job.finished : VerticalLayout {
+                            alignment: center;
+                            AppButton {
+                                text: "Cancel";
+                                compact: true;
+                                enabled: job.cancellable;
+                                motion-duration: root.motion-duration;
+                                clicked => { root.cancel-job(job.id); }
+                            }
+                        }
                     }
                 }
             }
         }
 
         Text {
-            text: "Finished jobs stay until cleared; the engine keeps the last 50.";
-            color: Theme.muted;
-            font-size: 9px;
+            text: "Finished jobs stay until you clear them. The last 50 are kept.";
+            color: Theme.subtle;
+            font-size: Theme.font-caption;
         }
     }
 }

@@ -1,0 +1,76 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+
+// One place in the rail: icon over a label. The active place is filled; the rail draws its accent bar.
+export component RailItem inherits FocusScope {
+    in property <string> icon: "home";
+    in property <string> label: "";
+    in property <bool> active: false;
+    in property <duration> motion-duration: 160ms;
+    callback activated;
+
+    width: 56px;
+    height: 52px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-item-selected: active;
+    accessible-action-default => { activated(); }
+
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        border-radius: Theme.radius-card;
+        background: root.active || touch.pressed ? Theme.surface-high : (touch.has-hover ? Theme.surface : transparent);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+        animate background {
+            duration: touch.pressed ? 0ms : root.motion-duration;
+            easing: ease-out;
+        }
+    }
+
+    // Accent bar on the rail edge (the rail keeps 6 px left of the item)
+    if root.active : Rectangle {
+        x: -6px;
+        y: 16px;
+        width: 3px;
+        height: 20px;
+        border-radius: 1.5px;
+        background: Theme.accent;
+    }
+
+    ToolIcon {
+        x: (parent.width - self.width) / 2;
+        y: 9px;
+        name: root.icon;
+        tint: root.active || touch.has-hover ? Theme.text : Theme.muted;
+    }
+
+    Text {
+        y: 31px;
+        width: parent.width;
+        text: root.label;
+        color: root.active ? Theme.text : Theme.muted;
+        font-size: Theme.font-micro;
+        font-weight: root.active ? 600 : 500;
+        horizontal-alignment: center;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+    }
+}

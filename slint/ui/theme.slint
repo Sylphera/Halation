@@ -1,17 +1,49 @@
+// Tokens of docs/SLINT_VISUAL_SYSTEM.md. Rust (`theme.rs`) applies the colour values at start-up; the defaults here
+// match them so the headless tests and snapshots render the same.
 export global Theme {
-    in-out property <color> background: #0b0b0d;
-    in-out property <color> surface: #141416;
-    in-out property <color> surface-high: #1b1b1f;
-    in-out property <color> border: #2c2c32;
-    in-out property <color> text: #f4f4f5;
-    in-out property <color> muted: #a7a7ae;
-    in-out property <color> accent: #b4b8e8;
-    in-out property <color> accent-soft: #2a2c43;
-    in-out property <color> danger: #f3a6a6;
-    in-out property <color> success: #a6d8b4;
+    in-out property <color> background: #000000;
+    in-out property <color> rail: #050504;
+    in-out property <color> surface: #111110;
+    in-out property <color> surface-raised: #181817;
+    in-out property <color> surface-high: #20201e;
+    in-out property <color> border: #262624;
+    in-out property <color> border-strong: #353532;
+    in-out property <color> text: #f4f4f2;
+    in-out property <color> muted: #a6a6a0;
+    in-out property <color> subtle: #8b8b85;
+    in-out property <color> accent: #9fb4ea;
+    in-out property <color> accent-soft: #141a28;
+    in-out property <color> primary: #eeeeeb;
+    in-out property <color> on-primary: #0a0a09;
+    in-out property <color> warning: #e2c27f;
+    in-out property <color> warning-soft: #1d1a12;
+    in-out property <color> danger: #f0a6a6;
+    in-out property <color> danger-soft: #2a1717;
+    in-out property <color> success: #9fd6b2;
 
-    in-out property <length> rail-width: 58px;
-    in-out property <length> radius-large: 18px;
-    in-out property <length> radius-medium: 11px;
-    in-out property <length> page-padding: 26px;
+    // Layout (px): rail, content column, paddings, radii
+    out property <length> rail-width: 68px;
+    out property <length> status-height: 28px;
+    out property <length> column-max: 1120px;
+    out property <length> radius-chip: 6px;
+    out property <length> radius-control: 8px;
+    out property <length> radius-card: 10px;
+    out property <length> radius-panel: 12px;
+
+    // Type scale
+    out property <length> font-display: 24px;
+    out property <length> font-title: 15px;
+    out property <length> font-body: 13px;
+    out property <length> font-label: 12px;
+    out property <length> font-caption: 11px;
+    out property <length> font-micro: 10px;
+
+    // Side padding of the content column for a content area of `width`
+    public pure function side-padding(width: length) -> length {
+        max(width >= 1180px ? 40px : 28px, (width - root.column-max) / 2)
+    }
+    // Top padding of a page for a content area of `height`
+    public pure function top-padding(height: length) -> length {
+        height >= 760px ? 44px : 28px
+    }
 }

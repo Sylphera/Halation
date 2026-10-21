@@ -1,0 +1,35 @@
+import { Theme } from "../theme.slint";
+
+// Page title and one line of context; children are the page actions, aligned right.
+export component PageHeader inherits HorizontalLayout {
+    in property <string> title: "";
+    in property <string> subtitle: "";
+    spacing: 16px;
+
+    VerticalLayout {
+        spacing: 4px;
+        horizontal-stretch: 1;
+        alignment: center;
+        Text {
+            text: root.title;
+            color: Theme.text;
+            font-size: Theme.font-display;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        if root.subtitle != "" : Text {
+            text: root.subtitle;
+            color: Theme.muted;
+            font-size: Theme.font-body;
+            wrap: word-wrap;
+        }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        HorizontalLayout {
+            spacing: 8px;
+            @children
+        }
+    }
+}

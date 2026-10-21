@@ -27,8 +27,8 @@ preview until separately approved in the real window.
   is authored from zero.
 - The initial shell has Home, Library, Jobs and Settings. Welcome, the ten media tools, engines, data migration,
   packaging, updater and release are future work, not claims of completion in the beta.
-- Visible beta text is English. Visual identity follows the approved reference image and product marks, not a new
-  redesign and not a fullscreen raster copy.
+- Visible beta text is English. Visual identity follows `docs/SLINT_VISUAL_SYSTEM.md` (Java delegated a first
+  redesign on 2026-10-21, pending visual review) and the product marks, not a fullscreen raster copy.
 
 ## Stack and exact pins
 
@@ -175,11 +175,14 @@ functional reference only.
 
 ### Home and navigation
 
-- Home is a static native composition guided only by the approved reference image: left rail, product mark, wordmark,
-  subtitle, a model-driven 11-entry tool row, a real drop/choose reference zone and a recent-files summary based on
-  the actual Library state.
-- Background atmosphere is a small set of static rectangles/gradients. There is no shader, blur, offscreen layer,
-  particle system, timer or animated background. Simple static gradients provide the mood.
+- Home is the tool launcher (visual system: `docs/SLINT_VISUAL_SYSTEM.md`, Java delegated the redesign on
+  2026-10-21): page title, a drop/choose zone that adds a real Library reference, a Recent panel from the actual
+  Library state and the ten media tools as cards (name and one-line purpose from the Rust catalog). Library is a place,
+  so it is not in the tool grid.
+- The rail holds the places only (Home, Library, Jobs, Settings), labelled, with one active item; it has no tool
+  icons. A status bar shows the build and the Library state on every page.
+- Atmosphere is a static pale-blue radial bloom (two gradient rectangles). There is no shader, blur, offscreen layer,
+  particle system, timer or animated background.
 - The catalog is Rust data. Ten media tools are marked unavailable with a clear reason; Library is available and opens
   the real page. Activating an unavailable tool shows an honest notice and never starts an engine, process or progress.
 - The drop zone accepts local file drops and the choose button opens the native picker. Either path adds a reference
