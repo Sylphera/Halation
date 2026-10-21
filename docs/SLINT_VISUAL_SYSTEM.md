@@ -89,10 +89,12 @@ first pass of this file (a launcher redesign, approved only as a starting point 
   dark field was already a stair of one-level plateaus; scaled six times to the window, each plateau edge is a band
   that no dither can remove (the original never has them: it computes in floating point and rounds once, at the
   window, after its dither). Hence the 16-bit luma above. Second, the window draws into 8 bits per channel and grain
-  laid over an image already drawn cannot break its steps, so each decoded frame is scaled twice in floating point
-  with a fixed one-level triangular dither (640 × 360, 1.5 ms) before Skia scales it the rest of the way. Checked by
-  emulating the beta's pipeline on a frame with the brightness multiplied by 6: the contour rings of the 8-bit
-  recording are gone.
+  laid over an image already drawn cannot break its steps, so each decoded frame is scaled here, on the decoding
+  thread, to the window's own size (at most 2560 × 1600) with the original's cubic B-spline in floating point,
+  coloured by luma and dithered by one level per pixel before the one rounding to 8 bits; Skia then draws it 1:1. A
+  first version scaled twice here (640 × 360) and let Skia do the rest: its dither, magnified three times, showed as
+  little squares (Java, 2026-10-21). Checked on a frame made by the beta's own code, with the brightness multiplied
+  by 5: no bands, no squares.
 - **Grain:** the original's output dither and stationary film grain together, as a fixed 512 × 512 tile
   (`drape-grain.png`, signed: white adds, black takes away) at twice the original's default strength, laid over the
   scaled frame at the window's resolution; Home shows it at half opacity, the original's default. The recorder draws it
@@ -114,8 +116,10 @@ first pass of this file (a launcher redesign, approved only as a starting point 
 | Recorded Drape playing | about 90 MB (peak 100) | about 0.9 % of all 12 threads (about 11 % of one) |
 
 On disk the loop takes 0.67 MB beside the executable. The extra memory is mostly Media Foundation and its decoder;
-the CPU is Skia redrawing the window 15 times a second plus the 1.5 ms scaling and dither of each frame (the decoding
-itself takes about 0.2 ms). Hover cost is not measured: no input is injected into Java's desktop.
+the CPU is Skia redrawing the window 15 times a second plus the scaling and dither of each frame. Those figures
+are from the version that scaled to 640 × 360 (1.5 ms a frame); scaling to the window takes 9.5 ms a frame at
+1920 × 1009 (4.6 ms at 1280 × 680, 16.8 ms at 2560 × 1369), about 14 % of one thread at 15 fps, off the window's
+thread, and is still to be measured in the running app. The decoding itself takes about 0.2 ms. Hover cost is not measured: no input is injected into Java's desktop.
 
 ## Assets beside the executable
 

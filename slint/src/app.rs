@@ -1314,12 +1314,12 @@ impl BackdropPlayer {
                 let Some(this) = this.upgrade() else {
                     return;
                 };
-                let minimized = this
-                    .weak
-                    .upgrade()
-                    .is_none_or(|ui| ui.window().is_minimized());
-                if let (false, Some(player)) = (minimized, &this.player) {
-                    player.request();
+                let Some(ui) = this.weak.upgrade() else {
+                    return;
+                };
+                if let (false, Some(player)) = (ui.window().is_minimized(), &this.player) {
+                    let size = ui.window().size();
+                    player.request(size.width, size.height);
                 }
             },
         );

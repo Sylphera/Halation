@@ -4,9 +4,9 @@
 //!   (`y' = 255 * sqrt(min(1, luma / LIFT))`);
 //! - `drape-tint.bin`: the frames' colour for each luma (256 x RGB).
 //!
-//! Windows' own decoder (Media Foundation) reads the video on a thread of its own, one frame per request; the frame is
-//! turned back into colour here and handed to the window. Only the frame on screen is held decoded. Plan and costs:
-//! docs/SLINT_VISUAL_SYSTEM.md.
+//! Windows' own decoder (Media Foundation) reads the video on a thread of its own, one frame per request; on that thread
+//! the frame is scaled to the window's size, turned back into colour and handed to the window. Only the frame on
+//! screen is held decoded. Plan and costs: docs/SLINT_VISUAL_SYSTEM.md.
 
 use slint::{Rgb8Pixel, SharedPixelBuffer};
 use std::path::Path;
@@ -16,18 +16,28 @@ pub const FPS: u64 = 15;
 /// The luma that maps to the top code of the lifted video (the recorder's LIFT)
 pub const LIFT: f32 = 80.0;
 
-/// Each decoded frame is scaled up this much here, with a dither, before the window scales it the rest of the way.
-/// The window draws into 8 bits per channel: a 320 px frame scaled about six times there turns each step of a dark
-/// gradient into a wide band, and grain laid on top cannot break a band that is already drawn. Scaling twice here in
-/// floating point and dithering at that size leaves the window steps that the dither has already broken.
-pub const UPSCALE: u32 = 2;
+/// The largest frame made here; a bigger window has Skia scale this a little further
+pub const MAX_FRAME: (u32, u32) = (2560, 1600);
+/// Entries of the colour-by-luma table over 0..=LIFT
+const COLOURS: usize = 4096;
+/// Side of the dither tile
+const DITHER: usize = 256;
 
-/// The colour of each decoded code `y'`, in floating point: the curve undone, then the frames' colour at that luma;
-/// with the dither of the last frame size, worked out once
-pub struct Palette(
-    [[f32; 3]; 256],
-    std::cell::RefCell<(usize, usize, Vec<f32>)>,
-);
+/// Turns decoded frames into the window's backdrop. Each frame is scaled here to the window's own size with the
+/// original's cubic B-spline, in floating point, coloured by luma and dithered by one level per pixel before the one
+/// rounding to 8 bits, as the original's presentation does. Skia then draws it 1:1. Scaling with Skia instead
+/// rounded a small frame to 8 bits first: its gradient steps became bands, and a dither made at that small size
+/// showed as little squares once the window scaled it.
+pub struct Palette {
+    /// The curve undone: luma for each code `y'`
+    luma: [f32; 256],
+    /// The frames' colour for luma `l`, at `l * (COLOURS - 1) / LIFT`
+    /// in 1/256 of a level
+    colour: Vec<[i32; 3]>,
+    /// Triangular noise of one level, per channel, repeated every `DITHER` pixels
+    /// (in 1/256 of a level, with the half level that rounds added)
+    dither: Vec<[i32; 3]>,
+}
 
 impl Palette {
     /// From `drape-tint.bin`
@@ -43,76 +53,129 @@ impl Palette {
                 tint.len()
             ));
         }
-        let colour = |luma: usize, channel: usize| f32::from(tint[luma * 3 + channel]);
-        let mut table = [[0_f32; 3]; 256];
-        for (code, entry) in table.iter_mut().enumerate() {
+        let mut luma = [0_f32; 256];
+        for (code, value) in luma.iter_mut().enumerate() {
             let lifted = code as f32 / 255.0;
-            let luma = (LIFT * lifted * lifted).min(255.0);
-            let (low, t) = (luma.floor() as usize, luma.fract());
-            let high = (low + 1).min(255);
-            for (channel, value) in entry.iter_mut().enumerate() {
-                *value = colour(low, channel) * (1.0 - t) + colour(high, channel) * t;
-            }
+            *value = LIFT * lifted * lifted;
         }
-        Ok(Self(table, std::cell::RefCell::new((0, 0, Vec::new()))))
+        let colour = (0..COLOURS)
+            .map(|i| {
+                let l = i as f32 * LIFT / (COLOURS - 1) as f32;
+                let (low, t) = (l.floor() as usize, l.fract());
+                let high = (low + 1).min(255);
+                let at = |index: usize, channel: usize| f32::from(tint[index * 3 + channel]);
+                [0, 1, 2]
+                    .map(|c| ((at(low, c) * (1.0 - t) + at(high, c) * t) * 256.0).round() as i32)
+            })
+            .collect();
+        let dither = (0..DITHER * DITHER)
+            .map(|i| {
+                let (x, y) = ((i % DITHER) as u32, (i / DITHER) as u32);
+                [0, 7919, 15731].map(|offset| (tpdf(x + offset, y) * 256.0).round() as i32 + 128)
+            })
+            .collect();
+        Ok(Self {
+            luma,
+            colour,
+            dither,
+        })
     }
 
-    /// A frame from its luma plane (`pitch` bytes per row), scaled `UPSCALE` times with bilinear filtering in floating
-    /// point and quantized with a fixed triangular dither of one level (the same at every frame, like the original's)
+    /// A frame from its luma plane (`pitch` bytes per row), scaled to cover `out_w` x `out_h` (centred, the overflow
+    /// cut) with a cubic B-spline, then coloured and dithered
     pub fn frame(
         &self,
         plane: &[u8],
         pitch: usize,
-        width: u32,
-        height: u32,
+        (width, height): (u32, u32),
+        (out_w, out_h): (u32, u32),
     ) -> SharedPixelBuffer<Rgb8Pixel> {
-        let (w, h) = (width as usize, height as usize);
-        let (out_w, out_h) = (w * UPSCALE as usize, h * UPSCALE as usize);
-        let mut buffer = SharedPixelBuffer::<Rgb8Pixel>::new(out_w as u32, out_h as u32);
-        let pixels = buffer.make_mut_slice();
-        // Where each output column and row samples the frame, worked out once
-        let taps = |out: usize, len: usize| -> Vec<(usize, usize, f32)> {
-            (0..out)
-                .map(|o| {
-                    let f = ((o as f32 + 0.5) / UPSCALE as f32 - 0.5).clamp(0.0, (len - 1) as f32);
-                    let low = f.floor() as usize;
-                    (low, (low + 1).min(len - 1), f.fract())
-                })
-                .collect()
-        };
-        let (columns, rows) = (taps(out_w, w), taps(out_h, h));
-        let mut cached = self.1.borrow_mut();
-        if (cached.0, cached.1) != (out_w, out_h) {
-            let noise = (0..out_w * out_h)
-                .map(|i| tpdf((i % out_w) as u32, (i / out_w) as u32))
-                .collect();
-            *cached = (out_w, out_h, noise);
+        let (w, h, ow, oh) = (
+            width as usize,
+            height as usize,
+            out_w.max(1) as usize,
+            out_h.max(1) as usize,
+        );
+        let scale = (ow as f32 / w as f32).max(oh as f32 / h as f32);
+        let (columns, rows) = (taps(ow, w, scale), taps(oh, h, scale));
+        // Each source row scaled across, in luma
+        let mut across = vec![0_f32; h * ow];
+        for y in 0..h {
+            let source = &plane[y * pitch..y * pitch + w];
+            let out = &mut across[y * ow..(y + 1) * ow];
+            for (value, tap) in out.iter_mut().zip(&columns) {
+                *value = tap
+                    .iter()
+                    .map(|&(x, weight)| self.luma[usize::from(source[x])] * weight)
+                    .sum();
+            }
         }
-        let noise = &cached.2;
-        // One source row in colour, and the output row blended from two of them
-        let colour_row = |y: usize| -> Vec<[f32; 3]> {
-            plane[y * pitch..y * pitch + w]
-                .iter()
-                .map(|&code| self.0[usize::from(code)])
-                .collect()
-        };
-        for (oy, &(y0, y1, ty)) in rows.iter().enumerate() {
-            let (top, bottom) = (colour_row(y0), colour_row(y1));
-            for (ox, &(x0, x1, tx)) in columns.iter().enumerate() {
-                let dither = noise[oy * out_w + ox];
-                let mut out = [0_u8; 3];
-                for (k, value) in out.iter_mut().enumerate() {
-                    let upper = top[x0][k] + (top[x1][k] - top[x0][k]) * tx;
-                    let lower = bottom[x0][k] + (bottom[x1][k] - bottom[x0][k]) * tx;
-                    // `as` saturates to 0..=255; adding a half rounds to the nearest level
-                    *value = (upper + (lower - upper) * ty + dither + 0.5) as u8;
+        let mut buffer = SharedPixelBuffer::<Rgb8Pixel>::new(ow as u32, oh as u32);
+        let pixels = buffer.make_mut_slice();
+        let to_index = (COLOURS - 1) as f32 / LIFT;
+        // One output row in luma, as a table index, summed from four scaled rows a whole row at a time
+        let mut line = vec![0_f32; ow];
+        for (oy, tap) in rows.iter().enumerate() {
+            line.fill(0.0);
+            for &(y, weight) in tap {
+                let weight = weight * to_index;
+                for (value, &source) in line.iter_mut().zip(&across[y * ow..(y + 1) * ow]) {
+                    *value += source * weight;
                 }
-                let [r, g, b] = out;
-                pixels[oy * out_w + ox] = Rgb8Pixel { r, g, b };
+            }
+            let dither_row = &self.dither[(oy % DITHER) * DITHER..(oy % DITHER + 1) * DITHER];
+            let out = &mut pixels[oy * ow..(oy + 1) * ow];
+            for (pixels, (line, dither)) in out
+                .chunks_mut(DITHER)
+                .zip(line.chunks(DITHER))
+                .map(|(pixels, line)| (pixels, (line, &dither_row[..line.len()])))
+            {
+                for ((pixel, &index), noise) in pixels.iter_mut().zip(line).zip(dither) {
+                    let colour = self.colour[((index + 0.5) as usize).min(COLOURS - 1)];
+                    let [r, g, b] =
+                        [0, 1, 2].map(|c| ((colour[c] + noise[c]) >> 8).clamp(0, 255) as u8);
+                    *pixel = Rgb8Pixel { r, g, b };
+                }
             }
         }
         buffer
     }
+}
+
+/// The frame size for a window of `width` x `height` pixels: the same, at most `MAX_FRAME`, keeping its shape
+pub fn frame_size(width: u32, height: u32) -> (u32, u32) {
+    let k = (MAX_FRAME.0 as f32 / width.max(1) as f32)
+        .min(MAX_FRAME.1 as f32 / height.max(1) as f32)
+        .min(1.0);
+    (
+        ((width as f32 * k).round() as u32).max(1),
+        ((height as f32 * k).round() as u32).max(1),
+    )
+}
+
+/// The cubic B-spline's four source samples and weights for each of `out` pixels over `len` source pixels at `scale`,
+/// centred
+fn taps(out: usize, len: usize, scale: f32) -> Vec<[(usize, f32); 4]> {
+    let spline = |t: f32| {
+        let t = t.abs();
+        if t < 1.0 {
+            (4.0 - 6.0 * t * t + 3.0 * t * t * t) / 6.0
+        } else if t < 2.0 {
+            (2.0 - t).powi(3) / 6.0
+        } else {
+            0.0
+        }
+    };
+    (0..out)
+        .map(|o| {
+            let f = (o as f32 + 0.5 - out as f32 / 2.0) / scale + len as f32 / 2.0 - 0.5;
+            let base = f.floor();
+            [-1.0, 0.0, 1.0, 2.0].map(|i: f32| {
+                let at = (base + i).clamp(0.0, (len - 1) as f32) as usize;
+                (at, spline(f - (base + i)))
+            })
+        })
+        .collect()
 }
 
 /// Triangular noise in (-1, 1) for a pixel: the sum of two uniform hashes, minus one
@@ -129,9 +192,9 @@ fn tpdf(x: u32, y: u32) -> f32 {
     hash(seed) + hash(seed ^ 0x68e3_1da4) - 1.0
 }
 
-/// Plays the loop on a decoding thread: `request` asks for the next frame, `deliver` gets it on that thread
+/// Plays the loop on a decoding thread: `request` asks for the next frame at a size, `deliver` gets it on that thread
 pub struct Player {
-    requests: std::sync::mpsc::SyncSender<()>,
+    requests: std::sync::mpsc::SyncSender<(u32, u32)>,
 }
 
 impl Player {
@@ -146,7 +209,7 @@ impl Player {
         if !video.is_file() {
             return None;
         }
-        let (requests, wanted) = std::sync::mpsc::sync_channel::<()>(1);
+        let (requests, wanted) = std::sync::mpsc::sync_channel::<(u32, u32)>(1);
         std::thread::Builder::new()
             .name("backdrop".into())
             .spawn(move || decode_loop(&video, &palette, &wanted, &deliver))
@@ -154,9 +217,10 @@ impl Player {
         Some(Self { requests })
     }
 
-    /// Asks for the next frame; skipped while the previous request is still waiting
-    pub fn request(&self) {
-        let _ = self.requests.try_send(());
+    /// Asks for the next frame for a window of `width` x `height` pixels; skipped while the previous request is still
+    /// waiting
+    pub fn request(&self, width: u32, height: u32) {
+        let _ = self.requests.try_send(frame_size(width, height));
     }
 }
 
@@ -164,7 +228,7 @@ impl Player {
 fn decode_loop<F>(
     video: &Path,
     palette: &Palette,
-    wanted: &std::sync::mpsc::Receiver<()>,
+    wanted: &std::sync::mpsc::Receiver<(u32, u32)>,
     deliver: &F,
 ) where
     F: Fn(SharedPixelBuffer<Rgb8Pixel>),
@@ -173,9 +237,11 @@ fn decode_loop<F>(
         return;
     };
     let mut plane = Vec::new();
-    while wanted.recv().is_ok() {
+    while let Ok(size) = wanted.recv() {
         match decoder.next(&mut plane) {
-            Ok((width, height, pitch)) => deliver(palette.frame(&plane, pitch, width, height)),
+            Ok((width, height, pitch)) => {
+                deliver(palette.frame(&plane, pitch, (width, height), size))
+            }
             Err(_) => return,
         }
     }
@@ -348,23 +414,50 @@ mod tests {
     #[test]
     fn the_palette_undoes_the_lift_and_colours_by_luma() {
         let palette = Palette::load(&shipped().join("drape-tint.bin")).unwrap();
-        let [dark, mid, top] = [palette.0[0], palette.0[180], palette.0[255]];
-        assert!(dark.iter().all(|&c| c <= 8.0), "code 0 is near black");
+        assert_eq!(palette.luma[0], 0.0);
+        assert!((palette.luma[255] - LIFT).abs() < 1e-3);
+        let at = |l: f32| palette.colour[(l * (COLOURS - 1) as f32 / LIFT) as usize];
+        let [dark, mid, top] = [at(0.0), at(30.0), at(LIFT)];
+        assert!(dark.iter().all(|&c| c <= 8 * 256), "luma 0 is near black");
         assert!(mid[2] >= mid[0], "lighter parts lean blue, like the Drape");
-        assert!(top[1] > mid[1], "brighter codes are brighter");
+        assert!(top[1] > mid[1], "brighter luma is brighter");
         assert!(Palette::from_tint(&[0; 10]).is_err());
     }
 
     #[test]
-    fn a_frame_is_scaled_with_a_one_level_dither() {
-        let palette = Palette::from_tint(&[100; 768]).unwrap();
-        let plane = vec![255_u8; 4 * 4];
-        let frame = palette.frame(&plane, 4, 4, 4);
-        assert_eq!((frame.width(), frame.height()), (4 * UPSCALE, 4 * UPSCALE));
-        // A flat colour of 100 stays within one level of it, and the dither does reach both sides
-        let values: Vec<u8> = frame.as_slice().iter().map(|p| p.g).collect();
-        assert!(values.iter().all(|&v| (99..=101).contains(&v)));
-        assert!(values.iter().any(|&v| v != 100));
+    fn a_frame_covers_the_window_with_a_one_level_dither() {
+        // A flat grey of luma 40 (tint: colour equals luma) stays within one level of it, and the dither reaches both
+        // sides
+        let tint: Vec<u8> = (0..=255_u8).flat_map(|v| [v, v, v]).collect();
+        let palette = Palette::from_tint(&tint).unwrap();
+        let code = (255.0 * (40.0 / LIFT).sqrt()).round() as u8;
+        let plane = vec![code; 16 * 9];
+        let frame = palette.frame(&plane, 16, (16, 9), (100, 75));
+        assert_eq!((frame.width(), frame.height()), (100, 75));
+        let level = LIFT * (f32::from(code) / 255.0).powi(2);
+        let values: Vec<f32> = frame.as_slice().iter().map(|p| f32::from(p.g)).collect();
+        assert!(values.iter().all(|&v| (v - level).abs() <= 1.5));
+        assert!(values.iter().any(|&v| v > level) && values.iter().any(|&v| v < level));
+    }
+
+    #[test]
+    fn the_spline_keeps_a_ramp_smooth_and_in_place() {
+        // A ramp across the frame scaled four times: no overshoot, rising across, centred
+        let columns = taps(64, 16, 4.0);
+        assert!(
+            columns
+                .iter()
+                .all(|tap| (tap.iter().map(|t| t.1).sum::<f32>() - 1.0).abs() < 1e-5)
+        );
+        let ramp: Vec<f32> = (0..16).map(|x| x as f32).collect();
+        let out: Vec<f32> = columns
+            .iter()
+            .map(|tap| tap.iter().map(|&(x, w)| ramp[x] * w).sum())
+            .collect();
+        assert!(out.windows(2).all(|pair| pair[1] >= pair[0]));
+        assert!((out[31] + out[32] - 15.0).abs() < 0.2, "centred");
+        assert_eq!(frame_size(1920, 1080), (1920, 1080));
+        assert_eq!(frame_size(3840, 2160), (2560, 1440));
     }
 
     #[cfg(windows)]
