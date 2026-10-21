@@ -27,9 +27,11 @@ Windows desktop app. Read this file only; other docs are read when a prompt name
   without cargo, `--force` runs everything) only when asked.
 - Slint: `cd slint`, then `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`,
   `cargo build --release`. Confirm `Cargo.lock` and feature graph keep winit + Skia; no Qt/FemtoVG/software runtime.
-- Slint visual review: the coordinator/user opens the real native window with the beta launcher and isolated profile.
-  The worker does not launch the visible beta or generate screenshots/video/frames. Tests do not prove visual quality,
-  frame pacing or hardware rendering.
+- Slint visual review: the worker may launch the beta and generate screenshots (Java, 2026-10-21). Prefer the offscreen
+  mode `cargo run --features diag-screenshot -- --screenshot <page> <W>x<H> <out.png>` (software renderer, no window, no
+  clicks, so the desktop is untouched; it is an approximation of the Skia layout and says so); never automate the focus,
+  clicks or screen capture of Java's desktop. Save captures outside the repo (a `.tools` folder). Tests and captures do
+  not prove frame pacing or hardware rendering; Java's visual OK is still required to merge.
 - Screenshots for the Tauri app go to `$SHOTS`; every visual change is looked at, once at the end. Subagents
   `test-runner` and `visual-reviewer` (`.claude/agents/`) run Tauri checks and review screenshots.
 - A Tauri change `host.js` cannot replicate (Rust, export) is also tested once against the real binary
