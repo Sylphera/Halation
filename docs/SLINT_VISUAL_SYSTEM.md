@@ -21,7 +21,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
    never in the beta; the beta ships the recorded frames, which are allowed as rendered assets.
 3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
    Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
-   `animate` on colour, opacity, position and size, only while something changes (hover, rail opening, toggles).
+   `animate`, only while something changes, under the cost rules of [features/motion.md](features/motion.md).
 
 ## Measured layout (1920 × 1080; 1280 × 800 checked too)
 
@@ -105,8 +105,9 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
   light and shade repeated as blocks), then the original's grain drawn over an even grey (no blocks, but Java chose
   the standard one once the little squares were gone).
 - **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
-  a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Only the
-  frame on screen is held decoded. It runs only while Home is shown with motion on and the window is not minimized;
+  a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Two
+  window-sized frames are kept and written in turn (one on screen, one being made), as opaque RGBA so Skia uploads
+  them without converting on the UI thread (RGB cost about 30 ms a frame at 1080p there); a frame allocates nothing. It runs only while Home is shown with motion on and the window is not minimized;
   with reduced motion, or if the video cannot play, Home shows `drape-still.jpg`. Slint cannot tell when the window is
   covered, so a covered but not minimized window keeps playing.
 

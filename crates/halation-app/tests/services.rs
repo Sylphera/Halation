@@ -391,8 +391,105 @@ fn navigation_same_target_is_a_noop_and_all_pages_round_trip() {
 
 #[test]
 fn reduced_motion_resolves_deterministically_to_zero_duration() {
-    assert_eq!(motion::duration_ms(false), 160);
-    assert_eq!(motion::duration_ms(true), 0);
+    use std::time::Duration;
+    let normal = motion::tokens(false);
+    let reduced = motion::tokens(true);
+    // Short motion, about as fast as the pointer: nothing over 120 ms (a spring settles later, in about 1.5 times its
+    // period)
+    for d in [
+        normal.hover_in,
+        normal.hover_out,
+        normal.release,
+        normal.glide,
+        normal.trail,
+        normal.fade,
+        normal.panel,
+    ] {
+        assert!(d > Duration::ZERO && d <= Duration::from_millis(120));
+    }
+    assert!(normal.hover_in < normal.hover_out, "fast in, soft out");
+    assert!(normal.glide < normal.trail, "a moving pill stretches");
+    assert!(normal.press_scale < 100.0);
+    for d in [
+        reduced.hover_in,
+        reduced.hover_out,
+        reduced.release,
+        reduced.glide,
+        reduced.trail,
+        reduced.fade,
+        reduced.panel,
+    ] {
+        assert_eq!(d, Duration::ZERO);
+    }
+    assert_eq!(reduced.press_scale, 100.0, "nothing scales");
+    assert_eq!(
+        reduced.tip_wait, normal.tip_wait,
+        "a tooltip's wait is not motion"
+    );
+}
+
+/// The cost rules of docs/features/motion.md §2, read from the UI's sources: every animation takes its duration from
+/// the `Motion` tokens (or is instant), none waits with `delay` or repeats, none fades a container's `opacity`, and only
+/// the sidebar animates a size
+#[test]
+fn every_animation_follows_the_motion_cost_rules() {
+    fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                files(&path, out);
+            } else if path.extension().is_some_and(|e| e == "slint") {
+                out.push(path);
+            }
+        }
+    }
+    let mut paths = Vec::new();
+    files(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ui"),
+        &mut paths,
+    );
+    assert!(!paths.is_empty());
+    let mut broken = Vec::new();
+    for path in paths {
+        let source = std::fs::read_to_string(&path).unwrap();
+        for (n, line) in source.lines().enumerate() {
+            let line = line.trim();
+            if line.starts_with("//") {
+                continue;
+            }
+            let at = format!("{}:{}", path.file_name().unwrap().to_string_lossy(), n + 1);
+            if line.contains("delay:") || line.contains("iteration-count") {
+                broken.push(format!("{at}: waits or repeats"));
+            }
+            // Slint 1.18: the shorthand with animated axes binds neither axis, so the element scales to 0 under Skia
+            if line.starts_with("transform-scale:") {
+                broken.push(format!("{at}: transform-scale shorthand, set -x and -y"));
+            }
+            let Some(rest) = line.strip_prefix("animate ") else {
+                continue;
+            };
+            let properties = rest.split('{').next().unwrap_or_default();
+            let body = rest.split('{').nth(1).unwrap_or_default();
+            // `hover-lead` is the hover pill's glide, set from `Motion.glide` and the pointer's pace
+            if !body.contains("Motion.") && !body.contains("root.hover-lead") {
+                broken.push(format!("{at}: duration not from Motion"));
+            }
+            if !body.contains("Curve.ease") && !body.contains("spring(0)") {
+                broken.push(format!("{at}: curve not Curve.ease or spring(0)"));
+            }
+            if properties.contains("opacity") {
+                broken.push(format!("{at}: animates opacity"));
+            }
+            let sizes = properties
+                .split(',')
+                .map(str::trim)
+                .any(|p| p == "width" || p == "height");
+            if sizes || (properties.trim() != "side" && properties.contains("side")) {
+                broken.push(format!("{at}: animates a size"));
+            }
+        }
+    }
+    assert!(broken.is_empty(), "{broken:#?}");
 }
 
 #[test]

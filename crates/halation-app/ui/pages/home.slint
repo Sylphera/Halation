@@ -2,16 +2,33 @@ import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
 import { ToolItem, RecentItem } from "../models.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "../components/pills.slint";
 
-// One entry of Home's tool strip: icon over its name
+// One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
 component StripItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> icon;
     in property <string> label;
-    in property <duration> motion-duration: 160ms;
     callback activated;
-    // Shrinks towards the label's width when the window is narrow
-    preferred-width: name.preferred-width + 20px;
-    min-width: name.preferred-width + 4px;
+    callback hovered(bool, length, length);
+    changed x => {
+        if (touch.has-hover) {
+            root.hovered(true, root.absolute-position.x, root.width);
+        }
+    }
+    // Every tool the same width (the hover pill keeps one size along the strip); narrow windows shrink them all
+    // alike and the longest labels elide
+    preferred-width: 124px;
+    min-width: 72px;
+    horizontal-stretch: 1;
     height: 52px;
     focus-on-tab-navigation: true;
     accessible-role: button;
@@ -27,31 +44,46 @@ component StripItem inherits FocusScope {
     }
     Rectangle {
         border-radius: Theme.radius;
-        background: touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.hover-fill : transparent);
-        border-width: root.has-focus ? 2px : 0px;
+        background: touch.pressed ? Theme.press-fill : transparent;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
-        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
     }
-    ToolIcon {
-        x: (parent.width - self.width) / 2;
-        y: 9px;
-        name: root.icon;
-        size: 17px;
-        tint: touch.has-hover ? Theme.text : Theme.muted;
-    }
-    name := Text {
-        x: (parent.width - self.width) / 2;
-        y: 31px;
-        text: root.label;
-        color: touch.has-hover ? Theme.text : Theme.muted;
-        font-size: Theme.font-caption;
-        font-weight: 500;
+    Rectangle {
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+        ToolIcon {
+            x: (parent.width - self.width) / 2;
+            y: 9px;
+            name: root.icon;
+            size: 17px;
+            tint: touch.has-hover ? Theme.text : Theme.muted;
+            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+        Text {
+            x: 4px;
+            y: 31px;
+            width: parent.width - 8px;
+            horizontal-alignment: center;
+            overflow: elide;
+            text: root.label;
+            color: touch.has-hover ? Theme.text : Theme.muted;
+            animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+            font-size: Theme.font-caption;
+            font-weight: 500;
+            accessible-role: none;
+        }
     }
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => {
             root.focus();
             root.activated();
+        }
+        changed has-hover => {
+            root.hovered(self.has-hover, root.absolute-position.x, root.width);
         }
     }
 }
@@ -63,7 +95,6 @@ export component HomePage inherits Rectangle {
     in property <[ToolItem]> tools;
     in property <[RecentItem]> recent;
     in property <bool> library-loaded: false;
-    in property <duration> motion-duration: 160ms;
 
     callback tool-activated(string);
     callback choose-reference();
@@ -112,6 +143,17 @@ export component HomePage inherits Rectangle {
         background: Theme.panel;
         border-width: 1px;
         border-color: Theme.line;
+        // The hover pill, gliding along the strip behind the tools
+        strip-pills := PillList {
+            x: 5px;
+            y: 5px;
+            width: parent.width - 10px;
+            height: parent.height - 10px;
+            horizontal: true;
+            has-selection: false;
+            hover-fill: Theme.hover-fill;
+            radius: Theme.radius;
+        }
         strip := HorizontalLayout {
             padding-left: 5px;
             padding-right: 5px;
@@ -121,8 +163,8 @@ export component HomePage inherits Rectangle {
             for tool in root.tools : StripItem {
                 icon: tool.icon;
                 label: tool.name;
-                motion-duration: root.motion-duration;
                 activated => { root.tool-activated(tool.id); }
+                hovered(on, at, size) => { strip-pills.hover(on, at, size); }
             }
         }
     }
@@ -137,7 +179,13 @@ export component HomePage inherits Rectangle {
         border-width: 1px;
         border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
         background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
-        animate background { duration: root.motion-duration; easing: ease-out; }
+        animate background, border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        // Grows a little under a dragged file, sinks a little on press
+        // (nothing scales with reduced motion, when the press scale is 100 %)
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: Motion.press-scale >= 100% ? 100% : drop-touch.pressed ? 99% : drop-area.has-drag ? 101% : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: drop-touch.pressed ? 0ms : Motion.glide; easing: spring(0); }
 
 
         Rectangle {

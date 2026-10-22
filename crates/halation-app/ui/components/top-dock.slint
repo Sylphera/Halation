@@ -1,8 +1,18 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { Tooltip } from "tooltip.slint";
 
 // A 28 px icon button of the top bar, with a tooltip below it
 export component BarButton inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> icon;
     in property <string> label;
     callback activated;
@@ -22,35 +32,33 @@ export component BarButton inherits FocusScope {
     }
     Rectangle {
         border-radius: Theme.radius-control;
-        background: touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : transparent);
-        border-width: root.has-focus ? 2px : 0px;
+        background: touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : Theme.control-hover.transparentize(1));
+        animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
-    @children
-    if root.icon != "" : ToolIcon {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        name: root.icon;
-        size: 16px;
-        tint: touch.has-hover ? Theme.text : Theme.muted;
+    content := Rectangle {
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+        @children
+        if root.icon != "" : ToolIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            name: root.icon;
+            size: 16px;
+            tint: touch.has-hover ? Theme.text : Theme.muted;
+            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
     }
-    if touch.has-hover || root.has-focus : Rectangle {
+    Tooltip {
         x: parent.width - self.width;
         y: parent.height + 8px;
-        width: tip.preferred-width + 20px;
-        height: 26px;
-        border-radius: Theme.radius-overlay;
-        background: Theme.control;
-        border-width: 1px;
-        border-color: Theme.line-strong;
-        tip := Text {
-            text: root.label;
-            color: Theme.text;
-            font-size: Theme.font-small;
-            font-weight: 500;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+        text: root.label;
+        show: touch.has-hover || root.keyboard-focus;
+        at-once: root.keyboard-focus;
     }
     touch := TouchArea {
         mouse-cursor: pointer;

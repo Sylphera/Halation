@@ -3,6 +3,7 @@ import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
 import { SectionRow, ItemRow } from "../models.slint";
 import { ListView } from "std-widgets.slint";
+import { Motion, Curve } from "../motion.slint";
 
 // The Library's sections: own folders, folders of the PC linked in place, and optional packs.
 export component SectionsView inherits Rectangle {
@@ -14,7 +15,6 @@ export component SectionsView inherits Rectangle {
     in property <int> hidden: 0;
     in property <bool> loaded: false;
     in property <bool> busy: false;
-    in property <duration> motion-duration: 160ms;
 
     callback select-section(string);
     callback create-section(string);
@@ -137,7 +137,7 @@ export component SectionsView inherits Rectangle {
                         height: parent.height - 4px;
                         border-radius: Theme.radius-control;
                         background: section.selected ? Theme.control-active : (section-touch.has-hover ? Theme.control-hover : transparent);
-                        animate background { duration: root.motion-duration; easing: ease-out; }
+                        animate background { duration: Motion.hover(section-touch.has-hover); easing: Curve.ease; }
                     }
 
                     HorizontalLayout {

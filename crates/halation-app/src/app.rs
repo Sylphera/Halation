@@ -1000,9 +1000,7 @@ fn refresh(ui: &AppWindow, s: &Services) {
     );
     ui.set_page(s.nav.current().index());
     ui.set_reduced_motion(s.settings.current().reduced_motion);
-    ui.set_motion_duration(
-        motion::duration(s.settings.current().reduced_motion).as_millis() as i64,
-    );
+    apply_motion(ui, motion::tokens(s.settings.current().reduced_motion));
     let model = s.library.model();
     ui.set_library_total(model.len() as i32);
     ui.set_library_missing(model.missing_count() as i32);
@@ -1268,7 +1266,7 @@ fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
 }
 
 /// Plays Home's backdrop loop (backdrop.rs): a 15 Hz timer asks the decoding thread for the next frame, which comes
-/// back to the window as an image; only the frame on screen is held decoded. The timer runs only while Home is shown
+/// back to the window as an image; two frames are kept and written in turn. The timer runs only while Home is shown
 /// with motion on and the window is not minimized; otherwise the frame on screen stays (the still frame with reduced
 /// motion, or when the loop cannot play).
 struct BackdropPlayer {
@@ -1283,8 +1281,9 @@ impl BackdropPlayer {
         let deliver_to = weak.clone();
         let player = crate::backdrop::Player::start(assets, move |frame| {
             // A closed window is a normal lifecycle end
-            let _ = deliver_to
-                .upgrade_in_event_loop(move |ui| ui.set_backdrop(Image::from_rgb8(frame)));
+            let _ = deliver_to.upgrade_in_event_loop(move |ui| {
+                ui.set_backdrop(Image::from_rgba8_premultiplied(frame))
+            });
         });
         Self {
             weak,
@@ -1329,6 +1328,20 @@ impl BackdropPlayer {
             },
         );
     }
+}
+
+fn apply_motion(ui: &AppWindow, tokens: motion::Tokens) {
+    let ms = |d: std::time::Duration| d.as_millis().min(i64::MAX as u128) as i64;
+    let global = ui.global::<crate::ui::Motion>();
+    global.set_hover_in(ms(tokens.hover_in));
+    global.set_hover_out(ms(tokens.hover_out));
+    global.set_release(ms(tokens.release));
+    global.set_glide(ms(tokens.glide));
+    global.set_trail(ms(tokens.trail));
+    global.set_fade(ms(tokens.fade));
+    global.set_panel(ms(tokens.panel));
+    global.set_tip_wait(ms(tokens.tip_wait));
+    global.set_press_scale(tokens.press_scale);
 }
 
 fn apply_theme(ui: &AppWindow) {

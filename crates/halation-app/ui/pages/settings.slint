@@ -2,14 +2,37 @@ import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { Toggle, Select, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
+import { Toggle, Select, Segmented, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "../components/pills.slint";
 import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
 
-// One category of the list at the left
+// One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
+// it is.
 component CategoryItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> label;
     in property <bool> active;
     callback activated;
+    callback hovered(bool, length, length);
+    callback selected(length, length, bool);
+    init => {
+        if (root.active) {
+            root.selected(root.absolute-position.y, root.height, true);
+        }
+    }
+    changed active => {
+        if (root.active) {
+            root.selected(root.absolute-position.y, root.height, false);
+        }
+    }
     height: Theme.item;
     focus-on-tab-navigation: true;
     accessible-role: tab;
@@ -26,8 +49,8 @@ component CategoryItem inherits FocusScope {
     }
     Rectangle {
         border-radius: Theme.radius-control;
-        background: root.active ? Theme.control-active : (touch.has-hover ? Theme.control-hover : transparent);
-        border-width: root.has-focus ? 2px : 0px;
+        background: touch.pressed ? Theme.press-fill : transparent;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
     Text {
@@ -36,15 +59,25 @@ component CategoryItem inherits FocusScope {
         width: parent.width - 16px;
         text: root.label;
         color: root.active || touch.has-hover ? Theme.text : Theme.muted;
+        animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         font-size: Theme.font-body;
         font-weight: 500;
         overflow: elide;
+        accessible-role: none;
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
     }
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => {
             root.focus();
             root.activated();
+        }
+        changed has-hover => {
+            root.hovered(self.has-hover, root.absolute-position.y, root.height);
         }
     }
 }
@@ -54,7 +87,6 @@ component ToolCell inherits Rectangle {
     in property <ToolItem> tool;
     in property <bool> always-on: false;
     in property <string> icon;
-    in property <duration> motion-duration;
     callback toggled(bool);
     callback install();
 
@@ -113,7 +145,6 @@ component ToolCell inherits Rectangle {
             if !root.always-on : Toggle {
                 label: root.tool.name;
                 checked: root.tool.enabled;
-                motion-duration: root.motion-duration;
                 toggled(value) => { root.toggled(value); }
             }
         }
@@ -158,7 +189,6 @@ export component SettingsPage inherits Rectangle {
     in property <string> storage-used: "";
     in property <string> app-size: "";
     in property <string> workspace-size: "";
-    in property <duration> motion-duration: 160ms;
     // The category shown; interface state, kept only while the app runs
     in-out property <int> category: 0;
 
@@ -191,6 +221,8 @@ export component SettingsPage inherits Rectangle {
     Rectangle {
         width: root.list-width;
         x: 0px;
+        // The hover and selection pills behind the categories
+        category-pills := PillList {}
         VerticalLayout {
             padding: 8px;
             padding-right: 9px;
@@ -211,6 +243,8 @@ export component SettingsPage inherits Rectangle {
                 label: name;
                 active: root.category == index;
                 activated => { root.category = index; }
+                hovered(on, at, size) => { category-pills.hover(on, at, size); }
+                selected(at, size, snap) => { category-pills.select(at, size, snap); }
             }
         }
     }
@@ -257,7 +291,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Reduce animations";
                                 checked: root.prefs.reduce-motion;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("reduce-motion", v ? "1" : "0"); }
                             }
                         }
@@ -269,7 +302,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Show processes dock";
                                 checked: root.prefs.show-dock;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("show-dock", v ? "1" : "0"); }
                             }
                         }
@@ -279,7 +311,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Notify when a job finishes";
                                 checked: root.prefs.notify;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("notify", v ? "1" : "0"); }
                             }
                         }
@@ -307,7 +338,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Show activity on the dock";
                                 checked: root.prefs.dock-activity;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("dock-activity", v ? "1" : "0"); }
                             }
                         }
@@ -319,8 +349,7 @@ export component SettingsPage inherits Rectangle {
                     Pair {
                         Cell {
                             name: "Open the window";
-                            Select {
-                                width: 180px;
+                            Segmented {
                                 label: "Open the window";
                                 options: ["As I left it", "Maximized", "Full screen"];
                                 current: root.prefs.open-window;
@@ -394,7 +423,13 @@ export component SettingsPage inherits Rectangle {
                                 border-radius: Theme.radius-control;
                                 background: root.prefs.save-mode == index ? Theme.control-active : (choice-touch.has-hover ? Theme.control-hover : Theme.control);
                                 border-width: 1px;
-                                border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
+                                border-color: root.prefs.save-mode == index ? Theme.accent : (choice-touch.has-hover ? Theme.line-hover : Theme.line-strong);
+                                animate background, border-color { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                // Large surfaces sink only a little
+                                // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+                                transform-scale-x: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
+                                transform-scale-y: self.transform-scale-x;
+                                animate transform-scale-x, transform-scale-y { duration: choice-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
                                 accessible-role: radio-button;
                                 accessible-checked: root.prefs.save-mode == index;
                                 accessible-label: choice.title;
@@ -467,8 +502,7 @@ export component SettingsPage inherits Rectangle {
                             help: root.prefs.processing == 0 ? "One job at a time on the processor and one on the graphics card."
                                 : root.prefs.processing == 2 ? "As many jobs as the processor and the graphics card take at once."
                                 : "Up to 2 jobs on the processor and 2 on the graphics card at once.";
-                            Select {
-                                width: 160px;
+                            Segmented {
                                 label: "Mode";
                                 options: ["Quiet", "Balanced", "Fast"];
                                 current: root.prefs.processing;
@@ -481,7 +515,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Use the graphics card";
                                 checked: root.prefs.use-gpu;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("use-gpu", v ? "1" : "0"); }
                             }
                         }
@@ -552,7 +585,6 @@ export component SettingsPage inherits Rectangle {
                             height: parent.cell-h;
                             tool: tool;
                             icon: tool.icon;
-                            motion-duration: root.motion-duration;
                             toggled(on) => { root.set-tool-enabled(tool.id, on); }
                             install => { root.action("install"); }
                         }
@@ -698,7 +730,6 @@ export component SettingsPage inherits Rectangle {
                             Toggle {
                                 label: "Show what's new after an update";
                                 checked: root.prefs.whats-new;
-                                motion-duration: root.motion-duration;
                                 toggled(v) => { root.set-pref("whats-new", v ? "1" : "0"); }
                             }
                         }
