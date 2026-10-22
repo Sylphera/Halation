@@ -41,7 +41,9 @@ component CategoryItem inherits FocusScope {
         }
     }
     height: 30px;
-    preferred-width: name.preferred-width + 32px;
+    // Every tab the same width, so the row has one rhythm (Java, 2026-10-22); set by the page
+    in property <length> tab-width: 96px;
+    width: root.tab-width;
     focus-on-tab-navigation: true;
     accessible-role: tab;
     accessible-label: label;
@@ -217,6 +219,9 @@ export component SettingsPage inherits Rectangle {
     property <length> column-x: (root.width - root.column) / 2;
     // The tabs' row: the tabs at the left, the search and Restore defaults at the right. Short of room, Restore
     // defaults keeps only its icon. The search takes all the width left (Java, 2026-10-22), at least 120 px.
+    // One width for every tab: 96 px, less when the row is short of room (down to what "Processing" needs), so the
+    // search keeps its 120 px and Restore defaults its icon
+    property <length> tab-width: max(72px, min(96px, (root.column - 6px - 6px * (root.names.length - 1) - 12px - 120px - 8px - 46px) / root.names.length));
     property <length> room: root.column - tabs.preferred-width - 12px;
     property <bool> restore-text: root.room >= 160px + 8px + 150px;
     property <length> search-width: max(120px, root.room - 8px - restore.width);
@@ -263,6 +268,7 @@ export component SettingsPage inherits Rectangle {
             padding: 3px;
             spacing: 6px;
             for name[index] in root.names : CategoryItem {
+                tab-width: root.tab-width;
                 label: name;
                 active: root.category == index;
                 activated => { root.category = index; }

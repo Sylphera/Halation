@@ -123,6 +123,9 @@ global actions have no tooltips: the bar itself grows down under them, one surfa
 frame (the page's corner given back below it), joined to the bar by an inverted curve, the name's right edge fixed, its
 width following the hovered button's name (and shortcut key cap) (`BarHint`).
 
+Settings tabs (Java, 2026-10-22): every tab has the same width, 96 px, less when the row is short of room (down to
+72 px, what "Processing" needs) so the search keeps 120 px.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is
