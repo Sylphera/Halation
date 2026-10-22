@@ -7,6 +7,7 @@ stops applying is removed here (the Tauri app's own decisions are in [archive/ta
 
 - Interface text is English; Spanish only on request: no half-translated strings while features move.
 - Releases carry the NSIS setup only (Java, 2026-10-13: no portable exe); the setup installs over an older version without losing data.
+- The logo is a hand-drawn vector stroke, white on a `#111111` square for the window icon (Java, 2026-10-22; `docs/media/brand/source/halation-mark.svg`, `tools/render-brand.js`): drawn in code so the artwork is the project's own; images from generators whose terms keep ownership (Recraft's free plan) are not used for the brand.
 - Home's background is called Drape (Java, 2026-10-14): Auralis is the name of the unlicensed component it was rewritten from; the old name stays only in history (`CHANGELOG.md`, `research/performance/`) and provenance notes.
 
 ## Repository and process
@@ -32,7 +33,7 @@ stops applying is removed here (the Tauri app's own decisions are in [archive/ta
 ## Slint beta renderer
 
 - Reference metric for the beta is private resident memory (`WorkingSetPrivate`), measured on Home, with total working set and commit reported next to it and never alone (Java, 2026-10-20): a single favourable counter would make the app look lighter than it is.
-- Candidate renderer: Skia over desktop OpenGL (`require_opengl()`), measured at 49.7 MB private on Home against 122.4 MB for Skia over Direct3D 12 and 8.0 MB for the software renderer (which excludes GPU memory); the choice is pending visual review. Virtual machines and PCs without an OpenGL driver are out of scope (Java, 2026-10-20).
+- Renderer (Java, 2026-10-22): Skia over **desktop OpenGL** (`require_opengl()`), not Direct3D 12. It measured 49.7 MB private on the reference Home scene and about 90 MB with the recorded Drape at 1920 × 1009 ([SLINT_VISUAL_SYSTEM.md](../docs/SLINT_VISUAL_SYSTEM.md)), against 122.4 MB for Direct3D 12. The first beta was built on Slint's Windows default D3D12 by mistake (165.6 MB private at 1936 × 1048); the build now enables `skia-opengl` by default. The OpenGL window is pending visual review. Virtual machines and PCs without an OpenGL driver are out of scope (Java, 2026-10-20).
 - Slint's default Skia OpenGL context (GLES 3.0) does not draw stroked `Path` elements with more than one segment or any arc on the AMD driver tested (`atio6axx.dll`); closed filled shapes, single-segment lines and PNGs do draw. Requesting desktop OpenGL draws every icon, antialiased, with no change to `icons.slint`; `anti-alias: false` also works but is jagged. Not checked on other GPU vendors.
 - Icons stay one stroked `Path` per icon in `ui/icons.slint` (viewbox 24, stroke 1.7): no per-driver adjustments, no SVG (it would need Slint's `svg` feature and its memory).
 

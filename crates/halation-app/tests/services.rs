@@ -6,7 +6,7 @@ use halation_app::library::{
 use halation_app::motion;
 use halation_app::navigation::{Navigation, Page};
 use halation_app::profile::{DiagnosticScene, Profile, ProfileError, parse_args, resolve_root};
-use halation_app::theme::{self, TEXT_PAIRS};
+use halation_app::theme::{self, TEXT_PAIRS, Tone};
 use halation_core::atomic_file::write_atomic_new;
 use halation_core::jobs::{JobRequest, JobsError, JobsService};
 use halation_core::settings::{
@@ -358,9 +358,10 @@ fn oversized_settings_are_rejected_and_values_are_bounded() {
 }
 
 #[test]
-fn catalog_has_eleven_entries_and_only_library_is_available() {
+fn catalog_has_eleven_entries_and_library_and_converter_are_available() {
     assert_eq!(TOOLS.len(), 11);
-    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 1);
+    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 2);
+    assert!(catalog::tool("converter").unwrap().available);
     assert!(catalog::tool("library").unwrap().available);
     assert!(!catalog::tool("downloader").unwrap().available);
     assert!(catalog::activation_notice("downloader").contains("not available"));
@@ -500,6 +501,24 @@ fn applied_theme_text_pairs_meet_wcag_contrast_threshold() {
             "{name} contrast was {}",
             theme::contrast_ratio(foreground, background)
         );
+    }
+}
+
+#[test]
+fn every_theme_and_accent_hue_meets_wcag_contrast() {
+    assert_eq!(theme::colours(Tone::Silver, None), theme::SILVER);
+    for tone in [Tone::Silver, Tone::Gold] {
+        let hues = std::iter::once(None).chain((0..360).step_by(5).map(Some));
+        for hue in hues {
+            let colours = theme::colours(tone, hue);
+            for (name, foreground, background) in theme::text_pairs(&colours) {
+                let ratio = theme::contrast_ratio(foreground, background);
+                assert!(
+                    ratio >= 4.5,
+                    "{tone:?} {hue:?}: {name} contrast was {ratio}"
+                );
+            }
+        }
     }
 }
 
@@ -799,6 +818,15 @@ fn settings_page_values_change_one_at_a_time_and_stay_bounded() {
     assert!(base.with_pref("show-dock", "maybe").is_err());
     assert!(base.with_pref("no-such-setting", "1").is_err());
     assert!(base.with_pref("artist", &"a".repeat(301)).is_err());
+    // Themes: Silver by default, Gold, an accent hue or the theme's own (360)
+    assert_eq!((base.theme, base.accent_hue), (0, 360));
+    assert_eq!(base.with_pref("theme", "1").unwrap().theme, 1);
+    assert!(base.with_pref("theme", "2").is_err(), "no third theme");
+    let hued = base.with_pref("accent-hue", "150").unwrap();
+    assert_eq!(hued.accent_hue, 150);
+    assert_eq!(hued.with_pref("accent-hue", "360").unwrap().accent_hue, 360);
+    assert!(base.with_pref("accent-hue", "361").is_err());
+    assert!(base.with_pref("accent-hue", "-5").is_err());
 
     let off = base.with_tool("grade", false).unwrap();
     assert!(!off.tool_enabled("grade"));
@@ -832,6 +860,7 @@ fn settings_search_finds_the_section_that_holds_the_words() {
     assert_eq!(catalog::settings_section("Dock"), Some(0));
     assert_eq!(catalog::settings_section("open window"), Some(1));
     assert_eq!(catalog::settings_section("ffmpeg"), Some(5));
+    assert_eq!(catalog::settings_section("accent colour"), Some(1));
     assert_eq!(catalog::settings_section("changelog"), Some(7));
     assert_eq!(catalog::settings_section("   "), None);
     assert_eq!(catalog::settings_section("zzz"), None);

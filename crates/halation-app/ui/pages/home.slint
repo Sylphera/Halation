@@ -4,6 +4,7 @@ import { ToolIcon } from "../icons.slint";
 import { ToolItem, RecentItem } from "../models.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
 
 // One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
 component StripItem inherits FocusScope {
@@ -88,7 +89,7 @@ component StripItem inherits FocusScope {
     }
 }
 
-// Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the mark and wordmark, the
+// Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the wordmark (no mark), the
 // tagline, the strip of tools, and the drop zone with recent files anchored to the bottom. Surfaces and corners use
 // the frame's tokens: the panel fill, a faint line and the one radius.
 export component HomePage inherits Rectangle {
@@ -101,33 +102,36 @@ export component HomePage inherits Rectangle {
     callback file-dropped(data-transfer);
 
     // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
-    property <length> hero-top: max(24px, root.height / 2 - 259px);
-    property <length> drop-top: max(root.hero-top + 286px, root.height - 70px - 55px - 15px - 150px);
+    property <length> hero-top: max(24px, root.height / 2 - 240px);
+    property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
 
+    // The wordmark's halation glow (docs/features/material.md), a prepared image: no blur runs on Home
+    Image {
+        x: (parent.width - 600px) / 2 - 180px;
+        y: root.hero-top - 180px;
+        width: 960px;
+        height: 428px;
+        source: Assets.wordmark-glow;
+        image-fit: fill;
+        accessible-role: none;
+    }
+    // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600, tracked 0.20 em, as outlines; 88 px ("bastante
+    // más grande" than the 60 px first chosen)
     Image {
         x: (parent.width - self.width) / 2;
         y: root.hero-top;
-        width: 176px;
-        height: 87px;
-        source: Assets.mark;
+        width: 600px;
+        height: 68.2px;
+        source: Assets.wordmark;
+        colorize: Theme.wordmark;
         image-fit: contain;
         accessible-role: image;
         accessible-label: "Halation";
     }
 
-    Image {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top + 113px;
-        width: 241px;
-        height: 26px;
-        source: Assets.wordmark;
-        colorize: Theme.text;
-        image-fit: contain;
-    }
-
     Text {
         x: (parent.width - self.width) / 2;
-        y: root.hero-top + 153px;
+        y: root.hero-top + 90px;
         text: "Take your time. Everything else is instant.";
         color: Theme.muted;
         font-size: Theme.font-title;
@@ -136,14 +140,15 @@ export component HomePage inherits Rectangle {
     // Tool strip
     Rectangle {
         x: (parent.width - self.width) / 2;
-        y: root.hero-top + 202px;
+        y: root.hero-top + 138px;
         width: min(strip.preferred-width, parent.width - 24px);
         height: 62px;
-        border-radius: Theme.radius;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.line;
-        // The hover pill, gliding along the strip behind the tools
+        // A panel over the Drape; the tool under the pointer rises as a raised piece
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
         strip-pills := PillList {
             x: 5px;
             y: 5px;
@@ -151,7 +156,8 @@ export component HomePage inherits Rectangle {
             height: parent.height - 10px;
             horizontal: true;
             has-selection: false;
-            hover-fill: Theme.hover-fill;
+            hover-fill: Theme.raised-flat;
+            raised-hover: true;
             radius: Theme.radius;
         }
         strip := HorizontalLayout {
@@ -173,13 +179,41 @@ export component HomePage inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.drop-top;
-        width: min(640px, parent.width - 48px);
-        height: 150px;
-        border-radius: Theme.radius;
-        border-width: 1px;
-        border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-        background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
-        animate background, border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        // Taller and wider, recent files lower (Java, 2026-10-22)
+        width: min(780px, parent.width - 48px);
+        height: 196px;
+        // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+            animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        }
+        // The pointer light of the original Home (Java, 2026-10-22): a soft white circle under the pointer, brighter
+        // while a file is over the zone. It is a gradient, not a blur: no shadow is rendered, and the light only
+        // exists while the drop zone is hovered.
+        Rectangle {
+            property <length> glow-radius: drop-area.has-drag ? 420px : 160px;
+            property <length> glow-x: drop-touch.has-hover ? drop-touch.mouse-x : self.width / 2;
+            property <length> glow-y: drop-touch.has-hover ? drop-touch.mouse-y : self.height / 2;
+            // The light fades by its own colour alpha, not by `opacity`: an opacity animation makes Skia compose the
+            // rectangle offscreen on every frame (tests/services.rs enforces the rule).
+            property <color> glow-centre: drop-touch.has-hover || drop-area.has-drag
+                ? Theme.text.transparentize(92%)
+                : Theme.text.transparentize(100%);
+            animate glow-centre { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            border-radius: Theme.radius;
+            background: @radial-gradient(circle glow-radius at glow-x glow-y,
+                glow-centre 0%,
+                Theme.text.transparentize(100%) 72%);
+        }
+        Rectangle {
+            border-radius: Theme.radius;
+            border-width: 1px;
+            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : drop-touch.has-hover ? Theme.line-hover : Theme.accent.transparentize(1);
+            animate border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        }
         // Grows a little under a dragged file, sinks a little on press
         // (nothing scales with reduced motion, when the press scale is 100 %)
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
@@ -190,13 +224,15 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            y: 23px;
+            // The tile rises 2 px under the pointer, as in the original Home
+            y: drop-touch.has-hover || drop-area.has-drag ? 46px : 48px;
             width: 48px;
             height: 48px;
-            border-radius: Theme.radius;
-            background: Theme.control;
-            border-width: 1px;
-            border-color: Theme.line-strong;
+            animate y { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            Surface {
+                level: Level.raised;
+                radius: Theme.radius;
+            }
             ToolIcon {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
@@ -208,7 +244,7 @@ export component HomePage inherits Rectangle {
 
         Text {
             x: (parent.width - self.width) / 2;
-            y: 83px;
+            y: 110px;
             text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
             color: Theme.text;
             font-size: 15.5px;
@@ -216,7 +252,7 @@ export component HomePage inherits Rectangle {
         }
         Text {
             x: (parent.width - self.width) / 2;
-            y: 108px;
+            y: 135px;
             text: "Or click to browse. Files are added to your Library, never copied.";
             color: Theme.subtle;
             font-size: Theme.font-body;
@@ -254,47 +290,51 @@ export component HomePage inherits Rectangle {
         }
     }
 
-    // Recent files
+    // Recent files: as wide as the drop zone, its label over the files or the description, centred like it
     Rectangle {
         x: (parent.width - self.width) / 2;
-        y: root.drop-top + 165px;
-        width: min(593px, parent.width - 48px);
-        height: 55px;
-        border-radius: Theme.radius;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.line;
+        y: root.drop-top + 196px + 14px;
+        width: min(780px, parent.width - 48px);
+        height: 72px;
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
         Text {
-            x: 21px;
-            y: (parent.height - self.height) / 2;
+            x: (parent.width - self.width) / 2;
+            y: 17px;
             text: "RECENT FILES";
             color: Theme.subtle;
-            font-size: 11px;
+            font-size: Theme.font-label;
             font-weight: 600;
-            letter-spacing: 1.32px;
+            letter-spacing: Theme.label-tracking;
         }
         if root.recent.length == 0 : Text {
-            x: 130px;
-            y: (parent.height - self.height) / 2;
-            width: parent.width - 150px;
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            horizontal-alignment: center;
             text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
-            color: Theme.subtle;
+            color: Theme.muted;
             font-size: Theme.font-small;
             overflow: elide;
         }
         if root.recent.length > 0 : HorizontalLayout {
-            x: 130px;
-            width: parent.width - 150px;
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            height: 18px;
             spacing: 16px;
+            alignment: center;
             for item in root.recent : Text {
                 text: item.name;
                 color: Theme.muted;
                 font-size: Theme.font-small;
                 vertical-alignment: center;
                 overflow: elide;
-                max-width: 150px;
+                max-width: 160px;
             }
-            Rectangle { horizontal-stretch: 1; }
         }
     }
 }

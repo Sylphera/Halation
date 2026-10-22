@@ -2,9 +2,10 @@ import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { Toggle, Select, Segmented, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
+import { Toggle, Select, Segmented, HueStrip, Field, SearchField, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
 import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
 
 // One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
@@ -25,15 +26,24 @@ component CategoryItem inherits FocusScope {
     callback selected(length, length, bool);
     init => {
         if (root.active) {
-            root.selected(root.absolute-position.y, root.height, true);
+            root.selected(root.absolute-position.x, root.width, true);
         }
     }
     changed active => {
         if (root.active) {
-            root.selected(root.absolute-position.y, root.height, false);
+            root.selected(root.absolute-position.x, root.width, false);
         }
     }
-    height: Theme.item;
+    // A tab of the bar at the top: as wide as its name
+    changed x => {
+        if (root.active) {
+            root.selected(root.absolute-position.x, root.width, true);
+        }
+    }
+    height: 30px;
+    // Every tab the same width, so the row has one rhythm (Java, 2026-10-22); set by the page
+    in property <length> tab-width: 96px;
+    width: root.tab-width;
     focus-on-tab-navigation: true;
     accessible-role: tab;
     accessible-label: label;
@@ -53,10 +63,9 @@ component CategoryItem inherits FocusScope {
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
-    Text {
-        x: 8px;
+    name := Text {
+        x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        width: parent.width - 16px;
         text: root.label;
         color: root.active || touch.has-hover ? Theme.text : Theme.muted;
         animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
@@ -77,7 +86,7 @@ component CategoryItem inherits FocusScope {
             root.activated();
         }
         changed has-hover => {
-            root.hovered(self.has-hover, root.absolute-position.y, root.height);
+            root.hovered(self.has-hover, root.absolute-position.x, root.width);
         }
     }
 }
@@ -93,7 +102,7 @@ component ToolCell inherits Rectangle {
     Rectangle {
         y: 0px;
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     HorizontalLayout {
         padding-top: 10px;
@@ -159,7 +168,7 @@ component ListRow inherits Rectangle {
     Rectangle {
         y: 0px;
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     HorizontalLayout {
         spacing: 12px;
@@ -174,12 +183,15 @@ component ListRow inherits Rectangle {
     }
 }
 
-// Settings (planning/active/ui-redesign.md §9): the categories at the left, the chosen one alone at the right in
-// groups of cells, two per row. Search and Restore defaults live in the top bar (app.slint).
+// Settings (planning/active/ui-redesign.md §9): the categories as tabs at the top (Java, 2026-10-22: a list at the
+// left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore
+// defaults stand at the right of the tabs, on their row (Java, 2026-10-22).
 export component SettingsPage inherits Rectangle {
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
     in property <[ComponentRow]> components;
+    in property <bool> ffmpeg-ready: false;
+    in property <bool> ffmpeg-installing: false;
     in property <[FolderRow]> folders;
     in property <bool> writable: true;
     in property <string> error: "";
@@ -193,13 +205,30 @@ export component SettingsPage inherits Rectangle {
     in-out property <int> category: 0;
 
     callback set-pref(string, string);
+    // Shows an accent hue while the strip is dragged, without saving it
+    callback preview-accent(int);
     callback set-tool-enabled(string, bool);
     // Buttons without an engine behind them in the beta, and folder openers: handled in Rust
     callback action(string);
+    callback reset();
+    // Enter in the search opens the category that holds the words (Rust matches them; -1 when none does)
+    callback search(string) -> int;
 
     property <[string]> names: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
-    property <length> list-width: 200px;
-    property <length> column: min(880px, root.width - root.list-width - 64px);
+    // The tabs' bar and the content start below it
+    property <length> tabs-top: 16px;
+    property <length> content-top: root.tabs-top + 36px + 16px;
+    property <length> column: min(1200px, root.width - 64px);
+    // Tabs and content share one centred column
+    property <length> column-x: (root.width - root.column) / 2;
+    // The tabs' row: the tabs at the left, the search and Restore defaults at the right. Short of room, Restore
+    // defaults keeps only its icon. The search takes all the width left (Java, 2026-10-22), at least 120 px.
+    // One width for every tab: 96 px, less when the row is short of room (down to what "Processing" needs), so the
+    // search keeps its 120 px and Restore defaults its icon
+    property <length> tab-width: max(72px, min(96px, (root.column - 6px - 6px * (root.names.length - 1) - 12px - 120px - 8px - 46px) / root.names.length));
+    property <length> room: root.column - tabs.preferred-width - 12px;
+    property <bool> restore-text: root.room >= 160px + 8px + 150px;
+    property <length> search-width: max(120px, root.room - 8px - restore.width);
 
     // Category to show first (headless snapshots); -1 leaves the current one
     in property <int> jump-to: -1;
@@ -217,29 +246,33 @@ export component SettingsPage inherits Rectangle {
         flick.content-y = 0;
     }
 
-    // Category list
+    // Category tabs: a recessed track, the chosen tab raised, the hover pill raised too and fused with it
     Rectangle {
-        width: root.list-width;
-        x: 0px;
-        // The hover and selection pills behind the categories
-        category-pills := PillList {}
-        VerticalLayout {
-            padding: 8px;
-            padding-right: 9px;
-            spacing: 0px;
-            alignment: start;
-            Rectangle {
-                height: 26px;
-                Text {
-                    x: 8px;
-                    y: (parent.height - self.height) / 2;
-                    text: "Settings";
-                    color: Theme.subtle;
-                    font-size: Theme.font-caption;
-                    font-weight: 500;
-                }
-            }
+        x: root.column-x;
+        y: root.tabs-top;
+        width: min(tabs.preferred-width, root.column);
+        height: 36px;
+        Surface {
+            level: Level.well;
+        }
+        category-pills := PillList {
+            x: 3px;
+            y: 3px;
+            width: parent.width - 6px;
+            height: parent.height - 6px;
+            horizontal: true;
+            select-fill: Theme.raised-flat;
+            hover-fill: Theme.raised-flat;
+            raised-select: true;
+            raised-hover: true;
+            soft-hover: true;
+            radius: Theme.radius-control - 3px;
+        }
+        tabs := HorizontalLayout {
+            padding: 3px;
+            spacing: 6px;
             for name[index] in root.names : CategoryItem {
+                tab-width: root.tab-width;
                 label: name;
                 active: root.category == index;
                 activated => { root.category = index; }
@@ -249,27 +282,51 @@ export component SettingsPage inherits Rectangle {
         }
     }
 
+    HorizontalLayout {
+        x: root.column-x + root.column - self.width;
+        y: root.tabs-top;
+        width: self.preferred-width;
+        height: 36px;
+        spacing: 8px;
+        SearchField {
+            width: root.search-width;
+            height: 36px;
+            placeholder: "Search settings...";
+            label: "Search settings";
+            accepted(value) => {
+                let found = root.search(value);
+                if (found >= 0) {
+                    root.category = found;
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            restore := AppButton {
+                quiet: true;
+                icon: "rotate-ccw";
+                text: root.restore-text ? "Restore defaults" : "";
+                name: "Restore defaults";
+                enabled: root.writable;
+                clicked => { root.reset(); }
+            }
+        }
+    }
+
     flick := Flickable {
-        x: root.list-width;
-        width: root.width - root.list-width;
-        height: root.height - (root.error != "" ? 36px : 0px);
+        x: 0px;
+        y: root.content-top;
+        width: root.width;
+        height: root.height - root.content-top - (root.error != "" ? 36px : 0px);
         content-width: self.width;
         content-height: max(self.height, pane.preferred-height + 48px);
 
         pane := VerticalLayout {
-            x: 32px;
-            y: 24px;
+            x: root.column-x;
+            y: 0px;
             width: root.column;
             height: self.preferred-height;
             spacing: 0px;
-
-            Text {
-                text: root.names[root.category];
-                color: Theme.text;
-                font-size: Theme.font-heading;
-                font-weight: 600;
-            }
-            Rectangle { height: 18px; }
 
             if root.category == 0 : VerticalLayout {
                 Group {
@@ -330,6 +387,44 @@ export component SettingsPage inherits Rectangle {
             }
 
             if root.category == 1 : VerticalLayout {
+                Group {
+                    title: "Theme";
+                    Pair {
+                        Cell {
+                            name: "Theme";
+                            Segmented {
+                                label: "Theme";
+                                options: ["Silver", "Gold"];
+                                current: root.prefs.theme;
+                                chosen(i) => { root.set-pref("theme", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Accent";
+                            help: "Every hue keeps the theme's contrast.";
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: end;
+                                HueStrip {
+                                    width: 168px;
+                                    label: "Accent";
+                                    // 360: the theme's own accent, shown at its hue
+                                    hue: root.prefs.accent-hue < 360 ? root.prefs.accent-hue : (root.prefs.theme == 1 ? 38 : 235);
+                                    preview(h) => { root.preview-accent(h); }
+                                    chosen(h) => { root.set-pref("accent-hue", h); }
+                                }
+                                AppButton {
+                                    small: true;
+                                    quiet: true;
+                                    text: "Default";
+                                    name: "Theme's own accent";
+                                    enabled: root.prefs.accent-hue < 360;
+                                    clicked => { root.set-pref("accent-hue", 360); }
+                                }
+                            }
+                        }
+                    }
+                }
                 Group {
                     title: "Frame";
                     Pair {
@@ -420,11 +515,18 @@ export component SettingsPage inherits Rectangle {
                                 { title: "Halation Folder", text: "Save exports automatically in Halation Folder." }
                             ] : Rectangle {
                                 height: 68px;
-                                border-radius: Theme.radius-control;
-                                background: root.prefs.save-mode == index ? Theme.control-active : (choice-touch.has-hover ? Theme.control-hover : Theme.control);
-                                border-width: 1px;
-                                border-color: root.prefs.save-mode == index ? Theme.accent : (choice-touch.has-hover ? Theme.line-hover : Theme.line-strong);
-                                animate background, border-color { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                // Raised cards; the chosen one carries an accent edge
+                                Surface {
+                                    level: Level.raised;
+                                    veil: choice-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+                                    animate veil { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                }
+                                Rectangle {
+                                    border-radius: Theme.radius-control;
+                                    border-width: 1px;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.accent.transparentize(1);
+                                    animate border-color { duration: Motion.fade; easing: Curve.ease; }
+                                }
                                 // Large surfaces sink only a little
                                 // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
                                 transform-scale-x: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
@@ -440,8 +542,9 @@ export component SettingsPage inherits Rectangle {
                                     width: 14px;
                                     height: 14px;
                                     border-radius: 7px;
+                                    background: root.prefs.save-mode == index ? transparent : Theme.well-fill;
                                     border-width: root.prefs.save-mode == index ? 4px : 1px;
-                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.well-edge;
                                 }
                                 VerticalLayout {
                                     x: 36px;
@@ -524,7 +627,7 @@ export component SettingsPage inherits Rectangle {
                             name: "Vocal Remover";
                             help: "Auto uses the graphics card through DirectX 12 and falls back to the processor by itself.";
                             Select {
-                                width: 180px;
+                                width: 250px;
                                 label: "Vocal Remover";
                                 options: ["Auto (graphics card when it works)", "Processor only"];
                                 current: root.prefs.vocal-device;
@@ -603,7 +706,7 @@ export component SettingsPage inherits Rectangle {
                     title: "Components";
                     for component in root.components : ListRow {
                         name: component.name;
-                        detail: "Not installed";
+                        detail: component.name == "FFmpeg" && root.ffmpeg-ready ? "Installed" : component.name == "FFmpeg" && root.ffmpeg-installing ? "Installing…" : "Not installed";
                         Text {
                             horizontal-stretch: 1;
                             text: "About " + component.size + " to download";
@@ -613,7 +716,7 @@ export component SettingsPage inherits Rectangle {
                         }
                         VerticalLayout {
                             alignment: center;
-                            AppButton { text: "Install"; small: true; clicked => { root.action("install"); } }
+                            AppButton { text: component.name == "FFmpeg" && root.ffmpeg-ready ? "Installed" : "Install"; small: true; enabled: !(component.name == "FFmpeg" && (root.ffmpeg-ready || root.ffmpeg-installing)); clicked => { root.action("install:" + component.name); } }
                         }
                     }
                 }
@@ -663,7 +766,9 @@ export component SettingsPage inherits Rectangle {
                                 Rectangle {
                                     height: 4px;
                                     border-radius: 2px;
-                                    background: Theme.control-active;
+                                    background: Theme.well-fill;
+                                    border-width: 1px;
+                                    border-color: Theme.well-edge;
                                 }
                             }
                             Text {
@@ -778,9 +883,9 @@ export component SettingsPage inherits Rectangle {
     }
 
     if root.error != "" : Rectangle {
-        x: root.list-width;
+        x: 0px;
         y: root.height - 36px;
-        width: root.width - root.list-width;
+        width: root.width;
         height: 36px;
         background: #2a1717;
         Text {

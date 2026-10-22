@@ -7,12 +7,15 @@
 
 pub mod artist_profile;
 pub mod atomic_file;
+pub mod components;
+pub mod convert;
 pub mod destinations;
 pub mod engine;
 pub mod folders;
 pub mod jobs;
 pub mod library;
 pub mod names;
+pub mod playback;
 pub mod presets;
 pub mod process;
 pub mod queue;

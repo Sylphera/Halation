@@ -42,6 +42,7 @@ pub struct Settings {
     pub tiktok: String,
     /// 0 ask every time, 1 the Halation folder
     pub save_mode: u8,
+    pub save_location_chosen: bool,
     pub video_template: String,
     pub image_template: String,
     /// 0 quiet, 1 balanced, 2 fast
@@ -62,7 +63,14 @@ pub struct Settings {
     pub whats_new: bool,
     /// Ids of the tools turned off in Settings > Tools
     pub disabled_tools: Vec<String>,
+    /// Interface theme: 0 Silver, 1 Gold (docs/features/themes.md)
+    pub theme: u8,
+    /// The accent's hue in degrees, or `THEME_ACCENT` for the theme's own accent
+    pub accent_hue: u16,
 }
+
+/// `accent_hue` for the theme's own accent
+pub const THEME_ACCENT: u16 = 360;
 
 impl Default for Settings {
     fn default() -> Self {
@@ -83,6 +91,7 @@ impl Default for Settings {
             instagram: String::new(),
             tiktok: String::new(),
             save_mode: 0,
+            save_location_chosen: false,
             video_template: "{title}".to_owned(),
             image_template: "{title}".to_owned(),
             processing: 1,
@@ -96,6 +105,8 @@ impl Default for Settings {
             updates: 0,
             whats_new: true,
             disabled_tools: Vec::new(),
+            theme: 0,
+            accent_hue: THEME_ACCENT,
         }
     }
 }
@@ -126,10 +137,17 @@ impl Settings {
             ("minimized", self.minimized, 1),
             ("budget", self.budget, 4),
             ("updates", self.updates, 2),
+            ("theme", self.theme, 1),
         ];
         if let Some((name, value, max)) = choices.iter().find(|(_, value, max)| value > max) {
             return Err(SettingsError::Invalid(format!(
                 "{name} must be at most {max}, got {value}"
+            )));
+        }
+        if self.accent_hue > THEME_ACCENT {
+            return Err(SettingsError::Invalid(format!(
+                "accent_hue must be at most {THEME_ACCENT}, got {}",
+                self.accent_hue
             )));
         }
         let texts = [
@@ -185,7 +203,10 @@ impl Settings {
             "soundcloud" => next.soundcloud = text(),
             "instagram" => next.instagram = text(),
             "tiktok" => next.tiktok = text(),
-            "save-mode" => next.save_mode = choice()?,
+            "save-mode" => {
+                next.save_mode = choice()?;
+                next.save_location_chosen = true;
+            }
             "video-template" => next.video_template = text(),
             "image-template" => next.image_template = text(),
             "processing" => next.processing = choice()?,
@@ -198,6 +219,13 @@ impl Settings {
             "budget" => next.budget = choice()?,
             "updates" => next.updates = choice()?,
             "whats-new" => next.whats_new = flag()?,
+            "theme" => next.theme = choice()?,
+            "accent-hue" => {
+                next.accent_hue = value
+                    .trim()
+                    .parse::<u16>()
+                    .map_err(|_| SettingsError::Invalid(format!("{key} expects a hue")))?;
+            }
             _ => return Err(SettingsError::Invalid(format!("unknown setting {key}"))),
         }
         next.validate()?;

@@ -1,6 +1,6 @@
 # Jobs y workspace — Especificación v1
 
-Status: Partial — the native backend has the queue, processes and engine contract ([backend import](../SLINT_BACKEND_IMPORT.md)) with no engines connected and no Jobs page; not checked against this spec point by point.
+Status: Partial — the native backend has the queue, processes and native-task engine ([backend import](../SLINT_BACKEND_IMPORT.md)); Converter submits real media and component jobs (2026-10-22). Jobs still has no page; Activity stays the small top button. Not checked against this spec point by point.
 
 Un único sistema de jobs para todo el trabajo pesado de Halation (colas, prioridades, recursos, cancelación) y un
 workspace temporal compartido para caché, archivos intermedios y modelos. Objetivo: que varias herramientas no

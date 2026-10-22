@@ -29,15 +29,34 @@ Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and bou
 | `profile.rs` | Imported → `artist_profile.rs` | See Status. |
 | `state.rs`, `storage.rs` | Not imported (decided 2026-10-21) | The native profile keeps its own folder and schema; only the logic (atomic writes, name validation, storage report) is reused. |
 | `paths.rs`, `system.rs`, `window.rs`, `update.rs`, `web.rs`, `openwith.rs`, `assets.rs`, `migrate.rs` | Not imported now | Tauri/WebView specific, or updater/release scope. |
-| `download.rs`, `tools.rs`, `convert.rs`, `encode.rs`, `framegrab.rs`, `interp.rs`, `cutout.rs`, `stems.rs` | Out of scope for now | Engines and tools (FFmpeg, yt-dlp, upscaler, RIFE, ONNX, PDFium): connected later behind honest capabilities; the beta shows them as unavailable. |
+| Media parts of `convert.rs`, FFmpeg parts of `tools.rs` and `download.rs` | Adapted → `convert.rs`, `components.rs` (2026-10-22, in progress) | Typed media probe/table/plan/image execution and on-demand external FFmpeg pair installation. No Tauri commands, document engines or visual source. Tests cover planner rules, generated images and native jobs; an explicit integration example generates its own video/audio. |
+| `encode.rs`, `framegrab.rs`, `interp.rs`, `cutout.rs`, `stems.rs`; non-FFmpeg parts of `tools.rs`/`download.rs` | Out of scope for now | Other engines remain unavailable. |
 
 ## Added dependencies
+
+- Converter: `image =0.25.10`, `webp =0.3.1`, `tiff =0.11.3`, `ureq =3.5.0` (native TLS, without default features),
+  `zip =8.6.0` (deflate only). See `THIRD_PARTY.md`. Images decode on bounded workers, never at Home startup;
+  only one large image/preview decode is admitted at a time. FFmpeg remains a separate process. The alternative
+  using FFmpeg for every image was not selected: images must also work without an installed component.
+- `windows-sys` adds `Win32_Storage_FileSystem` for Windows no-replace publication (`MoveFileExW` with no replace
+  flag), so managed outputs do not require hard-link support on the destination volume. The unsafe boundary is a
+  single documented UTF-16 path call; manually confirmed replacement still uses the native rename operation.
+
+- Audio preview (`playback.rs`, written for the native app, not imported): `windows =0.62.2` in `halation-core`, the
+  version the app already uses for Media Foundation, with `Win32_Media_Audio`, `Win32_System_Com(_StructuredStorage)`,
+  `Win32_System_Variant`, `Win32_System_Threading` and `Win32_Security` for a shared-mode WASAPI render client. No new
+  crate in the graph. Decoding stays in the external FFmpeg.
 
 - `windows-sys` (Windows only; features `Win32_Foundation`, `Win32_Security`, `Win32_System_JobObjects`, `Win32_System_ProcessStatus`, `Win32_System_Threading`):
   Job Object and process memory for `process.rs`. Pinned with `=` in the crate manifests.
 - `i-slint-backend-testing` (dev-dependency only, pinned `=1.18.1`): headless layout tests (`crates/halation-app/tests/ui_layout.rs`). Debug info for the element tree is compiled into non-release builds only (`build.rs`); it is not in the shipping graph.
 
 ## Status
+
+- Converter adaptation implemented (2026-10-22): native controller and clean-room tool frame wired to the shared
+  scheduler, destinations and external processes, plus the native audio preview. Library remains removed. Video
+  transport, Send to and sessions are still open and nothing is visually approved; see
+  [the active plan](../planning/active/converter-native.md).
 
 - `process.rs`: imported 2026-10-21 (see the module header for the interface).
 - `queue.rs` + `engine.rs`: the scheduler of `docs/JOBS_SPEC.md` (lanes, costs, priorities, backfill, hold, cancel by id or group, last 50 finished) and an event-driven engine that runs admitted jobs through `process.rs` (2026-10-21). Written against the spec rather than ported from `workspace.rs`/`sessions.rs`, which are bound to `tauri::State`. Missing from the spec: VRAM/RAM/disk needs, measured statistics, `yield`, reordering, stage changes, minimized pause. The Jobs page now lists the engine's jobs (state, progress, Cancel, Clear finished) through `slint/src/jobs.rs`; no tool is registered, so nothing can be queued from the UI and the page keeps the honest DISCONNECTED capability (2026-10-21).

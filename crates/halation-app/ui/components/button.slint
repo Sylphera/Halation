@@ -1,8 +1,9 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { Motion, Curve } from "../motion.slint";
+import { Surface, Level } from "surface.slint";
 
-// Button of the anchored frame: a control fill with a 1 px border, the control radius, optional leading icon. `quiet` drops the
+// Button of the anchored frame: a raised piece of the material, the control radius, optional leading icon. `quiet` drops the
 // fill and border; `primary` is the one white button of a page.
 export component AppButton inherits FocusScope {
     // The focus ring shows for keyboard focus only, not after a click
@@ -18,13 +19,15 @@ export component AppButton inherits FocusScope {
     in property <bool> quiet: false;
     in property <bool> small: false;
     in property <bool> primary: false;
+    // The accessible name, when the button shows only its icon
+    in property <string> name: root.text;
     callback clicked;
 
     width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
     height: root.small ? 28px : 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: text;
+    accessible-label: root.name;
     accessible-action-default => {
         if (root.enabled) {
             clicked();
@@ -49,15 +52,33 @@ export component AppButton inherits FocusScope {
         transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
+        // A raised piece; `quiet` is only a veil under the pointer, `primary` a white piece
+        if !root.quiet && !root.primary : Surface {
+            width: parent.width;
+            height: parent.height;
+            level: Level.raised;
+            pressed: touch.pressed;
+            veil: touch.has-hover && !touch.pressed ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+            opacity: root.enabled ? 1 : 0.45;
+            animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+        if root.primary : Surface {
+            width: parent.width;
+            height: parent.height;
+            level: Level.raised;
+            Rectangle {
+                border-radius: Theme.radius-control;
+                background: touch.pressed ? Theme.primary-fill-press : Theme.primary-fill;
+                opacity: root.enabled ? 1 : 0.45;
+            }
+        }
         Rectangle {
             width: parent.width;
             height: parent.height;
             border-radius: Theme.radius-control;
-            background: root.primary ? (touch.pressed ? Theme.muted : Theme.text)
-                : touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : (root.quiet ? transparent : Theme.control));
-            border-width: root.keyboard-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
-            border-color: root.keyboard-focus ? Theme.accent : Theme.line-strong;
-            opacity: root.enabled ? 1 : 0.45;
+            background: root.quiet ? (touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.hover-fill : Theme.hover-fill.transparentize(1))) : transparent;
+            border-width: root.keyboard-focus ? 2px : 0px;
+            border-color: Theme.accent;
             animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
 

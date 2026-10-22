@@ -184,12 +184,24 @@ fn write_png(path: &Path, width: u32, height: u32, pixels: &[Rgb8Pixel]) -> std:
     fs::write(path, png)
 }
 
+fn profile_tools(out_dir: &Path, page: &str) -> PathBuf {
+    out_dir
+        .join(format!("fixtures-{page}"))
+        .join("profile")
+        .join("tools")
+}
+
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     // home, home-open (sidebar open), settings, settings-<0..7> (a section)
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
         "settings" => (3, 0, -1),
+        "converter" => (4, 0, -1),
+        "converter-open" => (4, 2, -1),
+        "converter-ready" => (4, 3, -1),
+        "converter-audio" => (4, 4, -1),
+        "converter-video" => (4, 5, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -197,16 +209,18 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings or settings-<0..7>"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio or converter-video"
                 )
                 .into());
             }
         },
     };
-    let out_dir = spec
-        .out
-        .parent()
-        .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+    // Absolute, like a real profile: FFmpeg runs in its own folder
+    let out_dir = std::path::absolute(
+        spec.out
+            .parent()
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf),
+    )?;
     let profile = fixtures(&out_dir.join(format!("fixtures-{}", spec.page)))?;
 
     let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
@@ -236,6 +250,76 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.set_rail_open(true);
     }
     pump(&queue, Duration::from_millis(800));
+    if mode == 3 {
+        let fixture = out_dir.join("generated-converter-preview.png");
+        let pixels: Vec<_> = (0..200)
+            .flat_map(|y| {
+                (0..320)
+                    .map(move |x| Rgb8Pixel::new((x * 255 / 320) as u8, (y * 255 / 200) as u8, 96))
+            })
+            .collect();
+        write_png(&fixture, 320, 200, &pixels)?;
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(1000));
+    }
+    if mode == 4 {
+        // Generated audio (FFmpeg from the profile's tools or PATH): a pulsing tone with a quiet start
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-audio needs FFmpeg on PATH to generate its fixture")?;
+        // Absolute: FFmpeg runs from its own folder
+        let fixture = out_dir.join("generated-converter-tone.flac");
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args(["-hide_banner", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i"])
+            .arg("aevalsrc=min(1\\,t/6)*(0.25+0.75*abs(sin(2*PI*0.21*t)))*(0.6+0.4*sin(2*PI*2.1*t))*sin(2*PI*330*t):s=44100:d=94")
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the audio fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        // A paused head part-way through, so the heard part and the head show without real-time playback
+        ui.invoke_converter_seek(0.38);
+        pump(&queue, Duration::from_millis(200));
+    }
+    if mode == 5 {
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-video needs FFmpeg on PATH to generate its fixture")?;
+        let fixture = out_dir.join("generated-converter-clip.mkv");
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args([
+                "-hide_banner",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg("testsrc2=size=1920x800:rate=24:duration=12")
+            .args([
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=330:duration=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+            ])
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the video fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        ui.set_convert_left_open(true);
+        // Paused at 40 %: the still at the head and the seek bar
+        ui.invoke_converter_seek(0.4);
+        pump(&queue, Duration::from_millis(2000));
+    }
     if section >= 0 {
         // After the page has laid out, so the section tops are known
         ui.set_settings_jump(section);

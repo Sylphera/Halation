@@ -15,7 +15,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
 2. **Clean-room.** The reference is only the original's rendered result: its frontend from `main` rendered over the
    mocked backend in headless Chromium at 1920 × 1080 and 1280 × 800, measured from the pixels and the computed boxes,
    colours and fonts of the rendered page. No HTML, CSS or JS of the original is read or copied into the beta. Reused
-   identity assets: Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL).
+   identity assets: Lucide icon SVGs, the Halation mark, the wordmark (as rendered) and the Inter typeface (OFL); since 2026-10-22 the faces of [features/material.md](features/material.md) §5.
    **One exception** (Java, 2026-10-21): the original's Drape code (`app/dist/drape.js`) may be reused **only to record
    and modify the Drape** for the beta's backdrop. It runs only inside the recording tool (`tools/record-drape.js`),
    never in the beta; the beta ships the recorded frames, which are allowed as rendered assets.
@@ -28,7 +28,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
 - **Ground:** `#070707`, `#0b0b0c` at the top on pages other than Home. Panels `#111111` with a 1 px
   `rgba(255,255,250,0.11)` border and a 1 px top sheen; raised items `#242424`; fields `#080808` with a `#3d3d39`
   border. Text `#f5f5f2`, secondary `#b5b5af`, tertiary `#9a9993`; accent lavender `#a3a8dc`; activity `#82b5d6`.
-- **Type:** Inter. Section titles 13.5 px / 600, body 12.5 px, small 12 px, Home strip labels 10.5 px / 500.
+- **Type:** Inter (superseded: Schibsted Grotesk and Italiana, [features/material.md](features/material.md) §5). Section titles 13.5 px / 600, body 12.5 px, small 12 px, Home strip labels 10.5 px / 500.
 - **Rail:** floating at x 22, 62 px wide, radius 26, height `min(800, window − 90)` and centred. 44 px items with
   4 px gaps and 10 px divider margins at 800 px; both shrink with the window, items too below 726 px. Groups: mark |
   Downloader, Converter | Vocal Remover, Audio Visualizer | Grade, Cover Test, Background Remover, Upscale | AI
@@ -104,7 +104,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
   and drawn at **10 % opacity**. Tried before it: the original's own grain cut from a patch of the Drape (the patch's
   light and shade repeated as blocks), then the original's grain drawn over an even grey (no blocks, but Java chose
   the standard one once the little squares were gone).
-- **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
+- **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no extra binary dependency) reads the video on
   a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Two
   window-sized frames are kept and written in turn (one on screen, one being made), as opaque RGBA so Skia uploads
   them without converting on the UI thread (RGB cost about 30 ms a frame at 1080p there); a frame allocates nothing. It runs only while Home is shown with motion on and the window is not minimized;
@@ -124,11 +124,17 @@ are from the version that scaled to 640 × 360 (1.5 ms a frame); scaling to the 
 1920 × 1009 (4.6 ms at 1280 × 680, 16.8 ms at 2560 × 1369), about 14 % of one thread at 15 fps, off the window's
 thread, and is still to be measured in the running app. The decoding itself takes about 0.2 ms. Hover cost is not measured: no input is injected into Java's desktop.
 
+**Re-measured 2026-10-22** (current UI, 1280 × 800, 30 s, desktop OpenGL): the empty renderer window is 28.7 MB private;
+Home with the video removed (so no Media Foundation) is 57.9 MB; Home with the decoder open but on the still frame is
+101.3 MB; with the loop playing it is 122.0 MB. Media Foundation costs about 43 MB before a frame is requested, and
+the two window-sized frames plus scratch about 21 MB. The D3D12 build measured 157.8 MB in the same scene. The 90 MB
+row above belongs to the 640 × 360 version and is not comparable with the window-sized frames.
+
 ## Assets beside the executable
 
 Java (2026-10-21): assets ship apart from the exe; installer only, no portable. The mark, wordmark, drop outline,
-icons, the Inter typeface, the Drape loop, its colour table and still frame live in `assets\` next to the
-executable and are loaded at start (`assets.rs`; Inter through Slint's run-time font collection). `build.rs` copies the
+icons, the typefaces, the Drape loop, its colour table and still frame live in `assets\` next to the
+executable and are loaded at start (`assets.rs`; the typefaces through Slint's run-time font collection). `build.rs` copies the
 crate's `assets/` beside the executable of development builds. A missing file is logged and named in a notice at the
 top of the window; the app still runs (icons stay blank, Home keeps its plain ground).
 

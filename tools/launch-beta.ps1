@@ -103,7 +103,11 @@ $manifest = [ordered]@{
     profile_root = $ProfileRoot
     generated_utc = [DateTime]::UtcNow.ToString('o')
     visual_approval = 'pending manual native-window review'
-    renderer = 'Slint Skia; runtime path not confirmed until launch'
+    renderer = if ([string]::IsNullOrWhiteSpace($env:HALATION_RENDERER)) {
+        'skia-opengl (desktop OpenGL, the default)'
+    } else {
+        "HALATION_RENDERER=$($env:HALATION_RENDERER)"
+    }
 }
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $ManifestPath -Encoding utf8
 Write-Output "Manifest: $ManifestPath"

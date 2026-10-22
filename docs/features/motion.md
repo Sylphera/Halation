@@ -1,6 +1,6 @@
 # Movimiento nativo (Slint)
 
-Status: Implemented — aprobado por Java en la ventana nativa (2026-10-22). Spec aprobada por Java (2026-10-22).
+Status: Implemented and approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca).
 Código: `motion.rs`, `ui/motion.slint`, `ui/components/{pills,tooltip}.slint`; tests en `tests/services.rs` (reglas de
 coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimiento reducido).
 
@@ -95,8 +95,13 @@ Cambian juntos el fondo, el tinte del icono y el color del texto.
 | `Select`, `Field`, `SearchField` | Borde `line-strong` → `line-strong` aclarado; fondo → `control-hover` |
 | Opciones de un `Select` abierto | Fondo → `control-active` |
 | Tarjetas de modo de guardado y celdas de Settings | Fondo → `control-hover` |
-| Zona de soltar de Home | Fondo y borde como hoy, con `hover-in`/`hover-out` |
+| Zona de soltar de Home | Luz radial blanca al 8 % que sigue al puntero (160 px; 420 px al arrastrar), borde a `line-hover` e icono 2 px arriba, con `hover-in`/`hover-out` |
 | `Toggle` | Pista un tono más clara |
+
+**Luz de la zona de soltar** (Java, 2026-10-22, aprobada): un degradado radial blanco al 8 % de 160 px sigue al
+puntero dentro de la zona; al arrastrar un archivo crece a 420 px, el borde pasa a `line-hover` y el icono sube 2 px.
+El centro es un color con alfa animado en `hover-in`/`hover-out` (nunca `opacity`: Skia compondría una capa); se apaga
+al salir o al soltar.
 
 **Píldora de hover compartida** (sidebar, lista de categorías y barra de herramientas de Home; Java, 2026-10-22: «la
 píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un único `Rectangle` sin hijos por lista,

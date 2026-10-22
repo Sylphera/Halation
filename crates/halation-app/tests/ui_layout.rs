@@ -2,7 +2,7 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, JobRow, RecentItem, ToolItem};
+use halation_app::ui::{AppWindow, ConvertRow, FormatRow, JobRow, RecentItem, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{
     ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
@@ -122,7 +122,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
     }]))));
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        for page in [0, 3] {
+        for page in [0, 3, 4] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
             // Settings' pane scrolls under the top bar and the category title, which end 100 px down
@@ -138,14 +138,121 @@ fn the_check_does_detect_a_window_that_is_too_small() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     resize(&ui, 300.0, 200.0);
-    // Settings: its top bar (search, Restore defaults and the global actions) cannot fit 300 px; the page's own
-    // content is clipped by the sheet and so leaves the accessibility tree
+    // Settings: its top bar (title, Activity and the global actions) cannot fit 300 px; the page's own content is
+    // clipped by the sheet and so leaves the accessibility tree
     ui.set_page(3);
     slint::platform::update_timers_and_animations();
     assert!(
         !outside(&ui, 300.0, 200.0).is_empty(),
         "a 300x200 window must report controls outside it, or the check proves nothing"
     );
+}
+
+#[test]
+fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    ui.set_page(4);
+    ui.set_convert_rows(ModelRc::new(VecModel::from(
+        (0..20)
+            .map(|index| ConvertRow {
+                index,
+                name: "A deliberately long generated file name for the input list.mkv".into(),
+                detail: "Video · H.264 + AAC · 1920 × 1080".into(),
+                state: "Converting · 50%".into(),
+                target: "MP4".into(),
+                selected: index == 0,
+                failed: false,
+                removable: index > 0,
+            })
+            .collect::<Vec<_>>(),
+    )));
+    ui.set_convert_formats(ModelRc::new(VecModel::from(
+        [
+            "MP4", "MKV", "WEBM", "MOV", "GIF", "MP3", "M4A", "FLAC", "WAV", "OPUS",
+        ]
+        .into_iter()
+        .map(|name| FormatRow {
+            id: name.into(),
+            name: name.into(),
+            detail: "Copies video · re-encodes audio".into(),
+            selected: name == "MP4",
+            audio: matches!(name, "MP3" | "M4A" | "FLAC" | "WAV" | "OPUS"),
+            header: name == "MP3",
+            recommended: name == "MP4",
+            note: if name == "MP4" {
+                "A deliberately long consequence line: re-encodes audio · image subtitles are discarded".into()
+            } else {
+                Default::default()
+            },
+        })
+        .collect::<Vec<_>>(),
+    )));
+    ui.set_convert_busy(true);
+    ui.set_convert_progress(0.5);
+    ui.set_convert_progress_label("Converting a generated test video · 50%".into());
+    for (width, height) in SIZES {
+        resize(&ui, width, height);
+        for rail in [false, true] {
+            for files in [false, true] {
+                ui.set_rail_open(rail);
+                ui.set_convert_left_open(files);
+                i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(1000));
+                slint::platform::update_timers_and_animations();
+                let stray = outside(&ui, width, height);
+                assert!(
+                    stray.is_empty(),
+                    "Converter at {width}x{height}, rail={rail}, files={files}: {stray:?}"
+                );
+                if files {
+                    let panel = ElementHandle::find_by_accessible_label(&ui, "Converter files")
+                        .next()
+                        .expect("files panel is present");
+                    let expected = if rail { 224.0 } else { 62.0 };
+                    assert!(
+                        (panel.absolute_position().x - expected).abs() < 1.0,
+                        "files must be anchored left, not implicitly centred"
+                    );
+                    assert!((panel.size().width - 220.0).abs() < 1.0);
+                }
+            }
+        }
+    }
+    // The audio player replaces the canvas placeholder: it stays inside the canvas at every size
+    ui.set_convert_audio(true);
+    ui.set_convert_wave(halation_core::playback::envelope_path(&[0.2, 1.0, 0.5, 0.0]).into());
+    ui.set_convert_wave_bins(4.0);
+    ui.set_convert_position(0.5);
+    ui.set_convert_clock("12:34 / 1:02:03".into());
+    for (width, height) in SIZES {
+        resize(&ui, width, height);
+        for files in [false, true] {
+            ui.set_convert_left_open(files);
+            i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(1000));
+            slint::platform::update_timers_and_animations();
+            let stray = outside(&ui, width, height);
+            assert!(
+                stray.is_empty(),
+                "audio at {width}x{height}, files={files}: {stray:?}"
+            );
+            let canvas = ElementHandle::find_by_accessible_label(&ui, "Converter canvas")
+                .next()
+                .expect("canvas is present");
+            let player = ElementHandle::find_by_accessible_label(&ui, "Audio preview")
+                .next()
+                .expect("audio player is present");
+            let (c, p) = (canvas.absolute_position(), player.absolute_position());
+            assert!(
+                p.x >= c.x
+                    && p.y >= c.y
+                    && p.x + player.size().width <= c.x + canvas.size().width + 0.5
+                    && p.y + player.size().height <= c.y + canvas.size().height + 0.5,
+                "audio player leaves the canvas at {width}x{height}, files={files}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -214,6 +321,18 @@ fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
     // Collapsed, the tools stay reachable by their names
     assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
+    // The Collapse row, in the header, toggles it too
+    let toggle = |label: &str| {
+        ElementHandle::find_by_accessible_label(&ui, label)
+            .next()
+            .expect("the Collapse row toggles the sidebar")
+    };
+    toggle("Expand the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert!(ui.get_rail_open(), "the Collapse row opens it");
+    toggle("Collapse the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert!(!ui.get_rail_open(), "the Collapse row closes it");
 }
 
 #[test]
@@ -227,6 +346,9 @@ fn settings_shows_one_category_at_a_time() {
     slint::platform::update_timers_and_animations();
     let shown = |label: &str| ElementHandle::find_by_accessible_label(&ui, label).count() > 0;
     assert!(shown("Language"), "General is the first category");
+    // Search and Restore defaults stand on the tabs' row
+    assert!(shown("Search settings"), "the search is on the page");
+    assert!(shown("Restore defaults"), "Restore defaults is on the page");
     assert!(
         !shown("Processor jobs at once"),
         "Processing is not shown with General"
@@ -421,5 +543,59 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     assert!(
         (pill_y(&ui, "PillList::hover-pill") - to).abs() < 1.0,
         "hover at once"
+    );
+}
+
+#[test]
+fn dragging_the_accent_strip_previews_and_releasing_saves() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    ui.set_page(3);
+    ui.set_settings_category(1);
+    slint::platform::update_timers_and_animations();
+    let previews = Rc::new(std::cell::RefCell::new(Vec::<i32>::new()));
+    let saved = Rc::new(std::cell::RefCell::new(Vec::<(String, String)>::new()));
+    let p = previews.clone();
+    ui.on_preview_accent(move |hue| p.borrow_mut().push(hue));
+    let s = saved.clone();
+    ui.on_set_pref(move |key, value| s.borrow_mut().push((key.into(), value.into())));
+    let strip = ElementHandle::find_by_accessible_label(&ui, "Accent")
+        .find(|e| e.accessible_role() == Some(i_slint_backend_testing::AccessibleRole::Slider))
+        .expect("the accent strip is on Interface");
+    let (pos, size) = (strip.absolute_position(), strip.size());
+    let y = pos.y + size.height / 2.0;
+    let at = |fraction: f32| slint::LogicalPosition::new(pos.x + size.width * fraction, y);
+    let button = slint::platform::PointerEventButton::Left;
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.2) });
+    ui.window().dispatch_event(WindowEvent::PointerPressed {
+        position: at(0.2),
+        button,
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.5) });
+    ui.window().dispatch_event(WindowEvent::PointerReleased {
+        position: at(0.5),
+        button,
+    });
+    slint::platform::update_timers_and_animations();
+    assert!(
+        previews.borrow().len() >= 2,
+        "previews: {:?}",
+        previews.borrow()
+    );
+    let last = saved
+        .borrow()
+        .last()
+        .cloned()
+        .expect("releasing saves the hue");
+    assert_eq!(last.0, "accent-hue");
+    let hue: i32 = last.1.parse().unwrap();
+    assert!(
+        (160..=200).contains(&hue),
+        "the middle of the strip is about 180°, got {hue}"
     );
 }

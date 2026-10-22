@@ -203,6 +203,10 @@ Left to right, on `chrome`, with a 1 px `line` underneath and no inner dividers.
    folder, language, Save session. Icon buttons, 28 px, tooltip with name and shortcut. "Show processes dock" in
    Settings (`prefs.show-dock`) hides the whole global group, as it hides the dock today.
 
+Superseded for the beta (Java, 2026-10-22; [material.md](../../docs/features/material.md)): Activity sits beside the
+page's name instead of in the global group, and Settings' search and Restore defaults stand on the row of its tabs, at
+their right, instead of in the top bar.
+
 Tabs for Library (References, Sections) sit in a 36 px **sub-header** under the top
 bar: text tabs, the active one with `text` colour and a 2 px `accent` underline on the sub-header's own line; same
 `chrome` fill.
@@ -324,7 +328,7 @@ queue | player | export, now mapped onto the frame):
 | Right column: format, tracks, export when done, Export, Send to | Inspector tab Separate: Model (one selectable card, v2's 4 stems as a disabled card), Device (Auto / CPU only); tab Export: format, save-to (global policy), track checks, Export when done, Send to… The primary Export and Cancel sit in the top bar |
 | Drop zone with no file | Canvas empty state with the drop line; Queue empty |
 
-**Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** No more single
+**Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** Superseded for the layout (Java, 2026-10-22): the categories are tabs at the top, see [docs/features/material.md](../../docs/features/material.md). No more single
 scrolling page with a tab bar that jumps. The content area splits in two:
 
 - **Category list (200 px, left, `canvas`, 1 px line on its right):** General, Interface, You, Files, Processing,
