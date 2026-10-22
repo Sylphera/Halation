@@ -676,12 +676,12 @@ export component HueStrip inherits FocusScope {
     }
     touch := TouchArea {
         mouse-cursor: pointer;
-        pointer-event(event) => {
-            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+        changed pressed => {
+            if (self.pressed) {
                 root.focus();
-                root.dragged = root.hue-at(self.mouse-x);
+                root.dragged = root.hue-at(self.pressed-x);
                 root.preview(root.dragged);
-            } else if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up) {
+            } else {
                 root.chosen(root.dragged);
             }
         }

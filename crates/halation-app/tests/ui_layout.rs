@@ -438,3 +438,57 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
         "hover at once"
     );
 }
+
+#[test]
+fn dragging_the_accent_strip_previews_and_releasing_saves() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    ui.set_page(3);
+    ui.set_settings_category(1);
+    slint::platform::update_timers_and_animations();
+    let previews = Rc::new(std::cell::RefCell::new(Vec::<i32>::new()));
+    let saved = Rc::new(std::cell::RefCell::new(Vec::<(String, String)>::new()));
+    let p = previews.clone();
+    ui.on_preview_accent(move |hue| p.borrow_mut().push(hue));
+    let s = saved.clone();
+    ui.on_set_pref(move |key, value| s.borrow_mut().push((key.into(), value.into())));
+    let strip = ElementHandle::find_by_accessible_label(&ui, "Accent")
+        .find(|e| e.accessible_role() == Some(i_slint_backend_testing::AccessibleRole::Slider))
+        .expect("the accent strip is on Interface");
+    let (pos, size) = (strip.absolute_position(), strip.size());
+    let y = pos.y + size.height / 2.0;
+    let at = |fraction: f32| slint::LogicalPosition::new(pos.x + size.width * fraction, y);
+    let button = slint::platform::PointerEventButton::Left;
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.2) });
+    ui.window().dispatch_event(WindowEvent::PointerPressed {
+        position: at(0.2),
+        button,
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.5) });
+    ui.window().dispatch_event(WindowEvent::PointerReleased {
+        position: at(0.5),
+        button,
+    });
+    slint::platform::update_timers_and_animations();
+    assert!(
+        previews.borrow().len() >= 2,
+        "previews: {:?}",
+        previews.borrow()
+    );
+    let last = saved
+        .borrow()
+        .last()
+        .cloned()
+        .expect("releasing saves the hue");
+    assert_eq!(last.0, "accent-hue");
+    let hue: i32 = last.1.parse().unwrap();
+    assert!(
+        (160..=200).contains(&hue),
+        "the middle of the strip is about 180°, got {hue}"
+    );
+}
