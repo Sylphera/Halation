@@ -11,28 +11,19 @@ export global TooltipState {
     in-out property <bool> warm: false;
 }
 
-// Two forms (Java, 2026-10-22, option C): compact, the name and its shortcut as a key cap (the top bar); informative,
-// the name, a line on what it does, a badge and a state line, with a nub pointing at what it names (the collapsed
-// sidebar). A popover piece of the material; it slides 4 px out from its target as it fades in.
+// The name and, when it has one, its shortcut as a key cap. A piece of the toolbar's colour with the material's lit
+// edge and contact edge (Java, 2026-10-22); it slides 4 px out from its target as it fades in.
 export component Tooltip inherits Rectangle {
     in property <string> text;
-    // One line under the name: what the item does
-    in property <string> detail: "";
     // A shortcut, drawn as a key cap after the name
     in property <string> key: "";
-    // A small tag after the name ("BETA")
-    in property <string> badge: "";
-    // A state line in the warning colour ("Needs …")
-    in property <string> warning: "";
-    // The target is to the left: a nub points at it and the tooltip slides in from it; otherwise it slides down
-    in property <bool> nub-left: false;
+    // The target is to the left: the tooltip slides in from it; otherwise it slides down from above
+    in property <bool> from-left: false;
     in property <bool> show: false;
     in property <bool> at-once: false;
     property <bool> visible-now: false;
-    property <bool> rich: root.detail != "" || root.warning != "";
-    // Up to 320 px wide: a longer line is cut short (Settings > Tools lists it whole)
-    width: min(320px, body.preferred-width);
-    height: body.preferred-height;
+    width: body.preferred-width;
+    height: 28px;
     // Its colours fade by an animated alpha (a brush does not animate), with the slide
     property <float> hidden-by: root.visible-now ? 0 : 1;
     animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
@@ -84,110 +75,51 @@ export component Tooltip inherits Rectangle {
     }
 
     card := Rectangle {
-        x: root.nub-left ? root.slide : 0px;
-        y: root.nub-left ? 0px : root.slide;
+        x: root.from-left ? root.slide : 0px;
+        y: root.from-left ? 0px : root.slide;
         width: root.width;
         height: root.height;
         Rectangle {
             y: 1px;
-            border-radius: root.rich ? 10px : Theme.radius-overlay;
+            border-radius: Theme.radius-overlay;
             background: Theme.contact.transparentize(root.hidden-by);
         }
         Rectangle {
-            border-radius: root.rich ? 10px : Theme.radius-overlay;
-            background: Theme.popover-fill.transparentize(root.hidden-by);
+            border-radius: Theme.radius-overlay;
+            background: Theme.chrome.transparentize(root.hidden-by);
             border-width: 1px;
             border-color: Theme.popover-edge.transparentize(root.hidden-by);
         }
-        // The nub: a filled wedge over the edge, then its two sides
-        if root.nub-left : Path {
-            x: -5px;
-            y: (parent.height - 10px) / 2;
-            width: 6px;
-            height: 10px;
-            viewbox-width: 6;
-            viewbox-height: 10;
-            commands: "M 6 0 L 1 5 L 6 10 Z";
-            fill: Theme.popover-fill.transparentize(root.hidden-by);
-        }
-        if root.nub-left : Path {
-            x: -5px;
-            y: (parent.height - 10px) / 2;
-            width: 6px;
-            height: 10px;
-            viewbox-width: 6;
-            viewbox-height: 10;
-            commands: "M 6 0 L 1 5 L 6 10";
-            stroke: Theme.popover-rim.transparentize(root.hidden-by);
-            stroke-width: 1px;
-        }
 
-        body := VerticalLayout {
+        body := HorizontalLayout {
             padding-left: 12px;
-            padding-right: 12px;
-            padding-top: root.rich ? 9px : 5px;
-            padding-bottom: root.rich ? 9px : 5px;
-            spacing: 3px;
-            HorizontalLayout {
-                spacing: 8px;
-                Text {
-                    text: root.text;
-                    color: Theme.text.transparentize(root.hidden-by);
-                    font-size: root.rich ? 13px : Theme.font-small;
-                    font-weight: root.rich ? 600 : 500;
-                    vertical-alignment: center;
-                    accessible-role: none;
-                }
-                if root.badge != "" : VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        width: badge-text.preferred-width + 10px;
-                        height: 16px;
-                        border-radius: 5px;
-                        border-width: 1px;
-                        border-color: Theme.accent.transparentize(1 - (1 - root.hidden-by) * 0.35);
-                        badge-text := Text {
-                            text: root.badge;
-                            color: Theme.accent.transparentize(root.hidden-by);
-                            font-size: 9.5px;
-                            font-weight: 600;
-                            letter-spacing: 0.6px;
-                            accessible-role: none;
-                        }
-                    }
-                }
-                if root.key != "" : VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        width: max(18px, key-text.preferred-width + 10px);
-                        height: 18px;
-                        border-radius: 4px;
-                        background: Theme.key-fill.transparentize(root.hidden-by);
-                        border-width: 1px;
-                        border-color: Theme.key-edge.transparentize(root.hidden-by);
-                        key-text := Text {
-                            text: root.key;
-                            color: Theme.muted.transparentize(root.hidden-by);
-                            font-size: 10.5px;
-                            font-weight: 600;
-                            accessible-role: none;
-                        }
-                    }
-                }
-            }
-            if root.detail != "" : Text {
-                text: root.detail;
-                overflow: elide;
-                color: Theme.muted.transparentize(root.hidden-by);
+            padding-right: root.key != "" ? 5px : 12px;
+            spacing: 8px;
+            Text {
+                text: root.text;
+                color: Theme.text.transparentize(root.hidden-by);
                 font-size: Theme.font-small;
+                font-weight: 500;
+                vertical-alignment: center;
                 accessible-role: none;
             }
-            if root.warning != "" : Text {
-                text: root.warning;
-                overflow: elide;
-                color: Theme.warning.transparentize(root.hidden-by);
-                font-size: 11.5px;
-                accessible-role: none;
+            if root.key != "" : VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: max(18px, key-text.preferred-width + 10px);
+                    height: 18px;
+                    border-radius: 5px;
+                    background: Theme.key-fill.transparentize(root.hidden-by);
+                    border-width: 1px;
+                    border-color: Theme.key-edge.transparentize(root.hidden-by);
+                    key-text := Text {
+                        text: root.key;
+                        color: Theme.muted.transparentize(root.hidden-by);
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        accessible-role: none;
+                    }
+                }
             }
         }
     }

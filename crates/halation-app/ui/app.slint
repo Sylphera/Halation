@@ -296,9 +296,9 @@ export component AppWindow inherits Window {
             }
 
             // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
-            // like the others, so it takes the same hover pill; after the pills, so they lie behind it
+            // laid like the others but a plain button: no pill, no transition (Java, 2026-10-22)
             HorizontalLayout {
-                // Centred on the top bar's title, its pill kept off the window's top edge
+                // Centred on the top bar's title
                 y: 0px;
                 height: Theme.bar;
                 padding-top: 2px;
@@ -312,8 +312,8 @@ export component AppWindow inherits Window {
                     tip: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
                     key: "Ctrl+B";
                     open: root.rail-open;
+                    plain: true;
                     activated => { root.rail-open = !root.rail-open; }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                 }
             }
 
@@ -345,9 +345,6 @@ export component AppWindow inherits Window {
                     SidebarItem {
                         icon: tool.icon;
                         label: tool.name;
-                        detail: tool.about;
-                        badge: tool.beta ? "BETA" : "";
-                        warning: tool.missing != "" ? "Needs " + tool.missing : "";
                         open: root.rail-open;
                         activated => { root.tool-activated(tool.id); }
                         hovered(on, at, size) => { rail-pills.hover(on, at, size); }

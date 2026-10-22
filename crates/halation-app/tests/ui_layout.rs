@@ -76,7 +76,6 @@ fn fill_home(ui: &AppWindow) {
             id: tool.id.into(),
             name: tool.name.into(),
             icon: tool.icon.into(),
-            about: tool.about.into(),
             summary: tool.summary.into(),
             group: tool.group,
             beta: tool.beta,

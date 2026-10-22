@@ -20,14 +20,12 @@ export component SidebarItem inherits FocusScope {
     in property <string> label: "";
     // The collapsed sidebar's tooltip and the accessible name, when they differ from the label
     in property <string> tip: root.label;
-    // The collapsed sidebar's tooltip, informative (docs/features/material.md): what the row does, its shortcut, a
-    // badge and a state line
-    in property <string> detail: "";
+    // A shortcut, shown as a key cap in the tooltip
     in property <string> key: "";
-    in property <string> badge: "";
-    in property <string> warning: "";
     in property <bool> active: false;
     in property <bool> open: true;
+    // A plain button (the sidebar's toggle; Java, 2026-10-22): no pill, no press, no transition; hover only lights it
+    in property <bool> plain: false;
     callback activated;
     // Where this row's pill goes, in window coordinates: on hover, and while it is the active row. `snap` places the
     // pill at once (a layout change), otherwise it glides there.
@@ -84,7 +82,7 @@ export component SidebarItem inherits FocusScope {
         y: (parent.height - self.height) / 2;
         height: root.pill;
         border-radius: Theme.radius-control;
-        background: touch.pressed ? Theme.press-fill : transparent;
+        background: touch.pressed && !root.plain ? Theme.press-fill : transparent;
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
@@ -95,7 +93,7 @@ export component SidebarItem inherits FocusScope {
         clip: true;
         // Sinks at once on press, back on release
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
-        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-x: touch.pressed && !root.plain ? Motion.press-scale : 100%;
         transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
@@ -106,7 +104,7 @@ export component SidebarItem inherits FocusScope {
             name: root.icon;
             size: root.roomy ? 21px : 17px;
             tint: root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted;
-            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+            animate tint { duration: root.plain ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
 
         // The label fades with the sidebar (its colour's alpha, not `opacity`: no layer). Always there, so the fade has
@@ -130,11 +128,8 @@ export component SidebarItem inherits FocusScope {
         x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
         text: root.tip;
-        detail: root.detail;
         key: root.key;
-        badge: root.badge;
-        warning: root.warning;
-        nub-left: true;
+        from-left: true;
         show: touch.has-hover || root.keyboard-focus;
         at-once: root.keyboard-focus;
     }
@@ -146,7 +141,9 @@ export component SidebarItem inherits FocusScope {
             root.activated();
         }
         changed has-hover => {
-            root.hovered(self.has-hover, root.pill-top, root.pill);
+            if (!root.plain) {
+                root.hovered(self.has-hover, root.pill-top, root.pill);
+            }
         }
     }
 }

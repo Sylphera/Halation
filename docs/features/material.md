@@ -109,11 +109,13 @@ label). The line before Settings stays in both states. Settings breathes more: c
 text and the control, 40 px between the two cells of a row, panels with 24 px sides; the segmented control's options
 stand 4 px apart; the Vocal Remover select is wide enough for its longest option.
 
-Tooltips (Java, 2026-10-22, option C of `material/propuesta-tooltips.png`): one popover piece that slides 4 px out of
-its target as it fades in. Informative in the collapsed sidebar: the name, a line on what the tool does
-(`catalog.rs`, `about`), a BETA badge, a "Needs …" line in the warning colour, a nub pointing at the row, up to 320 px
-(longer lines are cut; Settings > Tools lists them whole). Compact in the top bar: the name and its shortcut as a key
-cap. The shortcut is also in each control's accessible name.
+Tooltips (Java, 2026-10-22, after trying option C of `material/propuesta-tooltips.png`: "quería una mejora de
+estética, no … menos mínimo"): one line, the name and, where there is one, its shortcut as a key cap; the toolbar's
+colour with the lit edge and contact edge; it slides 4 px out of its target as it fades in. No nub, no description.
+
+Eighth Preview (Java, 2026-10-22): the Collapse row is a plain button: no pill, no press, no transition; hovering
+lights its icon and label. In segmented controls and the Settings tabs the hover pill is half as strong as the
+selection (full as it fuses with it), so a hovered option beside the chosen one is not a second choice.
 
 ## 6. How it is drawn in Slint, and its cost
 

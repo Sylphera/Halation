@@ -20,6 +20,9 @@ export component PillList inherits Rectangle {
     // contact edge under them; `select-fill` and `hover-fill` then only colour the neck, so they take `raised-flat`
     in property <bool> raised-select: false;
     in property <bool> raised-hover: false;
+    // The hover pill half as strong as the selection, so a hovered option beside the chosen one never reads as a
+    // second choice (segmented controls and tabs; Java, 2026-10-22); full strength as it fuses with the selection
+    in property <bool> soft-hover: false;
 
     property <length> hover-at;
     property <length> hover-size;
@@ -199,7 +202,9 @@ export component PillList inherits Rectangle {
 
     // Raised: the hover pill carries the raised edges; over or joined to a raised selection it takes them as it
     // becomes the selection, so hovering the selected row keeps its relief
-    property <float> edge-clear: root.raised-hover ? root.hover-alpha : 1 - root.closeness * (1 - root.hover-alpha);
+    property <float> hover-strength: root.soft-hover ? 0.45 + 0.55 * root.closeness : 1;
+    property <float> hover-clear: 1 - (1 - root.hover-alpha) * root.hover-strength;
+    property <float> edge-clear: root.raised-hover ? root.hover-clear : 1 - root.closeness * (1 - root.hover-alpha);
     if root.raised-hover || root.raised-select : Rectangle {
         x: hover-pill.x;
         y: hover-pill.y + 1px;
@@ -214,7 +219,7 @@ export component PillList inherits Rectangle {
         width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
         border-radius: root.radius;
-        background: root.raised-hover ? Theme.raised-fill.transparentize(root.hover-alpha) : root.hover-colour.transparentize(root.hover-alpha);
+        background: root.raised-hover ? Theme.raised-fill.transparentize(root.hover-clear) : root.hover-colour.transparentize(root.hover-alpha);
         border-width: root.raised-hover || root.raised-select ? 1px : 0px;
         border-color: Theme.raised-edge.transparentize(root.edge-clear);
     }
