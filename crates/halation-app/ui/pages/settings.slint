@@ -251,7 +251,7 @@ export component SettingsPage inherits Rectangle {
         }
         tabs := HorizontalLayout {
             padding: 3px;
-            spacing: 0px;
+            spacing: 6px;
             for name[index] in root.names : CategoryItem {
                 label: name;
                 active: root.category == index;

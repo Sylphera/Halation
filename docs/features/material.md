@@ -61,7 +61,7 @@ Chosen by Java (2026-10-22) in the type lab (Artifact https://claude.ai/artifact
 
 - **Wordmark:** Bodoni Moda 600 (optical size 60), tracked +0.20 em, HALATION in capitals, 88 px (600 x 68.2 px on
   Home; Java asked for it "bastante más grande" than the 60 px first chosen), converted to outlines in `assets/halation-wordmark.svg`. Home shows the name alone, without the mark (the
-  mark stays as the window icon and in the sidebar header).
+  mark stays as the window icon and in the sidebar header, which is the sidebar's toggle).
 - **Page titles:** Italiana: the top bar's title (19 px) and the Settings category heading (28 px).
 - **Interface:** Schibsted Grotesk (variable weight) for everything else; Inter is gone.
 - **Group labels:** small tracked capitals (10.5 px, 600, +0.9 px, tertiary text), as in Hermes and Resolve.
@@ -88,6 +88,11 @@ Settings (Java, 2026-10-22: "mucho espacio sin aprovechar"; the list at the left
 categories are tabs at the top (a recessed track with the raised selection and hover pills), and the chosen category
 sits below in one centred column up to 1200 px wide, each group a panel of the material with its cells two per row.
 The category's big title is gone; the tab and the top bar's "Settings" name it.
+
+Fourth Preview (Java, 2026-10-22): the Settings tabs stand 6 px apart instead of touching ("demasiado pegados"). The
+sidebar's header (mark and "Halation") is its toggle: a row like the others, with the same hover pill, that folds and
+unfolds the sidebar (tooltip and accessible name "Expand/Collapse the sidebar (Ctrl+B)"); the Collapse row at the foot
+is gone. Ctrl+B still toggles it.
 
 ## 6. How it is drawn in Slint, and its cost
 

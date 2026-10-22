@@ -305,35 +305,21 @@ export component AppWindow inherits Window {
             background: Theme.chrome;
             clip: false;
 
-            // Header: as tall as the top bar
-            Rectangle {
+            // Header, as tall as the top bar: the mark and the name are the sidebar's toggle (Java, 2026-10-22), a row
+            // like the others, so it takes the same hover pill
+            HorizontalLayout {
                 y: 0px;
                 height: Theme.bar;
-                clip: true;
-                // The mark keeps its place open or collapsed; the name fades and is cut by the narrowing edge
-                Image {
-                    x: (Theme.sidebar-closed - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 28px;
-                    height: 14px;
-                    source: Assets.mark;
-                    image-fit: contain;
-                }
-                Text {
-                    x: 50px;
-                    y: (parent.height - self.height) / 2;
-                    overflow: clip;
-                    text: "Halation";
-                    color: Theme.text.transparentize(root.rail-open ? 0 : 1);
-                    animate color { duration: Motion.fade; easing: Curve.ease; }
-                    accessible-role: none;
-                    font-size: Theme.font-title;
-                    font-weight: 600;
-                }
-                TouchArea {
-                    width: parent.width;
-                    mouse-cursor: pointer;
-                    clicked => { root.navigate(0); }
+                padding-left: 8px;
+                padding-right: 9px;
+                SidebarItem {
+                    brand: true;
+                    mark: Assets.mark;
+                    label: "Halation";
+                    tip: root.rail-open ? "Collapse the sidebar (Ctrl+B)" : "Expand the sidebar (Ctrl+B)";
+                    open: root.rail-open;
+                    activated => { root.rail-open = !root.rail-open; }
+                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                 }
             }
 
@@ -384,20 +370,10 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Foot: the sidebar's toggle, in the same place open or collapsed, and Settings, after a group's gap; in
-                // the same layout so every row matches
+                // Foot: Settings, after a group's gap, in the same layout so its row matches
                 SidebarGroup {
                     label: "";
                     open: root.rail-open;
-                }
-                SidebarItem {
-                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
-                    label: "Collapse";
-                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
-                    open: root.rail-open;
-                    activated => { root.rail-open = !root.rail-open; }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                 }
                 SidebarItem {
                     icon: "settings";

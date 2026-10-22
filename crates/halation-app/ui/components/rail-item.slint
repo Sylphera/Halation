@@ -22,6 +22,9 @@ export component SidebarItem inherits FocusScope {
     in property <string> tip: root.label;
     in property <bool> active: false;
     in property <bool> open: true;
+    // The sidebar's header (Java, 2026-10-22): the mark instead of an icon and the app's name as the label, always lit
+    in property <bool> brand: false;
+    in property <image> mark;
     callback activated;
     // Where this row's pill goes, in window coordinates: on hover, and while it is the active row. `snap` places the
     // pill at once (a layout change), otherwise it glides there.
@@ -93,7 +96,15 @@ export component SidebarItem inherits FocusScope {
         transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
-        ToolIcon {
+        if root.brand : Image {
+            x: (Theme.sidebar-closed - 17px - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 28px;
+            height: 14px;
+            source: root.mark;
+            image-fit: contain;
+        }
+        if !root.brand : ToolIcon {
             // Centred in the collapsed row, open or not
             x: (Theme.sidebar-closed - 17px - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -110,10 +121,10 @@ export component SidebarItem inherits FocusScope {
             y: (parent.height - self.height) / 2;
             width: Theme.sidebar-open - 17px - self.x - 8px;
             text: root.label;
-            color: (root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
+            color: (root.active ? Theme.accent : root.lit || root.brand ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
             animate color { duration: Motion.fade; easing: Curve.ease; }
-            font-size: root.roomy ? 14px : Theme.font-body;
-            font-weight: 500;
+            font-size: root.brand ? Theme.font-title : root.roomy ? 14px : Theme.font-body;
+            font-weight: root.brand ? 600 : 500;
             overflow: elide;
             accessible-role: none;
         }
