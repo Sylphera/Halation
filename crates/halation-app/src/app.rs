@@ -1434,22 +1434,29 @@ fn color(value: theme::Rgb) -> slint::Color {
     slint::Color::from_rgb_u8(value.0, value.1, value.2)
 }
 
-/// Diagnostic renderer selection (`HALATION_RENDERER`, default `skia`). A renderer that is not
-/// compiled in or cannot start is an error; there is no fallback to another renderer.
+/// Renderer selection (`HALATION_RENDERER`): `skia-opengl` (desktop OpenGL) by default when the shipping
+/// feature is compiled, `skia` otherwise. A renderer that is not compiled in or cannot start is an error;
+/// there is no fallback to another renderer.
 fn select_renderer() -> Result<String, Box<dyn std::error::Error>> {
-    let requested = std::env::var("HALATION_RENDERER").unwrap_or_else(|_| "skia".to_owned());
+    let requested = std::env::var("HALATION_RENDERER").unwrap_or_else(|_| {
+        if cfg!(feature = "skia-opengl") {
+            "skia-opengl".to_owned()
+        } else {
+            "skia".to_owned()
+        }
+    });
     let selector = slint::BackendSelector::new().backend_name("winit".into());
     let selector = match requested.as_str() {
         "skia" => selector.renderer_name("skia".into()),
         "skia-d3d" => selector.renderer_name("skia".into()).require_d3d(),
         #[cfg(feature = "diag-skia-vulkan")]
         "skia-vulkan" => selector.renderer_name("skia".into()).require_vulkan(),
-        #[cfg(feature = "diag-skia-opengl")]
+        #[cfg(feature = "skia-opengl")]
         // Desktop OpenGL: Slint's default GLES 3.0 context does not draw stroked paths on some drivers.
         "skia-opengl" => selector
             .renderer_name("skia-opengl".into())
             .require_opengl(),
-        #[cfg(feature = "diag-skia-opengl")]
+        #[cfg(feature = "skia-opengl")]
         "skia-opengl-es" => selector
             .renderer_name("skia-opengl".into())
             .require_opengl_es(),
