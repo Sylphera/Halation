@@ -106,11 +106,13 @@ entrar el puntero en la lista aparece en la fila (su color pasa de transparente 
 `hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila **se estira y se funde** en ella (Java,
 2026-10-22: «que se junta estilo Apple»): la píldora se dibuja entre dos bordes; el borde que va delante se mueve en
 `glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se cierra sobre ella, una sola forma todo el
-camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla. **Su velocidad sigue a la del ratón** (Java, 2026-10-22): al entrar en una fila, la lista mira cuánto
-tardó el puntero desde la anterior (`animation-tick()`, leído en el callback, no en un binding: no pide frames); si
-cruza filas a menos de dos `glide` de distancia, `glide` y `trail` se acortan en proporción, hasta el 65 % (36 ms, nunca un salto seco), promediado
-con el cruce anterior para que un pulso irregular no dé tirones entre filas. Despacio, la
-velocidad es la normal. Es una cuenta por fila cruzada, sin coste por frame; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
+camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla. **Su ritmo sigue al del ratón** (Java, 2026-10-22): una píldora que solo cambia de destino al entrar
+el puntero en otra fila llega antes que el puntero y se para en cada fila. Al entrar en una fila, la lista mira cuánto
+tardó el puntero desde la anterior (`animation-tick()`, leído en el callback, no en un binding: no pide frames) y da al
+borde delantero ≈0.8 × ese tiempo (el trasero, el doble), entre el 65 % y el triple de `glide`, promediado con el cruce
+anterior: la píldora sigue en camino cuando la siguiente fila la reorienta, así que al barrer no se detiene, y un
+barrido más rápido da una píldora más rápida. Desde el reposo, o tras una pausa de más de 250 ms, usa `glide`. Es una
+cuenta por fila cruzada, sin coste por frame; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
 

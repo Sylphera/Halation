@@ -341,38 +341,33 @@ fn a_sweep_over_several_rows_keeps_the_hover_pill_moving() {
 }
 
 #[test]
-fn a_faster_sweep_gives_a_faster_hover_pill() {
+fn a_steady_sweep_never_stops_the_hover_pill_at_a_row() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // How much of the way to `to` is left 30 ms after the pointer reaches it
-    let left = |from: f32, to: f32| {
-        advance(1);
-        advance(30);
-        (to - pill_y(&ui, "PillList::hover-pill")).abs() / (to - from).abs()
-    };
-    // Slow: the pointer rests on a row before moving on
-    let (_, start) = point_at(&ui, "Background Remover");
-    advance(1000);
-    let (_, next) = point_at(&ui, "Upscale");
-    let slow = left(start, next);
-    // Faster: the same last step, after rows crossed 90 ms apart (the pill has about settled on each)
     point_at(&ui, "Grade");
     advance(1000);
-    for row in ["Cover Test", "Background Remover"] {
+    // A row every 120 ms: the pill must still be moving when the pointer reaches the next one
+    let rows = ["Cover Test", "Background Remover", "Upscale"];
+    for (n, row) in rows.iter().enumerate() {
         point_at(&ui, row);
         advance(1);
-        advance(90);
+        let mut last = pill_y(&ui, "PillList::hover-pill");
+        for frame in 0..15 {
+            advance(8);
+            let y = pill_y(&ui, "PillList::hover-pill");
+            // From the second crossing on, the pill keeps the sweep's pace
+            if n > 0 {
+                assert!(
+                    y - last > 0.1,
+                    "stopped before {row} was left (frame {frame}): {last} -> {y}"
+                );
+            }
+            last = y;
+        }
     }
-    let start = pill_y(&ui, "PillList::hover-pill");
-    let (_, next) = point_at(&ui, "Upscale");
-    let fast = left(start, next);
-    assert!(
-        fast < slow * 0.9,
-        "faster pointer, faster pill: {fast} vs {slow}"
-    );
 }
 
 #[test]
