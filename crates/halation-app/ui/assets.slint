@@ -35,6 +35,19 @@ export global Assets {
     in-out property <image> icon-vocal;
     in-out property <image> icon-warning;
 
+    // The Workspace's tool pictures, assets/art/<tool>.jpg (tools/make-tool-art.py)
+    in-out property <image> art-downloader;
+    in-out property <image> art-converter;
+    in-out property <image> art-vocal-remover;
+    in-out property <image> art-audio-visualizer;
+    in-out property <image> art-grade;
+    in-out property <image> art-cover-test;
+    in-out property <image> art-background-remover;
+    in-out property <image> art-upscale;
+    in-out property <image> art-ai-interpolate;
+    in-out property <image> art-frame-capture;
+    in-out property <image> art-none;
+
     // The icon for a name of the catalog and the interface
     public pure function icon(name: string) -> image {
         name == "mark" ? root.mark
@@ -68,5 +81,20 @@ export global Assets {
             : name == "vocal" ? root.icon-vocal
             : name == "warning" ? root.icon-warning
             : root.icon-settings
+    }
+
+    // The picture of a tool of the catalog; empty for one without a picture
+    public pure function art(id: string) -> image {
+        id == "downloader" ? root.art-downloader
+            : id == "converter" ? root.art-converter
+            : id == "vocal-remover" ? root.art-vocal-remover
+            : id == "audio-visualizer" ? root.art-audio-visualizer
+            : id == "grade" ? root.art-grade
+            : id == "cover-test" ? root.art-cover-test
+            : id == "background-remover" ? root.art-background-remover
+            : id == "upscale" ? root.art-upscale
+            : id == "ai-interpolate" ? root.art-ai-interpolate
+            : id == "frame-capture" ? root.art-frame-capture
+            : root.art-none
     }
 }

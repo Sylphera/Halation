@@ -35,12 +35,12 @@ export global Theme {
     out property <length> sub-bar: 36px;
     out property <length> item: 28px;
 
-    // Halation is curved (Java, 2026-10-22): generous radii everywhere, one family. Slint draws circular corners, so
-    // these approximate a squircle by size, not by curve.
-    out property <length> radius-control: 10px;
-    out property <length> radius-overlay: 14px;
-    // The page sheet and its panels
-    out property <length> radius-sheet: 18px;
+    // Halation is curved (Java, 2026-10-22): one radius for every corner, controls, menus, panels and the page sheet
+    // alike. Slint draws circular corners, so this approximates a squircle by size, not by curve.
+    out property <length> radius: 12px;
+    out property <length> radius-control: root.radius;
+    out property <length> radius-overlay: root.radius;
+    out property <length> radius-sheet: root.radius;
     // Gap between the page sheet and the window's right and bottom edges
     out property <length> sheet-inset: 8px;
 

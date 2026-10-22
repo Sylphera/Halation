@@ -14,3 +14,7 @@ Project Authors (https://github.com/rsms/inter); the original app uses the same 
 a seamless two-minute loop of 1800 frames of 320 x 180 at 15 fps stored as lifted luma in H.264, the colour of each
 luma, and the first frame. They are made by `scripts/record-drape.js` from the original app (Java allowed reusing the
 Drape code for recording only, 2026-10-21). `icons/` holds the Lucide icons (ISC). The whole folder ships beside the executable, not inside it.
+
+`art/<tool>.jpg` are the Workspace's tool pictures (480 x 300), made by `tools/make-tool-art.py`: crops of the Unsplash
+photos and frames of the Coverr clips kept on `main` under `docs/examples` (credits in `THIRD_PARTY.md`); Grade's is a
+graded crop of a Coverr frame, and Vocal Remover's is drawn by the script.

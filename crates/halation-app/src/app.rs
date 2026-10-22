@@ -1129,6 +1129,7 @@ fn tool_items(settings: &Settings) -> Vec<ToolItem> {
             name: SharedString::from(tool.name),
             icon: SharedString::from(tool.icon),
             summary: SharedString::from(tool.summary),
+            pitch: SharedString::from(tool.pitch),
             group: tool.group,
             beta: tool.beta,
             enabled: settings.tool_enabled(tool.id),
@@ -1139,9 +1140,13 @@ fn tool_items(settings: &Settings) -> Vec<ToolItem> {
         .collect()
 }
 
-/// The tools turned on: the rail and Home show only these
+/// The tools turned on, the sidebar's and the Workspace's: the Library is not among them, the Workspace holds it
 fn active_tools(tools: &[ToolItem]) -> Vec<ToolItem> {
-    tools.iter().filter(|tool| tool.enabled).cloned().collect()
+    tools
+        .iter()
+        .filter(|tool| tool.enabled && tool.id != "library")
+        .cloned()
+        .collect()
 }
 
 fn prefs(settings: &Settings) -> Prefs {

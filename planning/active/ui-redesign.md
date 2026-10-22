@@ -20,6 +20,13 @@ kind of each file by extension, Remove on hover) taking the height left, and Job
 its own: the mark and name live in the sidebar. The sidebar's rows grow with the window's height (28 to 54 px) and
 the group headers take the rest, so the tools fill it. Pending Java's visual review.
 
+**Curved, presented (Java, 2026-10-22):** one 12 px radius for every corner; the page is a rounded sheet set into the
+chrome (inverted curves where the sidebar and top bar wrap it) with no separator lines. The Workspace presents the
+tools as cards, a picture (`assets/art/`, `tools/make-tool-art.py`), the name and one line, with no icons; the sidebar
+hides on the Workspace under "Expand when needed", so the navigation is not doubled. Its rows share the height
+equally, groups keep one fixed gap, and the Collapse toggle sits in a fixed place above Settings. The ten pictures
+take about 6 MB decoded (480 x 300 each). Pending Java's visual review.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged

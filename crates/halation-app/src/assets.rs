@@ -1,5 +1,5 @@
 //! The app's files beside the executable, in `assets\` (Java, 2026-10-21: assets ship apart from the exe, installer
-//! only): the mark and wordmark, the icons, the Inter typeface, and Home's backdrop loop. `build.rs` copies
+//! only): the mark and wordmark, the icons, the tools' pictures, the Inter typeface, and Home's backdrop loop. `build.rs` copies
 //! the crate's `assets/` there for development builds. A missing file is reported to the user and logged; the app still
 //! runs without it.
 
@@ -16,6 +16,36 @@ pub fn locate() -> PathBuf {
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join("assets")))
         .unwrap_or_else(|| PathBuf::from("assets"))
+}
+
+/// Every tool with a picture in the Workspace, as files `art/<id>.jpg`
+const ART: [&str; 10] = [
+    "downloader",
+    "converter",
+    "vocal-remover",
+    "audio-visualizer",
+    "grade",
+    "cover-test",
+    "background-remover",
+    "upscale",
+    "ai-interpolate",
+    "frame-capture",
+];
+
+fn set_art(assets: &Assets<'_>, id: &str, image: Image) {
+    match id {
+        "downloader" => assets.set_art_downloader(image),
+        "converter" => assets.set_art_converter(image),
+        "vocal-remover" => assets.set_art_vocal_remover(image),
+        "audio-visualizer" => assets.set_art_audio_visualizer(image),
+        "grade" => assets.set_art_grade(image),
+        "cover-test" => assets.set_art_cover_test(image),
+        "background-remover" => assets.set_art_background_remover(image),
+        "upscale" => assets.set_art_upscale(image),
+        "ai-interpolate" => assets.set_art_ai_interpolate(image),
+        "frame-capture" => assets.set_art_frame_capture(image),
+        _ => {}
+    }
 }
 
 /// Every icon the interface names, as files `icons/<name>.svg`
@@ -101,6 +131,7 @@ pub fn required() -> Vec<String> {
     .map(|file| (*file).to_owned())
     .collect();
     files.extend(ICONS.iter().map(|name| format!("icons/{name}.svg")));
+    files.extend(ART.iter().map(|id| format!("art/{id}.jpg")));
     files
 }
 
@@ -136,6 +167,9 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     assets.set_still(load("drape-still.jpg"));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));
+    }
+    for id in ART {
+        set_art(&assets, id, load(&format!("art/{id}.jpg")));
     }
 }
 

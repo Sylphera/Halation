@@ -109,15 +109,17 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    // Open by default from 1180 px of window width, collapsed below; "Keep open" keeps it open and "Compact" closed.
-    // The user's toggle wins until the width crosses 1180 px again or the setting changes.
+    // "Expand when needed": collapsed on the Workspace, which presents the tools itself (the navigation is not doubled,
+    // it hides; Java, 2026-10-22), and open elsewhere from 1180 px of window width. "Keep open" keeps it open and
+    // "Compact" closed. The user's toggle wins until the page, the width band or the setting changes.
     property <bool> wide: root.width >= 1180px;
     property <int> dock-mode: root.prefs.dock-mode;
     pure function auto-open() -> bool {
-        root.dock-mode == 2 || (root.dock-mode == 1 && root.wide)
+        root.dock-mode == 2 || (root.dock-mode == 1 && root.wide && root.page > 1)
     }
     changed wide => { root.rail-open = root.auto-open(); }
     changed dock-mode => { root.rail-open = root.auto-open(); }
+    changed page => { root.rail-open = root.auto-open(); }
 
     property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: root.motion-duration * 1.6; easing: ease-out; }
@@ -179,6 +181,8 @@ export component AppWindow inherits Window {
                 jobs: root.jobs;
                 jobs-has-finished: root.jobs-has-finished;
                 motion-duration: root.motion-duration;
+                tools: root.active-tools;
+                tool-activated(id) => { root.tool-activated(id); }
                 mode <=> root.library-mode;
                 sections: root.sections;
                 section-items: root.section-items;
@@ -387,16 +391,9 @@ export component AppWindow inherits Window {
                     font-weight: 600;
                 }
                 TouchArea {
-                    width: root.rail-open ? 120px : parent.width;
+                    width: parent.width;
                     mouse-cursor: pointer;
                     clicked => { root.navigate(0); }
-                }
-                if root.rail-open : BarButton {
-                    x: parent.width - self.width - 9px;
-                    y: (parent.height - self.height) / 2;
-                    icon: "panel-left-close";
-                    label: "Collapse the sidebar (Ctrl+B)";
-                    activated => { root.rail-open = false; }
                 }
             }
 
@@ -406,8 +403,8 @@ export component AppWindow inherits Window {
                 padding: 8px;
                 padding-right: 9px;
                 spacing: 0px;
-                // The rows grow with the window's height, up to 54 px, and the group headers and the gap above Settings take all that is left, so
-                // the list fills the sidebar instead of leaving a dead band above Settings
+                // Every row takes an equal share of the height and every group the same fixed gap, so the list is
+                // justified top to bottom with one rhythm
 
                 SidebarItem {
                     icon: "house";
@@ -418,12 +415,12 @@ export component AppWindow inherits Window {
                 }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;
-                    vertical-stretch: tool.id == "library" ? 0 : 1;
-                    if tool.id != "library" && (index == 0 || tool.group != root.active-tools[index - 1].group) : SidebarGroup {
+                    vertical-stretch: 1;
+                    if index == 0 || tool.group != root.active-tools[index - 1].group : SidebarGroup {
                         label: root.group-name(tool.group);
                         open: root.rail-open;
                     }
-                    if tool.id != "library" : SidebarItem {
+                    SidebarItem {
                         icon: tool.icon;
                         label: tool.name;
                         open: root.rail-open;
@@ -431,16 +428,17 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Foot: Settings, and the toggle while collapsed, after a gap; in the same layout so the rows match
-                Rectangle {
-                    min-height: 7px;
-                    vertical-stretch: 1;
+                // Foot: the sidebar's toggle, in the same place open or collapsed, and Settings, after a group's gap; in
+                // the same layout so every row matches
+                SidebarGroup {
+                    label: "";
+                    open: root.rail-open;
                 }
-                if !root.rail-open : SidebarItem {
-                    icon: "panel-left-open";
-                    label: "Expand the sidebar (Ctrl+B)";
-                    open: false;
-                    activated => { root.rail-open = true; }
+                SidebarItem {
+                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
+                    label: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
+                    open: root.rail-open;
+                    activated => { root.rail-open = !root.rail-open; }
                 }
                 SidebarItem {
                     icon: "settings";

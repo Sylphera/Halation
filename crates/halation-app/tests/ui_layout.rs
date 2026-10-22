@@ -35,8 +35,8 @@ fn outside(ui: &AppWindow, w: f32, h: f32) -> Vec<String> {
     outside_above(ui, w, h, f32::MAX)
 }
 
-/// Like `outside`, for controls that start above `scroll_top`: below it a page scrolls, so what lies past the
-/// window's edge is reached by scrolling
+/// Like `outside`, for a page that scrolls below `scroll_top`: controls that start below it are only checked
+/// sideways, since what lies past the window's bottom is reached by scrolling
 fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String> {
     ElementQuery::from_root(ui)
         .match_descendants()
@@ -45,13 +45,15 @@ fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String>
         .into_iter()
         .filter_map(|e| {
             let (pos, size) = (e.absolute_position(), e.size());
-            if size.width <= 0.0 || size.height <= 0.0 || pos.y >= scroll_top {
+            if size.width <= 0.0 || size.height <= 0.0 {
                 return None;
             }
-            let bad = pos.x < -0.5
-                || pos.y < -0.5
-                || pos.x + size.width > w + 0.5
-                || pos.y + size.height > h + 0.5;
+            let sideways = pos.x < -0.5 || pos.x + size.width > w + 0.5;
+            let bad = if pos.y >= scroll_top {
+                sideways
+            } else {
+                sideways || pos.y < -0.5 || pos.y + size.height > h + 0.5
+            };
             bad.then(|| {
                 format!(
                     "{:?} at ({:.0},{:.0}) {:.0}x{:.0}",
@@ -77,6 +79,7 @@ fn fill_home(ui: &AppWindow) {
             name: tool.name.into(),
             icon: tool.icon.into(),
             summary: tool.summary.into(),
+            pitch: tool.pitch.into(),
             group: tool.group,
             beta: tool.beta,
             enabled: true,
@@ -153,23 +156,18 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
         for page in [0, 1, 3] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
-            // Settings' pane scrolls under the top bar and the category title, which end 100 px down
-            let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { f32::MAX });
+            // The Workspace scrolls under the top bar (44 px); Settings' pane under the top bar and the category
+            // title, which end 100 px down
+            let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { 44.0 });
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
-        // Workspace, Sections tab
+        // Workspace, Sections tab (set directly: below the fold the tab is scrolled out of the accessibility tree)
         ui.set_page(0);
-        let tab = ElementHandle::find_by_accessible_label(&ui, "Sections")
-            .next()
-            .expect("the Sections tab exists");
-        tab.invoke_accessible_default_action();
+        ui.set_library_mode(1);
         slint::platform::update_timers_and_animations();
-        let stray = outside(&ui, w, h);
+        let stray = outside_above(&ui, w, h, 44.0);
         assert!(stray.is_empty(), "sections tab at {w}x{h}: {stray:?}");
-        let back = ElementHandle::find_by_accessible_label(&ui, "Files")
-            .next()
-            .expect("the Files tab exists");
-        back.invoke_accessible_default_action();
+        ui.set_library_mode(0);
     }
 }
 
@@ -236,14 +234,18 @@ fn the_sidebar_follows_the_window_width_the_setting_and_ctrl_b() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
-    // "Expand when needed", the default: open from 1180 px, collapsed below
+    // "Expand when needed", the default: collapsed on the Workspace, which presents the tools itself; elsewhere open
+    // from 1180 px, collapsed below
     ui.set_prefs(Prefs {
         dock_mode: 1,
         show_dock: true,
         ..Prefs::default()
     });
     resize(&ui, 1280.0, 800.0);
-    assert!(ui.get_rail_open(), "open at 1280 px");
+    assert!(!ui.get_rail_open(), "collapsed on the Workspace");
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
+    assert!(ui.get_rail_open(), "open at 1280 px on Settings");
     resize(&ui, 1100.0, 700.0);
     assert!(!ui.get_rail_open(), "collapsed at 1100 px");
     press_ctrl_b(&ui);

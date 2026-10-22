@@ -11,12 +11,13 @@ export component SidebarItem inherits FocusScope {
     in property <duration> motion-duration: 160ms;
     callback activated;
 
+    // Rows share the sidebar's height equally; the highlighted pill stays at most 40 px, centred in its row
     min-height: Theme.item;
-    max-height: 54px;
     preferred-height: Theme.item;
     vertical-stretch: 1;
+    property <length> pill: min(root.height, 40px);
     // Taller rows, when the window has room, get a larger icon and label
-    property <bool> roomy: root.height >= 36px;
+    property <bool> roomy: root.pill >= 36px;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -33,6 +34,8 @@ export component SidebarItem inherits FocusScope {
     }
 
     Rectangle {
+        y: (parent.height - self.height) / 2;
+        height: root.pill;
         border-radius: Theme.radius-control;
         background: root.active ? Theme.control-active : (touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.control-hover : transparent));
         border-width: root.has-focus ? 2px : 0px;
@@ -87,13 +90,12 @@ export component SidebarItem inherits FocusScope {
     }
 }
 
-// The label over a group of tools; collapsed, a 1 px line in its place
+// The label over a group of tools; collapsed, only the gap
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
-    min-height: root.open ? 26px : 13px;
-    preferred-height: self.min-height;
-    vertical-stretch: 1;
+    // A fixed gap, the same for every group, so only the rows take the sidebar's spare height
+    height: root.open ? 30px : 17px;
     if root.open : Text {
         x: 8px;
         y: parent.height - self.height - 6px;
@@ -101,12 +103,5 @@ export component SidebarGroup inherits Rectangle {
         color: Theme.subtle;
         font-size: Theme.font-caption;
         font-weight: 500;
-    }
-    if !root.open : Rectangle {
-        x: 8px;
-        y: parent.height / 2;
-        width: parent.width - 16px;
-        height: 1px;
-        background: Theme.line;
     }
 }
