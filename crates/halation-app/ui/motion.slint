@@ -2,14 +2,15 @@
 // values so headless tests and snapshots see the same. With reduced motion every duration is 0 ms and nothing scales.
 // Every animated frame repaints the whole window (Skia on OpenGL), so motion is short, colour-first, never delayed.
 export global Motion {
-    in-out property <duration> hover-in: 40ms;
-    in-out property <duration> hover-out: 90ms;
-    in-out property <duration> release: 70ms;
-    // The leading edge of a pill, and the switch's knob (with `spring(0)`): about as fast as the pointer
-    in-out property <duration> glide: 30ms;
-    // The trailing edge of a pill: the pill stretches by the gap between the two, then closes up
-    in-out property <duration> trail: 65ms;
-    in-out property <duration> fade: 80ms;
+    in-out property <duration> hover-in: 70ms;
+    in-out property <duration> hover-out: 160ms;
+    in-out property <duration> release: 120ms;
+    // Pills (the selection's leading edge) and the switch's knob, with `spring(0)`: interrupted, a spring keeps its
+    // speed
+    in-out property <duration> glide: 160ms;
+    // The selection's trailing edge: it stretches by the gap between the two, then closes up
+    in-out property <duration> trail: 240ms;
+    in-out property <duration> fade: 120ms;
     in-out property <duration> panel: 120ms;
     // A Timer, not an animation delay: a delay repaints every frame while it waits
     in-out property <duration> tip-wait: 400ms;

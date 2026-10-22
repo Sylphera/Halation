@@ -295,9 +295,9 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
         "the pill sits on the hovered row: {pill} vs {first}"
     );
     let rest = pill_height(&ui, "PillList::hover-pill");
-    // To another row: on its way after a frame, there once settled
+    // To another row: on its way after a few frames, there once settled
     let (_, second) = point_at(&ui, "Settings");
-    advance(12);
+    advance(32);
     let moving = pill_y(&ui, "PillList::hover-pill");
     assert!(
         moving > first + 1.0 && moving < second - 1.0,

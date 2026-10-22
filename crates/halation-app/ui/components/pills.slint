@@ -67,13 +67,13 @@ export component PillList inherits Rectangle {
     // behind follows (`trail`): it stretches towards the new row and closes up on it, one shape all the way.
     property <length> select-start: root.select-at;
     property <length> select-end: root.select-at + root.select-size;
-    animate select-start { duration: root.select-snap ? 0ms : root.select-forward ? Motion.trail : Motion.glide; easing: Curve.ease; }
-    animate select-end { duration: root.select-snap ? 0ms : root.select-forward ? Motion.glide : Motion.trail; easing: Curve.ease; }
+    animate select-start { duration: root.select-snap ? 0ms : root.select-forward ? Motion.trail : Motion.glide; easing: spring(0); }
+    animate select-end { duration: root.select-snap ? 0ms : root.select-forward ? Motion.glide : Motion.trail; easing: spring(0); }
     property <length> hover-start: root.hover-at;
     property <length> hover-end: root.hover-at + root.hover-size;
-    // The hover pill keeps up with the pointer: both edges in `glide`, no stretch (a trailing edge restarted at every
-    // row would smear it over several rows while sweeping)
-    animate hover-start, hover-end { duration: root.hover-snap ? 0ms : Motion.glide; easing: Curve.ease; }
+    // The hover pill glides whole: both edges in `glide`, no stretch (a trailing edge restarted at every row would
+    // smear it over several rows while sweeping). A spring keeps its speed when the pointer moves on.
+    animate hover-start, hover-end { duration: root.hover-snap ? 0ms : Motion.glide; easing: spring(0); }
 
     selection := Rectangle {
         x: root.horizontal ? root.select-start : root.inset-left;

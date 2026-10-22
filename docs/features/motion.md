@@ -45,11 +45,12 @@ Comprobado en el código de Slint 1.18.1 (`i-slint-renderer-skia`, `i-slint-core
 2. Para desvanecer algo compuesto (un tooltip: fondo + texto) se anima el **alfa de sus colores**, no `opacity`.
 3. Sin `delay` en `animate`. Una espera (tooltip) la hace un `Timer` de Slint de un solo disparo, que no pinta nada y
    solo existe mientras dura el hover.
-4. Duraciones cortas, al ritmo del ratón (Java, 2026-10-22: «tan rápido como muevas el mouse»): nada por encima de
-   120 ms salvo el asentamiento de un muelle.
+4. Duraciones cortas: nada por encima de 180 ms salvo el borde trasero de la selección (240 ms) y el asentamiento de
+   un muelle. Lo que se busca es fluidez (frames a ritmo constante), no más velocidad (Java, 2026-10-22: «no dije que lo
+   hagas más rápido, dije que lo hagas más fluido»).
 5. Entrar rápido, salir suave: el estado nuevo se ve casi en el primer frame; lo que se va se desvanece.
-6. `ease-out` en todo; `spring(0)` solo en el knob del switch. Las píldoras animan sus dos bordes con `ease-out` y
-   duraciones distintas (§4.1).
+6. `ease-out` en todo lo que no se interrumpe a menudo; `spring(0)` en lo que sigue al puntero o a clics rápidos
+   (píldoras, knob), donde heredar la velocidad evita tirones.
 7. Movimiento reducido: todas las duraciones a 0 (estado final en el primer frame) y nada escala; la píldora de hover
    salta en vez de deslizarse. La espera del tooltip se mantiene: es una espera, no movimiento.
 8. Nada anima en reposo: sin `iteration-count` infinito; la CPU/GPU en reposo no cambia.
@@ -62,13 +63,13 @@ Rust no puede contener un `easing`; `spring(0)` se escribe en cada sitio porque 
 
 | Token | Valor | Curva | Uso |
 |---|---|---|---|
-| `hover-in` | 40 ms | `ease-out` | Aparece el estado de hover |
-| `hover-out` | 90 ms | `ease-out` | Se va el estado de hover |
+| `hover-in` | 70 ms | `ease-out` | Aparece el estado de hover |
+| `hover-out` | 160 ms | `ease-out` | Se va el estado de hover |
 | `press` | 0 ms | — | Al pulsar: color y escala al instante |
-| `release` | 70 ms | `ease-out` | Al soltar, vuelve al hover |
-| `glide` | 30 ms | `ease-out` (`spring(0)` en el knob) | Píldora de hover, borde delantero de la de selección, knob |
-| `trail` | 65 ms | `ease-out` | Borde trasero de la píldora de selección |
-| `fade` | 80 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
+| `release` | 120 ms | `ease-out` | Al soltar, vuelve al hover |
+| `glide` | 160 ms | `spring(0)` (se asienta en ≈235 ms) | Píldora de hover, borde delantero de la de selección, knob |
+| `trail` | 240 ms | `spring(0)` | Borde trasero de la píldora de selección |
+| `fade` | 120 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
 | `panel` | 120 ms | `ease-out` | Ancho de la sidebar |
 | `tip-wait` | 400 ms | `Timer` | Espera antes de mostrar un tooltip |
 | `press-scale` | 97 % | — | Escala al pulsar |
@@ -101,7 +102,8 @@ píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un 
 detrás de las filas, que sigue al puntero sin clic. En la barra de Home se desliza en `x`; todas sus herramientas
 tienen el mismo ancho (Java, 2026-10-22), las etiquetas largas se recortan con elipsis si la ventana es estrecha. Al
 entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
-`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza en `glide` (30 ms), al ritmo del puntero; no se estira,
+`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza entera en `glide`, heredando la velocidad si el puntero
+sigue moviéndose; no se estira,
 porque al barrer rápido cada fila nueva reiniciaría el borde retrasado y la píldora quedaría estirada sobre varias
 filas, por detrás del ratón; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
@@ -140,7 +142,8 @@ elemento con tooltip a otro antes de `tip-wait`, el segundo aparece sin espera (
 
 El ancho en `panel` (nivel 4: la página se recoloca en cada frame; es el único caso). Los nombres y los títulos de grupo
 aparecen con el alfa de su color en `fade` al abrir; al cerrar desaparecen al instante. El logo cambia de sitio al
-instante.
+instante. Cerrada, cada título de grupo deja paso a una línea separadora; abierta, solo se ven los
+títulos (Java, 2026-10-22). Esta transición es la referencia de fluidez (Java, 2026-10-22).
 
 ### 4.6 Switch
 

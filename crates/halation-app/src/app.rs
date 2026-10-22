@@ -126,8 +126,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let diagnostic_cycle = options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Cycle);
+    let options_frames = options.diagnostic_scene == Some(crate::profile::DiagnosticScene::Frames);
     // Diagnostic scenes keep the fixed size their measurements expect
-    let place_window = options.diagnostic_scene.is_none();
+    let place_window = matches!(
+        options.diagnostic_scene,
+        None | Some(crate::profile::DiagnosticScene::Frames)
+    );
     let controller = Controller::new(window.as_weak(), profile, options)?;
     controller.install(diagnostic_cycle);
     // The native window exists only once shown, so it is placed after `show`
@@ -150,6 +154,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
     log_line(&log_profile, "window created");
+    // Kept alive until the event loop ends
+    let _frames = if options_frames {
+        let profile = log_profile.clone();
+        crate::frames::start(
+            &window.as_weak(),
+            Rc::new(move |line: &str| {
+                println!("{line}");
+                log_line(&profile, line);
+            }),
+        )
+    } else {
+        None
+    };
 
     slint::run_event_loop().map_err(|error| format!("event loop failed: {error}"))?;
     // A closed window ends the loop; hiding it again is harmless

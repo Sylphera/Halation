@@ -394,19 +394,19 @@ fn reduced_motion_resolves_deterministically_to_zero_duration() {
     use std::time::Duration;
     let normal = motion::tokens(false);
     let reduced = motion::tokens(true);
-    // Short motion, about as fast as the pointer: nothing over 120 ms (a spring settles later, in about 1.5 times its
-    // period)
+    // Short motion: nothing over 180 ms but the selection's trailing edge (a spring settles later, in about 1.5 times
+    // its period)
     for d in [
         normal.hover_in,
         normal.hover_out,
         normal.release,
         normal.glide,
-        normal.trail,
         normal.fade,
         normal.panel,
     ] {
-        assert!(d > Duration::ZERO && d <= Duration::from_millis(120));
+        assert!(d > Duration::ZERO && d <= Duration::from_millis(180));
     }
+    assert!(normal.trail <= Duration::from_millis(240));
     assert!(normal.hover_in < normal.hover_out, "fast in, soft out");
     assert!(normal.glide < normal.trail, "a moving pill stretches");
     assert!(normal.press_scale < 100.0);
