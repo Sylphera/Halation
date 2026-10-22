@@ -25,6 +25,9 @@ export component PillList inherits Rectangle {
     property <bool> hover-forward: true;
     // The pill is gone (no row hovered for a moment): the next hover places it at once instead of gliding
     property <bool> hover-idle: true;
+    // When the pointer last entered a row, and how much of the normal glide time the pill takes now
+    property <duration> hover-tick;
+    property <float> hover-pace: 1;
     property <length> select-at;
     property <length> select-size;
     property <bool> select-on: false;
@@ -35,6 +38,11 @@ export component PillList inherits Rectangle {
     public function hover(on: bool, at: length, size: length) {
         if (on) {
             // Appearing, it starts at the row; moving between rows (or across a gap between them), it glides
+            // The faster the pointer crosses rows, the shorter the glide: rows crossed at less than twice `glide`
+            // apart shorten it in proportion, down to 30 %. One sum per row crossed; no frame is added.
+            root.hover-pace = root.hover-idle || Motion.glide <= 0ms ? 1
+                : max(0.3, min(1, (animation-tick() - root.hover-tick) / (Motion.glide * 2)));
+            root.hover-tick = animation-tick();
             root.hover-snap = root.hover-idle;
             root.hover-idle = false;
             leave.running = false;
@@ -76,8 +84,8 @@ export component PillList inherits Rectangle {
     animate select-end { duration: root.select-snap ? 0ms : root.select-forward ? Motion.glide : Motion.trail; easing: spring(0); }
     property <length> hover-start: root.hover-at;
     property <length> hover-end: root.hover-at + root.hover-size;
-    animate hover-start { duration: root.hover-snap ? 0ms : root.hover-forward ? Motion.trail : Motion.glide; easing: spring(0); }
-    animate hover-end { duration: root.hover-snap ? 0ms : root.hover-forward ? Motion.glide : Motion.trail; easing: spring(0); }
+    animate hover-start { duration: root.hover-snap ? 0ms : (root.hover-forward ? Motion.trail : Motion.glide) * root.hover-pace; easing: spring(0); }
+    animate hover-end { duration: root.hover-snap ? 0ms : (root.hover-forward ? Motion.glide : Motion.trail) * root.hover-pace; easing: spring(0); }
 
     selection := Rectangle {
         x: root.horizontal ? root.select-start : root.inset-left;

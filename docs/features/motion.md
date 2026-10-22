@@ -106,11 +106,17 @@ entrar el puntero en la lista aparece en la fila (su color pasa de transparente 
 `hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila **se estira y se funde** en ella (Java,
 2026-10-22: «que se junta estilo Apple»): la píldora se dibuja entre dos bordes; el borde que va delante se mueve en
 `glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se cierra sobre ella, una sola forma todo el
-camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
+camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla. **Su velocidad sigue a la del ratón** (Java, 2026-10-22): al entrar en una fila, la lista mira cuánto
+tardó el puntero desde la anterior (`animation-tick()`, leído en el callback, no en un binding: no pide frames); si
+cruza filas a menos de dos `glide` de distancia, `glide` y `trail` se acortan en proporción, hasta un 30 %. Despacio, la
+velocidad es la normal. Es una cuenta por fila cruzada, sin coste por frame; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
 
 ### 4.2 Pulsación
+
+El anillo de foco (2 px de acento) solo se ve con foco de teclado (Tab); un clic da el foco sin anillo (Java,
+2026-10-22: «no quiero tener eso azul alrededor»).
 
 Al pulsar: el color de pulsado y `press-scale` (97 %, `transform-scale` desde el centro) en el mismo frame. Al soltar
 vuelve en `release`. En botones, filas de la sidebar, botones de la barra superior, elementos de la barra de Home y
@@ -120,8 +126,8 @@ opciones de Settings. La zona de soltar baja solo a 99 %.
 
 La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
 `Rectangle` sin hijos por lista) que se estira hacia la nueva fila y se funde en ella como la de hover. En la sidebar
-la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono de la fila activa no se
-tiñe de acento, va en `text` como en hover (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
+la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono de la fila activa se
+pinta de acento (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
 llega después.
 
 **Control segmentado** (`Segmented`, componente nuevo; Java, 2026-10-22: en las herramientas y en Settings la píldora
@@ -139,9 +145,12 @@ elemento con tooltip a otro antes de `tip-wait`, el segundo aparece sin espera (
 ### 4.5 Sidebar abrir/cerrar
 
 El ancho en `panel` (nivel 4: la página se recoloca en cada frame; es el único caso). Los nombres y los títulos de grupo
-aparecen con el alfa de su color en `fade` al abrir; al cerrar desaparecen al instante. El logo cambia de sitio al
+aparecen y se van con el alfa de su color en `fade`. El logo cambia de sitio al
 instante. Cerrada, cada título de grupo deja paso a una línea separadora; abierta, solo se ven los
-títulos (Java, 2026-10-22). Esta transición es la referencia de fluidez (Java, 2026-10-22).
+títulos (Java, 2026-10-22). Al abrir o cerrar no se mueve nada más que el borde (Java, 2026-10-22: «se mueven cosas
+hacia arriba, desaparecen cosas»): las cabeceras de grupo miden 24 px en los dos estados, así que ninguna fila cambia
+de altura; iconos y logo quedan centrados en la columna plegada en los dos estados; nombres, títulos y líneas tienen
+ancho fijo, los recorta el borde que se mueve y solo cambia el alfa de su color, en `fade`, en los dos sentidos.
 
 ### 4.6 Switch
 

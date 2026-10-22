@@ -7,6 +7,14 @@ import { PillList } from "../components/pills.slint";
 
 // One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
 component StripItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> icon;
     in property <string> label;
     callback activated;
@@ -37,7 +45,7 @@ component StripItem inherits FocusScope {
     Rectangle {
         border-radius: Theme.radius;
         background: touch.pressed ? Theme.press-fill : transparent;
-        border-width: root.has-focus ? 2px : 0px;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
     Rectangle {

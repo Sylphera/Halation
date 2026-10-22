@@ -5,6 +5,14 @@ import { PillList } from "pills.slint";
 
 // Switch: 34 x 20, lavender when on
 export component Toggle inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <bool> checked: false;
     in property <string> label: "";
     callback toggled(bool);
@@ -34,7 +42,7 @@ export component Toggle inherits FocusScope {
     Rectangle {
         border-radius: 10px;
         background: root.checked ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
-        border-width: root.has-focus ? 2px : 0px;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.text;
         opacity: root.enabled ? 1 : 0.45;
         animate background { duration: Motion.fade; easing: Curve.ease; }
@@ -83,6 +91,14 @@ export component ToggleRow inherits Rectangle {
 
 // Drop-down: the current choice and a caret; the choices open in a popup below
 export component Select inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <[string]> options;
     in property <int> current: 0;
     in property <string> label: "";
@@ -112,8 +128,8 @@ export component Select inherits FocusScope {
     Rectangle {
         border-radius: Theme.radius-control;
         background: touch.has-hover ? Theme.control-hover : Theme.control;
-        border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-color: root.keyboard-focus ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
         animate background, border-color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
     }
     Text {
@@ -396,6 +412,14 @@ export component SearchField inherits Rectangle {
 // A choice of two to four short options in one capsule; the chosen one carries a pill that glides to it, and the
 // hover pill follows the pointer along the others (docs/features/motion.md §4.3)
 export component Segmented inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <[string]> options;
     in property <int> current: 0;
     in property <string> label: "";
@@ -422,8 +446,8 @@ export component Segmented inherits FocusScope {
     Rectangle {
         border-radius: Theme.radius-control;
         background: Theme.control;
-        border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
+        border-width: root.keyboard-focus ? 2px : 1px;
+        border-color: root.keyboard-focus ? Theme.accent : Theme.line-strong;
     }
     pills := PillList {
         x: 3px;

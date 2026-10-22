@@ -5,6 +5,14 @@ import { Motion, Curve } from "../motion.slint";
 // Button of the anchored frame: a control fill with a 1 px border, the control radius, optional leading icon. `quiet` drops the
 // fill and border; `primary` is the one white button of a page.
 export component AppButton inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> text: "";
     in property <string> icon: "";
     in property <bool> quiet: false;
@@ -47,8 +55,8 @@ export component AppButton inherits FocusScope {
             border-radius: Theme.radius-control;
             background: root.primary ? (touch.pressed ? Theme.muted : Theme.text)
                 : touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : (root.quiet ? transparent : Theme.control));
-            border-width: root.has-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
-            border-color: root.has-focus ? Theme.accent : Theme.line-strong;
+            border-width: root.keyboard-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
+            border-color: root.keyboard-focus ? Theme.accent : Theme.line-strong;
             opacity: root.enabled ? 1 : 0.45;
             animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         }

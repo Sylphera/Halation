@@ -8,8 +8,18 @@ export { PillList } from "pills.slint";
 // name on hover and keyboard focus. The hover and selection fills are not drawn here: the list draws one sliding pill
 // for each (`PillList`), and the row tells it where it is.
 export component SidebarItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> icon: "download";
     in property <string> label: "";
+    // The collapsed sidebar's tooltip and the accessible name, when they differ from the label
+    in property <string> tip: root.label;
     in property <bool> active: false;
     in property <bool> open: true;
     callback activated;
@@ -29,7 +39,7 @@ export component SidebarItem inherits FocusScope {
     property <bool> lit: root.active || touch.has-hover;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: label;
+    accessible-label: root.tip;
     accessible-item-selected: active;
     accessible-action-default => { activated(); }
 
@@ -68,11 +78,14 @@ export component SidebarItem inherits FocusScope {
         height: root.pill;
         border-radius: Theme.radius-control;
         background: touch.pressed ? Theme.press-fill : transparent;
-        border-width: root.has-focus ? 2px : 0px;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
 
+    // Opening or closing the sidebar moves nothing in the row: the icon keeps its place, the label keeps its width and
+    // is cut by the row's edge as the sidebar narrows, and only its colour fades
     content := Rectangle {
+        clip: true;
         // Sinks at once on press, back on release
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
         transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
@@ -80,23 +93,24 @@ export component SidebarItem inherits FocusScope {
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
         ToolIcon {
-            x: root.open ? 8px : (parent.width - self.width) / 2;
+            // Centred in the collapsed row, open or not
+            x: (Theme.sidebar-closed - 17px - self.width) / 2;
             y: (parent.height - self.height) / 2;
             name: root.icon;
             size: root.roomy ? 18px : 16px;
-            tint: root.lit ? Theme.text : Theme.muted;
+            tint: root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted;
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
 
-        // The label fades in as the sidebar opens (its colour's alpha, not `opacity`: no layer); closing, it goes at
-        // once. Always there, so the fade has a start.
+        // The label fades with the sidebar (its colour's alpha, not `opacity`: no layer). Always there, so the fade has
+        // a start.
         Text {
             x: root.roomy ? 36px : 32px;
             y: (parent.height - self.height) / 2;
-            width: max(0px, parent.width - self.x - 8px);
+            width: Theme.sidebar-open - 17px - self.x - 8px;
             text: root.label;
             color: (root.lit ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
-            animate color { duration: !root.open ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+            animate color { duration: Motion.fade; easing: Curve.ease; }
             font-size: root.roomy ? 14px : Theme.font-body;
             font-weight: 500;
             overflow: elide;
@@ -108,9 +122,9 @@ export component SidebarItem inherits FocusScope {
     if !root.open : Tooltip {
         x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
-        text: root.label;
-        show: touch.has-hover || root.has-focus;
-        at-once: root.has-focus;
+        text: root.tip;
+        show: touch.has-hover || root.keyboard-focus;
+        at-once: root.keyboard-focus;
     }
 
     touch := TouchArea {
@@ -129,23 +143,24 @@ export component SidebarItem inherits FocusScope {
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
-    // A fixed gap, the same for every group, so only the rows take the sidebar's spare height
-    height: root.open ? 30px : 17px;
-    // Collapsed only (Java, 2026-10-22)
-    if !root.open : Rectangle {
+    // A fixed gap, the same for every group and open or collapsed, so opening the sidebar moves no row
+    height: 24px;
+    // The line and the name cross-fade (Java, 2026-10-22); both always there, so each fade has a start
+    Rectangle {
         x: 10px;
-        y: 8px;
-        width: parent.width - 20px;
+        y: (parent.height - self.height) / 2;
+        width: Theme.sidebar-closed - 17px - 20px;
         height: 1px;
-        background: Theme.line-strong;
+        background: Theme.line-strong.transparentize(root.open ? 1 : 0);
+        animate background { duration: Motion.fade; easing: Curve.ease; }
     }
-    // Fades in as the sidebar opens, goes at once as it closes (always there, so the fade has a start)
     Text {
         x: 8px;
-        y: parent.height - self.height - 6px;
+        y: parent.height - self.height - 4px;
         text: root.label;
         color: Theme.subtle.transparentize(root.open ? 0 : 1);
-        animate color { duration: root.open ? Motion.fade : 0ms; easing: Curve.ease; }
+        animate color { duration: Motion.fade; easing: Curve.ease; }
+        overflow: clip;
         font-size: Theme.font-caption;
         font-weight: 500;
         accessible-role: none;

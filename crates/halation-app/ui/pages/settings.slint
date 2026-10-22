@@ -10,6 +10,14 @@ import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
 // One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
 // it is.
 component CategoryItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> label;
     in property <bool> active;
     callback activated;
@@ -42,7 +50,7 @@ component CategoryItem inherits FocusScope {
     Rectangle {
         border-radius: Theme.radius-control;
         background: touch.pressed ? Theme.press-fill : transparent;
-        border-width: root.has-focus ? 2px : 0px;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
     Text {

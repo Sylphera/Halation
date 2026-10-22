@@ -5,6 +5,14 @@ import { Tooltip } from "tooltip.slint";
 
 // A 28 px icon button of the top bar, with a tooltip below it
 export component BarButton inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> icon;
     in property <string> label;
     callback activated;
@@ -26,7 +34,7 @@ export component BarButton inherits FocusScope {
         border-radius: Theme.radius-control;
         background: touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : Theme.control-hover.transparentize(1));
         animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
-        border-width: root.has-focus ? 2px : 0px;
+        border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
     content := Rectangle {
@@ -49,8 +57,8 @@ export component BarButton inherits FocusScope {
         x: parent.width - self.width;
         y: parent.height + 8px;
         text: root.label;
-        show: touch.has-hover || root.has-focus;
-        at-once: root.has-focus;
+        show: touch.has-hover || root.keyboard-focus;
+        at-once: root.keyboard-focus;
     }
     touch := TouchArea {
         mouse-cursor: pointer;

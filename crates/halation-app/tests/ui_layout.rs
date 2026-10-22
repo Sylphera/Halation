@@ -341,6 +341,38 @@ fn a_sweep_over_several_rows_keeps_the_hover_pill_moving() {
 }
 
 #[test]
+fn a_faster_sweep_gives_a_faster_hover_pill() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    // How much of the way to `to` is left 30 ms after the pointer reaches it
+    let left = |from: f32, to: f32| {
+        advance(1);
+        advance(30);
+        (to - pill_y(&ui, "PillList::hover-pill")).abs() / (to - from).abs()
+    };
+    // Slow: the pointer rests on a row before moving on
+    let (_, start) = point_at(&ui, "Downloader");
+    advance(1000);
+    let (_, next) = point_at(&ui, "Converter");
+    let slow = left(start, next);
+    // Fast: it crosses a row in 10 ms on its way to the next
+    point_at(&ui, "Grade");
+    advance(1000);
+    let (_, start) = point_at(&ui, "Cover Test");
+    advance(1);
+    advance(10);
+    let (_, next) = point_at(&ui, "Background Remover");
+    let fast = left(start, next);
+    assert!(
+        fast < slow * 0.7,
+        "faster pointer, faster pill: {fast} vs {slow}"
+    );
+}
+
+#[test]
 fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();

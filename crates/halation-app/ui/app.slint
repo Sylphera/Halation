@@ -307,23 +307,23 @@ export component AppWindow inherits Window {
             Rectangle {
                 y: 0px;
                 height: Theme.bar;
+                clip: true;
+                // The mark keeps its place open or collapsed; the name fades and is cut by the narrowing edge
                 Image {
-                    x: root.rail-open ? 14px : (parent.width - self.width) / 2;
+                    x: (Theme.sidebar-closed - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                     width: 28px;
                     height: 14px;
                     source: Assets.mark;
                     image-fit: contain;
                 }
-                // Fades in as the sidebar opens, goes at once as it closes
                 Text {
                     x: 50px;
                     y: (parent.height - self.height) / 2;
-                    width: max(0px, parent.width - self.x - 8px);
                     overflow: clip;
                     text: "Halation";
                     color: Theme.text.transparentize(root.rail-open ? 0 : 1);
-                    animate color { duration: root.rail-open ? Motion.fade : 0ms; easing: Curve.ease; }
+                    animate color { duration: Motion.fade; easing: Curve.ease; }
                     accessible-role: none;
                     font-size: Theme.font-title;
                     font-weight: 600;
@@ -386,7 +386,9 @@ export component AppWindow inherits Window {
                 }
                 SidebarItem {
                     icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                    label: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
+                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
+                    label: "Collapse";
+                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
                     open: root.rail-open;
                     activated => { root.rail-open = !root.rail-open; }
                     hovered(on, at, size) => { rail-pills.hover(on, at, size); }
