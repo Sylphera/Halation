@@ -131,22 +131,6 @@ pub fn register_fonts(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// The Drape's still frame in the warm variant's colours, as `backdrop` colours the loop (`theme::warm`)
-fn warm_still(image: Image) -> Image {
-    let Some(pixels) = image.to_rgba8() else {
-        return image;
-    };
-    let mut warm = pixels.clone();
-    for pixel in warm.make_mut_slice() {
-        let [r, g, b] =
-            crate::theme::warm(f32::from(pixel.r), f32::from(pixel.g), f32::from(pixel.b));
-        pixel.r = r.round().clamp(0.0, 255.0) as u8;
-        pixel.g = g.round().clamp(0.0, 255.0) as u8;
-        pixel.b = b.round().clamp(0.0, 255.0) as u8;
-    }
-    Image::from_rgba8(warm)
-}
-
 /// Loads the images into the interface's `Assets` global; files that are missing or unreadable stay empty
 pub fn apply(ui: &AppWindow, dir: &Path) {
     let assets = ui.global::<Assets>();
@@ -157,7 +141,7 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     assets.set_drop_outline(load("drop-outline.svg"));
     // Generated, not a file: a standard static grain
     assets.set_grain(Image::from_rgba8(crate::backdrop::grain_tile()));
-    assets.set_still(warm_still(load("drape-still.jpg")));
+    assets.set_still(load("drape-still.jpg"));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));
     }

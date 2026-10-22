@@ -64,9 +64,8 @@ impl Palette {
                 let (low, t) = (l.floor() as usize, l.fract());
                 let high = (low + 1).min(255);
                 let at = |index: usize, channel: usize| f32::from(tint[index * 3 + channel]);
-                let [r, g, b] = [0, 1, 2].map(|c| at(low, c) * (1.0 - t) + at(high, c) * t);
-                // The warm variant: the recorded silver-blue turned golden
-                crate::theme::warm(r, g, b).map(|v| (v.min(255.0) * 256.0).round() as i32)
+                [0, 1, 2]
+                    .map(|c| ((at(low, c) * (1.0 - t) + at(high, c) * t) * 256.0).round() as i32)
             })
             .collect();
         let dither = (0..DITHER * DITHER)
@@ -513,10 +512,7 @@ mod tests {
         let at = |l: f32| palette.colour[(l * (COLOURS - 1) as f32 / LIFT) as usize];
         let [dark, mid, top] = [at(0.0), at(30.0), at(LIFT)];
         assert!(dark.iter().all(|&c| c <= 8 * 256), "luma 0 is near black");
-        assert!(
-            mid[0] >= mid[2],
-            "lighter parts lean golden (the warm variant)"
-        );
+        assert!(mid[2] >= mid[0], "lighter parts lean blue, like the Drape");
         assert!(top[1] > mid[1], "brighter luma is brighter");
         assert!(Palette::from_tint(&[0; 10]).is_err());
     }
