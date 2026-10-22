@@ -116,10 +116,14 @@ export component TopActions inherits HorizontalLayout {
 }
 
 // The top bar growing down into the page under its global actions to name the one hovered: one surface of the
-// toolbar's colour, its right edge fixed, its width following the name, joined to the bar by inverted curves
+// toolbar's colour reaching the window's right frame (Java, 2026-10-22), its width following the name, the name's right
+// edge fixed, joined to the bar by an inverted curve and giving the page's corner back below it
 export component BarHint inherits Rectangle {
     in property <string> text;
     in property <string> key;
+    // From the anchor (the name's right edge, under the buttons) to the bar's right edge, and the frame's width there
+    in property <length> tail: 12px;
+    in property <length> frame: Theme.sheet-inset;
     // The last name, kept while the surface closes
     property <string> shown;
     property <string> shown-key;
@@ -130,7 +134,9 @@ export component BarHint inherits Rectangle {
         }
     }
     property <bool> open: root.text != "";
-    property <length> reach: root.open ? row.preferred-width + 28px : 0px;
+    // Measured from the name and the key cap themselves (the row's preferred width lags behind the name)
+    property <length> cap: root.shown-key != "" ? 8px + max(18px, key-measure.preferred-width + 10px) : 0px;
+    property <length> reach: root.open ? name.preferred-width + root.cap + 28px : 0px;
     animate reach { duration: Motion.panel; easing: Curve.ease; }
     property <float> hidden-by: root.open ? 0 : 1;
     animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
@@ -138,20 +144,31 @@ export component BarHint inherits Rectangle {
 
     width: 0px;
     height: 28px;
+    key-measure := Text {
+        visible: false;
+        text: root.shown-key;
+        font-size: 10.5px;
+        font-weight: 600;
+        accessible-role: none;
+    }
 
+    if root.reach > 0.5px : Rectangle {
+        x: -root.reach;
+        width: root.reach + root.tail;
+        height: root.height;
+        background: Theme.chrome;
+        border-bottom-left-radius: min(10px, root.reach / 2);
+    }
     Rectangle {
         x: -root.reach;
         width: root.reach;
         height: root.height;
-        background: Theme.chrome;
-        border-bottom-left-radius: min(10px, root.reach / 2);
-        border-bottom-right-radius: min(10px, root.reach / 2);
         clip: true;
-        row := HorizontalLayout {
-            x: parent.width - self.preferred-width - 14px;
-            width: self.preferred-width;
+        HorizontalLayout {
+            x: parent.width - name.preferred-width - root.cap - 14px;
+            width: name.preferred-width + root.cap;
             spacing: 8px;
-            Text {
+            name := Text {
                 text: root.shown;
                 color: Theme.text.transparentize(root.hidden-by);
                 font-size: Theme.font-small;
@@ -190,14 +207,15 @@ export component BarHint inherits Rectangle {
         commands: "M 0 0 L 8 0 L 8 8 A 8 8 0 0 0 0 0 Z";
         fill: Theme.chrome;
     }
+    // The page's top right corner, given back under the surface
     if root.reach > 0.5px : Path {
-        x: 0px;
-        y: 0px;
-        width: root.fillet;
-        height: root.fillet;
+        x: root.tail - root.frame - self.width;
+        y: root.height;
+        width: min(Theme.radius-sheet, root.reach);
+        height: self.width;
         viewbox-width: 8;
         viewbox-height: 8;
-        commands: "M 0 0 L 8 0 A 8 8 0 0 0 0 8 Z";
+        commands: "M 0 0 L 8 0 L 8 8 A 8 8 0 0 0 0 0 Z";
         fill: Theme.chrome;
     }
 }

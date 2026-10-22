@@ -119,8 +119,9 @@ selection (full as it fuses with it), so a hovered option beside the chosen one 
 
 Ninth Preview (Java, 2026-10-22): the neck between the hover pill and the selection forms only when the hover leaves
 or reaches the selected option; passing between two options beside it draws nothing between them. The top bar's
-global actions have no tooltips: the bar itself grows down under them, one surface of its colour joined by inverted
-curves, its right edge fixed, its width following the hovered button's name (and shortcut key cap) (`BarHint`).
+global actions have no tooltips: the bar itself grows down under them, one surface of its colour reaching the window's right
+frame (the page's corner given back below it), joined to the bar by an inverted curve, the name's right edge fixed, its
+width following the hovered button's name (and shortcut key cap) (`BarHint`).
 
 ## 6. How it is drawn in Slint, and its cost
 
