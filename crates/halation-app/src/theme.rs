@@ -1,10 +1,10 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
-// Visual system: planning/active/ui-redesign.md §5; the chrome lifted to the material's panel tone
+// Visual system: planning/active/ui-redesign.md §5; chrome and canvas neutral greys
 // (docs/features/material.md).
-pub const CHROME: Rgb = Rgb(0x15, 0x15, 0x17);
-pub const CANVAS: Rgb = Rgb(0x10, 0x10, 0x11);
+pub const CHROME: Rgb = Rgb(0x11, 0x11, 0x11);
+pub const CANVAS: Rgb = Rgb(0x0c, 0x0c, 0x0c);
 pub const CANVAS_DEEP: Rgb = Rgb(0x0a, 0x0a, 0x0b);
 pub const CONTROL: Rgb = Rgb(0x16, 0x16, 0x17);
 pub const CONTROL_HOVER: Rgb = Rgb(0x1c, 0x1c, 0x1e);

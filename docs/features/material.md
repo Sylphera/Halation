@@ -59,8 +59,8 @@ Chosen by Java (2026-10-22): **A**.
 
 Chosen by Java (2026-10-22) in the type lab (Artifact https://claude.ai/artifact/N7KdAds8p63QE4EXNdsZ1s), all SIL OFL 1.1:
 
-- **Wordmark:** Bodoni Moda 600 (optical size 60), tracked +0.20 em, HALATION in capitals, 60 px (409 x 46.5 px on
-  Home), converted to outlines in `assets/halation-wordmark.svg`. Home shows the name alone, without the mark (the
+- **Wordmark:** Bodoni Moda 600 (optical size 60), tracked +0.20 em, HALATION in capitals, 88 px (600 x 68.2 px on
+  Home; Java asked for it "bastante más grande" than the 60 px first chosen), converted to outlines in `assets/halation-wordmark.svg`. Home shows the name alone, without the mark (the
   mark stays as the window icon and in the sidebar header).
 - **Page titles:** Italiana: the top bar's title (19 px) and the Settings category heading (28 px).
 - **Interface:** Schibsted Grotesk (variable weight) for everything else; Inter is gone.
@@ -73,6 +73,11 @@ The faces live in `assets/fonts/` and are registered at start (`assets.rs`, `FON
 The raised pieces read too light against the near-black chrome. The chrome (sidebar, top bar, the frame around the
 sheet) is lifted to the panels' tone (`#151517`), the raised fill is one step darker, and the page sheet is set into
 the chrome as a darker well with a shaded top edge (`sheet-edge`).
+
+Second Preview (Java, 2026-10-22): no top-to-bottom fall-off in the fills ("quiero profundidad, pero no tanta"): every
+level is a flat fill and keeps only its lit 1 px edge and contact edge. The chrome is a neutral grey, a little darker
+(`#111111`, the sheet `#0c0c0c`; the earlier `#151517` read blue). Hovering a selected row keeps its relief: the hover
+pill takes the raised edges as it joins the selection.
 
 ## 6. How it is drawn in Slint, and its cost
 

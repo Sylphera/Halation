@@ -2,8 +2,8 @@
 // applies the colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
 export global Theme {
     // Surfaces, from the frame inwards
-    in-out property <color> chrome: #151517;
-    in-out property <color> canvas: #101011;
+    in-out property <color> chrome: #111111;
+    in-out property <color> canvas: #0c0c0c;
     in-out property <color> canvas-deep: #0a0a0b;
     in-out property <color> control: #161617;
     in-out property <color> control-hover: #1c1c1e;
@@ -30,33 +30,33 @@ export global Theme {
     // The Workspace's panels over the Drape: the canvas at 86%, so the Drape shows faintly through them
     out property <color> panel: #101011dc;
 
-    // Material (docs/features/material.md, direction A, "Relief"): light from above. Each level is a two-stop fill
-    // falling off downwards and a 1 px edge brighter at the top (the sheen); raised levels stand on a 1 px dark contact
-    // edge. Gradients and solid fills only, no blur.
-    out property <brush> raised-fill: @linear-gradient(180deg, #2b2b2e 0%, #1f1f22 100%);
-    out property <brush> raised-fill-press: @linear-gradient(180deg, #232326 0%, #1a1a1d 100%);
+    // Material (docs/features/material.md, direction A, "Relief"): light from above. Each level is a flat fill
+    // (Java, 2026-10-22: no top-to-bottom fall-off) with a 1 px edge brighter at the top (the sheen); raised levels
+    // stand on a 1 px dark contact edge. No blur. Neutral greys, no blue.
+    out property <brush> raised-fill: #232323;
+    out property <brush> raised-fill-press: #1c1c1c;
     out property <brush> raised-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 45%, #ffffff0b 100%);
-    // A raised fill's average, for flat shapes that must match it (the pills' neck)
-    out property <color> raised-flat: #252528;
+    // The raised fill as a colour, for shapes that must match it (the pills' neck)
+    out property <color> raised-flat: #232323;
     // Recessed: fields, tracks, the switch off; dark at the top edge, catching light at the bottom
-    out property <brush> well-fill: @linear-gradient(180deg, #060607 0%, #0c0c0d 100%);
+    out property <brush> well-fill: #090909;
     out property <brush> well-edge: @linear-gradient(180deg, #000000b0 0%, #ffffff0a 35%, #ffffff14 100%);
     // Panels; `glass` over the Drape lets it show faintly through
-    out property <brush> bubble-fill: @linear-gradient(180deg, #18181a 0%, #0f0f10 100%);
-    out property <brush> bubble-glass: @linear-gradient(180deg, #19191be6 0%, #0f0f10d9 100%);
+    out property <brush> bubble-fill: #141414;
+    out property <brush> bubble-glass: #141414e0;
     out property <brush> bubble-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 35%, #ffffff0d 100%);
     // Menus and tooltips: one step above raised
-    out property <brush> popover-fill: @linear-gradient(180deg, #2b2b2e 0%, #1f1f22 100%);
+    out property <brush> popover-fill: #222222;
     out property <brush> popover-edge: @linear-gradient(180deg, #ffffff30 0%, #ffffff17 100%);
     // The accent as a raised piece (the switch on)
-    out property <brush> accent-fill: @linear-gradient(180deg, #b9beee 0%, #9095c9 100%);
+    out property <brush> accent-fill: #a3a8dc;
     out property <brush> accent-edge: @linear-gradient(180deg, #ffffff70 0%, #ffffff14 45%, #00000026 100%);
     // The one white button of a page
-    out property <brush> primary-fill: @linear-gradient(180deg, #ffffff 0%, #e4e4df 100%);
-    out property <brush> primary-fill-press: @linear-gradient(180deg, #d6d6d1 0%, #b5b5af 100%);
+    out property <brush> primary-fill: #f5f5f2;
+    out property <brush> primary-fill-press: #c9c9c4;
     // The switch's knob, off and on
-    out property <brush> knob-light: @linear-gradient(180deg, #ffffff 0%, #d9d9d4 100%);
-    out property <brush> knob-dark: @linear-gradient(180deg, #232326 0%, #0b0b0c 100%);
+    out property <brush> knob-light: #f5f5f2;
+    out property <brush> knob-dark: #111111;
     // The page sheet, set into the chrome: a darker well with a shaded top edge
     out property <brush> sheet-edge: @linear-gradient(180deg, #000000a0 0%, #ffffff08 6%, #ffffff0a 100%);
     // The 1 px dark edge a raised piece stands on

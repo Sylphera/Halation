@@ -102,15 +102,16 @@ export component HomePage inherits Rectangle {
     callback file-dropped(data-transfer);
 
     // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
-    property <length> hero-top: max(24px, root.height / 2 - 216px);
-    property <length> drop-top: max(root.hero-top + 200px, root.height - 70px - 55px - 15px - 150px);
+    property <length> hero-top: max(24px, root.height / 2 - 240px);
+    property <length> drop-top: max(root.hero-top + 222px, root.height - 70px - 55px - 15px - 150px);
 
-    // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600 at 60 px, tracked 0.20 em, as outlines
+    // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600, tracked 0.20 em, as outlines; 88 px ("bastante
+    // más grande" than the 60 px first chosen)
     Image {
         x: (parent.width - self.width) / 2;
         y: root.hero-top;
-        width: 409px;
-        height: 46.5px;
+        width: 600px;
+        height: 68.2px;
         source: Assets.wordmark;
         colorize: Theme.text;
         image-fit: contain;
@@ -120,7 +121,7 @@ export component HomePage inherits Rectangle {
 
     Text {
         x: (parent.width - self.width) / 2;
-        y: root.hero-top + 68px;
+        y: root.hero-top + 90px;
         text: "Take your time. Everything else is instant.";
         color: Theme.muted;
         font-size: Theme.font-title;
@@ -129,7 +130,7 @@ export component HomePage inherits Rectangle {
     // Tool strip
     Rectangle {
         x: (parent.width - self.width) / 2;
-        y: root.hero-top + 116px;
+        y: root.hero-top + 138px;
         width: min(strip.preferred-width, parent.width - 24px);
         height: 62px;
         // A panel over the Drape; the tool under the pointer rises as a raised piece
