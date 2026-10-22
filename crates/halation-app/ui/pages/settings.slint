@@ -303,17 +303,6 @@ export component SettingsPage inherits Rectangle {
                     title: "Frame";
                     Pair {
                         Cell {
-                            name: "Dock";
-                            help: "The sidebar at the left.";
-                            Select {
-                                width: 180px;
-                                label: "Dock";
-                                options: ["Compact (icons only)", "Expand when needed", "Keep open"];
-                                current: root.prefs.dock-mode;
-                                chosen(i) => { root.set-pref("dock-mode", i); }
-                            }
-                        }
-                        Cell {
                             name: "Show activity on the dock";
                             Toggle {
                                 label: "Show activity on the dock";
@@ -322,6 +311,7 @@ export component SettingsPage inherits Rectangle {
                                 toggled(v) => { root.set-pref("dock-activity", v ? "1" : "0"); }
                             }
                         }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
                     }
                 }
                 Group {
@@ -551,7 +541,7 @@ export component SettingsPage inherits Rectangle {
                             y: 0px;
                             width: parent.cell;
                             height: parent.cell-h;
-                            tool: { name: "Workspace", summary: "Needs nothing extra", enabled: true };
+                            tool: { name: "Home", summary: "Needs nothing extra", enabled: true };
                             icon: "house";
                             always-on: true;
                         }

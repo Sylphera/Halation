@@ -1129,7 +1129,6 @@ fn tool_items(settings: &Settings) -> Vec<ToolItem> {
             name: SharedString::from(tool.name),
             icon: SharedString::from(tool.icon),
             summary: SharedString::from(tool.summary),
-            pitch: SharedString::from(tool.pitch),
             group: tool.group,
             beta: tool.beta,
             enabled: settings.tool_enabled(tool.id),

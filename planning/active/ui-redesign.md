@@ -31,6 +31,12 @@ take about 6 MB decoded (480 x 300 each). Pending Java's visual review.
 returns as page 0 inside the curved frame, with the frame's tokens; the Workspace (tools, Library, jobs) is page 1 and
 keeps everything else. Pending Java's visual review.
 
+**Home only (Java, 2026-10-22):** the Workspace is removed and the Library leaves the sidebar for now (its code stays,
+unused); the pages are Home and Settings. The tool pictures and their script went with the Workspace. The sidebar has
+no expand modes (Settings' Dock choice is gone): it starts collapsed at every width and opens only with its toggle or
+`Ctrl+B`, lying over the page with a soft shadow, so Home does not move; a click on the page or choosing a page closes
+it. Pending Java's visual review.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged

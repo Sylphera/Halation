@@ -2,9 +2,7 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{
-    AppWindow, ItemRow, JobRow, LibraryRow, Prefs, RecentItem, SectionRow, ToolItem,
-};
+use halation_app::ui::{AppWindow, JobRow, RecentItem, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{
     ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
@@ -79,7 +77,6 @@ fn fill_home(ui: &AppWindow) {
             name: tool.name.into(),
             icon: tool.icon.into(),
             summary: tool.summary.into(),
-            pitch: tool.pitch.into(),
             group: tool.group,
             beta: tool.beta,
             enabled: true,
@@ -123,51 +120,15 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
         finished: false,
         failed: false,
     }]))));
-    ui.set_sections(ModelRc::from(Rc::new(VecModel::from(vec![SectionRow {
-        id: "own:Covers".into(),
-        name: "A section with a really quite long name indeed".into(),
-        kind: "own".into(),
-        count: 3,
-        missing: false,
-        selected: true,
-    }]))));
-    ui.set_section_items(ModelRc::from(Rc::new(VecModel::from(vec![ItemRow {
-        name: "a-file-with-a-long-name-that-will-need-eliding-in-the-list.png".into(),
-        detail: "1.2 MB".into(),
-    }]))));
-    ui.set_section_id(SharedString::from("own:Covers"));
-    ui.set_section_name(SharedString::from(
-        "A section with a really quite long name indeed",
-    ));
-    ui.set_section_kind(SharedString::from("own"));
-    ui.set_sections_loaded(true);
-    ui.set_library_loaded(true);
-    ui.set_library_writable(true);
-    ui.set_library_rows(ModelRc::from(Rc::new(VecModel::from(vec![LibraryRow {
-        id: "r_000001".into(),
-        name: "a-file-with-a-long-name-that-will-need-eliding-in-the-workspace.flac".into(),
-        path: "D:/A folder/with a long path/that keeps going/a-file.flac".into(),
-        missing: true,
-        kind: "Audio".into(),
-    }]))));
-
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        for page in [0, 1, 3] {
+        for page in [0, 3] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
-            // The Workspace scrolls under the top bar (44 px); Settings' pane under the top bar and the category
-            // title, which end 100 px down
-            let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { 44.0 });
+            // Settings' pane scrolls under the top bar and the category title, which end 100 px down
+            let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { f32::MAX });
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
-        // Workspace, Sections tab (set directly: below the fold the tab is scrolled out of the accessibility tree)
-        ui.set_page(1);
-        ui.set_library_mode(1);
-        slint::platform::update_timers_and_animations();
-        let stray = outside_above(&ui, w, h, 44.0);
-        assert!(stray.is_empty(), "sections tab at {w}x{h}: {stray:?}");
-        ui.set_library_mode(0);
     }
 }
 
@@ -194,8 +155,8 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Pages and the sidebar entry that marks each: Home, the Workspace (tools, Library and jobs) and Settings
-    let places = [(0, "Home"), (1, "Workspace"), (3, "Settings")];
+    // Pages and the sidebar entry that marks each: Home and Settings
+    let places = [(0, "Home"), (3, "Settings")];
     for (page, _) in places {
         ui.set_page(page);
         slint::platform::update_timers_and_animations();
@@ -232,46 +193,43 @@ fn press_ctrl_b(ui: &AppWindow) {
         .dispatch_event(WindowEvent::KeyReleased { text: control });
 }
 
+/// Where Home's drop zone starts, from its accessible label
+fn drop_zone_x(ui: &AppWindow) -> f32 {
+    ElementHandle::find_by_accessible_label(ui, "Drop a song or an image, or click to browse")
+        .next()
+        .expect("Home shows the drop zone")
+        .absolute_position()
+        .x
+}
+
 #[test]
-fn the_sidebar_follows_the_window_width_the_setting_and_ctrl_b() {
+fn the_sidebar_opens_over_home_without_moving_it() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
-    // "Expand when needed", the default: collapsed on the Workspace, which presents the tools itself; elsewhere open
-    // from 1180 px, collapsed below
-    ui.set_prefs(Prefs {
-        dock_mode: 1,
-        show_dock: true,
-        ..Prefs::default()
-    });
+    // Collapsed at every width; it never opens by itself
+    for (w, h) in SIZES {
+        resize(&ui, w, h);
+        assert!(!ui.get_rail_open(), "collapsed at {w}x{h}");
+    }
     resize(&ui, 1280.0, 800.0);
-    assert!(!ui.get_rail_open(), "collapsed on the Workspace");
-    ui.set_page(3);
-    slint::platform::update_timers_and_animations();
-    assert!(ui.get_rail_open(), "open at 1280 px on Settings");
-    resize(&ui, 1100.0, 700.0);
-    assert!(!ui.get_rail_open(), "collapsed at 1100 px");
+    let closed = drop_zone_x(&ui);
     press_ctrl_b(&ui);
     assert!(ui.get_rail_open(), "Ctrl+B opens it");
+    resize(&ui, 1280.0, 800.0);
+    assert!(
+        (drop_zone_x(&ui) - closed).abs() < 0.5,
+        "Home stays in place when the sidebar opens"
+    );
+    // Choosing a page closes it again
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
+    assert!(!ui.get_rail_open(), "closed after choosing a page");
+    press_ctrl_b(&ui);
+    assert!(ui.get_rail_open(), "Ctrl+B opens it on Settings");
     press_ctrl_b(&ui);
     assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
-    // "Keep open" keeps it open in a narrow window; "Compact" keeps it closed in a wide one
-    ui.set_prefs(Prefs {
-        dock_mode: 2,
-        show_dock: true,
-        ..Prefs::default()
-    });
-    // `changed` handlers run on the next pass of the event loop
-    slint::platform::update_timers_and_animations();
-    assert!(ui.get_rail_open(), "keep open at 1100 px");
-    ui.set_prefs(Prefs {
-        dock_mode: 0,
-        show_dock: true,
-        ..Prefs::default()
-    });
-    resize(&ui, 1920.0, 1080.0);
-    assert!(!ui.get_rail_open(), "compact at 1920 px");
     // Collapsed, the tools stay reachable by their names
     assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
 }

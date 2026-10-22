@@ -1,419 +1,252 @@
 import { Theme } from "../theme.slint";
-import { ToolIcon } from "../icons.slint";
-import { AppButton } from "../components/button.slint";
 import { Assets } from "../assets.slint";
-import { LibraryRow, SectionRow, ItemRow, JobRow, ToolItem } from "../models.slint";
-import { FilesBlock } from "library.slint";
-import { ListView } from "std-widgets.slint";
+import { ToolIcon } from "../icons.slint";
+import { ToolItem, RecentItem } from "../models.slint";
 
-// A small text link of a block heading
-component HeadLink inherits Rectangle {
-    in property <string> text;
-    callback activated;
-    width: link-text.preferred-width + 8px;
-    accessible-role: button;
-    accessible-label: root.text;
-    accessible-action-default => { root.activated(); }
-    link-text := Text {
-        x: 4px;
-        y: (parent.height - self.height) / 2;
-        text: root.text;
-        color: link-touch.has-hover ? Theme.text : Theme.subtle;
-        font-size: Theme.font-small;
-        font-weight: 500;
-    }
-    link-touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.activated(); }
-    }
-}
-
-// One of the Workspace's panels: a near-opaque, rounded surface over the Drape with a faint 1 px edge
-component Panel inherits Rectangle {
-    border-radius: Theme.radius-sheet;
-    background: Theme.panel;
-    border-width: 1px;
-    border-color: Theme.line;
-    clip: true;
-}
-
-// A tool presented by its picture, name and one line; the whole card opens it
-component ToolCard inherits Rectangle {
-    in property <ToolItem> tool;
+// One entry of Home's tool strip: icon over its name
+component StripItem inherits FocusScope {
+    in property <string> icon;
+    in property <string> label;
     in property <duration> motion-duration: 160ms;
     callback activated;
-    border-radius: Theme.radius-sheet;
-    background: Theme.panel;
-    border-width: 1px;
-    border-color: touch.has-hover || focus.has-focus ? Theme.line-strong : Theme.line;
-    clip: true;
+    // Shrinks towards the label's width when the window is narrow
+    preferred-width: name.preferred-width + 20px;
+    min-width: name.preferred-width + 4px;
+    height: 52px;
+    focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: root.tool.name;
-    accessible-description: root.tool.pitch;
-    accessible-action-default => { root.activated(); }
-    animate border-color { duration: root.motion-duration; easing: ease-out; }
-
-    property <length> text-height: 60px;
-    Image {
-        y: 0px;
-        width: parent.width;
-        height: parent.height - root.text-height;
-        source: Assets.art(root.tool.id);
-        image-fit: cover;
-        opacity: touch.has-hover ? 1 : 0.88;
-        animate opacity { duration: root.motion-duration; easing: ease-out; }
+    accessible-label: label;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
     }
-    VerticalLayout {
-        y: parent.height - root.text-height;
-        height: root.text-height;
-        padding-left: 14px;
-        padding-right: 14px;
-        alignment: center;
-        spacing: 3px;
-        Text {
-            text: root.tool.name;
-            color: Theme.text;
-            font-size: Theme.font-title;
-            font-weight: 600;
-            overflow: elide;
-        }
-        Text {
-            text: root.tool.pitch;
-            color: Theme.subtle;
-            font-size: Theme.font-small;
-            overflow: elide;
-        }
+    Rectangle {
+        border-radius: Theme.radius;
+        background: touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.hover-fill : transparent);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
+    }
+    ToolIcon {
+        x: (parent.width - self.width) / 2;
+        y: 9px;
+        name: root.icon;
+        size: 17px;
+        tint: touch.has-hover ? Theme.text : Theme.muted;
+    }
+    name := Text {
+        x: (parent.width - self.width) / 2;
+        y: 31px;
+        text: root.label;
+        color: touch.has-hover ? Theme.text : Theme.muted;
+        font-size: Theme.font-caption;
+        font-weight: 500;
     }
     touch := TouchArea {
         mouse-cursor: pointer;
         clicked => {
-            focus.focus();
+            root.focus();
             root.activated();
         }
     }
-    focus := FocusScope {
-        width: 0px;
-        height: 0px;
-        focus-on-tab-navigation: true;
-        key-pressed(event) => {
-            if (event.text == Key.Return || event.text == Key.Space) {
-                root.activated();
-                accept
-            } else {
-                reject
-            }
-        }
-    }
-    if focus.has-focus : Rectangle {
-        border-radius: Theme.radius-sheet;
-        border-width: 2px;
-        border-color: Theme.accent;
-    }
 }
 
-// The Workspace, the Library and the jobs in one page (Java, 2026-10-22). Over the Drape, top to bottom: the
-// drop line, "Your files" (the Library, which takes the height left), and the jobs. No header of its own: the
-// sidebar and the top bar already carry the mark, the name and the page's title.
-export component WorkspacePage inherits Rectangle {
-    in property <[LibraryRow]> rows;
-    in property <int> total: 0;
-    in property <int> missing: 0;
-    in property <bool> loaded: false;
-    in property <bool> busy: false;
-    in property <bool> writable: false;
-    in property <string> error: "";
-    in property <[SectionRow]> sections;
-    in property <[ItemRow]> section-items;
-    in property <string> section-name: "";
-    in property <string> section-kind: "";
-    in property <string> section-id: "";
-    in property <int> section-hidden: 0;
-    in property <bool> sections-loaded: false;
-    in property <bool> sections-busy: false;
-    in property <[JobRow]> jobs;
-    in property <bool> jobs-has-finished: false;
-    in property <duration> motion-duration: 160ms;
-    in-out property <int> mode: 0;
+// Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the mark and wordmark, the
+// tagline, the strip of tools, and the drop zone with recent files anchored to the bottom. Surfaces and corners use
+// the frame's tokens: the panel fill, a faint line and the one radius.
+export component HomePage inherits Rectangle {
     in property <[ToolItem]> tools;
+    in property <[RecentItem]> recent;
+    in property <bool> library-loaded: false;
+    in property <duration> motion-duration: 160ms;
 
     callback tool-activated(string);
     callback choose-reference();
     callback file-dropped(data-transfer);
-    callback remove-reference(string);
-    callback select-section(string);
-    callback create-section(string);
-    callback rename-section(string, string);
-    callback delete-section(string);
-    callback link-folder();
-    callback unlink-folder(string);
-    callback sections-opened();
-    callback open-activity();
-    callback cancel-job(string);
-    callback clear-finished-jobs();
 
-    // Rows the jobs block shows before it scrolls
-    property <int> job-rows: min(3, max(1, root.jobs.length));
-    // The tools' grid: columns by width, cards in 16:10 with 60 px of text
-    property <length> content-width: root.width - 32px;
-    property <int> columns: root.content-width >= 1500px ? 5 : root.content-width >= 1050px ? 4 : 3;
-    property <length> gap: 12px;
-    property <length> card-width: (root.content-width - (root.columns - 1) * root.gap) / root.columns;
-    property <length> card-height: root.card-width * 0.625 + 60px;
-    // "Your files": up to eight rows before its list scrolls; Sections gets a fixed height
-    property <length> files-height: root.mode == 1 ? 420px
-        : 44px + (root.error != "" ? 32px : 0px) + (root.rows.length == 0 ? 96px : min(8, root.rows.length) * 48px);
+    // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
+    property <length> hero-top: max(24px, root.height / 2 - 259px);
+    property <length> drop-top: max(root.hero-top + 286px, root.height - 70px - 55px - 15px - 150px);
 
-    flick := Flickable {
-        width: root.width;
-        height: root.height;
-        content-width: root.width;
-        content-height: page.preferred-height;
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top;
+        width: 176px;
+        height: 87px;
+        source: Assets.mark;
+        image-fit: contain;
+        accessible-role: image;
+        accessible-label: "Halation";
+    }
 
-        page := VerticalLayout {
-            x: 16px;
-            width: root.content-width;
-            height: self.preferred-height;
-            padding-top: 16px;
-            padding-bottom: 16px;
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 113px;
+        width: 241px;
+        height: 26px;
+        source: Assets.wordmark;
+        colorize: Theme.text;
+        image-fit: contain;
+    }
+
+    Text {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 153px;
+        text: "Take your time. Everything else is instant.";
+        color: Theme.muted;
+        font-size: Theme.font-title;
+    }
+
+    // Tool strip
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 202px;
+        width: min(strip.preferred-width, parent.width - 24px);
+        height: 62px;
+        border-radius: Theme.radius;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        strip := HorizontalLayout {
+            padding-left: 5px;
+            padding-right: 5px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            spacing: 0px;
+            for tool in root.tools : StripItem {
+                icon: tool.icon;
+                label: tool.name;
+                motion-duration: root.motion-duration;
+                activated => { root.tool-activated(tool.id); }
+            }
+        }
+    }
+
+    // Drop zone
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top;
+        width: min(640px, parent.width - 48px);
+        height: 150px;
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
+        background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
+        animate background { duration: root.motion-duration; easing: ease-out; }
+
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 23px;
+            width: 48px;
+            height: 48px;
+            border-radius: Theme.radius;
+            background: Theme.control;
+            border-width: 1px;
+            border-color: Theme.line-strong;
+            ToolIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                name: "upload";
+                size: 22px;
+                tint: Theme.text;
+            }
+        }
+
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 83px;
+            text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
+            color: Theme.text;
+            font-size: 15.5px;
+            font-weight: 600;
+        }
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 108px;
+            text: "Or click to browse. Files are added to your Library, never copied.";
+            color: Theme.subtle;
+            font-size: Theme.font-body;
+        }
+
+        drop-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                drop-focus.focus();
+                root.choose-reference();
+            }
+        }
+        drop-focus := FocusScope {
+            width: 0px;
+            height: 0px;
+            focus-on-tab-navigation: true;
+            accessible-role: button;
+            accessible-label: "Drop a song or an image, or click to browse";
+            accessible-action-default => { root.choose-reference(); }
+            key-pressed(event) => {
+                if (event.text == Key.Return || event.text == Key.Space) {
+                    root.choose-reference();
+                    accept
+                } else {
+                    reject
+                }
+            }
+        }
+        drop-area := DropArea {
+            can-drop(event) => { DragAction.copy }
+            dropped(event) => {
+                root.file-dropped(event.data);
+                event.proposed-action
+            }
+        }
+    }
+
+    // Recent files
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top + 165px;
+        width: min(593px, parent.width - 48px);
+        height: 55px;
+        border-radius: Theme.radius;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        Text {
+            x: 21px;
+            y: (parent.height - self.height) / 2;
+            text: "RECENT FILES";
+            color: Theme.subtle;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.32px;
+        }
+        if root.recent.length == 0 : Text {
+            x: 130px;
+            y: (parent.height - self.height) / 2;
+            width: parent.width - 150px;
+            text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
+            color: Theme.subtle;
+            font-size: Theme.font-small;
+            overflow: elide;
+        }
+        if root.recent.length > 0 : HorizontalLayout {
+            x: 130px;
+            width: parent.width - 150px;
             spacing: 16px;
-
-            // Drop panel: the page's first action
-            Panel {
-                height: 88px;
-                border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-                background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
-                animate background { duration: root.motion-duration; easing: ease-out; }
-                VerticalLayout {
-                    alignment: center;
-                    spacing: 6px;
-                    HorizontalLayout {
-                        alignment: center;
-                        ToolIcon {
-                            name: "upload";
-                            size: 18px;
-                            tint: drop-area.has-drag ? Theme.accent : Theme.muted;
-                        }
-                    }
-                    Text {
-                        text: drop-area.has-drag ? "Drop to add them to your files" : "Drop files here";
-                        color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
-                        horizontal-alignment: center;
-                    }
-                    Text {
-                        text: "Or click to browse. Files stay where they are, never copied.";
-                        color: Theme.subtle;
-                        font-size: Theme.font-small;
-                        horizontal-alignment: center;
-                    }
-                }
-                drop-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        drop-focus.focus();
-                        root.choose-reference();
-                    }
-                }
-                drop-focus := FocusScope {
-                    width: 0px;
-                    height: 0px;
-                    focus-on-tab-navigation: true;
-                    accessible-role: button;
-                    accessible-label: "Drop files here, or click to browse";
-                    accessible-action-default => { root.choose-reference(); }
-                    key-pressed(event) => {
-                        if (event.text == Key.Return || event.text == Key.Space) {
-                            root.choose-reference();
-                            accept
-                        } else {
-                            reject
-                        }
-                    }
-                }
-                drop-area := DropArea {
-                    can-drop(event) => { DragAction.copy }
-                    dropped(event) => {
-                        root.file-dropped(event.data);
-                        event.proposed-action
-                    }
-                }
+            for item in root.recent : Text {
+                text: item.name;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+                overflow: elide;
+                max-width: 150px;
             }
-
-            // Tools, presented
-            Rectangle {
-                height: ceil(root.tools.length / root.columns) * (root.card-height + root.gap) - root.gap;
-                for tool[index] in root.tools : ToolCard {
-                    x: mod(index, root.columns) * (root.card-width + root.gap);
-                    y: floor(index / root.columns) * (root.card-height + root.gap);
-                    width: root.card-width;
-                    height: root.card-height;
-                    tool: tool;
-                    motion-duration: root.motion-duration;
-                    activated => { root.tool-activated(tool.id); }
-                }
-            }
-
-            Panel {
-                height: root.files-height;
-                VerticalLayout {
-                    padding-left: 20px;
-                    padding-right: 20px;
-                    padding-bottom: 8px;
-                    FilesBlock {
-                        rows: root.rows;
-                        total: root.total;
-                        missing: root.missing;
-                        loaded: root.loaded;
-                        busy: root.busy;
-                        writable: root.writable;
-                        error: root.error;
-                        motion-duration: root.motion-duration;
-                        mode <=> root.mode;
-                        sections: root.sections;
-                        section-items: root.section-items;
-                        section-id: root.section-id;
-                        section-name: root.section-name;
-                        section-kind: root.section-kind;
-                        section-hidden: root.section-hidden;
-                        sections-loaded: root.sections-loaded;
-                        sections-busy: root.sections-busy;
-                        sections-opened => { root.sections-opened(); }
-                        select-section(id) => { root.select-section(id); }
-                        create-section(name) => { root.create-section(name); }
-                        rename-section(id, name) => { root.rename-section(id, name); }
-                        delete-section(id) => { root.delete-section(id); }
-                        link-folder => { root.link-folder(); }
-                        unlink-folder(id) => { root.unlink-folder(id); }
-                        remove-reference(id) => { root.remove-reference(id); }
-                    }
-                }
-            }
-
-            // Jobs: up to three rows, then the list scrolls
-            Panel {
-                VerticalLayout {
-                    padding-left: 20px;
-                    padding-right: 20px;
-                    padding-bottom: 8px;
-                    spacing: 0px;
-                    Rectangle {
-                        height: 36px;
-                        HorizontalLayout {
-                            spacing: 10px;
-                            Text {
-                                text: "Jobs";
-                                color: Theme.text;
-                                font-size: Theme.font-title;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
-                            if root.jobs.length > 0 : Text {
-                                text: "" + root.jobs.length;
-                                color: Theme.subtle;
-                                font-size: Theme.font-small;
-                                vertical-alignment: center;
-                            }
-                            Rectangle { horizontal-stretch: 1; }
-                            if root.jobs-has-finished : HeadLink {
-                                text: "Clear finished";
-                                activated => { root.clear-finished-jobs(); }
-                            }
-                            HeadLink {
-                                text: "View history";
-                                activated => { root.open-activity(); }
-                            }
-                        }
-                        Rectangle {
-                            y: parent.height - 1px;
-                            height: 1px;
-                            background: Theme.line;
-                        }
-                    }
-                    if root.jobs.length == 0 : Text {
-                        height: 48px;
-                        text: "No jobs. This beta has no engines connected yet, so nothing runs.";
-                        color: Theme.subtle;
-                        font-size: Theme.font-body;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    if root.jobs.length > 0 : ListView {
-                        height: root.job-rows * 48px;
-                        for job in root.jobs : Rectangle {
-                            height: 48px;
-                            width: parent.width;
-                            Rectangle {
-                                y: parent.height - 1px;
-                                height: 1px;
-                                background: Theme.line;
-                            }
-                            HorizontalLayout {
-                                padding-left: 4px;
-                                padding-right: 4px;
-                                spacing: 12px;
-                                VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 16px;
-                                        height: 16px;
-                                        Rectangle {
-                                            x: 4px;
-                                            y: 4px;
-                                            width: 8px;
-                                            height: 8px;
-                                            border-radius: 4px;
-                                            background: job.failed ? Theme.danger : job.finished ? Theme.success : Theme.activity;
-                                        }
-                                    }
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    alignment: center;
-                                    spacing: 2px;
-                                    Text {
-                                        text: job.name;
-                                        color: Theme.text;
-                                        font-size: Theme.font-body;
-                                        font-weight: 500;
-                                        overflow: elide;
-                                    }
-                                    Text {
-                                        text: job.state + (job.detail != "" ? " · " + job.detail : "");
-                                        color: job.failed ? Theme.danger : Theme.subtle;
-                                        font-size: Theme.font-small;
-                                        overflow: elide;
-                                    }
-                                }
-                                if job.has-progress && !job.finished : VerticalLayout {
-                                    alignment: center;
-                                    Rectangle {
-                                        width: 120px;
-                                        height: 4px;
-                                        border-radius: 2px;
-                                        background: Theme.control-active;
-                                        Rectangle {
-                                            x: 0px;
-                                            width: parent.width * clamp(job.progress, 0, 1);
-                                            border-radius: 2px;
-                                            background: Theme.activity;
-                                        }
-                                    }
-                                }
-                                if job.cancellable : VerticalLayout {
-                                    alignment: center;
-                                    AppButton {
-                                        small: true;
-                                        quiet: true;
-                                        text: "Cancel";
-                                        clicked => { root.cancel-job(job.id); }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Rectangle { horizontal-stretch: 1; }
         }
     }
 }

@@ -5,8 +5,7 @@ import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, C
 export { Theme } from "theme.slint";
 export { Assets } from "assets.slint";
 export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
-import { WorkspacePage } from "pages/home.slint";
-import { HomePage } from "pages/start.slint";
+import { HomePage } from "pages/home.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { SidebarItem, SidebarGroup } from "components/rail-item.slint";
 import { TopActions, BarButton } from "components/top-dock.slint";
@@ -26,11 +25,10 @@ export component AppWindow inherits Window {
 
     init => {
         Palette.color-scheme = ColorScheme.dark;
-        root.rail-open = root.auto-open();
         keys.focus();
     }
 
-    // Pages: 0 Home (the original, Java 2026-10-22), 1 Workspace (tools, Library and jobs), 3 Settings; 2 is unused
+    // Pages: 0 Home, 3 Settings (Java, 2026-10-22: the Workspace and the Library are gone for now; 1 and 2 are unused)
     in property <int> page: 0;
     in property <bool> reduced-motion: false;
     in property <int> diagnostic-scene: 1;
@@ -75,7 +73,7 @@ export component AppWindow inherits Window {
     // Library tab: 0 references, 1 sections (in-out so a headless snapshot can fix it)
     in-out property <int> library-mode: 0;
     // The sidebar open with labels; closed it shows icons only (planning/active/ui-redesign.md §6)
-    in-out property <bool> rail-open: true;
+    in-out property <bool> rail-open: false;
     // Settings category to open at (headless snapshots)
     in property <int> settings-jump: -1;
     // Settings category shown (the top bar's search changes it)
@@ -110,20 +108,14 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    // "Expand when needed": collapsed on Home and the Workspace, which present the tools themselves (the navigation is not doubled,
-    // it hides; Java, 2026-10-22), and open elsewhere from 1180 px of window width. "Keep open" keeps it open and
-    // "Compact" closed. The user's toggle wins until the page, the width band or the setting changes.
-    property <bool> wide: root.width >= 1180px;
-    property <int> dock-mode: root.prefs.dock-mode;
-    pure function auto-open() -> bool {
-        root.dock-mode == 2 || (root.dock-mode == 1 && root.wide && root.page > 1)
-    }
-    changed wide => { root.rail-open = root.auto-open(); }
-    changed dock-mode => { root.rail-open = root.auto-open(); }
-    changed page => { root.rail-open = root.auto-open(); }
+    // The sidebar starts collapsed and never opens by itself (Java, 2026-10-22). Opened with its toggle or Ctrl+B, it
+    // lies over the page instead of pushing it, so Home does not move; choosing a page closes it again.
+    changed page => { root.rail-open = false; }
 
+    // The sidebar's width; the page and the top bar always start at the collapsed width
     property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: root.motion-duration * 1.6; easing: ease-out; }
+    property <length> page-x: Theme.sidebar-closed;
 
     pure function group-name(group: int) -> string {
         group == 1 ? "Get" : group == 2 ? "Audio" : group == 3 ? "Image" : group == 4 ? "Video" : ""
@@ -143,23 +135,23 @@ export component AppWindow inherits Window {
         // The page: a rounded sheet set into the chrome, right of the sidebar and under the top bar. Its corners are
         // the frame's inverted curves; no lines separate it from the sidebar or the top bar.
         if root.diagnostic-scene != 0 : Rectangle {
-            x: root.side;
+            x: root.page-x;
             y: Theme.bar;
-            width: parent.width - root.side - Theme.sheet-inset;
+            width: parent.width - root.page-x - Theme.sheet-inset;
             height: parent.height - Theme.bar - Theme.sheet-inset;
             border-radius: Theme.radius-sheet;
             background: Theme.canvas;
             clip: true;
 
-            // The Workspace's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
-            if root.page <= 1 : Image {
+            // Home's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
+            if root.page == 0 : Image {
                 width: parent.width;
                 height: parent.height;
                 source: root.backdrop;
                 image-fit: cover;
                 image-rendering: smooth;
             }
-            if root.page <= 1 : Image {
+            if root.page == 0 : Image {
                 width: parent.width;
                 height: parent.height;
                 source: Assets.grain;
@@ -179,45 +171,6 @@ export component AppWindow inherits Window {
                 tool-activated(id) => { root.tool-activated(id); }
                 choose-reference => { root.choose-reference(); }
                 file-dropped(data) => { root.file-dropped(data); }
-            }
-
-            if root.page == 1 : WorkspacePage {
-                width: parent.width;
-                height: parent.height;
-                rows: root.library-rows;
-                total: root.library-total;
-                missing: root.library-missing;
-                loaded: root.library-loaded;
-                busy: root.library-busy;
-                writable: root.library-writable;
-                error: root.library-error;
-                jobs: root.jobs;
-                jobs-has-finished: root.jobs-has-finished;
-                motion-duration: root.motion-duration;
-                tools: root.active-tools;
-                tool-activated(id) => { root.tool-activated(id); }
-                mode <=> root.library-mode;
-                sections: root.sections;
-                section-items: root.section-items;
-                section-id: root.section-id;
-                section-name: root.section-name;
-                section-kind: root.section-kind;
-                section-hidden: root.section-hidden;
-                sections-loaded: root.sections-loaded;
-                sections-busy: root.sections-busy;
-                choose-reference => { root.choose-reference(); }
-                file-dropped(data) => { root.file-dropped(data); }
-                remove-reference(id) => { root.remove-reference(id); }
-                sections-opened => { root.sections-opened(); }
-                select-section(id) => { root.select-section(id); }
-                create-section(name) => { root.create-section(name); }
-                rename-section(id, name) => { root.rename-section(id, name); }
-                delete-section(id) => { root.delete-section(id); }
-                link-folder => { root.link-folder(); }
-                unlink-folder(id) => { root.unlink-folder(id); }
-                open-activity => { root.dock-action("activity"); }
-                cancel-job(id) => { root.cancel-job(id); }
-                clear-finished-jobs => { root.clear-finished-jobs(); }
             }
 
             if root.page == 3 : SettingsPage {
@@ -247,9 +200,9 @@ export component AppWindow inherits Window {
         // Top bar: title, notice, the page's actions, the global actions (§7). Drawn after the page so its
         // tooltips sit above it.
         if root.diagnostic-scene != 0 : Rectangle {
-            x: root.side;
+            x: root.page-x;
             y: 0px;
-            width: parent.width - root.side;
+            width: parent.width - root.page-x;
             height: Theme.bar;
             background: Theme.chrome;
             HorizontalLayout {
@@ -260,20 +213,11 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: root.page == 0 ? "Home" : root.page == 1 ? "Workspace" : root.page == 3 ? "Settings" : "";
+                        text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : "";
                         color: Theme.text;
                         font-size: Theme.font-title;
                         font-weight: 600;
                         vertical-alignment: center;
-                    }
-                    if root.page == 1 && root.library-mode == 1 : Text {
-                        text: root.section-name == "" ? "· Sections" : "· Sections · " + root.section-name;
-                        color: Theme.subtle;
-                        font-size: Theme.font-title;
-                        font-weight: 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                        max-width: 280px;
                     }
                 }
 
@@ -309,28 +253,6 @@ export component AppWindow inherits Window {
                 }
 
                 // The page's actions
-                if root.page == 1 && root.library-mode == 0 : HorizontalLayout {
-                    spacing: 8px;
-                    VerticalLayout {
-                        alignment: center;
-                        SearchField {
-                            placeholder: "Search your files...";
-                            label: "Search your files";
-                            text: root.library-query;
-                            edited(value) => { root.set-query(value); }
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        AppButton {
-                            small: true;
-                            icon: "upload";
-                            text: "Add";
-                            enabled: root.library-loaded && root.library-writable && !root.library-busy;
-                            clicked => { root.choose-reference(); }
-                        }
-                    }
-                }
                 if root.page == 3 : HorizontalLayout {
                     spacing: 8px;
                     VerticalLayout {
@@ -374,6 +296,14 @@ export component AppWindow inherits Window {
             }
         }
 
+        // While the sidebar is open, a click on the page closes it
+        if root.diagnostic-scene != 0 && root.rail-open : TouchArea {
+            x: root.side;
+            width: parent.width - root.side;
+            height: parent.height;
+            clicked => { root.rail-open = false; }
+        }
+
         // Sidebar, the full height of the window (§6); drawn last so its tooltips sit above the page
         if root.diagnostic-scene != 0 : Rectangle {
             x: 0px;
@@ -381,6 +311,9 @@ export component AppWindow inherits Window {
             width: root.side;
             height: parent.height;
             background: Theme.chrome;
+            // Open, it lies over the page: a soft shadow on its edge sets it apart
+            drop-shadow-blur: root.rail-open ? 24px : 0px;
+            drop-shadow-color: #00000090;
             clip: false;
 
             // Header: as tall as the top bar
@@ -425,13 +358,6 @@ export component AppWindow inherits Window {
                     open: root.rail-open;
                     active: root.page == 0;
                     activated => { root.navigate(0); }
-                }
-                SidebarItem {
-                    icon: "library";
-                    label: "Workspace";
-                    open: root.rail-open;
-                    active: root.page == 1;
-                    activated => { root.navigate(1); }
                 }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;
