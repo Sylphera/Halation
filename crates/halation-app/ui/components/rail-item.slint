@@ -28,11 +28,12 @@ export component SidebarItem inherits FocusScope {
     callback hovered(bool, length, length);
     callback selected(length, length, bool);
 
-    // Rows share the sidebar's height equally; the highlighted pill stays at most 40 px, centred in its row
+    // Rows share the sidebar's height equally; the highlighted pill is centred in its row: collapsed a square as wide
+    // as the sidebar's column (45 px), open a taller bar (up to 50 px; Java, 2026-10-22)
     min-height: Theme.item;
     preferred-height: Theme.item;
     vertical-stretch: 1;
-    property <length> pill: min(root.height, 40px);
+    property <length> pill: min(root.height, root.open ? 50px : Theme.sidebar-closed - 17px);
     property <length> pill-top: root.absolute-position.y + (root.height - root.pill) / 2;
     // Taller rows, when the window has room, get a larger icon and label
     property <bool> roomy: root.pill >= 36px;
@@ -97,7 +98,7 @@ export component SidebarItem inherits FocusScope {
             x: (Theme.sidebar-closed - 17px - self.width) / 2;
             y: (parent.height - self.height) / 2;
             name: root.icon;
-            size: root.roomy ? 18px : 16px;
+            size: root.roomy ? 21px : 17px;
             tint: root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted;
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
@@ -105,7 +106,7 @@ export component SidebarItem inherits FocusScope {
         // The label fades with the sidebar (its colour's alpha, not `opacity`: no layer). Always there, so the fade has
         // a start.
         Text {
-            x: root.roomy ? 36px : 32px;
+            x: root.roomy ? 46px : 40px;
             y: (parent.height - self.height) / 2;
             width: Theme.sidebar-open - 17px - self.x - 8px;
             text: root.label;

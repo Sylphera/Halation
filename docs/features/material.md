@@ -79,6 +79,11 @@ level is a flat fill and keeps only its lit 1 px edge and contact edge. The chro
 (`#111111`, the sheet `#0c0c0c`; the earlier `#151517` read blue). Hovering a selected row keeps its relief: the hover
 pill takes the raised edges as it joins the selection.
 
+Third Preview (Java, 2026-10-22): hovers are raised pieces too (sidebar, Settings categories, segmented control), so
+the hover pill and the selection fuse into one raised shape. The collapsed sidebar is 62 px wide with square 45 px
+rows and 21 px icons; open, the row's bar is up to 50 px tall. Home's drop zone is 780 x 196 and the recent files bar,
+as wide, sits 36 px above the bottom with its label centred over the files or the description.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

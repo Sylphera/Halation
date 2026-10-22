@@ -103,7 +103,7 @@ export component HomePage inherits Rectangle {
 
     // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
     property <length> hero-top: max(24px, root.height / 2 - 240px);
-    property <length> drop-top: max(root.hero-top + 222px, root.height - 70px - 55px - 15px - 150px);
+    property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
 
     // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600, tracked 0.20 em, as outlines; 88 px ("bastante
     // más grande" than the 60 px first chosen)
@@ -169,8 +169,9 @@ export component HomePage inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.drop-top;
-        width: min(640px, parent.width - 48px);
-        height: 150px;
+        // Taller and wider, recent files lower (Java, 2026-10-22)
+        width: min(780px, parent.width - 48px);
+        height: 196px;
         // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
         Surface {
             level: Level.bubble;
@@ -195,7 +196,7 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            y: 23px;
+            y: 48px;
             width: 48px;
             height: 48px;
             Surface {
@@ -213,7 +214,7 @@ export component HomePage inherits Rectangle {
 
         Text {
             x: (parent.width - self.width) / 2;
-            y: 83px;
+            y: 110px;
             text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
             color: Theme.text;
             font-size: 15.5px;
@@ -221,7 +222,7 @@ export component HomePage inherits Rectangle {
         }
         Text {
             x: (parent.width - self.width) / 2;
-            y: 108px;
+            y: 135px;
             text: "Or click to browse. Files are added to your Library, never copied.";
             color: Theme.subtle;
             font-size: Theme.font-body;
@@ -259,20 +260,20 @@ export component HomePage inherits Rectangle {
         }
     }
 
-    // Recent files
+    // Recent files: as wide as the drop zone, its label over the files or the description, centred like it
     Rectangle {
         x: (parent.width - self.width) / 2;
-        y: root.drop-top + 165px;
-        width: min(593px, parent.width - 48px);
-        height: 55px;
+        y: root.drop-top + 196px + 14px;
+        width: min(780px, parent.width - 48px);
+        height: 72px;
         Surface {
             level: Level.bubble;
             glass: true;
             radius: Theme.radius;
         }
         Text {
-            x: 21px;
-            y: (parent.height - self.height) / 2;
+            x: (parent.width - self.width) / 2;
+            y: 17px;
             text: "RECENT FILES";
             color: Theme.subtle;
             font-size: Theme.font-label;
@@ -280,27 +281,30 @@ export component HomePage inherits Rectangle {
             letter-spacing: Theme.label-tracking;
         }
         if root.recent.length == 0 : Text {
-            x: 130px;
-            y: (parent.height - self.height) / 2;
-            width: parent.width - 150px;
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            horizontal-alignment: center;
             text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
-            color: Theme.subtle;
+            color: Theme.muted;
             font-size: Theme.font-small;
             overflow: elide;
         }
         if root.recent.length > 0 : HorizontalLayout {
-            x: 130px;
-            width: parent.width - 150px;
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            height: 18px;
             spacing: 16px;
+            alignment: center;
             for item in root.recent : Text {
                 text: item.name;
                 color: Theme.muted;
                 font-size: Theme.font-small;
                 vertical-alignment: center;
                 overflow: elide;
-                max-width: 150px;
+                max-width: 160px;
             }
-            Rectangle { horizontal-stretch: 1; }
         }
     }
 }
