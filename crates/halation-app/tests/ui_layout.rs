@@ -2,9 +2,12 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, ItemRow, JobRow, RecentItem, SectionRow, ToolItem};
+use halation_app::ui::{AppWindow, JobRow, RecentItem, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
-use slint::{ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel, platform::WindowEvent};
+use slint::{
+    ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
+    platform::{Key, WindowEvent},
+};
 use std::rc::Rc;
 
 const SIZES: [(f32, f32); 4] = [
@@ -30,8 +33,8 @@ fn outside(ui: &AppWindow, w: f32, h: f32) -> Vec<String> {
     outside_above(ui, w, h, f32::MAX)
 }
 
-/// Like `outside`, for controls that start above `scroll_top`: below it a page scrolls, so what lies past the
-/// window's edge is reached by scrolling
+/// Like `outside`, for a page that scrolls below `scroll_top`: controls that start below it are only checked
+/// sideways, since what lies past the window's bottom is reached by scrolling
 fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String> {
     ElementQuery::from_root(ui)
         .match_descendants()
@@ -40,13 +43,15 @@ fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String>
         .into_iter()
         .filter_map(|e| {
             let (pos, size) = (e.absolute_position(), e.size());
-            if size.width <= 0.0 || size.height <= 0.0 || pos.y >= scroll_top {
+            if size.width <= 0.0 || size.height <= 0.0 {
                 return None;
             }
-            let bad = pos.x < -0.5
-                || pos.y < -0.5
-                || pos.x + size.width > w + 0.5
-                || pos.y + size.height > h + 0.5;
+            let sideways = pos.x < -0.5 || pos.x + size.width > w + 0.5;
+            let bad = if pos.y >= scroll_top {
+                sideways
+            } else {
+                sideways || pos.y < -0.5 || pos.y + size.height > h + 0.5
+            };
             bad.then(|| {
                 format!(
                     "{:?} at ({:.0},{:.0}) {:.0}x{:.0}",
@@ -115,49 +120,15 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
         finished: false,
         failed: false,
     }]))));
-    ui.set_sections(ModelRc::from(Rc::new(VecModel::from(vec![SectionRow {
-        id: "own:Covers".into(),
-        name: "A section with a really quite long name indeed".into(),
-        kind: "own".into(),
-        count: 3,
-        missing: false,
-        selected: true,
-    }]))));
-    ui.set_section_items(ModelRc::from(Rc::new(VecModel::from(vec![ItemRow {
-        name: "a-file-with-a-long-name-that-will-need-eliding-in-the-list.png".into(),
-        detail: "1.2 MB".into(),
-    }]))));
-    ui.set_section_id(SharedString::from("own:Covers"));
-    ui.set_section_name(SharedString::from(
-        "A section with a really quite long name indeed",
-    ));
-    ui.set_section_kind(SharedString::from("own"));
-    ui.set_sections_loaded(true);
-    ui.set_library_loaded(true);
-    ui.set_library_writable(true);
-
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        for page in [0, 1, 3] {
+        for page in [0, 3] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
-            // Settings scrolls under its fixed tab bar, which ends 100 px down
+            // Settings' pane scrolls under the top bar and the category title, which end 100 px down
             let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { f32::MAX });
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
-        // Library, Sections tab
-        ui.set_page(1);
-        let tab = ElementHandle::find_by_accessible_label(&ui, "Sections")
-            .next()
-            .expect("the Sections tab exists");
-        tab.invoke_accessible_default_action();
-        slint::platform::update_timers_and_animations();
-        let stray = outside(&ui, w, h);
-        assert!(stray.is_empty(), "sections tab at {w}x{h}: {stray:?}");
-        let back = ElementHandle::find_by_accessible_label(&ui, "References")
-            .next()
-            .expect("the References tab exists");
-        back.invoke_accessible_default_action();
     }
 }
 
@@ -167,6 +138,10 @@ fn the_check_does_detect_a_window_that_is_too_small() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     resize(&ui, 300.0, 200.0);
+    // Settings: its top bar (search, Restore defaults and the global actions) cannot fit 300 px; the page's own
+    // content is clipped by the sheet and so leaves the accessibility tree
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
     assert!(
         !outside(&ui, 300.0, 200.0).is_empty(),
         "a 300x200 window must report controls outside it, or the check proves nothing"
@@ -180,8 +155,8 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Pages and the rail entry that marks each; Jobs (2) has no page any more
-    let places = [(0, "Home"), (1, "Library"), (3, "Settings")];
+    // Pages and the sidebar entry that marks each: Home and Settings
+    let places = [(0, "Home"), (3, "Settings")];
     for (page, _) in places {
         ui.set_page(page);
         slint::platform::update_timers_and_animations();
@@ -202,4 +177,69 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
         let downloader = ElementHandle::find_by_accessible_label(&ui, "Downloader").count();
         assert!(downloader >= 1, "the rail lists the tools on page {page}");
     }
+}
+
+fn press_ctrl_b(ui: &AppWindow) {
+    let control = SharedString::from(Key::Control);
+    let b = SharedString::from("b");
+    ui.window().dispatch_event(WindowEvent::KeyPressed {
+        text: control.clone(),
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyPressed { text: b.clone() });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyReleased { text: b });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyReleased { text: control });
+}
+
+#[test]
+fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    // Collapsed at every width; it never opens by itself
+    for (w, h) in SIZES {
+        resize(&ui, w, h);
+        assert!(!ui.get_rail_open(), "collapsed at {w}x{h}");
+    }
+    press_ctrl_b(&ui);
+    assert!(ui.get_rail_open(), "Ctrl+B opens it");
+    // It stays open from page to page
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
+    assert!(ui.get_rail_open(), "still open on Settings");
+    press_ctrl_b(&ui);
+    assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
+    // Collapsed, the tools stay reachable by their names
+    assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
+}
+
+#[test]
+fn settings_shows_one_category_at_a_time() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
+    let shown = |label: &str| ElementHandle::find_by_accessible_label(&ui, label).count() > 0;
+    assert!(shown("Language"), "General is the first category");
+    assert!(
+        !shown("Processor jobs at once"),
+        "Processing is not shown with General"
+    );
+    let processing = ElementHandle::find_by_accessible_label(&ui, "Processing")
+        .next()
+        .expect("the Processing category exists");
+    processing.invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert_eq!(ui.get_settings_category(), 4);
+    assert!(
+        shown("Processor jobs at once"),
+        "Processing shows its settings"
+    );
+    assert!(!shown("Language"), "General's settings are gone");
 }

@@ -1,7 +1,7 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 
-// The original's switch: 34 x 20, lavender when on
+// Switch: 34 x 20, lavender when on
 export component Toggle inherits FocusScope {
     in property <bool> checked: false;
     in property <string> label: "";
@@ -32,7 +32,7 @@ export component Toggle inherits FocusScope {
 
     Rectangle {
         border-radius: 10px;
-        background: root.checked ? Theme.accent : Theme.line;
+        background: root.checked ? Theme.accent : Theme.line-strong;
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.text;
         opacity: root.enabled ? 1 : 0.45;
@@ -44,7 +44,7 @@ export component Toggle inherits FocusScope {
         width: 14px;
         height: 14px;
         border-radius: 7px;
-        background: root.checked ? Theme.panel : Theme.text;
+        background: root.checked ? Theme.chrome : Theme.text;
         animate x { duration: root.motion-duration; easing: ease-out; }
     }
     TouchArea {
@@ -88,7 +88,7 @@ export component Select inherits FocusScope {
     in property <string> label: "";
     callback chosen(int);
 
-    height: 34px;
+    height: 32px;
     focus-on-tab-navigation: true;
     accessible-role: combobox;
     accessible-label: label;
@@ -110,23 +110,23 @@ export component Select inherits FocusScope {
     }
 
     Rectangle {
-        border-radius: Theme.radius-field;
-        background: touch.has-hover ? #0e0e0e : Theme.field;
+        border-radius: Theme.radius-control;
+        background: touch.has-hover ? Theme.control-hover : Theme.control;
         border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.accent : Theme.line;
+        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
     }
     Text {
-        x: 13px;
-        width: parent.width - 40px;
+        x: 10px;
+        width: parent.width - 34px;
         y: (parent.height - self.height) / 2;
         text: root.options[root.current];
         color: Theme.text;
-        font-size: Theme.font-title;
+        font-size: Theme.font-body;
         font-weight: 500;
         overflow: elide;
     }
     Path {
-        x: parent.width - 23px;
+        x: parent.width - 20px;
         y: (parent.height - self.height) / 2;
         width: 9px;
         height: 5px;
@@ -147,22 +147,22 @@ export component Select inherits FocusScope {
         y: root.height + 4px;
         width: root.width;
         Rectangle {
-            border-radius: Theme.radius-field;
-            background: Theme.panel;
+            border-radius: Theme.radius-overlay;
+            background: Theme.control;
             border-width: 1px;
-            border-color: Theme.line;
+            border-color: Theme.line-strong;
             VerticalLayout {
                 padding: 4px;
                 for option[index] in root.options : Rectangle {
-                    height: 30px;
-                    border-radius: 7px;
-                    background: option-touch.has-hover ? Theme.raised : transparent;
+                    height: 28px;
+                    border-radius: Theme.radius-control;
+                    background: option-touch.has-hover ? Theme.control-active : transparent;
                     Text {
-                        x: 9px;
+                        x: 8px;
                         y: (parent.height - self.height) / 2;
                         text: option;
                         color: index == root.current ? Theme.text : Theme.muted;
-                        font-size: Theme.font-title;
+                        font-size: Theme.font-body;
                         font-weight: index == root.current ? 600 : 400;
                     }
                     option-touch := TouchArea {
@@ -183,21 +183,21 @@ export component Field inherits Rectangle {
     in property <bool> mono: false;
     callback committed(string);
 
-    height: 34px;
-    border-radius: Theme.radius-field;
-    background: Theme.field;
+    height: 32px;
+    border-radius: Theme.radius-control;
+    background: Theme.control;
     border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : Theme.line;
+    border-color: input.has-focus ? Theme.accent : Theme.line-strong;
 
     input := TextInput {
-        x: 13px;
-        width: parent.width - 26px;
+        x: 10px;
+        width: parent.width - 20px;
         height: parent.height;
         single-line: true;
         vertical-alignment: center;
         text: root.value;
         color: Theme.text;
-        font-size: Theme.font-title;
+        font-size: Theme.font-body;
         font-family: root.mono ? "Consolas" : "Inter";
         accessible-role: text-input;
         accessible-label: root.label;
@@ -209,15 +209,15 @@ export component Field inherits Rectangle {
         }
     }
     if input.text == "" : Text {
-        x: 13px;
+        x: 10px;
         y: (parent.height - self.height) / 2;
         text: root.placeholder;
         color: Theme.subtle;
-        font-size: Theme.font-title;
+        font-size: Theme.font-body;
     }
 }
 
-// Label above a control, as the original stacks them
+// Label above a control
 export component Labelled inherits VerticalLayout {
     in property <string> text;
     spacing: 6px;
@@ -231,8 +231,8 @@ export component Labelled inherits VerticalLayout {
 
 // Help line under a control
 export component Help inherits Text {
-    color: Theme.muted;
-    font-size: Theme.font-body;
+    color: Theme.subtle;
+    font-size: Theme.font-small;
     wrap: word-wrap;
 }
 
@@ -260,93 +260,121 @@ export component Tag inherits Rectangle {
     }
 }
 
-// "Advanced" disclosure at the foot of a settings section
-export component Advanced inherits VerticalLayout {
-    in-out property <bool> open: false;
+// A group of settings: its heading, then cells. Groups follow each other with 28 px between them.
+export component Group inherits VerticalLayout {
+    in property <string> title;
     spacing: 0px;
-    Rectangle {
-        height: 32px;
-        Rectangle {
-            y: 0px;
-            height: 1px;
-            background: Theme.hairline;
-        }
-        HorizontalLayout {
-            padding-left: 2px;
-            spacing: 6px;
-            alignment: start;
-            Text {
-                text: "Advanced";
-                color: Theme.muted;
-                font-size: Theme.font-small;
-                font-weight: 600;
-                vertical-alignment: center;
-            }
-            VerticalLayout {
-                alignment: center;
-                Path {
-                    width: 9px;
-                    height: 5px;
-                    viewbox-width: 9;
-                    viewbox-height: 5;
-                    commands: root.open ? "M0.5 4.5 L4.5 0.5 L8.5 4.5" : "M0.5 0.5 L4.5 4.5 L8.5 0.5";
-                    stroke: Theme.muted;
-                    stroke-width: 1.4px;
-                    fill: transparent;
-                }
-            }
-        }
-        TouchArea {
-            mouse-cursor: pointer;
-            accessible-role: button;
-            accessible-label: "Advanced";
-            accessible-expanded: root.open;
-            accessible-action-default => { root.open = !root.open; }
-            clicked => { root.open = !root.open; }
-        }
+    padding-bottom: 28px;
+    Text {
+        text: root.title;
+        color: Theme.text;
+        font-size: Theme.font-title;
+        font-weight: 600;
     }
-    // Kept in the tree and clipped while closed (a placeholder for children cannot be conditional)
+    Rectangle { height: 8px; }
+    @children
+}
+
+// One setting: a 1 px line above, the name and an optional help line on the left, its control on the right
+export component Cell inherits Rectangle {
+    in property <string> name;
+    in property <string> help: "";
+    min-height: 48px;
+    preferred-height: max(48px, body.preferred-height);
+    // Cells of a pair share the width equally, whatever their text
+    preferred-width: 0px;
+    min-width: 0px;
+    horizontal-stretch: 1;
     Rectangle {
-        height: root.open ? body.preferred-height : 0px;
-        clip: true;
-        visible: root.open;
-        body := VerticalLayout {
-            y: 0px;
-            height: self.preferred-height;
-            spacing: 10px;
-            padding-top: 6px;
-            padding-bottom: 4px;
+        y: 0px;
+        height: 1px;
+        background: Theme.line;
+    }
+    body := HorizontalLayout {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.name;
+                color: Theme.text;
+                font-size: Theme.font-body;
+                overflow: elide;
+            }
+            if root.help != "" : Text {
+                text: root.help;
+                color: Theme.subtle;
+                font-size: Theme.font-caption;
+                wrap: word-wrap;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
             @children
         }
     }
 }
 
-// One settings section: a dark card with its title
-export component Section inherits Rectangle {
-    in property <string> title;
-    border-radius: Theme.radius-panel;
-    background: Theme.panel;
-    border-width: 1px;
-    border-color: Theme.hairline;
+// Two cells side by side, 32 px apart; an empty slot keeps the left one at half width
+export component Pair inherits HorizontalLayout {
+    spacing: 32px;
+    @children
+}
+
+// Content that takes the whole width of a group (a list, a choice of cards), with the cell's line above
+export component Wide inherits VerticalLayout {
+    spacing: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     Rectangle {
-        x: 20px;
-        y: 1px;
-        width: parent.width - 40px;
         height: 1px;
-        background: Theme.sheen;
+        background: Theme.line;
     }
-    VerticalLayout {
-        padding-left: 17px;
-        padding-right: 17px;
-        padding-top: 15px;
-        padding-bottom: 14px;
-        spacing: 10px;
-        Text {
-            text: root.title;
-            color: Theme.text;
-            font-size: Theme.font-title;
-            font-weight: 600;
-        }
-        @children
+    @children
+}
+
+// Search field of the top bar: 240 px, a magnifier, the text and a placeholder
+export component SearchField inherits Rectangle {
+    in property <string> placeholder;
+    in property <string> label;
+    in-out property <string> text;
+    callback edited(string);
+    callback accepted(string);
+    width: 240px;
+    height: 28px;
+    border-radius: Theme.radius-control;
+    background: Theme.control;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.line-strong;
+    ToolIcon {
+        x: 9px;
+        y: (parent.height - self.height) / 2;
+        name: "search";
+        size: 14px;
+        tint: Theme.subtle;
+    }
+    input := TextInput {
+        x: 30px;
+        width: parent.width - 40px;
+        height: parent.height;
+        single-line: true;
+        vertical-alignment: center;
+        text <=> root.text;
+        color: Theme.text;
+        font-size: Theme.font-small;
+        accessible-role: text-input;
+        accessible-label: root.label;
+        edited => { root.edited(self.text); }
+        accepted => { root.accepted(self.text); }
+    }
+    if root.text == "" : Text {
+        x: 30px;
+        y: (parent.height - self.height) / 2;
+        text: root.placeholder;
+        color: Theme.subtle;
+        font-size: Theme.font-small;
     }
 }

@@ -6,6 +6,37 @@ Annex of [docs/SLINT_SPEC.md](../../docs/SLINT_SPEC.md); it supersedes the *layo
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
 Drape, lavender accent, near-black ground) does not change. Static mockup: Artifact published with this spec (https://claude.ai/artifact/VaQf6JbL7m9DGtNa9xv2hX).
 
+**Implementation (2026-10-22): implemented; approved by Java at `ca076f6` (2026-10-22, "terminado")** in the native window. Done: tokens (§5),
+sidebar (§6), top bar (§7), Drape inside Home's content (§8, variant 1), Home, Settings by category and Library (§9),
+with headless tests for the sidebar's width rule, `Ctrl+B` and one category at a time. Not done in this pass, on
+purpose or for lack of an engine: the tool frame (§9; tools still have no pages, so it has nothing to hold), the 1.2 s
+highlight of a found setting, Up/Down between sidebar items, the native title bar's colour, opening a recent file
+selected in Library (the row opens Library). The Drape is still decoded at the window's size and drawn in the content
+rectangle.
+
+**Workspace (Java, 2026-10-22):** Home, the Library and the jobs are one page, Workspace (sidebar entry and
+top-bar title), replacing §9's Home and the Library page: drop line, "Your files" (Files and Sections tabs, the
+kind of each file by extension, Remove on hover) taking the height left, and Jobs (up to three rows). No header of
+its own: the mark and name live in the sidebar. The sidebar's rows grow with the window's height (28 to 54 px) and
+the group headers take the rest, so the tools fill it. Superseded by the entries below.
+
+**Curved, presented (Java, 2026-10-22):** one 12 px radius for every corner; the page is a rounded sheet set into the
+chrome (inverted curves where the sidebar and top bar wrap it) with no separator lines. The Workspace presents the
+tools as cards, a picture (`assets/art/`, `tools/make-tool-art.py`), the name and one line, with no icons; the sidebar
+hides on the Workspace under "Expand when needed", so the navigation is not doubled. Its rows share the height
+equally, groups keep one fixed gap, and the Collapse toggle sits in a fixed place above Settings. The ten pictures
+take about 6 MB decoded (480 x 300 each). Superseded by the entries below.
+
+**Home back (Java, 2026-10-22):** the original Home (mark, wordmark, tagline, tool strip, drop zone, recent files)
+returns as page 0 inside the curved frame, with the frame's tokens; the Workspace (tools, Library, jobs) is page 1 and
+keeps everything else. Superseded by the entries below.
+
+**Home only (Java, 2026-10-22):** the Workspace is removed and the Library leaves the sidebar for now (its code stays,
+unused); the pages are Home and Settings. The tool pictures and their script went with the Workspace. The sidebar has
+no expand modes (Settings' Dock choice is gone): it starts collapsed at every width, opens only with its toggle or `Ctrl+B`,
+and pushes the page when open (an overlay was tried and dropped: Java, 2026-10-22, "vuelve a el anterior, se queda
+así"). Approved by Java (2026-10-22).
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged

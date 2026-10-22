@@ -1,17 +1,19 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 
-// The original's pill button: outlined, 13 px label, optional leading icon. `quiet` drops the outline.
+// Button of the anchored frame: a control fill with a 1 px border, the control radius, optional leading icon. `quiet` drops the
+// fill and border; `primary` is the one white button of a page.
 export component AppButton inherits FocusScope {
     in property <string> text: "";
     in property <string> icon: "";
     in property <bool> quiet: false;
     in property <bool> small: false;
+    in property <bool> primary: false;
     in property <duration> motion-duration: 160ms;
     callback clicked;
 
     width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
-    height: root.small ? 26px : 32px;
+    height: root.small ? 28px : 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: text;
@@ -35,9 +37,10 @@ export component AppButton inherits FocusScope {
     Rectangle {
         width: parent.width;
         height: parent.height;
-        border-radius: self.height / 2;
-        background: touch.pressed ? #ffffff1a : (touch.has-hover ? #ffffff0f : transparent);
-        border-width: root.has-focus ? 2px : (root.quiet ? 0px : 1px);
+        border-radius: Theme.radius-control;
+        background: root.primary ? (touch.pressed ? Theme.muted : Theme.text)
+            : touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : (root.quiet ? transparent : Theme.control));
+        border-width: root.has-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
         border-color: root.has-focus ? Theme.accent : Theme.line-strong;
         opacity: root.enabled ? 1 : 0.45;
         animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
@@ -50,12 +53,12 @@ export component AppButton inherits FocusScope {
         alignment: center;
         if root.icon != "" : VerticalLayout {
             alignment: center;
-            ToolIcon { name: root.icon; size: 15px; tint: root.quiet ? Theme.muted : Theme.text; }
+            ToolIcon { name: root.icon; size: 15px; tint: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text); }
         }
         label := Text {
             text: root.text;
-            color: root.quiet ? Theme.muted : Theme.text;
-            font-size: root.quiet ? Theme.font-small : 13px;
+            color: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text);
+            font-size: Theme.font-body;
             font-weight: 500;
             vertical-alignment: center;
             opacity: root.enabled ? 1 : 0.6;

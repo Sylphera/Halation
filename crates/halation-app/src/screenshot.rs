@@ -14,7 +14,7 @@ use slint::platform::{
     EventLoopProxy, Platform, PlatformError, WindowAdapter,
     software_renderer::{MinimalSoftwareWindow, RepaintBufferType},
 };
-use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel, SharedString};
+use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};
 use std::{
     collections::VecDeque,
     fs,
@@ -185,12 +185,10 @@ fn write_png(path: &Path, width: u32, height: u32, pixels: &[Rgb8Pixel]) -> std:
 }
 
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
-    // home, home-open (rail open), library, sections, settings, settings-<0..7> (a section)
+    // home, home-open (sidebar open), settings, settings-<0..7> (a section)
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
-        "library" | "references" => (1, 0, -1),
-        "sections" => (1, 1, -1),
         "settings" => (3, 0, -1),
         other => match other
             .strip_prefix("settings-")
@@ -199,7 +197,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, library, sections, settings or settings-<0..7>"
+                    "unknown page '{other}'; expected home, home-open, settings or settings-<0..7>"
                 )
                 .into());
             }
@@ -236,12 +234,6 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     ui.invoke_navigate(page);
     if mode == 2 {
         ui.set_rail_open(true);
-    }
-    if mode == 1 {
-        ui.set_library_mode(1);
-        ui.invoke_sections_opened();
-        pump(&queue, Duration::from_millis(600));
-        ui.invoke_select_section(SharedString::from("own:Covers"));
     }
     pump(&queue, Duration::from_millis(800));
     if section >= 0 {

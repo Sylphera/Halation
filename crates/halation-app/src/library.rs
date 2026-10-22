@@ -16,6 +16,24 @@ fn row_from_entry(entry: &LibraryEntry) -> LibraryRow {
         name: SharedString::from(entry.display_name.as_str()),
         path: SharedString::from(entry.path.as_str()),
         missing: entry.missing,
+        kind: SharedString::from(media_kind(&entry.path)),
+    }
+}
+
+/// The kind of media a path holds, by its extension, as the Workspace's file list names it
+pub fn media_kind(path: &str) -> &'static str {
+    let extension = Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match extension.as_str() {
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "tif" | "tiff" | "avif" | "heic" => {
+            "Image"
+        }
+        "wav" | "mp3" | "flac" | "ogg" | "opus" | "m4a" | "aac" | "aiff" | "aif" | "wma" => "Audio",
+        "mp4" | "mov" | "mkv" | "webm" | "avi" | "m4v" | "wmv" => "Video",
+        _ => "File",
     }
 }
 

@@ -1,13 +1,17 @@
-// Tokens of docs/SLINT_VISUAL_SYSTEM.md, measured on the rendered original Halation. Rust (`theme.rs`) applies the
-// colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
+// Tokens of planning/active/ui-redesign.md §5 (anchored frame: flat surfaces and 1 px lines). Rust (`theme.rs`)
+// applies the colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
 export global Theme {
-    in-out property <color> ground: #070707;
-    in-out property <color> ground-top: #0b0b0c;
-    in-out property <color> panel: #111111;
-    in-out property <color> raised: #242424;
-    in-out property <color> field: #080808;
-    in-out property <color> line: #3d3d39;
-    in-out property <color> line-strong: #55554f;
+    // Surfaces, from the frame inwards
+    in-out property <color> chrome: #0b0b0c;
+    in-out property <color> canvas: #101011;
+    in-out property <color> canvas-deep: #0a0a0b;
+    in-out property <color> control: #161617;
+    in-out property <color> control-hover: #1c1c1e;
+    in-out property <color> control-active: #232325;
+    // Lines: between regions and rows; control borders and hover
+    in-out property <color> line: #1f1f21;
+    in-out property <color> line-strong: #2d2d30;
+
     in-out property <color> text: #f5f5f2;
     in-out property <color> muted: #b5b5af;
     in-out property <color> subtle: #9a9993;
@@ -18,17 +22,31 @@ export global Theme {
     in-out property <color> danger: #f0a6a6;
     in-out property <color> success: #9fd6b2;
 
-    // Translucent layers over the backdrop (the original blurs behind them; here they are flat)
-    out property <color> glass: #111111ad;
-    out property <color> hairline: #fffffa1c;
-    out property <color> sheen: #fffffa1f;
+    // Hover and pressed fills over anything
+    out property <color> hover-fill: #ffffff0f;
+    out property <color> press-fill: #ffffff17;
+    // The Workspace's panels over the Drape: the canvas at 86%, so the Drape shows faintly through them
+    out property <color> panel: #101011dc;
 
-    out property <length> radius-panel: 20px;
-    out property <length> radius-field: 10px;
-    out property <length> radius-icon: 12px;
+    // Frame metrics
+    out property <length> sidebar-open: 224px;
+    out property <length> sidebar-closed: 52px;
+    out property <length> bar: 44px;
+    out property <length> sub-bar: 36px;
+    out property <length> item: 28px;
 
+    // Halation is curved (Java, 2026-10-22): one radius for every corner, controls, menus, panels and the page sheet
+    // alike. Slint draws circular corners, so this approximates a squircle by size, not by curve.
+    out property <length> radius: 12px;
+    out property <length> radius-control: root.radius;
+    out property <length> radius-overlay: root.radius;
+    out property <length> radius-sheet: root.radius;
+    // Gap between the page sheet and the window's right and bottom edges
+    out property <length> sheet-inset: 8px;
+
+    out property <length> font-heading: 16px;
     out property <length> font-title: 13.5px;
     out property <length> font-body: 12.5px;
     out property <length> font-small: 12px;
-    out property <length> font-tiny: 10.5px;
+    out property <length> font-caption: 11px;
 }

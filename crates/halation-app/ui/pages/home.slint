@@ -26,8 +26,8 @@ component StripItem inherits FocusScope {
         }
     }
     Rectangle {
-        border-radius: 12px;
-        background: touch.pressed ? #ffffff17 : (touch.has-hover ? #ffffff0f : transparent);
+        border-radius: Theme.radius;
+        background: touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.hover-fill : transparent);
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.accent;
         animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
@@ -44,7 +44,7 @@ component StripItem inherits FocusScope {
         y: 31px;
         text: root.label;
         color: touch.has-hover ? Theme.text : Theme.muted;
-        font-size: Theme.font-tiny;
+        font-size: Theme.font-caption;
         font-weight: 500;
     }
     touch := TouchArea {
@@ -56,8 +56,9 @@ component StripItem inherits FocusScope {
     }
 }
 
-// Home as in the original: the mark and wordmark, the tagline, the strip of tools, and the drop zone with recent
-// files anchored to the bottom.
+// Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the mark and wordmark, the
+// tagline, the strip of tools, and the drop zone with recent files anchored to the bottom. Surfaces and corners use
+// the frame's tokens: the panel fill, a faint line and the one radius.
 export component HomePage inherits Rectangle {
     in property <[ToolItem]> tools;
     in property <[RecentItem]> recent;
@@ -107,17 +108,10 @@ export component HomePage inherits Rectangle {
         y: root.hero-top + 202px;
         width: min(strip.preferred-width, parent.width - 24px);
         height: 62px;
-        border-radius: 18px;
-        background: Theme.glass;
+        border-radius: Theme.radius;
+        background: Theme.panel;
         border-width: 1px;
-        border-color: Theme.hairline;
-        Rectangle {
-            x: 18px;
-            y: 1px;
-            width: parent.width - 36px;
-            height: 1px;
-            background: Theme.sheen;
-        }
+        border-color: Theme.line;
         strip := HorizontalLayout {
             padding-left: 5px;
             padding-right: 5px;
@@ -137,35 +131,24 @@ export component HomePage inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.drop-top;
-        width: 640px;
+        width: min(640px, parent.width - 48px);
         height: 150px;
-        border-radius: 24px;
-        background: drop-area.has-drag ? #a3a8dc1f : (drop-touch.has-hover ? #181818c0 : Theme.glass);
+        border-radius: Theme.radius;
+        border-width: 1px;
+        border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
+        background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
         animate background { duration: root.motion-duration; easing: ease-out; }
 
-        Image {
-            width: parent.width;
-            height: parent.height;
-            source: Assets.drop-outline;
-            colorize: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-        }
-        Rectangle {
-            x: 24px;
-            y: 1px;
-            width: parent.width - 48px;
-            height: 1px;
-            background: Theme.sheen;
-        }
 
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: 23px;
             width: 48px;
             height: 48px;
-            border-radius: 16px;
-            background: Theme.raised;
+            border-radius: Theme.radius;
+            background: Theme.control;
             border-width: 1px;
-            border-color: Theme.sheen;
+            border-color: Theme.line-strong;
             ToolIcon {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
@@ -227,19 +210,12 @@ export component HomePage inherits Rectangle {
     Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.drop-top + 165px;
-        width: 593px;
+        width: min(593px, parent.width - 48px);
         height: 55px;
-        border-radius: 22px;
-        background: Theme.glass;
+        border-radius: Theme.radius;
+        background: Theme.panel;
         border-width: 1px;
-        border-color: Theme.hairline;
-        Rectangle {
-            x: 22px;
-            y: 1px;
-            width: parent.width - 44px;
-            height: 1px;
-            background: Theme.sheen;
-        }
+        border-color: Theme.line;
         Text {
             x: 21px;
             y: (parent.height - self.height) / 2;
