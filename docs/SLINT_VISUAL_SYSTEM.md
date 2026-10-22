@@ -104,7 +104,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
   and drawn at **10 % opacity**. Tried before it: the original's own grain cut from a patch of the Drape (the patch's
   light and shade repeated as blocks), then the original's grain drawn over an even grey (no blocks, but Java chose
   the standard one once the little squares were gone).
-- **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no added weight) reads the video on
+- **Playback (`backdrop.rs`, `app.rs`):** Windows' own decoder (Media Foundation, no extra binary dependency) reads the video on
   a thread of its own; a 15 Hz timer asks it for the next frame, which comes back as Home's backdrop image. Two
   window-sized frames are kept and written in turn (one on screen, one being made), as opaque RGBA so Skia uploads
   them without converting on the UI thread (RGB cost about 30 ms a frame at 1080p there); a frame allocates nothing. It runs only while Home is shown with motion on and the window is not minimized;
@@ -123,6 +123,12 @@ the CPU is Skia redrawing the window 15 times a second plus the scaling and dith
 are from the version that scaled to 640 × 360 (1.5 ms a frame); scaling to the window takes 9.5 ms a frame at
 1920 × 1009 (4.6 ms at 1280 × 680, 16.8 ms at 2560 × 1369), about 14 % of one thread at 15 fps, off the window's
 thread, and is still to be measured in the running app. The decoding itself takes about 0.2 ms. Hover cost is not measured: no input is injected into Java's desktop.
+
+**Re-measured 2026-10-22** (current UI, 1280 × 800, 30 s, desktop OpenGL): the empty renderer window is 28.7 MB private;
+Home with the video removed (so no Media Foundation) is 57.9 MB; Home with the decoder open but on the still frame is
+101.3 MB; with the loop playing it is 122.0 MB. Media Foundation costs about 43 MB before a frame is requested, and
+the two window-sized frames plus scratch about 21 MB. The D3D12 build measured 157.8 MB in the same scene. The 90 MB
+row above belongs to the 640 × 360 version and is not comparable with the window-sized frames.
 
 ## Assets beside the executable
 
