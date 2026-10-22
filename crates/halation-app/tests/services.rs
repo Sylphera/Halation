@@ -470,7 +470,8 @@ fn every_animation_follows_the_motion_cost_rules() {
             };
             let properties = rest.split('{').next().unwrap_or_default();
             let body = rest.split('{').nth(1).unwrap_or_default();
-            if !body.contains("Motion.") {
+            // `hover-lead` is the hover pill's glide, set from `Motion.glide` and the pointer's pace
+            if !body.contains("Motion.") && !body.contains("root.hover-lead") {
                 broken.push(format!("{at}: duration not from Motion"));
             }
             if !body.contains("Curve.ease") && !body.contains("spring(0)") {
