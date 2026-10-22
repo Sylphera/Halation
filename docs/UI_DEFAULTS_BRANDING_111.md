@@ -31,34 +31,30 @@ states. It does not contain Halation branding or a separate hand-drawn icon.
 
 ## Logo source and icon pipeline
 
-The supplied image is preserved at `docs/brand/source/halation.logo.png`
-(2048 × 682). `app/scripts/icons.js` separates the symbol from the accompanying
-text using their empty column gap, extracts the native 573 × 282 region and
-converts the black canvas into transparency. `source/extraction.json` records the
-crop and composition geometry.
+Since 2026-10-22 (Java) the logo is a hand-drawn vector stroke:
+`docs/brand/source/halation-mark.svg`, one continuous white line with round
+caps (a rise, a crest, a dip and a rise) turned −18°, in a square 66-unit
+viewBox. It replaces the raster mark extracted from `halation.logo.png`, which
+was retired. It was drawn in code, not generated, so the artwork is the
+project's own.
 
-`halation-mark-source.png` is the extracted transparent mark. `halation-mark.svg`
-embeds these native-resolution pixels; it is a raster-backed SVG container, not
-a vector tracing. Home, Welcome, About and the navigation use this mark. The UI
-wordmark remains separate. No CSS offset or artificial optical translation is
-applied.
+`app/scripts/icons.js` copies the source as `halation-mark.svg` (the transparent
+UI mark used by Home, Welcome, About, the Home tab and module fallbacks) and
+rasterises it to the 512 × 512 `halation-mark-source.png` for the README
+scripts. The UI wordmark remains separate.
 
-`halation-app-icon.svg` composes the mark proportionally on the historical dark
-rounded square: a vertical `#1a1a1c` to `#0b0b0c` gradient and its subtle frame,
-recovered from `16d8e6c:app/src-tauri/icons/halation-icon.svg`. The symbol is
-centered, at 78% canvas width, with zero extra offset. Every raster size renders
+`halation-app-icon.svg` puts the mark on a flat `#111111` rounded square
+(rx 228 of 1024, the surface grey of the interface) with the earlier 8% white
+hairline, centred and spanning 62% of the square. Every raster size renders
 directly from this master rather than from an already resized icon.
 
 The pipeline generates the application PNG sizes, the multi-size ICO files,
 favicon and Windows identity assets. `halation-mark.png` and `.ico` in the Tauri
 icons folder retain their compatibility filenames for the native window and
 installer; their artwork is the square app icon, not the transparent UI mark.
-Obsolete `halation-logo.svg` assets and rejected A/B variants are retired.
 
-Regeneration uses `npm run icons` from `app`, with Playwright and pngjs available
-in the global Node module directory and `CHROME` pointing to Chromium where
-needed. The source is raster; regeneration preserves its available resolution
-and does not invent vector detail.
+Regeneration uses `npm run icons` from `app`, with Playwright available in the
+global Node module directory and `CHROME` pointing to Chromium where needed.
 
 ## Validation already performed
 

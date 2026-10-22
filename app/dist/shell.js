@@ -121,7 +121,7 @@ let TABS = [];
 // Builds the rail, the frames of the tools and the Home cards; again whenever a module is turned on or off
 function buildRail() {
   const btn = m => m.id === "home"
-    ? `<button class="tab home" role="tab" data-tab="home" aria-controls="v-home" data-i18n-aria-label="tab.home"><img src="img/halation-mark.svg" alt="" width="573" height="282"><span class="tl" data-i18n="tab.home"></span></button>`
+    ? `<button class="tab home" role="tab" data-tab="home" aria-controls="v-home" data-i18n-aria-label="tab.home"><img src="img/halation-mark.svg" alt="" width="512" height="512"><span class="tl" data-i18n="tab.home"></span></button>`
     : `<button class="tab" role="tab" data-tab="${m.id}" data-icon="${m.icon}" aria-controls="v-${m.id}" data-i18n-aria-label="tab.${m.id}"><span class="tl"><span data-i18n="tab.${m.id}"></span><small></small></span><span class="ts" aria-hidden="true"></span></button>`;
   const top = REG.MODULES.filter(m => m.place !== "bottom" && on_(m)), bottom = REG.MODULES.filter(m => m.place === "bottom" && on_(m));
   $("#railTop").innerHTML = top.map((m, i) => (i && m.group !== top[i - 1].group ? `<span class="rail-sep" aria-hidden="true"></span>` : "") + btn(m)).join("");
@@ -1749,7 +1749,7 @@ function renderModules() {
     const deps = (m.deps || []).map(d => d.optional ? t("set.mod.optional", { name: compName(d.id) }) : compName(d.id)).join(", ");
     const sw = m.core ? `<span class="badge-info">${esc(t("set.mod.always"))}</span>`
       : `<label class="tog"><span class="sr">${esc(t("tab." + m.id))}</span><input type="checkbox" data-mod="${m.id}"${on_ ? " checked" : ""}></label>`;
-    return `<div class="mod${on_ ? "" : " off"}" data-key="${m.id}">${m.icon ? `<span class="mic" data-icon="${m.icon}"></span>` : `<img class="mic" src="img/halation-mark.svg" alt="" width="573" height="282">`}`
+    return `<div class="mod${on_ ? "" : " off"}" data-key="${m.id}">${m.icon ? `<span class="mic" data-icon="${m.icon}"></span>` : `<img class="mic" src="img/halation-mark.svg" alt="" width="512" height="512">`}`
       + `<b>${esc(t("tab." + m.id))}${m.stage === "beta" ? ` <span class="badge-fx">${esc(t("set.mod.beta"))}</span>` : ""}<small>${esc(deps ? t("set.mod.uses", { list: deps }) : t("set.mod.nothing"))}</small></b>${sw}`
       + (need.length ? `<p class="need"><span class="badge-warn">${esc(t("set.mod.missing", { list: need.map(compName).join(", ") }))}</span><button class="btn sm" data-need="${need.join(",")}"${working ? " disabled" : ""}>${esc(t("set.mod.install"))}</button></p>` : "")
       + `</div>`;

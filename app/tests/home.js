@@ -32,7 +32,7 @@ const ok = (c, msg) => { console.log((c ? "OK   " : "FAIL ") + msg); if (!c) fai
   });
   const centred = r => Math.abs(r.left + r.width / 2 - g.mid) < 2;
   ok(centred(g.logo) && centred(g.word) && centred(g.bar), "Home: the symbol, the wordmark and the tool bar are centred");
-  ok(g.logo.width >= 120 && g.logo.bottom <= g.word.top && g.word.bottom < g.bar.top, "Home: the symbol, big, over the wordmark, then the tool bar");
+  ok(g.logo.width >= 88 && g.logo.bottom <= g.word.top && g.word.bottom < g.bar.top, "Home: the symbol, big, over the wordmark, then the tool bar");
   ok(!g.search, "Home: no search");
   ok(g.rows === 1 && g.bar.height < 70 && !g.clipped, `Home: the tools fit one compact row, no name cut: ${g.rows} row(s), ${Math.round(g.bar.height)} px`);
   ok(await page.locator("#v-home .hero .note").textContent() === L("home.tagline"), "Home: the line under the wordmark");

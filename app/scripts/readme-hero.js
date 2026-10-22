@@ -23,7 +23,7 @@ const html = `<!doctype html><meta charset="utf-8"><style>
 .veil{position:absolute;inset:0;background:radial-gradient(42% 62% at 50% 50%,rgba(0,0,0,.94) 0,rgba(0,0,0,.86) 45%,rgba(0,0,0,.45) 80%,rgba(0,0,0,.35) 100%)}
 .edges{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.7),transparent 25%,transparent 75%,rgba(0,0,0,.7))}
 .brand{position:absolute;left:0;right:0;top:150px;display:flex;flex-direction:column;align-items:center}
-.mark{width:220px;${halo}}.word{width:300px;margin-top:36px}
+.mark{width:120px;${halo}}.word{width:300px;margin-top:36px}
 .tag{margin-top:24px;font-size:19px;letter-spacing:.01em;color:#b5b5af}
 .grain{position:absolute;inset:0;opacity:.10;mix-blend-mode:screen}
 </style><body>
