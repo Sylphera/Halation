@@ -85,6 +85,7 @@ export component AppWindow inherits Window {
     callback set-query(string);
     callback set-reduced-motion(bool);
     callback set-pref(string, string);
+    callback preview-accent(int);
     callback set-tool-enabled(string, bool);
     callback reset-settings();
     callback search-settings(string) -> int;
@@ -193,6 +194,7 @@ export component AppWindow inherits Window {
                 components: root.components;
                 folders: root.folders;
                 set-pref(key, value) => { root.set-pref(key, value); }
+                preview-accent(hue) => { root.preview-accent(hue); }
                 set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
                 action(name) => { root.dock-action(name); }
                 reset => { root.reset-settings(); }

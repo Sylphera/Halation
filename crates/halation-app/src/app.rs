@@ -186,7 +186,11 @@ impl Controller {
             profile.links_path(),
         )));
 
-        let backdrop = Rc::new(BackdropPlayer::new(weak.clone(), &crate::assets::locate()));
+        let backdrop = Rc::new(BackdropPlayer::new(
+            weak.clone(),
+            &crate::assets::locate(),
+            theme_of(settings.current()).0,
+        ));
         Ok(Self {
             weak,
             diagnostic_timer: RefCell::new(None),
@@ -222,9 +226,10 @@ impl Controller {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
-        apply_theme(&ui);
+        let (tone, hue) = theme_of(self.services.borrow().settings.current());
+        apply_theme(&ui, &theme::colours(tone, hue));
         let assets = crate::assets::locate();
-        crate::assets::apply(&ui, &assets);
+        crate::assets::apply(&ui, &assets, tone);
         // Home shows the loop's first frame until the decoder delivers
         ui.set_backdrop(ui.global::<crate::ui::Assets>().get_still());
         let missing = crate::assets::missing(&assets);
@@ -336,7 +341,25 @@ impl Controller {
                         log_line(&s.profile, &format!("settings save failed: {error}"));
                     }
                 }
+                // The saved theme, which also ends a live accent preview
+                if matches!(key.as_str(), "theme" | "accent-hue") {
+                    retheme(&ui, &s);
+                }
                 refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_preview_accent(move |hue| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let s = services.borrow();
+                let (tone, _) = theme_of(s.settings.current());
+                let hue = u16::try_from(hue.rem_euclid(360)).unwrap_or(0);
+                apply_theme(&ui, &theme::colours(tone, Some(hue)));
             });
         }
 
@@ -532,6 +555,7 @@ impl Controller {
                         s.notice = format!("Could not reset settings: {error}");
                     }
                 }
+                retheme(&ui, &s);
                 refresh(&ui, &s);
             });
         }
@@ -1175,6 +1199,8 @@ fn prefs(settings: &Settings) -> Prefs {
         budget: choice(settings.budget),
         updates: choice(settings.updates),
         whats_new: settings.whats_new,
+        theme: choice(settings.theme),
+        accent_hue: i32::from(settings.accent_hue),
     }
 }
 
@@ -1277,9 +1303,9 @@ struct BackdropPlayer {
 }
 
 impl BackdropPlayer {
-    fn new(weak: Weak<AppWindow>, assets: &Path) -> Self {
+    fn new(weak: Weak<AppWindow>, assets: &Path, tone: theme::Tone) -> Self {
         let deliver_to = weak.clone();
-        let player = crate::backdrop::Player::start(assets, move |frame| {
+        let player = crate::backdrop::Player::start(assets, tone, move |frame| {
             // A closed window is a normal lifecycle end
             let _ = deliver_to.upgrade_in_event_loop(move |ui| {
                 ui.set_backdrop(Image::from_rgba8_premultiplied(frame))
@@ -1290,6 +1316,22 @@ impl BackdropPlayer {
             player,
             timer: slint::Timer::default(),
             still: std::cell::Cell::new(false),
+        }
+    }
+
+    /// Recolours the loop and the still frame for `tone`; the frame on screen changes with the next one decoded, or at
+    /// once when the still frame shows
+    fn set_tone(&self, tone: theme::Tone) {
+        if let Some(player) = &self.player {
+            player.set_tone(tone);
+        }
+        let Some(ui) = self.weak.upgrade() else {
+            return;
+        };
+        let still = crate::assets::still(&crate::assets::locate(), tone);
+        ui.global::<crate::ui::Assets>().set_still(still.clone());
+        if self.still.get() || self.player.is_none() || !self.timer.running() {
+            ui.set_backdrop(still);
         }
     }
 
@@ -1344,25 +1386,48 @@ fn apply_motion(ui: &AppWindow, tokens: motion::Tokens) {
     global.set_press_scale(tokens.press_scale);
 }
 
-fn apply_theme(ui: &AppWindow) {
+/// Sets the theme's colours (docs/features/themes.md): at start and whenever Settings changes the theme or the accent;
+/// the window repaints once
+fn apply_theme(ui: &AppWindow, colours: &theme::Colours) {
     let theme = ui.global::<Theme>();
-    theme.set_chrome(color(theme::CHROME));
-    theme.set_canvas(color(theme::CANVAS));
-    theme.set_canvas_deep(color(theme::CANVAS_DEEP));
-    theme.set_control(color(theme::CONTROL));
-    theme.set_control_hover(color(theme::CONTROL_HOVER));
-    theme.set_control_active(color(theme::CONTROL_ACTIVE));
-    theme.set_line(color(theme::LINE));
-    theme.set_line_strong(color(theme::LINE_STRONG));
-    theme.set_text(color(theme::TEXT));
-    theme.set_muted(color(theme::MUTED));
-    theme.set_subtle(color(theme::SUBTLE));
-    theme.set_accent(color(theme::ACCENT));
-    theme.set_activity(color(theme::ACTIVITY));
-    theme.set_warning(color(theme::WARNING));
-    theme.set_beta(color(theme::BETA));
-    theme.set_danger(color(theme::DANGER));
-    theme.set_success(color(theme::SUCCESS));
+    theme.set_chrome(color(colours.chrome));
+    theme.set_canvas(color(colours.canvas));
+    theme.set_canvas_deep(color(colours.canvas_deep));
+    theme.set_control(color(colours.control));
+    theme.set_control_hover(color(colours.control_hover));
+    theme.set_control_active(color(colours.control_active));
+    theme.set_line(color(colours.line));
+    theme.set_line_strong(color(colours.line_strong));
+    theme.set_line_hover(color(colours.line_hover));
+    theme.set_text(color(colours.text));
+    theme.set_muted(color(colours.muted));
+    theme.set_subtle(color(colours.subtle));
+    theme.set_accent(color(colours.accent));
+    theme.set_activity(color(colours.activity));
+    theme.set_warning(color(colours.warning));
+    theme.set_beta(color(colours.beta));
+    theme.set_danger(color(colours.danger));
+    theme.set_success(color(colours.success));
+    theme.set_raised(color(colours.raised));
+    theme.set_raised_press(color(colours.raised_press));
+    theme.set_well(color(colours.well));
+    theme.set_bubble(color(colours.bubble));
+    theme.set_popover(color(colours.popover));
+    theme.set_key(color(colours.key));
+    theme.set_primary_press(color(colours.primary_press));
+}
+
+/// Applies the saved theme and accent to the window and Home's backdrop
+fn retheme(ui: &AppWindow, s: &Services) {
+    let (tone, hue) = theme_of(s.settings.current());
+    apply_theme(ui, &theme::colours(tone, hue));
+    s.backdrop.set_tone(tone);
+}
+
+/// The theme and accent of the settings
+fn theme_of(settings: &Settings) -> (theme::Tone, Option<u16>) {
+    let hue = (settings.accent_hue < crate::settings::THEME_ACCENT).then_some(settings.accent_hue);
+    (theme::Tone::from_setting(settings.theme), hue)
 }
 
 fn color(value: theme::Rgb) -> slint::Color {

@@ -3,6 +3,7 @@
 //! the crate's `assets/` there for development builds. A missing file is reported to the user and logged; the app still
 //! runs without it.
 
+use crate::theme::Tone;
 use crate::ui::{AppWindow, Assets};
 use slint::{ComponentHandle, Image};
 use std::path::{Path, PathBuf};
@@ -132,7 +133,7 @@ pub fn register_fonts(dir: &Path) -> Result<(), String> {
 }
 
 /// Loads the images into the interface's `Assets` global; files that are missing or unreadable stay empty
-pub fn apply(ui: &AppWindow, dir: &Path) {
+pub fn apply(ui: &AppWindow, dir: &Path, tone: Tone) {
     let assets = ui.global::<Assets>();
     let load = |file: &str| Image::load_from_path(&dir.join(file)).unwrap_or_default();
     assets.set_mark(load("halation-mark.png"));
@@ -141,10 +142,35 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     assets.set_drop_outline(load("drop-outline.svg"));
     // Generated, not a file: a standard static grain
     assets.set_grain(Image::from_rgba8(crate::backdrop::grain_tile()));
-    assets.set_still(load("drape-still.jpg"));
+    assets.set_still(still(dir, tone));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));
     }
+}
+
+/// Home's still frame in the theme's colour (docs/features/themes.md): the recorded file in Silver, recoloured like
+/// the loop in Gold; empty when the file is missing or unreadable
+pub fn still(dir: &Path, tone: Tone) -> Image {
+    let image = Image::load_from_path(&dir.join("drape-still.jpg")).unwrap_or_default();
+    if tone == Tone::Silver {
+        return image;
+    }
+    let byte = |value: f32| value.round().clamp(0.0, 255.0) as u8;
+    if let Some(mut pixels) = image.to_rgb8() {
+        for pixel in pixels.make_mut_slice() {
+            let [r, g, b] = tone.drape(f32::from(pixel.r), f32::from(pixel.g), f32::from(pixel.b));
+            (pixel.r, pixel.g, pixel.b) = (byte(r), byte(g), byte(b));
+        }
+        return Image::from_rgb8(pixels);
+    }
+    if let Some(mut pixels) = image.to_rgba8() {
+        for pixel in pixels.make_mut_slice() {
+            let [r, g, b] = tone.drape(f32::from(pixel.r), f32::from(pixel.g), f32::from(pixel.b));
+            (pixel.r, pixel.g, pixel.b) = (byte(r), byte(g), byte(b));
+        }
+        return Image::from_rgba8(pixels);
+    }
+    image
 }
 
 #[cfg(test)]

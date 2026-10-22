@@ -178,7 +178,7 @@ pub const COMPONENTS: [(&str, &str); 13] = [
 pub fn settings_section(query: &str) -> Option<usize> {
     const SECTIONS: [&str; 8] = [
         "general language english spanish espanol reduce animations motion processes dock notify notification job finishes",
-        "interface dock compact expand keep open activity window maximized full screen",
+        "interface theme silver gold accent colour color hue dock compact expand keep open activity window maximized full screen",
         "you artist name youtube spotify soundcloud instagram tiktok links profile",
         "files save export location ask halation folder name template video image",
         "processing mode quiet balanced fast graphics card gpu vocal remover processor jobs downloads minimized",
