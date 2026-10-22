@@ -4,10 +4,17 @@ pub enum Page {
     Library,
     Jobs,
     Settings,
+    Converter,
 }
 
 impl Page {
-    pub const ALL: [Page; 4] = [Page::Home, Page::Library, Page::Jobs, Page::Settings];
+    pub const ALL: [Page; 5] = [
+        Page::Home,
+        Page::Library,
+        Page::Jobs,
+        Page::Settings,
+        Page::Converter,
+    ];
 
     pub fn index(self) -> i32 {
         match self {
@@ -15,6 +22,7 @@ impl Page {
             Self::Library => 1,
             Self::Jobs => 2,
             Self::Settings => 3,
+            Self::Converter => 4,
         }
     }
 
@@ -24,6 +32,7 @@ impl Page {
             1 => Some(Self::Library),
             2 => Some(Self::Jobs),
             3 => Some(Self::Settings),
+            4 => Some(Self::Converter),
             _ => None,
         }
     }

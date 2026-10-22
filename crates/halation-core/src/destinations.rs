@@ -31,7 +31,8 @@ impl SaveMode {
 }
 
 /// What the policy remembers between exports; the caller stores it with the rest of the profile
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct ExportLocation {
     pub last_manual_directory: Option<PathBuf>,
     pub folder_explanation_shown: bool,

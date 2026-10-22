@@ -9,6 +9,10 @@ import { Motion, Curve } from "motion.slint";
 export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 import { HomePage } from "pages/home.slint";
 import { SettingsPage } from "pages/settings.slint";
+import { ConverterPage } from "pages/converter.slint";
+import { ConvertRow, FormatRow } from "models.slint";
+export { ConvertRow, FormatRow } from "models.slint";
+import { AppButton } from "components/button.slint";
 import { SidebarItem, SidebarGroup, PillList } from "components/rail-item.slint";
 import { TopActions, ActivityButton, BarButton, BarHint } from "components/top-dock.slint";
 
@@ -77,6 +81,30 @@ export component AppWindow inherits Window {
     in property <int> settings-jump: -1;
     // Settings category shown (the top bar's search changes it)
     in-out property <int> settings-category: 0;
+    in property <[ConvertRow]> convert-rows;
+    in property <[FormatRow]> convert-formats;
+    in property <string> convert-title;
+    in property <string> convert-summary;
+    in property <string> convert-message;
+    in property <string> convert-output;
+    in property <image> convert-preview;
+    in property <bool> convert-has-preview: false;
+    in property <bool> convert-busy: false;
+    in property <bool> convert-can-run: false;
+    in property <bool> convert-needs-ffmpeg: true;
+    in property <bool> convert-completed: false;
+    in property <bool> convert-left-open: false;
+    in property <bool> convert-inspector-open: true;
+    in property <float> convert-progress: 0;
+    in property <string> convert-progress-label;
+    callback converter-action(string);
+    callback converter-select(int);
+    callback converter-target(string);
+    callback converter-loaded();
+    callback converter-dropped(data-transfer);
+    in-out property <bool> export-choice-visible: false;
+    in property <bool> ffmpeg-ready: false;
+    in property <bool> ffmpeg-installing: false;
 
     callback navigate(int);
     callback choose-reference();
@@ -127,6 +155,10 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height;
         key-pressed(event) => {
+            if (root.page == 4 && event.modifiers.control && event.modifiers.alt) {
+                if (event.text == "b" || event.text == "B") { root.converter-action("toggle-files"); return accept; }
+                if (event.text == "i" || event.text == "I") { root.converter-action("toggle-output"); return accept; }
+            }
             if (event.modifiers.control && (event.text == "b" || event.text == "B")) {
                 root.rail-open = !root.rail-open;
                 return accept;
@@ -176,6 +208,20 @@ export component AppWindow inherits Window {
                 file-dropped(data) => { root.file-dropped(data); }
             }
 
+            if root.page == 4 : ConverterPage {
+                width: parent.width; height: parent.height;
+                items: root.convert-rows; formats: root.convert-formats;
+                title: root.convert-title; summary: root.convert-summary;
+                message: root.convert-message; output: root.convert-output;
+                preview: root.convert-preview; has-preview: root.convert-has-preview;
+                busy: root.convert-busy; needs-ffmpeg: root.convert-needs-ffmpeg; completed: root.convert-completed;
+                left-open: root.convert-left-open; inspector-open: root.convert-inspector-open;
+                progress: root.convert-progress; progress-label: root.convert-progress-label;
+                action(name) => { root.converter-action(name); }
+                select(index) => { root.converter-select(index); }
+                target(id) => { root.converter-target(id); }
+                file-dropped(data) => { root.converter-dropped(data); }
+            }
             if root.page == 3 : SettingsPage {
                 width: parent.width;
                 height: parent.height;
@@ -192,6 +238,8 @@ export component AppWindow inherits Window {
                 app-size: root.app-size;
                 workspace-size: root.workspace-size;
                 components: root.components;
+                ffmpeg-ready: root.ffmpeg-ready;
+                ffmpeg-installing: root.ffmpeg-installing;
                 folders: root.folders;
                 set-pref(key, value) => { root.set-pref(key, value); }
                 preview-accent(hue) => { root.preview-accent(hue); }
@@ -219,7 +267,7 @@ export component AppWindow inherits Window {
                     horizontal-stretch: 0;
                     spacing: 6px;
                     Text {
-                        text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : "";
+                        text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : root.page == 4 ? "Converter" : "";
                         color: Theme.text;
                         font-family: Theme.display;
                         font-size: Theme.font-bar-title;
@@ -266,8 +314,20 @@ export component AppWindow inherits Window {
                     }
                 }
 
+                if root.page == 4 : VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        AppButton { text: "Files"; small: true; quiet: true; clicked => { root.converter-action("toggle-files"); } }
+                        AppButton { text: "Output"; small: true; quiet: true; clicked => { root.converter-action("toggle-output"); } }
+                        if root.convert-busy : AppButton { text: "Cancel"; small: true; clicked => { root.converter-action("cancel"); } }
+                        AppButton { text: root.convert-rows.length > 1 ? "Convert all" : "Convert"; small: true; primary: true; enabled: root.convert-can-run; clicked => { root.converter-action("run"); } }
+                    }
+                }
                 if root.prefs.show-dock : VerticalLayout {
                     alignment: center;
+                    horizontal-stretch: root.page == 4 ? 0 : 1;
                     TopActions {
                         hinted(text, key) => {
                             root.bar-hint = text;
@@ -301,7 +361,7 @@ export component AppWindow inherits Window {
             // The hover and selection pills behind the rows
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
-                has-selection: root.page == 0 || root.page == 3;
+                has-selection: root.page == 0 || root.page == 3 || root.page == 4;
                 bar: true;
                 select-fill: Theme.raised-flat;
                 hover-fill: Theme.raised-flat;
@@ -362,8 +422,10 @@ export component AppWindow inherits Window {
                         icon: tool.icon;
                         label: tool.name;
                         open: root.rail-open;
+                        active: root.page == 4 && tool.id == "converter";
                         activated => { root.tool-activated(tool.id); }
                         hovered(on, at, size) => { rail-pills.hover(on, at, size); }
+                        selected(at, size, snap) => { rail-pills.select(at, size, snap); }
                     }
                 }
 
@@ -381,6 +443,27 @@ export component AppWindow inherits Window {
                     hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                     selected(at, size, snap) => { rail-pills.select(at, size, snap); }
                 }
+            }
+        }
+    }
+    if root.export-choice-visible : Rectangle {
+        width: parent.width; height: parent.height;
+        background: #00000099;
+        TouchArea { }
+        Rectangle {
+            x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+            width: 440px; height: 230px;
+            background: Theme.popover; border-radius: Theme.radius; border-width: 1px; border-color: Theme.line-hover;
+            VerticalLayout {
+                padding: 24px; spacing: 14px;
+                Text { text: "Where should Halation save your files?"; color: Theme.text; font-size: Theme.font-heading; wrap: word-wrap; }
+                Text { text: "Ask every time is recommended. You can change this in Settings → Files."; color: Theme.muted; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    AppButton { text: "Ask every time"; primary: true; clicked => { root.set-pref("save-mode", "0"); root.export-choice-visible = false; root.converter-action("run"); } }
+                    AppButton { text: "Halation folder"; clicked => { root.set-pref("save-mode", "1"); root.export-choice-visible = false; root.converter-action("run"); } }
+                }
+                AppButton { text: "Cancel"; quiet: true; clicked => { root.export-choice-visible = false; } }
             }
         }
     }

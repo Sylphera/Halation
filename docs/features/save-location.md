@@ -1,6 +1,9 @@
 # Global save & export locations
 
-Status: Planned in the native app — the backend has destination rules, not yet used by any export; implemented in the Tauri app on `main`.
+Status: Partial in the native app — Converter uses shared destinations, first-output choice, remembered manual directory and successful completion feedback (2026-10-22); native dialogs and Explorer behavior await manual review. Implemented in the Tauri app on `main`.
+
+The native beta keeps managed outputs under its isolated profile's `Exports/Converted`; shipping Documents-folder
+resolution is not claimed by this preview. No published Tauri profile or export is read or modified.
 
 This behavior supersedes the older `direct`/`ask` and batch exceptions in settings.md.
 

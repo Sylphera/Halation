@@ -12,6 +12,24 @@ export struct ToolItem {
     reason: string,
 }
 
+export struct ConvertRow {
+    index: int,
+    name: string,
+    detail: string,
+    state: string,
+    target: string,
+    selected: bool,
+    failed: bool,
+}
+
+export struct FormatRow {
+    id: string,
+    name: string,
+    detail: string,
+    selected: bool,
+    audio: bool,
+}
+
 export struct LibraryRow {
     id: string,
     name: string,

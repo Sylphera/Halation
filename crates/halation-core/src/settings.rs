@@ -42,6 +42,7 @@ pub struct Settings {
     pub tiktok: String,
     /// 0 ask every time, 1 the Halation folder
     pub save_mode: u8,
+    pub save_location_chosen: bool,
     pub video_template: String,
     pub image_template: String,
     /// 0 quiet, 1 balanced, 2 fast
@@ -90,6 +91,7 @@ impl Default for Settings {
             instagram: String::new(),
             tiktok: String::new(),
             save_mode: 0,
+            save_location_chosen: false,
             video_template: "{title}".to_owned(),
             image_template: "{title}".to_owned(),
             processing: 1,
@@ -201,7 +203,10 @@ impl Settings {
             "soundcloud" => next.soundcloud = text(),
             "instagram" => next.instagram = text(),
             "tiktok" => next.tiktok = text(),
-            "save-mode" => next.save_mode = choice()?,
+            "save-mode" => {
+                next.save_mode = choice()?;
+                next.save_location_chosen = true;
+            }
             "video-template" => next.video_template = text(),
             "image-template" => next.image_template = text(),
             "processing" => next.processing = choice()?,

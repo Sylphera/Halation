@@ -63,6 +63,58 @@ pub struct ProcessRunner {
     inner: Arc<Inner>,
 }
 
+/// Bounded metadata/encoder inspection, off the GUI thread. Slow or broken tools cannot strand a worker.
+pub fn capture(spec: ProcessSpec, timeout: Duration) -> Result<(String, String), String> {
+    struct Captured {
+        out: Mutex<String>,
+        err: Mutex<String>,
+        finished: std::sync::mpsc::Sender<Option<i32>>,
+    }
+    impl ProcessEvents for Captured {
+        fn line(&self, _: u32, stream: Stream, line: &str) {
+            let mut text = hold(if stream == Stream::Out {
+                &self.out
+            } else {
+                &self.err
+            });
+            if text.len() + line.len() < 4 * 1024 * 1024 {
+                text.push_str(line);
+                text.push('\n');
+            }
+        }
+        fn finished(&self, _: u32, code: Option<i32>, _: u64) {
+            let _ = self.finished.send(code);
+        }
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    let events = Arc::new(Captured {
+        out: Mutex::new(String::new()),
+        err: Mutex::new(String::new()),
+        finished: tx,
+    });
+    let runner = ProcessRunner::new();
+    let id = runner.start(spec, events.clone())?;
+    let code = match rx.recv_timeout(timeout) {
+        Ok(code) => code,
+        Err(_) => {
+            runner.kill_all();
+            let _ = runner.kill(id);
+            return Err("Media inspection timed out".into());
+        }
+    };
+    let out = std::mem::take(&mut *hold(&events.out));
+    let err = std::mem::take(&mut *hold(&events.err));
+    if code == Some(0) {
+        Ok((out, err))
+    } else {
+        Err(if err.trim().is_empty() {
+            format!("Process exited: {code:?}")
+        } else {
+            err
+        })
+    }
+}
+
 fn hold<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
@@ -96,6 +148,9 @@ pub fn for_each_line(src: impl Read, mut f: impl FnMut(String)) {
                 send(&mut line);
             } else {
                 line.push(c);
+                if line.len() >= 1024 * 1024 {
+                    send(&mut line);
+                }
             }
         }
         reader.consume(n);

@@ -79,6 +79,16 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 
 ## Rust crates
 
+### Native media Converter
+
+The native workspace uses `image` 0.25.10 (MIT OR Apache-2.0), `tiff` 0.11.3 (MIT), `webp` 0.3.1
+(MIT OR Apache-2.0, with BSD-3-Clause libwebp through `libwebp-sys`), `ureq` 3.5.0
+and `native-tls` (MIT OR Apache-2.0), and `zip` 8.6.0 (MIT). These are compatible
+with Halation's GPL-3.0-or-later license. The libwebp notice below applies to the native app too.
+FFmpeg remains an external GPL build downloaded from yt-dlp/FFmpeg-Builds, never linked or bundled.
+The native beta installs it only on request under its isolated profile's `tools/ffmpeg` directory;
+it does not read the published Tauri app's component directory or settings.
+
 Direct dependencies of `app/src-tauri`:
 
 | Crate | License |

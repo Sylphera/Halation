@@ -3,8 +3,8 @@
 Updated 2026-10-22. One page at most; if it goes two weeks without an update, delete it rather than trust it.
 
 - **Halation Tauri 1.2.0** is the published app, on `main`.
-- **Halation Slint** (`slint/native`): Home and Settings run natively (the Library page is out of the sidebar for now);
-  no media tools or engines yet. Home's Drape loop, grain and visual replica are approved by Java (2026-10-21).
+- **Halation Slint** (`slint/native`): Home and Settings run natively (Library stays removed); the first media tool,
+  Converter, is integrated in progress on `slint/converter-native`. Home's approved appearance is unchanged.
 - **Approved** (Java, 2026-10-22): everything the native beta built from `42cb9ca` contains: the UI redesign,
   material and type, Silver/Gold themes with the accent hue, motion and the logo.
 - **Renderer** (Java, 2026-10-22): Skia over desktop OpenGL is the shipping path and was reviewed. The first beta had
@@ -16,7 +16,7 @@ Updated 2026-10-22. One page at most; if it goes two weeks without an update, de
   (instructions and documents) and B (Cargo workspace `halation-core` + `halation-app`, `assets/`, `tools/`, CI).
 - **Done**: the [UI redesign](active/ui-redesign.md), implemented and approved by Java on 2026-10-22 (Home and Settings).
 - **Pending merge**: PR #27 (motion), #28 (material and themes) and #29 (logo), stacked, onto `slint/native`.
-- **Next**: decide the remaining Home memory (the video pipeline dominates: Media Foundation's decoder and the frame
-  buffers; a software-decode or lazy-player spike is the cheap test), then the first tool end-to-end (Converter is the
-  proposed pilot: shared spine, Library selection, job, process, output, destination), then A2, D and C, then the
-  cut-over of `slint/native` to `main`.
+- **In progress**: [complete media Converter](active/converter-native.md), selected by Java (2026-10-22), including
+  audio/video and FFmpeg detection/installation. Library stays removed; visual review waits for the integrated tool.
+- **Home memory accepted** (Java, 2026-10-22): no further decoder or lazy-player spike.
+- **Next**: finish the first tool, then A2, D and C, then the cut-over of `slint/native` to `main` with Java's approval.

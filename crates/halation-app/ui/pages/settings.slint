@@ -190,6 +190,8 @@ export component SettingsPage inherits Rectangle {
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
     in property <[ComponentRow]> components;
+    in property <bool> ffmpeg-ready: false;
+    in property <bool> ffmpeg-installing: false;
     in property <[FolderRow]> folders;
     in property <bool> writable: true;
     in property <string> error: "";
@@ -704,7 +706,7 @@ export component SettingsPage inherits Rectangle {
                     title: "Components";
                     for component in root.components : ListRow {
                         name: component.name;
-                        detail: "Not installed";
+                        detail: component.name == "FFmpeg" && root.ffmpeg-ready ? "Installed" : component.name == "FFmpeg" && root.ffmpeg-installing ? "Installing…" : "Not installed";
                         Text {
                             horizontal-stretch: 1;
                             text: "About " + component.size + " to download";
@@ -714,7 +716,7 @@ export component SettingsPage inherits Rectangle {
                         }
                         VerticalLayout {
                             alignment: center;
-                            AppButton { text: "Install"; small: true; clicked => { root.action("install"); } }
+                            AppButton { text: component.name == "FFmpeg" && root.ffmpeg-ready ? "Installed" : "Install"; small: true; enabled: !(component.name == "FFmpeg" && (root.ffmpeg-ready || root.ffmpeg-installing)); clicked => { root.action("install:" + component.name); } }
                         }
                     }
                 }

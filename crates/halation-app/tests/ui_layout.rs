@@ -2,7 +2,7 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, JobRow, RecentItem, ToolItem};
+use halation_app::ui::{AppWindow, ConvertRow, FormatRow, JobRow, RecentItem, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{
     ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
@@ -122,7 +122,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
     }]))));
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        for page in [0, 3] {
+        for page in [0, 3, 4] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
             // Settings' pane scrolls under the top bar and the category title, which end 100 px down
@@ -146,6 +146,72 @@ fn the_check_does_detect_a_window_that_is_too_small() {
         !outside(&ui, 300.0, 200.0).is_empty(),
         "a 300x200 window must report controls outside it, or the check proves nothing"
     );
+}
+
+#[test]
+fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    ui.set_page(4);
+    ui.set_convert_rows(ModelRc::new(VecModel::from(
+        (0..20)
+            .map(|index| ConvertRow {
+                index,
+                name: "A deliberately long generated file name for the input list.mkv".into(),
+                detail: "Video · H.264 + AAC · 1920 × 1080".into(),
+                state: "Converting · 50%".into(),
+                target: "MP4".into(),
+                selected: index == 0,
+                failed: false,
+            })
+            .collect::<Vec<_>>(),
+    )));
+    ui.set_convert_formats(ModelRc::new(VecModel::from(
+        [
+            "MP4", "MKV", "WEBM", "MOV", "GIF", "MP3", "M4A", "FLAC", "WAV", "OPUS",
+        ]
+        .into_iter()
+        .map(|name| FormatRow {
+            id: name.into(),
+            name: name.into(),
+            detail: "Copies video · re-encodes audio".into(),
+            selected: name == "MP4",
+            audio: false,
+        })
+        .collect::<Vec<_>>(),
+    )));
+    ui.set_convert_busy(true);
+    ui.set_convert_progress(0.5);
+    ui.set_convert_progress_label("Converting a generated test video · 50%".into());
+    for (width, height) in SIZES {
+        resize(&ui, width, height);
+        for rail in [false, true] {
+            for files in [false, true] {
+                ui.set_rail_open(rail);
+                ui.set_convert_left_open(files);
+                i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(1000));
+                slint::platform::update_timers_and_animations();
+                let stray = outside(&ui, width, height);
+                assert!(
+                    stray.is_empty(),
+                    "Converter at {width}x{height}, rail={rail}, files={files}: {stray:?}"
+                );
+                if files {
+                    let panel = ElementHandle::find_by_accessible_label(&ui, "Converter files")
+                        .next()
+                        .expect("files panel is present");
+                    let expected = if rail { 224.0 } else { 62.0 };
+                    assert!(
+                        (panel.absolute_position().x - expected).abs() < 1.0,
+                        "files must be anchored left, not implicitly centred"
+                    );
+                    assert!((panel.size().width - 220.0).abs() < 1.0);
+                }
+            }
+        }
+    }
 }
 
 #[test]

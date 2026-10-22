@@ -7,6 +7,8 @@
 
 pub mod artist_profile;
 pub mod atomic_file;
+pub mod components;
+pub mod convert;
 pub mod destinations;
 pub mod engine;
 pub mod folders;

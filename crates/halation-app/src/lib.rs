@@ -7,6 +7,7 @@ pub mod app;
 pub mod assets;
 pub mod backdrop;
 pub mod catalog;
+mod converter;
 pub mod library;
 pub mod motion;
 pub mod navigation;

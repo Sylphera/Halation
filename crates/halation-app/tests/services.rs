@@ -358,9 +358,10 @@ fn oversized_settings_are_rejected_and_values_are_bounded() {
 }
 
 #[test]
-fn catalog_has_eleven_entries_and_only_library_is_available() {
+fn catalog_has_eleven_entries_and_library_and_converter_are_available() {
     assert_eq!(TOOLS.len(), 11);
-    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 1);
+    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 2);
+    assert!(catalog::tool("converter").unwrap().available);
     assert!(catalog::tool("library").unwrap().available);
     assert!(!catalog::tool("downloader").unwrap().available);
     assert!(catalog::activation_notice("downloader").contains("not available"));

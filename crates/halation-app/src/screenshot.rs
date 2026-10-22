@@ -190,6 +190,9 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
         "settings" => (3, 0, -1),
+        "converter" => (4, 0, -1),
+        "converter-open" => (4, 2, -1),
+        "converter-ready" => (4, 3, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -197,7 +200,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings or settings-<0..7>"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open or converter-ready"
                 )
                 .into());
             }
@@ -236,6 +239,18 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.set_rail_open(true);
     }
     pump(&queue, Duration::from_millis(800));
+    if mode == 3 {
+        let fixture = out_dir.join("generated-converter-preview.png");
+        let pixels: Vec<_> = (0..200)
+            .flat_map(|y| {
+                (0..320)
+                    .map(move |x| Rgb8Pixel::new((x * 255 / 320) as u8, (y * 255 / 200) as u8, 96))
+            })
+            .collect();
+        write_png(&fixture, 320, 200, &pixels)?;
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(1000));
+    }
     if section >= 0 {
         // After the page has laid out, so the section tops are known
         ui.set_settings_jump(section);

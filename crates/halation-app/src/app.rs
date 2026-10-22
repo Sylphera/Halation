@@ -81,6 +81,7 @@ pub(crate) struct Controller {
     weak: Weak<AppWindow>,
     services: Rc<RefCell<Services>>,
     diagnostic_timer: RefCell<Option<Rc<slint::Timer>>>,
+    converter: Rc<crate::converter::Converter>,
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -160,8 +161,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl Controller {
+    #[cfg(feature = "diag-screenshot")]
+    pub(crate) fn add_converter_files(&self, paths: Vec<PathBuf>) {
+        self.converter.add(paths);
+    }
     /// Closing the window: every job process still running stops with it.
     pub(crate) fn shutdown(&self) {
+        self.converter.cancel_probe();
         self.services.borrow().jobs.shutdown();
     }
 
@@ -191,8 +197,11 @@ impl Controller {
             &crate::assets::locate(),
             theme_of(settings.current()).0,
         ));
+        let converter =
+            crate::converter::Converter::new(weak.clone(), profile.clone(), jobs.engine().clone());
         Ok(Self {
             weak,
+            converter,
             diagnostic_timer: RefCell::new(None),
             services: Rc::new(RefCell::new(Services {
                 profile,
@@ -226,6 +235,19 @@ impl Controller {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
+        let settings_services = self.services.clone();
+        let settings_weak = self.weak.clone();
+        self.converter.install(move || {
+            let services = settings_services.borrow();
+            if !services.settings.current().save_location_chosen {
+                if let Some(ui) = settings_weak.upgrade() {
+                    ui.set_export_choice_visible(true);
+                }
+                None
+            } else {
+                Some(services.settings.current().save_mode)
+            }
+        });
         let (tone, hue) = theme_of(self.services.borrow().settings.current());
         apply_theme(&ui, &theme::colours(tone, hue));
         let assets = crate::assets::locate();
@@ -289,6 +311,7 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_navigate(move |page| {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -298,8 +321,15 @@ impl Controller {
                     && s.nav.select(page)
                 {
                     s.notice.clear();
+                    if page != Page::Converter {
+                        converter.suspend_preview();
+                    } else {
+                        ui.set_page(page.index());
+                        converter.open();
+                    }
                     if page == Page::Settings {
                         measure_storage(&s.profile, &weak);
+                        converter.open();
                     }
                 }
                 refresh(&ui, &s);
@@ -389,11 +419,16 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_dock_action(move |action| {
                 let Some(ui) = weak.upgrade() else {
                     return;
                 };
                 let mut s = services.borrow_mut();
+                if action.as_str() == "install:FFmpeg" {
+                    converter.install_ffmpeg();
+                    return;
+                }
                 s.notice = match action.as_str() {
                     "folder" => open_folder(s.profile.root()),
                     "open:main" => open_folder(s.profile.root()),
@@ -404,7 +439,13 @@ impl Controller {
                             .parent()
                             .unwrap_or(s.profile.root()),
                     ),
-                    "activity" => format!("Activity: {}.", s.jobs.capability()),
+                    "activity" => {
+                        let jobs = s.jobs.jobs();
+                        let active = jobs.iter().filter(|j| !j.finished).count();
+                        let done = jobs.iter().filter(|j| j.finished && !j.failed).count();
+                        let failed = jobs.iter().filter(|j| j.failed).count();
+                        format!("Activity: {active} active · {done} finished · {failed} failed. Converter shows job details.")
+                    },
                     other => unavailable_notice(other).to_owned(),
                 };
                 refresh(&ui, &s);
@@ -563,13 +604,19 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_tool_activated(move |id| {
                 let Some(ui) = weak.upgrade() else {
                     return;
                 };
                 let mut s = services.borrow_mut();
                 if let Some(tool) = catalog::tool(id.as_str()) {
-                    if tool.id == "library" {
+                    if tool.id == "converter" {
+                        s.nav.select(Page::Converter);
+                        s.notice.clear();
+                        ui.set_page(Page::Converter.index());
+                        converter.open();
+                    } else if tool.id == "library" {
                         if let Some(page) = Page::from_index(1) {
                             s.nav.select(page);
                         }
@@ -626,6 +673,7 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_jobs_changed(move || {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -633,6 +681,12 @@ impl Controller {
                 let s = services.borrow();
                 update_jobs_model(&ui, &s.jobs.jobs(), &s.jobs_model);
                 ui.set_jobs_capability(SharedString::from(s.jobs.capability()));
+                drop(s);
+                if let Some(notice) = converter.jobs_changed() {
+                    let mut s = services.borrow_mut();
+                    s.notice = notice;
+                    refresh(&ui, &s);
+                }
             });
         }
 
@@ -1247,9 +1301,9 @@ fn open_folder(path: &Path) -> String {
 fn unavailable_notice(action: &str) -> &'static str {
     match action {
         "install" | "update-engine" => "Components cannot be installed in this beta yet.",
-        "shortcuts" => "Keyboard shortcuts come with the tools.",
+        "shortcuts" => "Ctrl+B: sidebar · Converter: Ctrl+Alt+B for Files, Ctrl+Alt+I for Output.",
         "language" => "The beta is in English only for now.",
-        "session" => "There is no session to save until the tools are connected.",
+        "session" => "Session persistence is not connected in this beta yet.",
         "test-notification" => "Notifications are not connected in this beta yet.",
         "search-sites" => "Searching other sites is not connected in this beta yet.",
         "check-updates" | "changelog" => {
