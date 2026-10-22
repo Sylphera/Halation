@@ -16,9 +16,11 @@ component StripItem inherits FocusScope {
             root.hovered(true, root.absolute-position.x, root.width);
         }
     }
-    // Shrinks towards the label's width when the window is narrow
-    preferred-width: name.preferred-width + 20px;
-    min-width: name.preferred-width + 4px;
+    // Every tool the same width (the hover pill keeps one size along the strip); narrow windows shrink them all
+    // alike and the longest labels elide
+    preferred-width: 124px;
+    min-width: 72px;
+    horizontal-stretch: 1;
     height: 52px;
     focus-on-tab-navigation: true;
     accessible-role: button;
@@ -52,9 +54,12 @@ component StripItem inherits FocusScope {
             tint: touch.has-hover ? Theme.text : Theme.muted;
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
-        name := Text {
-            x: (parent.width - self.width) / 2;
+        Text {
+            x: 4px;
             y: 31px;
+            width: parent.width - 8px;
+            horizontal-alignment: center;
+            overflow: elide;
             text: root.label;
             color: touch.has-hover ? Theme.text : Theme.muted;
             animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }

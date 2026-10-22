@@ -1337,6 +1337,7 @@ fn apply_motion(ui: &AppWindow, tokens: motion::Tokens) {
     global.set_hover_out(ms(tokens.hover_out));
     global.set_release(ms(tokens.release));
     global.set_glide(ms(tokens.glide));
+    global.set_trail(ms(tokens.trail));
     global.set_fade(ms(tokens.fade));
     global.set_panel(ms(tokens.panel));
     global.set_tip_wait(ms(tokens.tip_wait));

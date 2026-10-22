@@ -45,10 +45,11 @@ Comprobado en el código de Slint 1.18.1 (`i-slint-renderer-skia`, `i-slint-core
 2. Para desvanecer algo compuesto (un tooltip: fondo + texto) se anima el **alfa de sus colores**, no `opacity`.
 3. Sin `delay` en `animate`. Una espera (tooltip) la hace un `Timer` de Slint de un solo disparo, que no pinta nada y
    solo existe mientras dura el hover.
-4. Duraciones cortas: nada por encima de 180 ms salvo el asentamiento de un muelle.
+4. Duraciones cortas, al ritmo del ratón (Java, 2026-10-22: «tan rápido como muevas el mouse»): nada por encima de
+   120 ms salvo el asentamiento de un muelle.
 5. Entrar rápido, salir suave: el estado nuevo se ve casi en el primer frame; lo que se va se desvanece.
-6. `ease-out` en todo lo que no se interrumpe a menudo; `spring(0)` solo en lo que sigue al puntero o a clics rápidos
-   (píldoras, knob), donde heredar la velocidad evita tirones.
+6. `ease-out` en todo; `spring(0)` solo en el knob del switch. Las píldoras animan sus dos bordes con `ease-out` y
+   duraciones distintas (§4.1).
 7. Movimiento reducido: todas las duraciones a 0 (estado final en el primer frame) y nada escala; la píldora de hover
    salta en vez de deslizarse. La espera del tooltip se mantiene: es una espera, no movimiento.
 8. Nada anima en reposo: sin `iteration-count` infinito; la CPU/GPU en reposo no cambia.
@@ -61,13 +62,14 @@ Rust no puede contener un `easing`; `spring(0)` se escribe en cada sitio porque 
 
 | Token | Valor | Curva | Uso |
 |---|---|---|---|
-| `hover-in` | 70 ms | `ease-out` | Aparece el estado de hover |
-| `hover-out` | 160 ms | `ease-out` | Se va el estado de hover |
+| `hover-in` | 40 ms | `ease-out` | Aparece el estado de hover |
+| `hover-out` | 90 ms | `ease-out` | Se va el estado de hover |
 | `press` | 0 ms | — | Al pulsar: color y escala al instante |
-| `release` | 120 ms | `ease-out` | Al soltar, vuelve al hover |
-| `glide` | 160 ms | `spring(0)` (se asienta en ≈235 ms) | Píldoras de hover y selección, knob |
-| `fade` | 120 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
-| `panel` | 180 ms | `ease-out` | Ancho de la sidebar |
+| `release` | 70 ms | `ease-out` | Al soltar, vuelve al hover |
+| `glide` | 55 ms | `ease-out` (`spring(0)` en el knob) | Borde delantero de las píldoras, knob |
+| `trail` | 110 ms | `ease-out` | Borde trasero de las píldoras |
+| `fade` | 80 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
+| `panel` | 120 ms | `ease-out` | Ancho de la sidebar |
 | `tip-wait` | 400 ms | `Timer` | Espera antes de mostrar un tooltip |
 | `press-scale` | 97 % | — | Escala al pulsar |
 
@@ -96,10 +98,13 @@ Cambian juntos el fondo, el tinte del icono y el color del texto.
 
 **Píldora de hover compartida** (sidebar, lista de categorías y barra de herramientas de Home; Java, 2026-10-22: «la
 píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un único `Rectangle` sin hijos por lista,
-detrás de las filas, que sigue al puntero sin clic. En la barra de Home se desliza en `x` y toma el ancho del elemento
-(el ancho se fija al instante; solo se anima `x`). Al entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
-`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza en `y` con `glide`, heredando la
-velocidad si el puntero sigue moviéndose; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
+detrás de las filas, que sigue al puntero sin clic. En la barra de Home se desliza en `x`; todas sus herramientas
+tienen el mismo ancho (Java, 2026-10-22), las etiquetas largas se recortan con elipsis si la ventana es estrecha. Al
+entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
+`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila **se estira y se funde** en ella (Java,
+2026-10-22: «que se junta estilo Apple»): la píldora se dibuja entre dos bordes; el borde que va delante se mueve en
+`glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se cierra sobre ella, una sola forma todo el
+camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
 
@@ -112,12 +117,14 @@ opciones de Settings. La zona de soltar baja solo a 99 %.
 ### 4.3 Selección
 
 La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
-`Rectangle` sin hijos por lista) que se desliza en `y` con `glide` a la nueva fila. La navegación cambia en el primer
-frame; la píldora llega después.
+`Rectangle` sin hijos por lista) que se estira hacia la nueva fila y se funde en ella como la de hover. En la sidebar
+la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono de la fila activa no se
+tiñe de acento, va en `text` como en hover (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
+llega después.
 
 **Control segmentado** (`Segmented`, componente nuevo; Java, 2026-10-22: en las herramientas y en Settings la píldora
 hace lo mismo con clic): una fila de opciones dentro de una cápsula, con una píldora de selección que se desliza en `x`
-con `glide` a la opción pulsada y toma su ancho al instante. Las opciones sin seleccionar tienen hover de color. En
+a la opción pulsada estirándose entre sus dos bordes, así que pasa de un ancho a otro sin saltos. Las opciones sin seleccionar tienen hover de color. En
 Settings sustituye a «Open the window» y a «Mode» (Processing); las tarjetas del modo de guardado siguen como tarjetas.
 Las herramientas lo usarán para sus pestañas y filtros cuando se porten.
 

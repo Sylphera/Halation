@@ -339,6 +339,7 @@ export component AppWindow inherits Window {
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
                 has-selection: root.page == 0 || root.page == 3;
+                bar: true;
                 y: 0px;
                 height: parent.height;
             }

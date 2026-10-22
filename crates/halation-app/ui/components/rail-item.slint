@@ -84,7 +84,7 @@ export component SidebarItem inherits FocusScope {
             y: (parent.height - self.height) / 2;
             name: root.icon;
             size: root.roomy ? 18px : 16px;
-            tint: root.active ? Theme.accent : (touch.has-hover ? Theme.text : Theme.muted);
+            tint: root.lit ? Theme.text : Theme.muted;
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
 
@@ -125,12 +125,20 @@ export component SidebarItem inherits FocusScope {
     }
 }
 
-// The label over a group of tools; collapsed, only the gap
+// The separator and label over a group of tools; collapsed, the separator alone
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
     // A fixed gap, the same for every group, so only the rows take the sidebar's spare height
     height: root.open ? 30px : 17px;
+    // A visible line between groups, open or collapsed (Java, 2026-10-22)
+    Rectangle {
+        x: 10px;
+        y: root.open ? 4px : 8px;
+        width: parent.width - 20px;
+        height: 1px;
+        background: Theme.line-strong;
+    }
     // Fades in as the sidebar opens, goes at once as it closes (always there, so the fade has a start)
     Text {
         x: 8px;

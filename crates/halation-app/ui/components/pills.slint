@@ -1,8 +1,8 @@
 import { Theme } from "../theme.slint";
 import { Motion, Curve } from "../motion.slint";
 
-// The hover and selection pills of a list of rows: two rectangles without children that glide on a spring to the
-// row the rows report. Draw it behind the rows, in the same parent; it covers the parent's width less `inset-left`
+// The hover and selection pills of a list of rows: two rectangles without children that stretch to the row the rows
+// report and close up on it. Draw it behind the rows, in the same parent; it covers the parent's width less `inset-left`
 // and `inset-right`. Positions come in window coordinates.
 export component PillList inherits Rectangle {
     in property <length> inset-left: 8px;
@@ -14,17 +14,22 @@ export component PillList inherits Rectangle {
     in property <length> radius: Theme.radius-control;
     // False while no row of the list stands for what is shown
     in property <bool> has-selection: true;
+    // An accent bar beside the selected row (the sidebar)
+    in property <bool> bar: false;
 
     property <length> hover-at;
     property <length> hover-size;
     property <bool> hover-on: false;
     property <bool> hover-snap: true;
+    // Which way the pill last moved: down or right is forward
+    property <bool> hover-forward: true;
     // The pill is gone (no row hovered for a moment): the next hover places it at once instead of gliding
     property <bool> hover-idle: true;
     property <length> select-at;
     property <length> select-size;
     property <bool> select-on: false;
     property <bool> select-snap: true;
+    property <bool> select-forward: true;
     property <length> origin: root.horizontal ? root.absolute-position.x : root.absolute-position.y;
 
     public function hover(on: bool, at: length, size: length) {
@@ -33,6 +38,7 @@ export component PillList inherits Rectangle {
             root.hover-snap = root.hover-idle;
             root.hover-idle = false;
             leave.running = false;
+            root.hover-forward = at - root.origin >= root.hover-at;
             root.hover-at = at - root.origin;
             root.hover-size = size;
             root.hover-on = true;
@@ -43,6 +49,7 @@ export component PillList inherits Rectangle {
     }
     public function select(at: length, size: length, snap: bool) {
         root.select-snap = snap || !root.select-on;
+        root.select-forward = at - root.origin >= root.select-at;
         root.select-at = at - root.origin;
         root.select-size = size;
         root.select-on = true;
@@ -59,23 +66,41 @@ export component PillList inherits Rectangle {
         }
     }
 
+    // Each pill is drawn between two edges along the list. Moving, the edge in front leads (`glide`) and the edge
+    // behind follows (`trail`): the pill stretches towards the new row and closes up on it, one shape all the way.
+    property <length> select-start: root.select-at;
+    property <length> select-end: root.select-at + root.select-size;
+    animate select-start { duration: root.select-snap ? 0ms : root.select-forward ? Motion.trail : Motion.glide; easing: Curve.ease; }
+    animate select-end { duration: root.select-snap ? 0ms : root.select-forward ? Motion.glide : Motion.trail; easing: Curve.ease; }
+    property <length> hover-start: root.hover-at;
+    property <length> hover-end: root.hover-at + root.hover-size;
+    animate hover-start { duration: root.hover-snap ? 0ms : root.hover-forward ? Motion.trail : Motion.glide; easing: Curve.ease; }
+    animate hover-end { duration: root.hover-snap ? 0ms : root.hover-forward ? Motion.glide : Motion.trail; easing: Curve.ease; }
+
     selection := Rectangle {
-        x: root.horizontal ? root.select-at : root.inset-left;
-        y: root.horizontal ? 0px : root.select-at;
-        width: root.horizontal ? root.select-size : parent.width - root.inset-left - root.inset-right;
-        height: root.horizontal ? parent.height : root.select-size;
+        x: root.horizontal ? root.select-start : root.inset-left;
+        y: root.horizontal ? 0px : root.select-start;
+        width: root.horizontal ? max(0px, root.select-end - root.select-start) : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : max(0px, root.select-end - root.select-start);
         border-radius: root.radius;
         background: root.select-on && root.has-selection ? root.select-fill : root.select-fill.transparentize(1);
-        animate x, y { duration: root.select-snap ? 0ms : Motion.glide; easing: spring(0); }
+    }
+    // The accent bar beside the selected row (vertical lists with `bar`), stretching with the pill
+    if root.bar && !root.horizontal : Rectangle {
+        x: max(0px, root.inset-left - 6px);
+        y: root.select-start + root.select-size * 0.3;
+        width: 3px;
+        height: max(0px, root.select-end - root.select-start - root.select-size * 0.6);
+        border-radius: 1.5px;
+        background: root.select-on && root.has-selection ? Theme.accent : Theme.accent.transparentize(1);
     }
     hover-pill := Rectangle {
-        x: root.horizontal ? root.hover-at : root.inset-left;
-        y: root.horizontal ? 0px : root.hover-at;
-        width: root.horizontal ? root.hover-size : parent.width - root.inset-left - root.inset-right;
-        height: root.horizontal ? parent.height : root.hover-size;
+        x: root.horizontal ? root.hover-start : root.inset-left;
+        y: root.horizontal ? 0px : root.hover-start;
+        width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
         border-radius: root.radius;
         background: root.hover-on ? root.hover-fill : root.hover-fill.transparentize(1);
         animate background { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
-        animate x, y { duration: root.hover-snap ? 0ms : Motion.glide; easing: spring(0); }
     }
 }

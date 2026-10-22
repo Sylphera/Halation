@@ -272,6 +272,14 @@ fn pill_y(ui: &AppWindow, id: &str) -> f32 {
     p.y + pills[0].size().height / 2.0
 }
 
+fn pill_height(ui: &AppWindow, id: &str) -> f32 {
+    ElementHandle::find_by_element_id(ui, id)
+        .find(|e| e.absolute_position().x < 40.0)
+        .unwrap_or_else(|| panic!("{id} exists in the sidebar"))
+        .size()
+        .height
+}
+
 #[test]
 fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
     i_slint_backend_testing::init_no_event_loop();
@@ -286,6 +294,7 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
         (pill - first).abs() < 1.0,
         "the pill sits on the hovered row: {pill} vs {first}"
     );
+    let rest = pill_height(&ui, "PillList::hover-pill");
     // To another row: on its way after a few frames, there once settled
     let (_, second) = point_at(&ui, "Settings");
     advance(32);
@@ -294,12 +303,17 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
         moving > first + 1.0 && moving < second - 1.0,
         "glides: {first} -> {moving} -> {second}"
     );
+    // The leading edge is ahead of the trailing one: the pill stretches on its way and closes up on arrival
+    let stretched = pill_height(&ui, "PillList::hover-pill");
+    assert!(stretched > rest + 4.0, "stretches: {rest} -> {stretched}");
     advance(1000);
     let pill = pill_y(&ui, "PillList::hover-pill");
     assert!(
         (pill - second).abs() < 1.0,
         "lands on the new row: {pill} vs {second}"
     );
+    let landed = pill_height(&ui, "PillList::hover-pill");
+    assert!((landed - rest).abs() < 1.0, "closes up: {landed} vs {rest}");
 }
 
 #[test]
@@ -338,6 +352,7 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     let motion = ui.global::<halation_app::ui::Motion>();
     let ms = |d: std::time::Duration| d.as_millis() as i64;
     motion.set_glide(ms(tokens.glide));
+    motion.set_trail(ms(tokens.trail));
     motion.set_hover_in(ms(tokens.hover_in));
     motion.set_hover_out(ms(tokens.hover_out));
     ui.set_page(0);
