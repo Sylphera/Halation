@@ -108,13 +108,85 @@ export component PillList inherits Rectangle {
         border-radius: 1.5px;
         background: root.select-on && root.has-selection ? Theme.accent : Theme.accent.transparentize(1);
     }
+    // Fusion. Near the selection, while the hover pill moves, the two flow into each other through a neck instead of
+    // one lying over the other (Java, 2026-10-22). Both pills run along the same axis with the same cross size, so the
+    // neck is one path with fixed commands: from the nearer end of one pill to the nearer end of the other, its sides
+    // pinched in by how far apart they are. The hover pill takes the selection's colour as it closes in, so the
+    // joined shape is one surface; overlapping, it is the selection. At rest side by side they stand apart. A few
+    // bindings and one small path, drawn only while the pills move.
+    property <length> overlap: min(root.hover-end, root.select-end) - max(root.hover-start, root.select-start);
+    // Neck reach: pills further apart than this never join
+    property <length> reach: 18px;
+    property <bool> hover-moving: abs(root.hover-start - root.hover-at) > 0.5px || abs(root.hover-end - root.hover-at - root.hover-size) > 0.5px;
+    // 1 while the hover pill moves, back to 0 once it rests
+    property <float> join: root.hover-moving ? 1 : 0;
+    animate join { duration: Motion.fade; easing: Curve.ease; }
+    property <bool> fusing: root.hover-on && root.select-on && root.has-selection;
+    // 0 apart, 1 joined into one surface
+    property <float> closeness: !root.fusing ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
+    property <color> hover-colour: root.select-fill.mix(root.hover-fill, root.closeness);
+    property <float> hover-alpha: root.hover-on ? 0 : 1;
+    animate hover-alpha { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
+
+    // The neck's ends (along the list) and sides (across it), in the list's own coordinates
+    property <bool> hover-first: root.hover-start < root.select-start;
+    property <length> neck-a: (root.hover-first ? root.hover-end : root.select-end) - root.radius * root.closeness - 1px;
+    property <length> neck-b: (root.hover-first ? root.select-start : root.hover-start) + root.radius * root.closeness + 1px;
+    property <length> cross-0: (root.horizontal ? 0px : root.inset-left) + root.radius * (1 - root.closeness);
+    property <length> cross-1: (root.horizontal ? root.height : root.width - root.inset-right) - root.radius * (1 - root.closeness);
+    // How far each side bows in at the middle; a cubic with both controls at `bow / 0.75` reaches it
+    property <length> bow: (root.cross-1 - root.cross-0) / 2 * (1 - root.closeness) * 0.85 / 0.75;
+    // Main and cross coordinates to path numbers
+    pure function px(main: length, across: length) -> float {
+        (root.horizontal ? main : across) / 1px
+    }
+    pure function py(main: length, across: length) -> float {
+        (root.horizontal ? across : main) / 1px
+    }
+
+    if root.overlap <= 0px && root.closeness > 0.02 : Path {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        viewbox-x: 0;
+        viewbox-y: 0;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        fill: root.hover-colour.transparentize(root.hover-alpha);
+        MoveTo {
+            x: root.px(root.neck-a, root.cross-0);
+            y: root.py(root.neck-a, root.cross-0);
+        }
+        CubicTo {
+            control-1-x: root.px(root.neck-a, root.cross-0 + root.bow);
+            control-1-y: root.py(root.neck-a, root.cross-0 + root.bow);
+            control-2-x: root.px(root.neck-b, root.cross-0 + root.bow);
+            control-2-y: root.py(root.neck-b, root.cross-0 + root.bow);
+            x: root.px(root.neck-b, root.cross-0);
+            y: root.py(root.neck-b, root.cross-0);
+        }
+        LineTo {
+            x: root.px(root.neck-b, root.cross-1);
+            y: root.py(root.neck-b, root.cross-1);
+        }
+        CubicTo {
+            control-1-x: root.px(root.neck-b, root.cross-1 - root.bow);
+            control-1-y: root.py(root.neck-b, root.cross-1 - root.bow);
+            control-2-x: root.px(root.neck-a, root.cross-1 - root.bow);
+            control-2-y: root.py(root.neck-a, root.cross-1 - root.bow);
+            x: root.px(root.neck-a, root.cross-1);
+            y: root.py(root.neck-a, root.cross-1);
+        }
+        Close {}
+    }
+
     hover-pill := Rectangle {
         x: root.horizontal ? root.hover-start : root.inset-left;
         y: root.horizontal ? 0px : root.hover-start;
         width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
         border-radius: root.radius;
-        background: root.hover-on ? root.hover-fill : root.hover-fill.transparentize(1);
-        animate background { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
+        background: root.hover-colour.transparentize(root.hover-alpha);
     }
 }

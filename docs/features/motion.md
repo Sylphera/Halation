@@ -116,6 +116,15 @@ cuenta por fila cruzada, sin coste por frame; al salir de la lista se desvanece 
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
 
+**Fusión con la selección** (Java, 2026-10-22: «quiero que se fusione»; la app Tauri se miró solo para entender el
+efecto, sin tomar código): cerca de la píldora de selección y mientras se mueve, la píldora de hover se une a ella por
+un cuello en vez de pasar por encima. Las dos píldoras recorren el mismo eje con el mismo ancho, así que el cuello es un
+único `Path` de comandos fijos: va del extremo cercano de una al de la otra y sus lados se curvan hacia dentro según la
+distancia (hasta 18 px; más lejos no se unen). Al acercarse, la píldora de hover toma el color de la selección, así que
+la forma unida es una sola superficie; superpuestas, es la selección. En reposo una junto a otra quedan separadas: la
+unión (`join`) solo vale 1 mientras la píldora de hover se mueve y vuelve a 0 en `fade`. Sin cálculo por píxel: unas
+pocas propiedades y un path pequeño, que solo se pintan mientras las píldoras se mueven.
+
 ### 4.2 Pulsación
 
 El anillo de foco (2 px de acento) solo se ve con foco de teclado (Tab); un clic da el foco sin anillo (Java,
