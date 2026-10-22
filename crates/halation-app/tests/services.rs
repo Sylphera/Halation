@@ -457,6 +457,10 @@ fn every_animation_follows_the_motion_cost_rules() {
             if line.contains("delay:") || line.contains("iteration-count") {
                 broken.push(format!("{at}: waits or repeats"));
             }
+            // Slint 1.18: the shorthand with animated axes binds neither axis, so the element scales to 0 under Skia
+            if line.starts_with("transform-scale:") {
+                broken.push(format!("{at}: transform-scale shorthand, set -x and -y"));
+            }
             let Some(rest) = line.strip_prefix("animate ") else {
                 continue;
             };

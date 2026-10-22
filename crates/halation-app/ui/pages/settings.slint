@@ -57,7 +57,9 @@ component CategoryItem inherits FocusScope {
         overflow: elide;
         accessible-role: none;
         // Sinks at once on press, back on release
-        transform-scale: touch.pressed ? Motion.press-scale : 100%;
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
     }
     touch := TouchArea {
@@ -416,7 +418,9 @@ export component SettingsPage inherits Rectangle {
                                 border-color: root.prefs.save-mode == index ? Theme.accent : (choice-touch.has-hover ? Theme.line-hover : Theme.line-strong);
                                 animate background, border-color { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
                                 // Large surfaces sink only a little
-                                transform-scale: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
+                                // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+                                transform-scale-x: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
+                                transform-scale-y: self.transform-scale-x;
                                 animate transform-scale-x, transform-scale-y { duration: choice-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
                                 accessible-role: radio-button;
                                 accessible-checked: root.prefs.save-mode == index;

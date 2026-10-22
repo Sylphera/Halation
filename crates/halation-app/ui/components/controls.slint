@@ -475,7 +475,9 @@ export component Segmented inherits FocusScope {
                 font-weight: parent.active ? 600 : 500;
                 accessible-role: none;
                 // Sinks at once on press, back on release
-                transform-scale: option-touch.pressed ? Motion.press-scale : 100%;
+                // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+                transform-scale-x: option-touch.pressed ? Motion.press-scale : 100%;
+                transform-scale-y: self.transform-scale-x;
                 animate transform-scale-x, transform-scale-y { duration: option-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
             }
             option-touch := TouchArea {

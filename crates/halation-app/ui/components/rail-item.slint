@@ -74,7 +74,9 @@ export component SidebarItem inherits FocusScope {
 
     content := Rectangle {
         // Sinks at once on press, back on release
-        transform-scale: touch.pressed ? Motion.press-scale : 100%;
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
         ToolIcon {
