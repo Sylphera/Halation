@@ -190,11 +190,29 @@ export component HomePage inherits Rectangle {
             veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
             animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
         }
+        // The pointer light of the original Home (Java, 2026-10-22): a soft white circle under the pointer, brighter
+        // while a file is over the zone. It is a gradient, not a blur: no shadow is rendered, and the light only
+        // exists while the drop zone is hovered.
+        Rectangle {
+            property <length> glow-radius: drop-area.has-drag ? 420px : 160px;
+            property <length> glow-x: drop-touch.has-hover ? drop-touch.mouse-x : self.width / 2;
+            property <length> glow-y: drop-touch.has-hover ? drop-touch.mouse-y : self.height / 2;
+            // The light fades by its own colour alpha, not by `opacity`: an opacity animation makes Skia compose the
+            // rectangle offscreen on every frame (tests/services.rs enforces the rule).
+            property <color> glow-centre: drop-touch.has-hover || drop-area.has-drag
+                ? Theme.text.transparentize(92%)
+                : Theme.text.transparentize(100%);
+            animate glow-centre { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            border-radius: Theme.radius;
+            background: @radial-gradient(circle glow-radius at glow-x glow-y,
+                glow-centre 0%,
+                Theme.text.transparentize(100%) 72%);
+        }
         Rectangle {
             border-radius: Theme.radius;
             border-width: 1px;
-            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.accent.transparentize(1);
-            animate border-color { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
+            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : drop-touch.has-hover ? Theme.line-hover : Theme.accent.transparentize(1);
+            animate border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
         }
         // Grows a little under a dragged file, sinks a little on press
         // (nothing scales with reduced motion, when the press scale is 100 %)
@@ -206,9 +224,11 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            y: 48px;
+            // The tile rises 2 px under the pointer, as in the original Home
+            y: drop-touch.has-hover || drop-area.has-drag ? 46px : 48px;
             width: 48px;
             height: 48px;
+            animate y { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
             Surface {
                 level: Level.raised;
                 radius: Theme.radius;
