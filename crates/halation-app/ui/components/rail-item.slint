@@ -12,7 +12,7 @@ export component SidebarItem inherits FocusScope {
     callback activated;
 
     min-height: Theme.item;
-    max-height: 44px;
+    max-height: 54px;
     preferred-height: Theme.item;
     vertical-stretch: 1;
     // Taller rows, when the window has room, get a larger icon and label
@@ -93,7 +93,6 @@ export component SidebarGroup inherits Rectangle {
     in property <bool> open: true;
     min-height: root.open ? 26px : 13px;
     preferred-height: self.min-height;
-    max-height: 72px;
     vertical-stretch: 1;
     if root.open : Text {
         x: 8px;

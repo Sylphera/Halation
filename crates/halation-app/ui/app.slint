@@ -435,7 +435,7 @@ export component AppWindow inherits Window {
                 padding: 8px;
                 padding-right: 9px;
                 spacing: 0px;
-                // The rows grow with the window's height, up to 44 px, and the group headers take what is left, so
+                // The rows grow with the window's height, up to 54 px, and the group headers and the gap above Settings take all that is left, so
                 // the list fills the sidebar instead of leaving a dead band above Settings
 
                 SidebarItem {
@@ -470,7 +470,6 @@ export component AppWindow inherits Window {
                 // Foot: Settings, and the toggle while collapsed, under a line; in the same layout so the rows match
                 Rectangle {
                     min-height: 7px;
-                    max-height: 72px;
                     vertical-stretch: 1;
                     Rectangle {
                         y: parent.height - 7px;
