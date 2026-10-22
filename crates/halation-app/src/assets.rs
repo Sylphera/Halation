@@ -1,5 +1,5 @@
 //! The app's files beside the executable, in `assets\` (Java, 2026-10-21: assets ship apart from the exe, installer
-//! only): the mark and wordmark, the icons, the Inter typeface, and Home's backdrop loop. `build.rs` copies
+//! only): the mark and wordmark, the icons, the typefaces (Schibsted Grotesk, Italiana), and Home's backdrop loop. `build.rs` copies
 //! the crate's `assets/` there for development builds. A missing file is reported to the user and logged; the app still
 //! runs without it.
 
@@ -95,7 +95,8 @@ pub fn required() -> Vec<String> {
         "drape-still.jpg",
         "drape-loop.mp4",
         "drape-tint.bin",
-        "fonts/Inter.ttf",
+        "fonts/SchibstedGrotesk.ttf",
+        "fonts/Italiana.ttf",
     ]
     .iter()
     .map(|file| (*file).to_owned())
@@ -112,14 +113,19 @@ pub fn missing(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Registers the Inter typeface with Slint's font collection; it must run before the window is created
+/// The typefaces the interface uses, in `fonts/`
+pub const FONTS: [&str; 2] = ["SchibstedGrotesk.ttf", "Italiana.ttf"];
+
+/// Registers the typefaces with Slint's font collection; it must run before the window is created
 pub fn register_fonts(dir: &Path) -> Result<(), String> {
-    let path = dir.join("fonts").join("Inter.ttf");
-    let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let blob = slint::fontique_011::fontique::Blob::new(std::sync::Arc::new(bytes));
     let mut collection = slint::fontique_011::shared_collection();
-    if collection.register_fonts(blob, None).is_empty() {
-        return Err(format!("{}: not a usable font", path.display()));
+    for file in FONTS {
+        let path = dir.join("fonts").join(file);
+        let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+        let blob = slint::fontique_011::fontique::Blob::new(std::sync::Arc::new(bytes));
+        if collection.register_fonts(blob, None).is_empty() {
+            return Err(format!("{}: not a usable font", path.display()));
+        }
     }
     Ok(())
 }

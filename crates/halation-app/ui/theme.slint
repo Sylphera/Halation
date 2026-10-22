@@ -2,7 +2,7 @@
 // applies the colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
 export global Theme {
     // Surfaces, from the frame inwards
-    in-out property <color> chrome: #0b0b0c;
+    in-out property <color> chrome: #151517;
     in-out property <color> canvas: #101011;
     in-out property <color> canvas-deep: #0a0a0b;
     in-out property <color> control: #161617;
@@ -33,11 +33,11 @@ export global Theme {
     // Material (docs/features/material.md, direction A, "Relief"): light from above. Each level is a two-stop fill
     // falling off downwards and a 1 px edge brighter at the top (the sheen); raised levels stand on a 1 px dark contact
     // edge. Gradients and solid fills only, no blur.
-    out property <brush> raised-fill: @linear-gradient(180deg, #313134 0%, #222225 100%);
-    out property <brush> raised-fill-press: @linear-gradient(180deg, #262629 0%, #1d1d20 100%);
-    out property <brush> raised-edge: @linear-gradient(180deg, #ffffff33 0%, #ffffff14 45%, #ffffff0d 100%);
+    out property <brush> raised-fill: @linear-gradient(180deg, #2b2b2e 0%, #1f1f22 100%);
+    out property <brush> raised-fill-press: @linear-gradient(180deg, #232326 0%, #1a1a1d 100%);
+    out property <brush> raised-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 45%, #ffffff0b 100%);
     // A raised fill's average, for flat shapes that must match it (the pills' neck)
-    out property <color> raised-flat: #2a2a2d;
+    out property <color> raised-flat: #252528;
     // Recessed: fields, tracks, the switch off; dark at the top edge, catching light at the bottom
     out property <brush> well-fill: @linear-gradient(180deg, #060607 0%, #0c0c0d 100%);
     out property <brush> well-edge: @linear-gradient(180deg, #000000b0 0%, #ffffff0a 35%, #ffffff14 100%);
@@ -57,6 +57,8 @@ export global Theme {
     // The switch's knob, off and on
     out property <brush> knob-light: @linear-gradient(180deg, #ffffff 0%, #d9d9d4 100%);
     out property <brush> knob-dark: @linear-gradient(180deg, #232326 0%, #0b0b0c 100%);
+    // The page sheet, set into the chrome: a darker well with a shaded top edge
+    out property <brush> sheet-edge: @linear-gradient(180deg, #000000a0 0%, #ffffff08 6%, #ffffff0a 100%);
     // The 1 px dark edge a raised piece stands on
     out property <color> contact: #000000b3;
     // Rows inside a panel or a section
@@ -83,6 +85,12 @@ export global Theme {
     out property <length> font-body: 12.5px;
     out property <length> font-small: 12px;
     out property <length> font-caption: 11px;
+    // Faces (Java, 2026-10-22, type lab): Schibsted Grotesk for the interface, Italiana for page titles; the
+    // wordmark is Bodoni Moda 600, tracked 0.20 em, converted to outlines
+    out property <string> ui-face: "Schibsted Grotesk";
+    out property <string> display: "Italiana";
+    out property <length> font-display: 28px;
+    out property <length> font-bar-title: 19px;
     // Group labels: small tracked capitals
     out property <length> font-label: 10.5px;
     out property <length> label-tracking: 0.9px;

@@ -18,6 +18,9 @@ Bundled in `app/dist/fonts` as WOFF2 subsets (Latin), taken from the Fontsource 
 | UnifrakturCook | Copyright (c) 2010 j. 'mach' wust with Reserved Font Name UnifrakturCook. Copyright (c) 2009 Peter Wiegel. |
 | JetBrains Mono | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
 | Inter | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
+| Schibsted Grotesk (the native beta's interface) | Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk) |
+| Italiana (the native beta's page titles) | Copyright (c) 2011, Santiago Orozco (hi@typemade.mx), with Reserved Font Name "Italiana". |
+| Bodoni Moda (the native beta's HALATION wordmark, converted to outlines) | Copyright 2020 The Bodoni Moda Project Authors (https://github.com/indestructible-type/Bodoni) |
 | Archivo (variable, width and weight) | Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) |
 | Figtree | Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree) |
 | Roboto | Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic) |

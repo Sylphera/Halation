@@ -22,7 +22,7 @@ export component AppWindow inherits Window {
     min-height: 600px;
     background: Theme.chrome;
     icon: Assets.mark;
-    default-font-family: "Inter";
+    default-font-family: Theme.ui-face;
     default-font-size: Theme.font-body;
 
     init => {
@@ -141,6 +141,8 @@ export component AppWindow inherits Window {
             height: parent.height - Theme.bar - Theme.sheet-inset;
             border-radius: Theme.radius-sheet;
             background: Theme.canvas;
+            border-width: 1px;
+            border-color: Theme.sheet-edge;
             clip: true;
 
             // Home's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
@@ -213,8 +215,8 @@ export component AppWindow inherits Window {
                     Text {
                         text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : "";
                         color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
+                        font-family: Theme.display;
+                        font-size: Theme.font-bar-title;
                         vertical-alignment: center;
                     }
                 }

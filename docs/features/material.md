@@ -1,6 +1,6 @@
 # Material and type (Slint beta)
 
-Status: **direction A implemented, pending Java's visual review; type pending Java's choice** (Java, 2026-10-22: "en el original, el material se ve más maduro …
+Status: **implemented (direction A, chosen type, chrome lifted), pending Java's visual review** (Java, 2026-10-22: "en el original, el material se ve más maduro …
 ahora todo es demasiado plano y le hace perder seriedad"; "busca referencias de material en otras apps"; a more
 mature typeface, Hermes Agent as inspiration). Annex of [SLINT_VISUAL_SYSTEM.md](../SLINT_VISUAL_SYSTEM.md); colours
 stay those of `ui/theme.slint`. Mockup: `material/propuesta-material-tipografia.png` in the project files (rendered
@@ -57,17 +57,22 @@ Chosen by Java (2026-10-22): **A**.
 
 ## 5. Type
 
-- **Display face** for page titles and Settings section titles only (and a future tool header). The wordmark,
-  the mark and the tagline stay. Candidates, all SIL OFL 1.1 (redistributable inside a GPL app, as Inter is):
-  Gloock, DM Serif Display, Instrument Serif, Bodoni Moda, Fraunces, Newsreader, Young Serif. Hermes Agent's own
-  face is not identified, so it is a mood reference only. Not decided (Java, 2026-10-22: "yo aun no decidí"); Java
-  also wants a new face for the HALATION wordmark. The choice is made in an interactive type lab (Artifact
-  https://claude.ai/artifact/N7KdAds8p63QE4EXNdsZ1s: 27 wordmark faces with weight, tracking, width and case, title and
-  interface faces, over a live Home and Settings).
-- **Interface face:** Inter stays (Geist, IBM Plex Sans and Instrument Sans were compared; none changes the feel
-  enough to justify a swap).
-- **Contrast:** group labels as small tracked caps (10.5 px, 600, +0.09 em, tertiary text), as in Hermes and Resolve;
-  page titles larger (22 px in the display face); body unchanged.
+Chosen by Java (2026-10-22) in the type lab (Artifact https://claude.ai/artifact/N7KdAds8p63QE4EXNdsZ1s), all SIL OFL 1.1:
+
+- **Wordmark:** Bodoni Moda 600 (optical size 60), tracked +0.20 em, HALATION in capitals, 60 px (409 x 46.5 px on
+  Home), converted to outlines in `assets/halation-wordmark.svg`. Home shows the name alone, without the mark (the
+  mark stays as the window icon and in the sidebar header).
+- **Page titles:** Italiana: the top bar's title (19 px) and the Settings category heading (28 px).
+- **Interface:** Schibsted Grotesk (variable weight) for everything else; Inter is gone.
+- **Group labels:** small tracked capitals (10.5 px, 600, +0.9 px, tertiary text), as in Hermes and Resolve.
+
+The faces live in `assets/fonts/` and are registered at start (`assets.rs`, `FONTS`).
+
+### Chrome (Java, 2026-10-22, after the first Preview)
+
+The raised pieces read too light against the near-black chrome. The chrome (sidebar, top bar, the frame around the
+sheet) is lifted to the panels' tone (`#151517`), the raised fill is one step darker, and the page sheet is set into
+the chrome as a darker well with a shaded top edge (`sheet-edge`).
 
 ## 6. How it is drawn in Slint, and its cost
 

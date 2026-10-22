@@ -243,7 +243,7 @@ export component Field inherits Rectangle {
             text: root.value;
             color: Theme.text;
             font-size: Theme.font-body;
-            font-family: root.mono ? "Consolas" : "Inter";
+            font-family: root.mono ? "Consolas" : Theme.ui-face;
             accessible-role: text-input;
             accessible-label: root.label;
             accepted => { root.committed(self.text); }
