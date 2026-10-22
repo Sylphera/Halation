@@ -68,8 +68,8 @@ pub fn waveform(
         }
         filled += read;
         let whole = filled / 2 * 2;
-        for sample in buffer[..whole].chunks_exact(2) {
-            current = current.max(i16::from_le_bytes([sample[0], sample[1]]).unsigned_abs());
+        for sample in buffer[..whole].as_chunks::<2>().0 {
+            current = current.max(i16::from_le_bytes(*sample).unsigned_abs());
             count += 1;
             total += 1;
             if count == block {
@@ -799,8 +799,10 @@ fn play(
         samples.clear();
         samples.extend(
             bytes[..whole]
-                .chunks_exact(4)
-                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]) * gain),
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|b| f32::from_le_bytes(*b) * gain),
         );
         bytes.copy_within(whole..filled, 0);
         filled -= whole;
