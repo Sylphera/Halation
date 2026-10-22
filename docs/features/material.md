@@ -84,6 +84,11 @@ the hover pill and the selection fuse into one raised shape. The collapsed sideb
 rows and 21 px icons; open, the row's bar is up to 50 px tall. Home's drop zone is 780 x 196 and the recent files bar,
 as wide, sits 36 px above the bottom with its label centred over the files or the description.
 
+Settings (Java, 2026-10-22: "mucho espacio sin aprovechar"; the list at the left competed with the sidebar): the
+categories are tabs at the top (a recessed track with the raised selection and hover pills), and the chosen category
+sits below in one centred column up to 1200 px wide, each group a panel of the material with its cells two per row.
+The category's big title is gone; the tab and the top bar's "Settings" name it.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

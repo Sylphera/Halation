@@ -26,15 +26,22 @@ component CategoryItem inherits FocusScope {
     callback selected(length, length, bool);
     init => {
         if (root.active) {
-            root.selected(root.absolute-position.y, root.height, true);
+            root.selected(root.absolute-position.x, root.width, true);
         }
     }
     changed active => {
         if (root.active) {
-            root.selected(root.absolute-position.y, root.height, false);
+            root.selected(root.absolute-position.x, root.width, false);
         }
     }
-    height: Theme.item;
+    // A tab of the bar at the top: as wide as its name
+    changed x => {
+        if (root.active) {
+            root.selected(root.absolute-position.x, root.width, true);
+        }
+    }
+    height: 30px;
+    preferred-width: name.preferred-width + 32px;
     focus-on-tab-navigation: true;
     accessible-role: tab;
     accessible-label: label;
@@ -54,10 +61,9 @@ component CategoryItem inherits FocusScope {
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
-    Text {
-        x: 8px;
+    name := Text {
+        x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        width: parent.width - 16px;
         text: root.label;
         color: root.active || touch.has-hover ? Theme.text : Theme.muted;
         animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
@@ -78,7 +84,7 @@ component CategoryItem inherits FocusScope {
             root.activated();
         }
         changed has-hover => {
-            root.hovered(self.has-hover, root.absolute-position.y, root.height);
+            root.hovered(self.has-hover, root.absolute-position.x, root.width);
         }
     }
 }
@@ -175,8 +181,8 @@ component ListRow inherits Rectangle {
     }
 }
 
-// Settings (planning/active/ui-redesign.md §9): the categories at the left, the chosen one alone at the right in
-// groups of cells, two per row. Search and Restore defaults live in the top bar (app.slint).
+// Settings (planning/active/ui-redesign.md §9): the categories as tabs at the top (Java, 2026-10-22: a list at the
+// left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore defaults live in the top bar (app.slint).
 export component SettingsPage inherits Rectangle {
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
@@ -199,8 +205,12 @@ export component SettingsPage inherits Rectangle {
     callback action(string);
 
     property <[string]> names: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
-    property <length> list-width: 200px;
-    property <length> column: min(880px, root.width - root.list-width - 64px);
+    // The tabs' bar and the content start below it
+    property <length> tabs-top: 16px;
+    property <length> content-top: root.tabs-top + 36px + 16px;
+    property <length> column: min(1200px, root.width - 64px);
+    // Tabs and content share one centred column
+    property <length> column-x: (root.width - root.column) / 2;
 
     // Category to show first (headless snapshots); -1 leaves the current one
     in property <int> jump-to: -1;
@@ -218,33 +228,30 @@ export component SettingsPage inherits Rectangle {
         flick.content-y = 0;
     }
 
-    // Category list
+    // Category tabs: a recessed track, the chosen tab raised, the hover pill raised too and fused with it
     Rectangle {
-        width: root.list-width;
-        x: 0px;
-        // The hover and selection pills behind the categories
+        x: root.column-x;
+        y: root.tabs-top;
+        width: min(tabs.preferred-width, root.column);
+        height: 36px;
+        Surface {
+            level: Level.well;
+        }
         category-pills := PillList {
+            x: 3px;
+            y: 3px;
+            width: parent.width - 6px;
+            height: parent.height - 6px;
+            horizontal: true;
             select-fill: Theme.raised-flat;
             hover-fill: Theme.raised-flat;
             raised-select: true;
             raised-hover: true;
+            radius: Theme.radius-control - 3px;
         }
-        VerticalLayout {
-            padding: 8px;
-            padding-right: 9px;
+        tabs := HorizontalLayout {
+            padding: 3px;
             spacing: 0px;
-            alignment: start;
-            Rectangle {
-                height: 26px;
-                Text {
-                    x: 8px;
-                    y: (parent.height - self.height) / 2;
-                    text: "Settings";
-                    color: Theme.subtle;
-                    font-size: Theme.font-caption;
-                    font-weight: 500;
-                }
-            }
             for name[index] in root.names : CategoryItem {
                 label: name;
                 active: root.category == index;
@@ -256,26 +263,19 @@ export component SettingsPage inherits Rectangle {
     }
 
     flick := Flickable {
-        x: root.list-width;
-        width: root.width - root.list-width;
-        height: root.height - (root.error != "" ? 36px : 0px);
+        x: 0px;
+        y: root.content-top;
+        width: root.width;
+        height: root.height - root.content-top - (root.error != "" ? 36px : 0px);
         content-width: self.width;
         content-height: max(self.height, pane.preferred-height + 48px);
 
         pane := VerticalLayout {
-            x: 32px;
-            y: 24px;
+            x: root.column-x;
+            y: 0px;
             width: root.column;
             height: self.preferred-height;
             spacing: 0px;
-
-            Text {
-                text: root.names[root.category];
-                color: Theme.text;
-                font-family: Theme.display;
-                font-size: Theme.font-display;
-            }
-            Rectangle { height: 18px; }
 
             if root.category == 0 : VerticalLayout {
                 Group {
@@ -794,9 +794,9 @@ export component SettingsPage inherits Rectangle {
     }
 
     if root.error != "" : Rectangle {
-        x: root.list-width;
+        x: 0px;
         y: root.height - 36px;
-        width: root.width - root.list-width;
+        width: root.width;
         height: 36px;
         background: #2a1717;
         Text {

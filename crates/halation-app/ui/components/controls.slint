@@ -306,21 +306,34 @@ export component Tag inherits Rectangle {
     }
 }
 
-// A group of settings: its heading, then cells. Groups follow each other with 28 px between them.
+// A group of settings: a panel of the material with its label and cells. Groups follow each other 16 px apart.
 export component Group inherits VerticalLayout {
     in property <string> title;
     spacing: 0px;
-    padding-bottom: 28px;
-    // Small tracked capitals, quieter than the cells
-    Text {
-        text: root.title.to-uppercase();
-        color: Theme.subtle;
-        font-size: Theme.font-label;
-        font-weight: 600;
-        letter-spacing: Theme.label-tracking;
+    padding-bottom: 16px;
+    Rectangle {
+        Surface {
+            level: Level.bubble;
+            radius: Theme.radius;
+        }
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 16px;
+            padding-bottom: 6px;
+            spacing: 0px;
+            // Small tracked capitals, quieter than the cells
+            Text {
+                text: root.title.to-uppercase();
+                color: Theme.subtle;
+                font-size: Theme.font-label;
+                font-weight: 600;
+                letter-spacing: Theme.label-tracking;
+            }
+            Rectangle { height: 10px; }
+            @children
+        }
     }
-    Rectangle { height: 10px; }
-    @children
 }
 
 // One setting: a 1 px line above, the name and an optional help line on the left, its control on the right

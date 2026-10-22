@@ -324,7 +324,7 @@ queue | player | export, now mapped onto the frame):
 | Right column: format, tracks, export when done, Export, Send to | Inspector tab Separate: Model (one selectable card, v2's 4 stems as a disabled card), Device (Auto / CPU only); tab Export: format, save-to (global policy), track checks, Export when done, Send to… The primary Export and Cancel sit in the top bar |
 | Drop zone with no file | Canvas empty state with the drop line; Queue empty |
 
-**Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** No more single
+**Settings (Java, 2026-10-21: categories left, settings right; each category is its own tab-page).** Superseded for the layout (Java, 2026-10-22): the categories are tabs at the top, see [docs/features/material.md](../../docs/features/material.md). No more single
 scrolling page with a tab bar that jumps. The content area splits in two:
 
 - **Category list (200 px, left, `canvas`, 1 px line on its right):** General, Interface, You, Files, Processing,
