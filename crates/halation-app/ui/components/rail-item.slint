@@ -20,6 +20,12 @@ export component SidebarItem inherits FocusScope {
     in property <string> label: "";
     // The collapsed sidebar's tooltip and the accessible name, when they differ from the label
     in property <string> tip: root.label;
+    // The collapsed sidebar's tooltip, informative (docs/features/material.md): what the row does, its shortcut, a
+    // badge and a state line
+    in property <string> detail: "";
+    in property <string> key: "";
+    in property <string> badge: "";
+    in property <string> warning: "";
     in property <bool> active: false;
     in property <bool> open: true;
     callback activated;
@@ -40,7 +46,7 @@ export component SidebarItem inherits FocusScope {
     property <bool> lit: root.active || touch.has-hover;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: root.tip;
+    accessible-label: root.key != "" ? root.tip + " (" + root.key + ")" : root.tip;
     accessible-item-selected: active;
     accessible-action-default => { activated(); }
 
@@ -124,6 +130,11 @@ export component SidebarItem inherits FocusScope {
         x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
         text: root.tip;
+        detail: root.detail;
+        key: root.key;
+        badge: root.badge;
+        warning: root.warning;
+        nub-left: true;
         show: touch.has-hover || root.keyboard-focus;
         at-once: root.keyboard-focus;
     }
@@ -140,7 +151,8 @@ export component SidebarItem inherits FocusScope {
     }
 }
 
-// Between groups of tools: open, the group's name; collapsed, a separator line instead
+// Between groups of tools: open, the group's name; collapsed, a separator line instead. A group without a name (the
+// gap before Settings) keeps its line in both states (Java, 2026-10-22)
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
@@ -150,9 +162,9 @@ export component SidebarGroup inherits Rectangle {
     Rectangle {
         x: 10px;
         y: (parent.height - self.height) / 2;
-        width: Theme.sidebar-closed - 17px - 20px;
+        width: root.label == "" ? parent.width - 20px : Theme.sidebar-closed - 17px - 20px;
         height: 1px;
-        background: Theme.line-strong.transparentize(root.open ? 1 : 0);
+        background: Theme.line-strong.transparentize(root.open && root.label != "" ? 1 : 0);
         animate background { duration: Motion.fade; easing: Curve.ease; }
     }
     Text {

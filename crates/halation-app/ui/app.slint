@@ -309,7 +309,8 @@ export component AppWindow inherits Window {
                     icon: root.rail-open ? "panel-left-close" : "panel-left-open";
                     // The label stays as the sidebar closes and fades; the tooltip names what a click does
                     label: "Collapse";
-                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
+                    tip: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
+                    key: "Ctrl+B";
                     open: root.rail-open;
                     activated => { root.rail-open = !root.rail-open; }
                     hovered(on, at, size) => { rail-pills.hover(on, at, size); }
@@ -344,6 +345,9 @@ export component AppWindow inherits Window {
                     SidebarItem {
                         icon: tool.icon;
                         label: tool.name;
+                        detail: tool.about;
+                        badge: tool.beta ? "BETA" : "";
+                        warning: tool.missing != "" ? "Needs " + tool.missing : "";
                         open: root.rail-open;
                         activated => { root.tool-activated(tool.id); }
                         hovered(on, at, size) => { rail-pills.hover(on, at, size); }

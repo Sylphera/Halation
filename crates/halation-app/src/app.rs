@@ -1126,6 +1126,7 @@ fn tool_items(settings: &Settings) -> Vec<ToolItem> {
             id: SharedString::from(tool.id),
             name: SharedString::from(tool.name),
             icon: SharedString::from(tool.icon),
+            about: SharedString::from(tool.about),
             summary: SharedString::from(tool.summary),
             group: tool.group,
             beta: tool.beta,

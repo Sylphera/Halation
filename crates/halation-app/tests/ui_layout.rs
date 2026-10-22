@@ -76,6 +76,7 @@ fn fill_home(ui: &AppWindow) {
             id: tool.id.into(),
             name: tool.name.into(),
             icon: tool.icon.into(),
+            about: tool.about.into(),
             summary: tool.summary.into(),
             group: tool.group,
             beta: tool.beta,
@@ -223,7 +224,7 @@ fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     toggle("Expand the sidebar (Ctrl+B)").invoke_accessible_default_action();
     slint::platform::update_timers_and_animations();
     assert!(ui.get_rail_open(), "the Collapse row opens it");
-    toggle("Collapse").invoke_accessible_default_action();
+    toggle("Collapse the sidebar (Ctrl+B)").invoke_accessible_default_action();
     slint::platform::update_timers_and_animations();
     assert!(!ui.get_rail_open(), "the Collapse row closes it");
 }

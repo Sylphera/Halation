@@ -48,6 +48,11 @@ export global Theme {
     // Menus and tooltips: one step above raised
     out property <brush> popover-fill: #222222;
     out property <brush> popover-edge: @linear-gradient(180deg, #ffffff30 0%, #ffffff17 100%);
+    // The popover's edge as one colour, where a gradient cannot go (a tooltip's nub)
+    out property <color> popover-rim: #ffffff22;
+    // A shortcut drawn as a key cap inside a tooltip
+    out property <color> key-fill: #2c2c2c;
+    out property <color> key-edge: #ffffff1c;
     // The accent as a raised piece (the switch on)
     out property <brush> accent-fill: #a3a8dc;
     out property <brush> accent-edge: @linear-gradient(180deg, #ffffff70 0%, #ffffff14 45%, #00000026 100%);

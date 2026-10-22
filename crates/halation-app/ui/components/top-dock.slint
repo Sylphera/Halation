@@ -17,12 +17,14 @@ export component BarButton inherits FocusScope {
     }
     in property <string> icon;
     in property <string> label;
+    // Its shortcut, shown as a key cap in the tooltip
+    in property <string> key: "";
     callback activated;
     width: 32px;
     height: 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: label;
+    accessible-label: root.key != "" ? root.label + " (" + root.key + ")" : root.label;
     accessible-action-default => { activated(); }
     key-pressed(event) => {
         if (event.text == Key.Return || event.text == Key.Space) {
@@ -64,6 +66,7 @@ export component BarButton inherits FocusScope {
         x: parent.width - self.width;
         y: parent.height + 8px;
         text: root.label;
+        key: root.key;
         show: touch.has-hover || root.keyboard-focus;
         at-once: root.keyboard-focus;
     }
@@ -99,7 +102,7 @@ export component TopActions inherits HorizontalLayout {
     spacing: 6px;
     alignment: end;
 
-    BarButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
+    BarButton { icon: "keyboard"; label: "Keyboard shortcuts"; key: "?"; activated => { root.shortcuts(); } }
     BarButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
     BarButton { icon: "globe"; label: "Language"; activated => { root.language(); } }
     BarButton { icon: "save"; label: "Save Session"; activated => { root.save-session(); } }

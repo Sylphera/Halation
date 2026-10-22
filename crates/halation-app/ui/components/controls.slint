@@ -310,17 +310,17 @@ export component Tag inherits Rectangle {
 export component Group inherits VerticalLayout {
     in property <string> title;
     spacing: 0px;
-    padding-bottom: 16px;
+    padding-bottom: 20px;
     Rectangle {
         Surface {
             level: Level.bubble;
             radius: Theme.radius;
         }
         VerticalLayout {
-            padding-left: 20px;
-            padding-right: 20px;
-            padding-top: 16px;
-            padding-bottom: 6px;
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 18px;
+            padding-bottom: 8px;
             spacing: 0px;
             // Small tracked capitals, quieter than the cells
             Text {
@@ -340,8 +340,8 @@ export component Group inherits VerticalLayout {
 export component Cell inherits Rectangle {
     in property <string> name;
     in property <string> help: "";
-    min-height: 48px;
-    preferred-height: max(48px, body.preferred-height);
+    min-height: 54px;
+    preferred-height: max(54px, body.preferred-height);
     // Cells of a pair share the width equally, whatever their text
     preferred-width: 0px;
     min-width: 0px;
@@ -352,13 +352,13 @@ export component Cell inherits Rectangle {
         background: Theme.separator;
     }
     body := HorizontalLayout {
-        padding-top: 8px;
-        padding-bottom: 8px;
-        spacing: 12px;
+        padding-top: 11px;
+        padding-bottom: 11px;
+        spacing: 24px;
         VerticalLayout {
             horizontal-stretch: 1;
             alignment: center;
-            spacing: 2px;
+            spacing: 3px;
             Text {
                 text: root.name;
                 color: Theme.text;
@@ -381,7 +381,7 @@ export component Cell inherits Rectangle {
 
 // Two cells side by side, 32 px apart; an empty slot keeps the left one at half width
 export component Pair inherits HorizontalLayout {
-    spacing: 32px;
+    spacing: 40px;
     @children
 }
 
@@ -509,7 +509,7 @@ export component Segmented inherits FocusScope {
     }
     row := HorizontalLayout {
         padding: 3px;
-        spacing: 0px;
+        spacing: 4px;
         for option[index] in root.options : Rectangle {
             property <bool> active: index == root.current;
             min-width: name.preferred-width + 24px;

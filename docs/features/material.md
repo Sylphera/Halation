@@ -104,6 +104,17 @@ bar's icon buttons (Activity, shortcuts, folder, language, session, the notice's
 apart and 12 px from the edge, and hovered or pressed they are raised pieces of the material, as the sidebar's rows
 are, instead of a flat tint.
 
+Seventh Preview (Java, 2026-10-22): the Collapse row is drawn above the sidebar's pills (a hover hid its icon and
+label). The line before Settings stays in both states. Settings breathes more: cells 54 px tall with 24 px between the
+text and the control, 40 px between the two cells of a row, panels with 24 px sides; the segmented control's options
+stand 4 px apart; the Vocal Remover select is wide enough for its longest option.
+
+Tooltips (Java, 2026-10-22, option C of `material/propuesta-tooltips.png`): one popover piece that slides 4 px out of
+its target as it fades in. Informative in the collapsed sidebar: the name, a line on what the tool does
+(`catalog.rs`, `about`), a BETA badge, a "Needs …" line in the warning colour, a nub pointing at the row, up to 320 px
+(longer lines are cut; Settings > Tools lists them whole). Compact in the top bar: the name and its shortcut as a key
+cap. The shortcut is also in each control's accessible name.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is
