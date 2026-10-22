@@ -108,14 +108,13 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    // The sidebar starts collapsed and never opens by itself (Java, 2026-10-22). Opened with its toggle or Ctrl+B, it
-    // lies over the page instead of pushing it, so Home does not move; choosing a page closes it again.
-    changed page => { root.rail-open = false; }
+    // The sidebar starts collapsed and never opens by itself (Java, 2026-10-22); its toggle or Ctrl+B opens it and the
+    // page moves over to make room
 
-    // The sidebar's width; the page and the top bar always start at the collapsed width
+    // The sidebar's width; the page and the top bar start where it ends
     property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: root.motion-duration * 1.6; easing: ease-out; }
-    property <length> page-x: Theme.sidebar-closed;
+    property <length> page-x: root.side;
 
     pure function group-name(group: int) -> string {
         group == 1 ? "Get" : group == 2 ? "Audio" : group == 3 ? "Image" : group == 4 ? "Video" : ""
@@ -296,14 +295,6 @@ export component AppWindow inherits Window {
             }
         }
 
-        // While the sidebar is open, a click on the page closes it
-        if root.diagnostic-scene != 0 && root.rail-open : TouchArea {
-            x: root.side;
-            width: parent.width - root.side;
-            height: parent.height;
-            clicked => { root.rail-open = false; }
-        }
-
         // Sidebar, the full height of the window (§6); drawn last so its tooltips sit above the page
         if root.diagnostic-scene != 0 : Rectangle {
             x: 0px;
@@ -311,9 +302,6 @@ export component AppWindow inherits Window {
             width: root.side;
             height: parent.height;
             background: Theme.chrome;
-            // Open, it lies over the page: a soft shadow on its edge sets it apart
-            drop-shadow-blur: root.rail-open ? 24px : 0px;
-            drop-shadow-color: #00000090;
             clip: false;
 
             // Header: as tall as the top bar

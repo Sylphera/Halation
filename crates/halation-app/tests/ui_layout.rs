@@ -193,17 +193,8 @@ fn press_ctrl_b(ui: &AppWindow) {
         .dispatch_event(WindowEvent::KeyReleased { text: control });
 }
 
-/// Where Home's drop zone starts, from its accessible label
-fn drop_zone_x(ui: &AppWindow) -> f32 {
-    ElementHandle::find_by_accessible_label(ui, "Drop a song or an image, or click to browse")
-        .next()
-        .expect("Home shows the drop zone")
-        .absolute_position()
-        .x
-}
-
 #[test]
-fn the_sidebar_opens_over_home_without_moving_it() {
+fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
@@ -213,21 +204,12 @@ fn the_sidebar_opens_over_home_without_moving_it() {
         resize(&ui, w, h);
         assert!(!ui.get_rail_open(), "collapsed at {w}x{h}");
     }
-    resize(&ui, 1280.0, 800.0);
-    let closed = drop_zone_x(&ui);
     press_ctrl_b(&ui);
     assert!(ui.get_rail_open(), "Ctrl+B opens it");
-    resize(&ui, 1280.0, 800.0);
-    assert!(
-        (drop_zone_x(&ui) - closed).abs() < 0.5,
-        "Home stays in place when the sidebar opens"
-    );
-    // Choosing a page closes it again
+    // It stays open from page to page
     ui.set_page(3);
     slint::platform::update_timers_and_animations();
-    assert!(!ui.get_rail_open(), "closed after choosing a page");
-    press_ctrl_b(&ui);
-    assert!(ui.get_rail_open(), "Ctrl+B opens it on Settings");
+    assert!(ui.get_rail_open(), "still open on Settings");
     press_ctrl_b(&ui);
     assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
     // Collapsed, the tools stay reachable by their names
