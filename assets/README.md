@@ -1,6 +1,6 @@
 # Asset provenance
 
-`halation-mark.png` is the Halation logo (Java, 2026-10-22): a hand-drawn vector stroke,
+`halation-mark.png` is the Halation logo (Java, 2026-10-22): a hand-drawn vector stroke (one continuous line: an arch, a dip and a hooked rise),
 `docs/media/brand/source/halation-mark.svg`, rendered at 512 px by `tools/render-brand.js` (an identity asset, drawn for
 this project). `halation-app-icon.png` is the window and taskbar icon from the same script: the mark on a flat
 `#111111` rounded square. The static Home reference image is kept outside the source tree under ignored
