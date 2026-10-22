@@ -1268,7 +1268,7 @@ fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
 }
 
 /// Plays Home's backdrop loop (backdrop.rs): a 15 Hz timer asks the decoding thread for the next frame, which comes
-/// back to the window as an image; only the frame on screen is held decoded. The timer runs only while Home is shown
+/// back to the window as an image; two frames are kept and written in turn. The timer runs only while Home is shown
 /// with motion on and the window is not minimized; otherwise the frame on screen stays (the still frame with reduced
 /// motion, or when the loop cannot play).
 struct BackdropPlayer {
@@ -1283,8 +1283,9 @@ impl BackdropPlayer {
         let deliver_to = weak.clone();
         let player = crate::backdrop::Player::start(assets, move |frame| {
             // A closed window is a normal lifecycle end
-            let _ = deliver_to
-                .upgrade_in_event_loop(move |ui| ui.set_backdrop(Image::from_rgb8(frame)));
+            let _ = deliver_to.upgrade_in_event_loop(move |ui| {
+                ui.set_backdrop(Image::from_rgba8_premultiplied(frame))
+            });
         });
         Self {
             weak,
