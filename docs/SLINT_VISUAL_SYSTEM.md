@@ -6,7 +6,7 @@ Java's visual review. Annex of `docs/SLINT_SPEC.md`, which keeps architecture, s
 first pass of this file (a launcher redesign, approved only as a starting point and then superseded).
 Its layout (floating rail, top dock, glass panels, the replica's Home, Settings and Library frames) and its surface
 colours are superseded by the anchored redesign, [planning/active/ui-redesign.md](../planning/active/ui-redesign.md)
-(implemented 2026-10-22, pending Java's visual review); identity, type and the Drape stay as written here.
+(implemented and approved by Java, 2026-10-22); identity, type and the Drape stay as written here.
 
 ## Principles
 
