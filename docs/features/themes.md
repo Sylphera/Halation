@@ -1,6 +1,6 @@
 # Themes
 
-Status: Implemented, pending visual review. Java, 2026-10-22: "plateado es el default entonces, ¿se podrían añadir
+Status: Implemented and approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca). Java, 2026-10-22: "plateado es el default entonces, ¿se podrían añadir
 temas? Un selector de colores que lo cambie a tiempo real"; scope chosen the same day: two presets plus an accent hue.
 
 ## 1. What it does

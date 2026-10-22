@@ -1,6 +1,6 @@
 # Plan de reorganización del repositorio
 
-Status: In progress — milestones 0, A1 and B done on 2026-10-21 on `slint/native` (pending Java's review); next: UI redesign, A2, C and D.
+Status: In progress — milestones 0, A1 and B done on 2026-10-21 on `slint/native` (pending Java's review); next: A2, D (data migration) and C (installer and updater).
 
 Estado: propuesta v2, 2026-10-21 (incorpora la propuesta integral de Java y las decisiones del hilo). Nada de esto está ejecutado. Se ejecuta en un solo hilo, junto con la reestructuración en
 crates ya aprobada, después de que Java revise este plan.

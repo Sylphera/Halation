@@ -1,6 +1,6 @@
 # Material and type (Slint beta)
 
-Status: **implemented (direction A, chosen type, chrome lifted), pending Java's visual review** (Java, 2026-10-22: "en el original, el material se ve más maduro …
+Status: **implemented (direction A, chosen type, chrome lifted), approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca)** (Java, 2026-10-22: "en el original, el material se ve más maduro …
 ahora todo es demasiado plano y le hace perder seriedad"; "busca referencias de material en otras apps"; a more
 mature typeface, Hermes Agent as inspiration). Annex of [SLINT_VISUAL_SYSTEM.md](../SLINT_VISUAL_SYSTEM.md); colours
 stay those of `ui/theme.slint`. Mockup: `material/propuesta-material-tipografia.png` in the project files (rendered
