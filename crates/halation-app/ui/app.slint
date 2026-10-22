@@ -431,11 +431,12 @@ export component AppWindow inherits Window {
 
             VerticalLayout {
                 y: Theme.bar;
-                height: parent.height - Theme.bar - foot.height;
+                height: parent.height - Theme.bar;
                 padding: 8px;
                 padding-right: 9px;
                 spacing: 0px;
-                alignment: start;
+                // The rows grow with the window's height, up to 44 px, and the group headers take what is left, so
+                // the list fills the sidebar instead of leaving a dead band above Settings
 
                 SidebarItem {
                     icon: "house";
@@ -453,6 +454,7 @@ export component AppWindow inherits Window {
                 }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;
+                    vertical-stretch: tool.id == "library" ? 0 : 1;
                     if tool.id != "library" && (index == 0 || tool.group != root.active-tools[index - 1].group) : SidebarGroup {
                         label: root.group-name(tool.group);
                         open: root.rail-open;
@@ -464,20 +466,18 @@ export component AppWindow inherits Window {
                         activated => { root.tool-activated(tool.id); }
                     }
                 }
-            }
 
-            // Foot: Settings, and the toggle while collapsed
-            foot := VerticalLayout {
-                y: parent.height - self.height;
-                height: self.preferred-height;
-                padding: 8px;
-                padding-right: 9px;
-                spacing: 2px;
+                // Foot: Settings, and the toggle while collapsed, under a line; in the same layout so the rows match
                 Rectangle {
-                    height: 1px;
-                    background: Theme.line;
+                    min-height: 7px;
+                    max-height: 72px;
+                    vertical-stretch: 1;
+                    Rectangle {
+                        y: parent.height - 7px;
+                        height: 1px;
+                        background: Theme.line;
+                    }
                 }
-                Rectangle { height: 6px; }
                 if !root.rail-open : SidebarItem {
                     icon: "panel-left-open";
                     label: "Expand the sidebar (Ctrl+B)";
