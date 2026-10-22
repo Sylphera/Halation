@@ -7,6 +7,7 @@ stops applying is removed here (the Tauri app's own decisions are in [archive/ta
 
 - Interface text is English; Spanish only on request: no half-translated strings while features move.
 - Releases carry the NSIS setup only (Java, 2026-10-13: no portable exe); the setup installs over an older version without losing data.
+- The logo is a hand-drawn vector stroke, white on a `#111111` square for the window icon (Java, 2026-10-22; `docs/media/brand/source/halation-mark.svg`, `tools/render-brand.js`): drawn in code so the artwork is the project's own; images from generators whose terms keep ownership (Recraft's free plan) are not used for the brand.
 - Home's background is called Drape (Java, 2026-10-14): Auralis is the name of the unlicensed component it was rewritten from; the old name stays only in history (`CHANGELOG.md`, `research/performance/`) and provenance notes.
 
 ## Repository and process

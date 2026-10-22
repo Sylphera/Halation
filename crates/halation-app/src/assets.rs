@@ -91,6 +91,7 @@ fn set_icon(assets: &Assets<'_>, name: &str, image: Image) {
 pub fn required() -> Vec<String> {
     let mut files: Vec<String> = [
         "halation-mark.png",
+        "halation-app-icon.png",
         "halation-wordmark.svg",
         "halation-wordmark-glow.png",
         "drop-outline.svg",
@@ -137,6 +138,7 @@ pub fn apply(ui: &AppWindow, dir: &Path, tone: Tone) {
     let assets = ui.global::<Assets>();
     let load = |file: &str| Image::load_from_path(&dir.join(file)).unwrap_or_default();
     assets.set_mark(load("halation-mark.png"));
+    assets.set_app_icon(load("halation-app-icon.png"));
     assets.set_wordmark(load("halation-wordmark.svg"));
     assets.set_wordmark_glow(load("halation-wordmark-glow.png"));
     assets.set_drop_outline(load("drop-outline.svg"));

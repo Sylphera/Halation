@@ -9,6 +9,7 @@ Developer scripts. None of them is part of the app or runs during a build.
 | `measure-renderers.ps1` | The same measurement across renderer builds (Skia D3D, Skia OpenGL, software), each built into its own target under `.tools/`. |
 | `record-drape.js` | Records the original Drape as the seamless loop in `assets/` (the only place the original `drape.js` may run; see `AGENTS.md`). Needs a checkout of `main`, Chrome, Playwright and FFmpeg; the header lists the files it writes. |
 | `render-wordmark-glow.js` | Renders the halation glow of Home's wordmark into `assets/halation-wordmark-glow.png` from the settings at its top (Java's values from the glow lab). Needs Chrome and Playwright. |
+| `render-brand.js` | Renders the logo from `docs/media/brand/source/halation-mark.svg` into `assets/` (the mark and the window icon) and `docs/media/brand/`. Needs Chrome and Playwright. |
 | `check-docs.py` | Checks the Markdown links, images and anchors and the `Status:` lines of `docs/features/`. CI runs it. |
 
 Measurements and their results stay out of the repository (`.tools/` is ignored); a report worth keeping goes to
