@@ -28,6 +28,12 @@ export struct FormatRow {
     detail: string,
     selected: bool,
     audio: bool,
+    // The first of video's audio-only outputs: shows the "Audio only" caption above it
+    header: bool,
+    // The suggested output (the first of the curated list)
+    recommended: bool,
+    // The consequence line (§4.5 of the spec): empty when there is nothing to say
+    note: string,
 }
 
 export struct LibraryRow {

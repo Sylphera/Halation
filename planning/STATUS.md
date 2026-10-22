@@ -16,7 +16,7 @@ Updated 2026-10-22. One page at most; if it goes two weeks without an update, de
   (instructions and documents) and B (Cargo workspace `halation-core` + `halation-app`, `assets/`, `tools/`, CI).
 - **Done**: the [UI redesign](active/ui-redesign.md), implemented and approved by Java on 2026-10-22 (Home and Settings).
 - **Pending merge**: PR #27 (motion), #28 (material and themes) and #29 (logo), stacked, onto `slint/native`.
-- **In progress**: [complete media Converter](active/converter-native.md), selected by Java (2026-10-22), including
-  audio/video and FFmpeg detection/installation. Library stays removed; visual review waits for the integrated tool.
+- **Implemented, pending visual review**: [complete media Converter](active/converter-native.md), selected by Java
+  (2026-10-22), with audio/video, FFmpeg installation and the audio preview. Library stays removed.
 - **Home memory accepted** (Java, 2026-10-22): no further decoder or lazy-player spike.
 - **Next**: finish the first tool, then A2, D and C, then the cut-over of `slint/native` to `main` with Java's approval.

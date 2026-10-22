@@ -15,6 +15,7 @@ pub mod folders;
 pub mod jobs;
 pub mod library;
 pub mod names;
+pub mod playback;
 pub mod presets;
 pub mod process;
 pub mod queue;

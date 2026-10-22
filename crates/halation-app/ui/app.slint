@@ -97,9 +97,16 @@ export component AppWindow inherits Window {
     in property <bool> convert-inspector-open: true;
     in property <float> convert-progress: 0;
     in property <string> convert-progress-label;
+    in property <bool> convert-audio: false;
+    in property <string> convert-wave;
+    in property <float> convert-wave-bins: 480;
+    in property <bool> convert-playing: false;
+    in property <float> convert-position: 0;
+    in property <string> convert-clock;
     callback converter-action(string);
     callback converter-select(int);
     callback converter-target(string);
+    callback converter-seek(float);
     callback converter-loaded();
     callback converter-dropped(data-transfer);
     in-out property <bool> export-choice-visible: false;
@@ -217,6 +224,9 @@ export component AppWindow inherits Window {
                 busy: root.convert-busy; needs-ffmpeg: root.convert-needs-ffmpeg; completed: root.convert-completed;
                 left-open: root.convert-left-open; inspector-open: root.convert-inspector-open;
                 progress: root.convert-progress; progress-label: root.convert-progress-label;
+                audio: root.convert-audio; wave: root.convert-wave; wave-bins: root.convert-wave-bins;
+                playing: root.convert-playing; position: root.convert-position; clock: root.convert-clock;
+                seek(fraction) => { root.converter-seek(fraction); }
                 action(name) => { root.converter-action(name); }
                 select(index) => { root.converter-select(index); }
                 target(id) => { root.converter-target(id); }

@@ -178,7 +178,14 @@ fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
             name: name.into(),
             detail: "Copies video · re-encodes audio".into(),
             selected: name == "MP4",
-            audio: false,
+            audio: matches!(name, "MP3" | "M4A" | "FLAC" | "WAV" | "OPUS"),
+            header: name == "MP3",
+            recommended: name == "MP4",
+            note: if name == "MP4" {
+                "A deliberately long consequence line: re-encodes audio · image subtitles are discarded".into()
+            } else {
+                Default::default()
+            },
         })
         .collect::<Vec<_>>(),
     )));
@@ -210,6 +217,39 @@ fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
                     assert!((panel.size().width - 220.0).abs() < 1.0);
                 }
             }
+        }
+    }
+    // The audio player replaces the canvas placeholder: it stays inside the canvas at every size
+    ui.set_convert_audio(true);
+    ui.set_convert_wave(halation_core::playback::envelope_path(&[0.2, 1.0, 0.5, 0.0]).into());
+    ui.set_convert_wave_bins(4.0);
+    ui.set_convert_position(0.5);
+    ui.set_convert_clock("12:34 / 1:02:03".into());
+    for (width, height) in SIZES {
+        resize(&ui, width, height);
+        for files in [false, true] {
+            ui.set_convert_left_open(files);
+            i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(1000));
+            slint::platform::update_timers_and_animations();
+            let stray = outside(&ui, width, height);
+            assert!(
+                stray.is_empty(),
+                "audio at {width}x{height}, files={files}: {stray:?}"
+            );
+            let canvas = ElementHandle::find_by_accessible_label(&ui, "Converter canvas")
+                .next()
+                .expect("canvas is present");
+            let player = ElementHandle::find_by_accessible_label(&ui, "Audio preview")
+                .next()
+                .expect("audio player is present");
+            let (c, p) = (canvas.absolute_position(), player.absolute_position());
+            assert!(
+                p.x >= c.x
+                    && p.y >= c.y
+                    && p.x + player.size().width <= c.x + canvas.size().width + 0.5
+                    && p.y + player.size().height <= c.y + canvas.size().height + 0.5,
+                "audio player leaves the canvas at {width}x{height}, files={files}"
+            );
         }
     }
 }

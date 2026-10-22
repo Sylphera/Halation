@@ -69,7 +69,11 @@ impl Source {
             parts.push(format!("{} × {}", self.width, self.height));
         }
         if self.duration > 0.0 {
-            parts.push(format!("{:.1} s", self.duration));
+            parts.push(if self.duration < 10.0 {
+                format!("{:.1} s", self.duration)
+            } else {
+                crate::playback::clock(self.duration)
+            });
         }
         let codecs = self
             .streams

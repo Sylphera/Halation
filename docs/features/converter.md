@@ -1,6 +1,6 @@
 # Converter — Especificación v1 y v2
 
-Status: Partial — native media implementation in progress (2026-10-22); tool frame, plans, jobs and FFmpeg installation are integrated. Not yet a complete native-spec delivery or visually approved. Implemented in the Tauri app on `main`.
+Status: Partial — native media Converter implemented (2026-10-22): tool frame, plans, jobs, FFmpeg installation and the audio preview; video transport, Send to and sessions remain. Pending visual review. Implemented in the Tauri app on `main`.
 
 Native progress and remaining validation: [converter-native plan](../../planning/active/converter-native.md).
 The native layout follows the approved tool frame, not the historical Tauri layout below. Documents remain out of scope.

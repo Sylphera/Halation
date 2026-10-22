@@ -22,7 +22,16 @@ export component ConverterPage inherits Rectangle {
     in property <bool> inspector-open: true;
     in property <float> progress: 0;
     in property <string> progress-label;
+    // Audio preview: the waveform as a vector envelope (`wave-bins` × 2 view box, empty while it is computed), the
+    // position heard (0..1) and the clock. Rust owns playback; the page only shows it and asks for seeks.
+    in property <bool> audio: false;
+    in property <string> wave;
+    in property <float> wave-bins: 480;
+    in property <bool> playing: false;
+    in property <float> position: 0;
+    in property <string> clock;
     callback action(string);
+    callback seek(float);
     callback select(int);
     callback target(string);
     callback file-dropped(data-transfer);
@@ -91,7 +100,105 @@ export component ConverterPage inherits Rectangle {
                     x: 24px; y: 24px; width: parent.width - 48px; height: parent.height - 48px;
                     source: root.preview; image-fit: contain;
                 }
-                if !root.has-preview : VerticalLayout {
+                if root.audio : player := FocusScope {
+                    x: 32px; width: parent.width - 64px;
+                    height: 236px; y: (parent.height - self.height) / 2;
+                    accessible-role: groupbox;
+                    accessible-label: "Audio preview";
+                    key-pressed(event) => {
+                        if (event.text == Key.Space) { root.action("play"); return accept; }
+                        if (event.text == Key.LeftArrow) { root.action("back"); return accept; }
+                        if (event.text == Key.RightArrow) { root.action("forward"); return accept; }
+                        reject
+                    }
+                    // While the pointer holds the waveform, the head follows it; the seek happens on release
+                    property <bool> scrubbing: false;
+                    property <float> scrub: 0;
+                    property <float> shown: self.scrubbing ? self.scrub : root.position;
+                    VerticalLayout {
+                        spacing: 0px;
+                        Text { text: root.title; color: Theme.text; font-size: Theme.font-heading; font-weight: 600; overflow: elide; }
+                        Rectangle { height: 6px; }
+                        Text { text: root.summary; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                        Rectangle { height: 18px; }
+                        wave := Rectangle {
+                            height: 128px;
+                            accessible-role: slider;
+                            accessible-label: "Position";
+                            accessible-value: root.clock;
+                            // Skeleton until the summary arrives: the centre line alone
+                            Rectangle { y: (parent.height - 1px) / 2; height: 1px; width: parent.width; background: Theme.line-strong; }
+                            if root.wave != "" : Path {
+                                x: 0px; width: parent.width; height: parent.height;
+                                commands: root.wave; viewbox-width: root.wave-bins; viewbox-height: 2; fit: fill;
+                                fill: Theme.line-hover;
+                            }
+                            // The part already heard: the same path in the accent, clipped at the head
+                            Rectangle {
+                                x: 0px; width: parent.width * player.shown; height: parent.height; clip: true;
+                                if root.wave != "" : Path {
+                                    x: 0px; width: wave.width; height: parent.height;
+                                    commands: root.wave; viewbox-width: root.wave-bins; viewbox-height: 2; fit: fill;
+                                    fill: Theme.accent;
+                                }
+                            }
+                            Rectangle {
+                                x: (parent.width - 2px) * player.shown; width: 2px; height: parent.height;
+                                border-radius: 1px; background: Theme.text;
+                                opacity: root.playing || player.shown > 0 || player.scrubbing ? 1 : 0;
+                            }
+                            scrub-touch := TouchArea {
+                                mouse-cursor: pointer;
+                                pointer-event(event) => {
+                                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                                        player.focus();
+                                        player.scrubbing = true;
+                                        player.scrub = clamp(self.mouse-x / self.width, 0, 1);
+                                    }
+                                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up && player.scrubbing) {
+                                        player.scrubbing = false;
+                                        root.seek(player.scrub);
+                                    }
+                                    if (event.kind == PointerEventKind.cancel) { player.scrubbing = false; }
+                                }
+                                moved => {
+                                    if (player.scrubbing) { player.scrub = clamp(self.mouse-x / self.width, 0, 1); }
+                                }
+                            }
+                        }
+                        Rectangle { height: 18px; }
+                        HorizontalLayout {
+                            height: 36px; spacing: 12px;
+                            play := FocusScope {
+                                width: 36px; height: 36px;
+                                focus-on-tab-navigation: true;
+                                accessible-role: button;
+                                accessible-label: root.playing ? "Pause" : "Play";
+                                accessible-action-default => { root.action("play"); }
+                                key-pressed(event) => {
+                                    if (event.text == Key.Return || event.text == Key.Space) { root.action("play"); accept } else { reject }
+                                }
+                                Rectangle {
+                                    border-radius: self.height / 2;
+                                    background: play-touch.pressed ? Theme.primary-fill-press : Theme.primary-fill;
+                                    border-width: play.has-focus ? 2px : 0px;
+                                    border-color: Theme.accent;
+                                }
+                                // Play and pause drawn as paths (filled, Lucide's proportions)
+                                Path {
+                                    x: 11px; y: 11px; width: 14px; height: 14px;
+                                    viewbox-width: 24; viewbox-height: 24;
+                                    commands: root.playing ? "M6 4 H10 V20 H6 Z M14 4 H18 V20 H14 Z" : "M7 4 L20 12 L7 20 Z";
+                                    fill: Theme.chrome;
+                                }
+                                play-touch := TouchArea { mouse-cursor: pointer; clicked => { root.action("play"); } }
+                            }
+                            Text { text: root.clock; color: Theme.muted; font-size: Theme.font-body; vertical-alignment: center; }
+                            Rectangle { horizontal-stretch: 1; }
+                        }
+                    }
+                }
+                if !root.has-preview && !root.audio : VerticalLayout {
                     padding: 24px; spacing: 16px; alignment: center;
                     Rectangle {
                         height: 56px;
@@ -124,7 +231,7 @@ export component ConverterPage inherits Rectangle {
                 Rectangle { height: 1px; width: parent.width; background: Theme.line; }
                 HorizontalLayout {
                     padding-left: 12px; padding-right: 12px; spacing: 8px;
-                    Text { text: root.busy ? "Working…" : root.has-preview ? root.summary : root.items.length == 0 ? "No file selected" : root.items.length + " file(s)"; color: Theme.subtle; vertical-alignment: center; overflow: elide; }
+                    Text { text: root.busy ? "Working…" : root.has-preview || root.audio ? root.summary : root.items.length == 0 ? "No file selected" : root.items.length + " file(s)"; color: Theme.subtle; vertical-alignment: center; overflow: elide; }
                     Rectangle { horizontal-stretch: 1; }
                     if root.completed : VerticalLayout {
                         alignment: center;
@@ -167,7 +274,8 @@ export component ConverterPage inherits Rectangle {
             }
             ListView {
                 for format in root.formats : FocusScope {
-                    height: 64px;
+                    property <length> body: format.note != "" ? 80px : 64px;
+                    height: format.header ? self.body + 24px : self.body;
                     focus-on-tab-navigation: true;
                     accessible-role: button;
                     accessible-label: "Convert to " + format.name;
@@ -175,13 +283,33 @@ export component ConverterPage inherits Rectangle {
                     key-pressed(event) => {
                         if (!root.busy && (event.text == Key.Return || event.text == Key.Space)) { root.target(format.id); accept } else { reject }
                     }
-                    Rectangle { background: format.selected ? Theme.control-active : format-touch.has-hover ? Theme.control-hover : transparent; }
-                    VerticalLayout {
-                        padding-left: 16px; padding-right: 16px; padding-top: 8px; padding-bottom: 8px; spacing: 4px;
-                        Text { text: (format.selected ? "●  " : "○  ") + format.name + (format.audio ? " · Audio only" : ""); color: Theme.text; font-weight: 500; }
-                        Text { text: format.detail; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; overflow: elide; }
+                    // Video's audio-only outputs start under their own caption
+                    if format.header : Rectangle {
+                        y: 0px; height: 24px;
+                        Rectangle { y: 0px; height: 1px; width: parent.width; background: Theme.line; }
+                        Text { x: 16px; y: 8px; text: "Audio only"; color: Theme.subtle; font-size: Theme.font-label; font-weight: 600; }
                     }
-                    format-touch := TouchArea { enabled: !root.busy; clicked => { root.target(format.id); } }
+                    Rectangle {
+                        y: format.header ? 24px : 0px; height: parent.body;
+                        background: format.selected ? Theme.control-active : format-touch.has-hover ? Theme.control-hover : transparent;
+                        VerticalLayout {
+                            padding-left: 16px; padding-right: 16px; padding-top: 8px; padding-bottom: 8px; spacing: 4px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: (format.selected ? "●  " : "○  ") + format.name; color: Theme.text; font-weight: 500; }
+                                if format.recommended : Rectangle {
+                                    width: badge.preferred-width + 12px; height: 16px;
+                                    border-radius: 8px; border-width: 1px; border-color: Theme.accent.transparentize(50%);
+                                    badge := Text { text: "Recommended"; color: Theme.accent; font-size: Theme.font-label; vertical-alignment: center; horizontal-alignment: center; }
+                                }
+                                Rectangle { horizontal-stretch: 1; }
+                            }
+                            Text { text: format.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                            // What this output costs or changes (copy, re-encode, transparency, subtitles…)
+                            if format.note != "" : Text { text: format.note; color: format.selected ? Theme.muted : Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                        }
+                        format-touch := TouchArea { enabled: !root.busy; clicked => { root.target(format.id); } }
+                    }
                 }
             }
             Rectangle {

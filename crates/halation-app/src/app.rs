@@ -168,6 +168,7 @@ impl Controller {
     /// Closing the window: every job process still running stops with it.
     pub(crate) fn shutdown(&self) {
         self.converter.cancel_probe();
+        self.converter.suspend_preview();
         self.services.borrow().jobs.shutdown();
     }
 

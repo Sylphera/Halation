@@ -1,6 +1,6 @@
 # Native Converter
 
-Status: In progress — Java selected the complete media Converter (2026-10-22). No visual approval yet.
+Status: Implemented, pending visual review — Java selected the complete media Converter (2026-10-22). No visual approval yet.
 
 ## Scope and boundaries
 
@@ -58,10 +58,30 @@ Evidence already collected:
   MIT/Apache/BSD-compatible licensing. Headless controller tests still emit asset-default lookup warnings in the test
   executable directory; the actual offscreen capture resolves the real assets. No release build was run.
 
-Not yet a complete spec delivery: audio playback/waveform and full video transport are not implemented (images and
-video first-frame previews exist); session/Send-to integration is not claimed while other tools and sessions remain
-unported. Exact copy-versus-encode timing, sustained responsiveness/memory and uncommon stream/metadata fixtures
-still need coverage. No request for Java's visual review yet: finish the delivery first, as requested.
+## Completion (2026-10-22, second pass)
+
+Implemented, pending Java's visual review in the native window:
+
+- Audio preview: FFmpeg decodes (a separate process, like every conversion) and `halation-core::playback` plays through
+  shared-mode WASAPI (stereo `f32` at the device rate, Windows converts the layout). The canvas shows a 480-column
+  vector waveform computed in the preview job (centre-line skeleton until it arrives), the heard part in the accent,
+  a head, play/pause, `m:ss` clock, click or drag to seek (the seek happens on release), arrow keys ±5 s and Space.
+  Pause and seek end the decoder; a 33 ms timer runs only while playing. Leaving the page, another file or closing
+  stops playback. No audio device: playback ends with a message. Without FFmpeg the player is not offered (audio
+  needs FFmpeg to convert anyway). There is no 80 MB limit: decoding streams instead of loading the file.
+- Spec parity: "Recommended" badge on the first output, video's audio-only outputs under an "Audio only" caption,
+  each output's description plus its consequence line (§4.5), durations as `m:ss`, finished rows with the size before
+  and after.
+- Performance: [research/performance/2026-10-22-converter-native.md](../../research/performance/2026-10-22-converter-native.md)
+  (copy 1.8 % of re-encoding; UI thread ≤ 4.8 ms per update during a 256-file batch, asserted under 50 ms).
+
+Evidence: `tests/playback.rs` (real FFmpeg: waveform silence/tone, real-time playback after a seek, immediate stop,
+file without audio); controller test (player state, seek while paused, pause, ±5 s, leaving the page); WASAPI code
+type-checked against `x86_64-pc-windows-msvc`; offscreen capture `converter-audio`.
+
+Still open, not claimed: full video transport (video keeps its first-frame preview; a player would add a decoder
+process and frame uploads while playing, the light option is the current still frame), Send to / sessions while the
+other tools are unported, Windows timings and the WASAPI path heard on a real device (Java's PC).
 
 ## Sources
 

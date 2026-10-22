@@ -8,6 +8,8 @@ use halation_core::{
     convert::{self, Class, Plan, Source},
     destinations::{Destinations, ExportLocation, SaveMode, SavePicker},
     engine::JobEngine,
+    folders,
+    playback::{self, Player},
     queue::{JobSpec, JobState, Lane},
 };
 use slint::{
@@ -22,6 +24,7 @@ use std::{
         Arc, Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
+    time::Duration,
 };
 
 static WORKSPACE: AtomicU64 = AtomicU64::new(0);
@@ -35,6 +38,8 @@ struct Input {
     output: Option<PathBuf>,
     status: String,
     subfolder: Option<String>,
+    /// Size of the finished output, shown beside the original's
+    bytes_out: Option<u64>,
 }
 
 struct Loaded {
@@ -57,6 +62,8 @@ struct State {
     destinations: Destinations,
     location: ExportLocation,
     location_writable: bool,
+    /// What was last written to export-location.json; an unchanged location is not written (and synced) again
+    location_saved: Option<Vec<u8>>,
     left_open: bool,
     inspector_open: bool,
 }
@@ -73,7 +80,33 @@ pub(crate) struct Converter {
     preview_job: RefCell<Option<String>>,
     preview_generation: Arc<AtomicU64>,
     probe_cancel: Arc<AtomicBool>,
+    /// The remembered export location is written off the UI thread (a synced write); the newest write wins and a
+    /// failure comes back here
+    location_writes: Arc<Mutex<LocationWrites>>,
+    audio: RefCell<Audio>,
+    // Runs only while audio plays: moves the head and notices the end
+    clock: slint::Timer,
 }
+
+#[derive(Default)]
+struct LocationWrites {
+    latest: u64,
+    error: Option<String>,
+}
+
+/// The selected audio file's preview. Playback state lives here, never in the page.
+#[derive(Default)]
+struct Audio {
+    path: Option<PathBuf>,
+    ffmpeg: Option<PathBuf>,
+    duration: f64,
+    /// Seconds heard, kept while paused
+    position: f64,
+    player: Option<Player>,
+}
+
+/// Arrow keys move the audio head by this much.
+const AUDIO_STEP: f64 = 5.0;
 
 impl Converter {
     pub fn new(weak: Weak<AppWindow>, profile: Profile, engine: JobEngine) -> Rc<Self> {
@@ -97,6 +130,9 @@ impl Converter {
             preview_job: RefCell::new(None),
             preview_generation: Arc::new(AtomicU64::new(0)),
             probe_cancel: Arc::new(AtomicBool::new(false)),
+            location_writes: Arc::default(),
+            audio: RefCell::new(Audio::default()),
+            clock: slint::Timer::default(),
         })
     }
 
@@ -145,7 +181,24 @@ impl Converter {
                 }
             }
             "install" => controller.install_ffmpeg(),
+            "play" => controller.toggle_playback(),
+            "back" => controller.seek_by(-AUDIO_STEP),
+            "forward" => controller.seek_by(AUDIO_STEP),
             "reveal" => controller.reveal(),
+            "location-error" => {
+                let error = controller
+                    .location_writes
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .error
+                    .take();
+                if let Some(error) = error {
+                    controller.state.borrow_mut().message = format!(
+                        "File saved, but the export location could not be remembered: {error}"
+                    );
+                    controller.refresh();
+                }
+            }
             "toggle-files" => {
                 let mut state = controller.state.borrow_mut();
                 state.left_open = !state.left_open;
@@ -186,6 +239,7 @@ impl Converter {
                 {
                     if input.target != target.as_str() {
                         input.job = None;
+                        input.bytes_out = None;
                         input.status = "Ready".into();
                     }
                     input.target = target.to_string();
@@ -193,6 +247,11 @@ impl Converter {
             }
             drop(state);
             controller.refresh();
+        });
+        let controller = self.clone();
+        ui.on_converter_seek(move |fraction| {
+            let duration = controller.audio.borrow().duration;
+            controller.seek_to(f64::from(fraction) * duration);
         });
         let controller = self.clone();
         ui.on_converter_loaded(move || {
@@ -236,6 +295,7 @@ impl Converter {
     }
 
     pub fn suspend_preview(&self) {
+        self.close_audio();
         self.preview_generation.fetch_add(1, Ordering::AcqRel);
         *self.preview_path.borrow_mut() = None;
         if let Some(id) = self.preview_job.borrow_mut().take() {
@@ -270,12 +330,23 @@ impl Converter {
             ui.set_convert_has_preview(false);
             ui.set_convert_preview(Image::default());
         }
+        self.close_audio();
         let Some(input) = selected else {
             return;
         };
         let Ok(source) = &input.source else {
             return;
         };
+        if source.class == Class::Audio {
+            let Some(ffmpeg) = state.ffmpeg.as_ref().map(|f| f.ffmpeg.clone()) else {
+                return;
+            };
+            let path = input.path.clone();
+            let duration = source.duration;
+            drop(state);
+            self.open_audio(path, ffmpeg, duration, generation);
+            return;
+        }
         if !matches!(source.class, Class::Image | Class::Animated | Class::Video) {
             return;
         }
@@ -347,6 +418,203 @@ impl Converter {
             result
         });
         *self.preview_job.borrow_mut() = Some(job);
+    }
+
+    /* ===== audio preview ===== */
+
+    /// Shows the player at once (skeleton waveform) and computes the waveform in a preview job.
+    fn open_audio(&self, path: PathBuf, ffmpeg: PathBuf, duration: f64, generation: u64) {
+        *self.audio.borrow_mut() = Audio {
+            path: Some(path.clone()),
+            ffmpeg: Some(ffmpeg.clone()),
+            duration,
+            ..Default::default()
+        };
+        if let Some(ui) = self.weak.upgrade() {
+            ui.set_convert_audio(true);
+            ui.set_convert_wave(Default::default());
+            ui.set_convert_wave_bins(playback::WAVE_BINS as f32);
+        }
+        self.show_audio();
+        let weak = self.weak.clone();
+        let current = self.preview_generation.clone();
+        let mut spec = JobSpec::new("converter-preview", "Prepare preview", Lane::Light);
+        spec.cost = Lane::Light.capacity();
+        spec.priority = halation_core::queue::Priority::User;
+        let job = self.engine.submit_task(spec, move |context| {
+            let stale = || {
+                context.check_cancelled().is_err() || current.load(Ordering::Acquire) != generation
+            };
+            let peaks = playback::waveform(&ffmpeg, &path, duration, &stale)?;
+            let wave = playback::envelope_path(&peaks);
+            let _ = weak.upgrade_in_event_loop(move |ui| {
+                if current.load(Ordering::Acquire) == generation {
+                    ui.set_convert_wave(wave.into());
+                }
+            });
+            Ok(())
+        });
+        *self.preview_job.borrow_mut() = Some(job);
+    }
+
+    /// Stops playback and hides the player (another file, another page, closing).
+    fn close_audio(&self) {
+        self.clock.stop();
+        let had = std::mem::take(&mut *self.audio.borrow_mut()).path.is_some();
+        if had && let Some(ui) = self.weak.upgrade() {
+            ui.set_convert_audio(false);
+            ui.set_convert_playing(false);
+            ui.set_convert_wave(Default::default());
+            ui.set_convert_position(0.0);
+            ui.set_convert_clock(Default::default());
+        }
+    }
+
+    fn toggle_playback(self: &Rc<Self>) {
+        let playing = self.audio.borrow().player.is_some();
+        if playing {
+            self.pause();
+        } else {
+            let mut audio = self.audio.borrow_mut();
+            // From the end, play again from the start
+            if audio.duration > 0.0 && audio.position >= audio.duration - 0.05 {
+                audio.position = 0.0;
+            }
+            let at = audio.position;
+            drop(audio);
+            self.play_from(at);
+        }
+    }
+
+    fn play_from(self: &Rc<Self>, at: f64) {
+        let mut audio = self.audio.borrow_mut();
+        let (Some(path), Some(ffmpeg)) = (audio.path.clone(), audio.ffmpeg.clone()) else {
+            return;
+        };
+        audio.player = None;
+        audio.position = at;
+        audio.player = Some(Player::start(&ffmpeg, &path, at, playback::system_output()));
+        drop(audio);
+        let weak = Rc::downgrade(self);
+        self.clock.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(33),
+            move || {
+                if let Some(controller) = weak.upgrade() {
+                    controller.tick();
+                }
+            },
+        );
+        self.show_audio();
+    }
+
+    fn pause(&self) {
+        self.clock.stop();
+        let mut audio = self.audio.borrow_mut();
+        if let Some(player) = audio.player.take() {
+            let heard = player.position();
+            audio.position = if audio.duration > 0.0 {
+                heard.min(audio.duration)
+            } else {
+                heard
+            };
+        }
+        drop(audio);
+        self.show_audio();
+    }
+
+    fn seek_by(self: &Rc<Self>, delta: f64) {
+        let position = {
+            let audio = self.audio.borrow();
+            audio
+                .player
+                .as_ref()
+                .map_or(audio.position, Player::position)
+        };
+        self.seek_to(position + delta);
+    }
+
+    fn seek_to(self: &Rc<Self>, seconds: f64) {
+        let mut audio = self.audio.borrow_mut();
+        if audio.path.is_none() || !seconds.is_finite() {
+            return;
+        }
+        let end = if audio.duration > 0.0 {
+            audio.duration
+        } else {
+            0.0
+        };
+        let at = seconds.clamp(0.0, end);
+        let playing = audio.player.is_some();
+        audio.position = at;
+        drop(audio);
+        if playing && at < end {
+            self.play_from(at);
+        } else {
+            self.pause();
+            self.audio.borrow_mut().position = at;
+            self.show_audio();
+        }
+    }
+
+    fn tick(&self) {
+        let mut audio = self.audio.borrow_mut();
+        let Some(player) = audio.player.as_ref() else {
+            drop(audio);
+            self.clock.stop();
+            return;
+        };
+        let position = player.position();
+        let finished = player.finished();
+        let error = player.error();
+        audio.position = if audio.duration > 0.0 {
+            position.min(audio.duration)
+        } else {
+            position
+        };
+        if finished {
+            audio.player = None;
+            if error.is_none() && audio.duration > 0.0 {
+                audio.position = audio.duration;
+            }
+        }
+        drop(audio);
+        if finished {
+            self.clock.stop();
+            if let Some(error) = error {
+                self.state.borrow_mut().message = format!("Could not play this file: {error}");
+                self.refresh();
+            }
+        }
+        self.show_audio();
+    }
+
+    fn show_audio(&self) {
+        let Some(ui) = self.weak.upgrade() else {
+            return;
+        };
+        let audio = self.audio.borrow();
+        if audio.path.is_none() {
+            return;
+        }
+        ui.set_convert_playing(audio.player.is_some());
+        ui.set_convert_position(if audio.duration > 0.0 {
+            (audio.position / audio.duration).clamp(0.0, 1.0) as f32
+        } else {
+            0.0
+        });
+        let clock = format!(
+            "{} / {}",
+            playback::clock(audio.position),
+            if audio.duration > 0.0 {
+                playback::clock(audio.duration)
+            } else {
+                "--:--".into()
+            }
+        );
+        if ui.get_convert_clock().as_str() != clock {
+            ui.set_convert_clock(clock.into());
+        }
     }
 
     pub fn add(self: &Rc<Self>, paths: Vec<PathBuf>) {
@@ -438,6 +706,7 @@ impl Converter {
                         output: None,
                         status,
                         subfolder,
+                        bytes_out: None,
                     });
                 }
                 // Installation can resolve sources previously loaded without FFmpeg, without restarting the app.
@@ -601,6 +870,7 @@ impl Converter {
                 )
             });
             state.inputs[index].job = Some(id);
+            state.inputs[index].bytes_out = None;
             state.inputs[index].output = Some(output);
         }
         drop(state);
@@ -661,6 +931,9 @@ impl Converter {
                 if job.state == JobState::Done
                     && let Some(path) = input.output.clone()
                 {
+                    if input.bytes_out.is_none() {
+                        input.bytes_out = std::fs::metadata(&path).ok().map(|m| m.len());
+                    }
                     let State {
                         destinations,
                         location,
@@ -684,22 +957,21 @@ impl Converter {
                 path.file_name().unwrap_or_default().to_string_lossy(),
                 if explain { " to Halation Folder" } else { "" }
             );
-            let result = if state.location_writable {
-                serde_json::to_vec_pretty(&state.location)
-                    .map_err(|e| e.to_string())
-                    .and_then(|bytes| {
-                        halation_core::atomic_file::write_atomic(
-                            &self.profile.root().join("export-location.json"),
-                            &bytes,
-                        )
-                        .map_err(|e| e.to_string())
-                    })
+            if !state.location_writable {
+                state.message = "File saved, but the export location could not be remembered: the damaged export-location file was kept unchanged".into();
             } else {
-                Err("The damaged export-location file was kept unchanged".into())
-            };
-            if let Err(error) = result {
-                state.message =
-                    format!("File saved, but the export location could not be remembered: {error}");
+                match serde_json::to_vec_pretty(&state.location) {
+                    Ok(bytes) if state.location_saved.as_ref() != Some(&bytes) => {
+                        state.location_saved = Some(bytes.clone());
+                        self.save_location(bytes);
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        state.message = format!(
+                            "File saved, but the export location could not be remembered: {error}"
+                        );
+                    }
+                }
             }
         }
         drop(state);
@@ -709,6 +981,42 @@ impl Converter {
             self.refresh();
         }
         installation_notice
+    }
+
+    /// Writes the remembered location on a short-lived thread; a newer write makes an older one a no-op.
+    fn save_location(&self, bytes: Vec<u8>) {
+        let writes = self.location_writes.clone();
+        let generation = {
+            let mut writes = writes
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            writes.latest += 1;
+            writes.latest
+        };
+        let path = self.profile.root().join("export-location.json");
+        let weak = self.weak.clone();
+        let spawned = std::thread::Builder::new()
+            .name("export-location".into())
+            .spawn(move || {
+                // Held while writing: writes never interleave, and a superseded one is skipped
+                let mut guard = writes
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if guard.latest != generation {
+                    return;
+                }
+                if let Err(error) = halation_core::atomic_file::write_atomic(&path, &bytes) {
+                    guard.error = Some(error.to_string());
+                    drop(guard);
+                    let _ = weak.upgrade_in_event_loop(|ui| {
+                        ui.invoke_converter_action("location-error".into());
+                    });
+                }
+            });
+        if let Err(error) = spawned {
+            self.state.borrow_mut().message =
+                format!("File saved, but the export location could not be remembered: {error}");
+        }
     }
 
     fn reveal(&self) {
@@ -764,7 +1072,7 @@ impl Converter {
                         .as_ref()
                         .map_or_else(|e| e.clone(), Source::summary)
                         .into(),
-                    state: i.status.as_str().into(),
+                    state: shown_status(i).into(),
                     target: i.target.to_uppercase().into(),
                     selected: index == state.selected,
                     failed: i.source.is_err()
@@ -815,19 +1123,23 @@ impl Converter {
             &self.formats,
             selected
                 .map(|i| {
+                    let video = i.source.as_ref().is_ok_and(|s| s.class == Class::Video);
+                    let first_audio = i
+                        .plans
+                        .iter()
+                        .position(|p| video && is_audio_only(p.target));
                     i.plans
                         .iter()
-                        .map(|p| FormatRow {
+                        .enumerate()
+                        .map(|(index, p)| FormatRow {
                             id: p.target.into(),
                             name: p.target.to_uppercase().into(),
-                            detail: if p.notes.is_empty() {
-                                p.description().into()
-                            } else {
-                                p.notes.join(" · ").into()
-                            },
+                            detail: p.description().into(),
+                            note: p.notes.join(" · ").into(),
                             selected: p.target == i.target,
-                            audio: i.source.as_ref().is_ok_and(|s| s.class == Class::Video)
-                                && matches!(p.target, "mp3" | "m4a" | "flac" | "wav" | "opus"),
+                            audio: video && is_audio_only(p.target),
+                            header: first_audio == Some(index),
+                            recommended: index == 0,
                         })
                         .collect()
                 })
@@ -925,6 +1237,22 @@ fn read_location(path: &Path) -> (ExportLocation, bool, String) {
             ),
         ),
     }
+}
+
+/// The row's state; a finished conversion also says the size before and after.
+fn shown_status(input: &Input) -> String {
+    match (&input.source, input.bytes_out) {
+        (Ok(source), Some(out)) if input.status == "Done" => format!(
+            "Done · {} → {}",
+            folders::size_label(source.size),
+            folders::size_label(out)
+        ),
+        _ => input.status.clone(),
+    }
+}
+
+fn is_audio_only(target: &str) -> bool {
+    matches!(target, "mp3" | "m4a" | "flac" | "wav" | "opus")
 }
 
 fn retryable(input: &Input) -> bool {
@@ -1067,7 +1395,14 @@ mod tests {
                 .count(),
             11
         );
-        assert!(root.join("export-location.json").is_file());
+        // Written off the UI thread
+        until(|| root.join("export-location.json").is_file());
+        assert!(
+            ui.get_convert_rows()
+                .iter()
+                .any(|row| row.state.starts_with("Done · ") && row.state.contains(" → ")),
+            "finished rows show the size before and after"
+        );
         let completed = controller
             .state
             .borrow()
@@ -1085,6 +1420,144 @@ mod tests {
         );
         assert!(ui.get_convert_completed());
         controller.suspend_preview();
+        engine.shutdown();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Acceptance §11.10: the UI thread's share of a running batch (job updates, rows, formats) stays far below a
+    /// 50 ms frame-blocking task even with the largest batch a folder can add.
+    #[test]
+    fn ui_thread_work_stays_small_during_the_largest_batch() {
+        i_slint_backend_testing::init_no_event_loop();
+        let ui = AppWindow::new().unwrap();
+        ui.set_page(4);
+        let root = std::env::temp_dir().join(format!(
+            "halation-converter-ui-cost-{}-{}",
+            std::process::id(),
+            WORKSPACE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let engine = JobEngine::new(|| {});
+        let controller = Converter::new(ui.as_weak(), Profile::at(&root), engine.clone());
+        controller.install(|| Some(1));
+        let paths: Vec<_> = (0..256)
+            .map(|index| {
+                let path = root.join(format!("generated-{index}.bmp"));
+                generated_bmp(&path);
+                path
+            })
+            .collect();
+        controller.add(paths);
+        until(|| controller.inbox.lock().unwrap().is_some());
+        ui.invoke_converter_loaded();
+        assert_eq!(ui.get_convert_rows().row_count(), 256);
+        ui.invoke_converter_action("run".into());
+        let mut times = Vec::new();
+        while engine.busy(Some("converter")) || times.is_empty() {
+            let started = Instant::now();
+            let _ = controller.jobs_changed();
+            times.push(started.elapsed());
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        let _ = controller.jobs_changed();
+        times.sort();
+        // Wall time on a test machine shared with other tests: a single preemption is not the UI's work, so the
+        // 95th percentile carries the assertion and the slowest is reported.
+        let typical = times[times.len() * 95 / 100];
+        println!(
+            "{} batch updates, 95th percentile {typical:?}, slowest {:?}",
+            times.len(),
+            times[times.len() - 1]
+        );
+        assert!(
+            typical < Duration::from_millis(50),
+            "95th percentile {typical:?}"
+        );
+        controller.suspend_preview();
+        engine.shutdown();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Audio preview through the controller with generated audio and a real FFmpeg (skipped, saying so, without one).
+    #[test]
+    fn audio_preview_plays_seeks_pauses_and_stops_when_leaving() {
+        let Some(pair) = components::Ffmpeg::find(&std::env::temp_dir().join("halation-no-tools"))
+        else {
+            eprintln!("FFmpeg not found: the audio preview controller test did not run");
+            return;
+        };
+        i_slint_backend_testing::init_no_event_loop();
+        let ui = AppWindow::new().unwrap();
+        ui.set_page(4);
+        let root = std::env::temp_dir().join(format!(
+            "halation-converter-audio-{}-{}",
+            std::process::id(),
+            WORKSPACE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let input = root.join("generated-tone.wav");
+        let status = std::process::Command::new(&pair.ffmpeg)
+            .args([
+                "-hide_banner",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg("sine=frequency=440:sample_rate=44100:duration=20")
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let engine = JobEngine::new(|| {});
+        let controller = Converter::new(ui.as_weak(), Profile::at(&root), engine.clone());
+        controller.install(|| Some(1));
+        controller.add(vec![input]);
+        until(|| controller.inbox.lock().unwrap().is_some());
+        ui.invoke_converter_loaded();
+        assert!(ui.get_convert_audio(), "audio shows the player");
+        assert_eq!(ui.get_convert_clock().as_str(), "0:00 / 0:20");
+        // The waveform job completes (its result reaches the page through the event loop, absent in this test)
+        until(|| !engine.busy(Some("converter-preview")));
+        assert!(
+            engine
+                .jobs()
+                .iter()
+                .any(|j| j.spec.tool == "converter-preview" && j.state == JobState::Done)
+        );
+        // Seeking while paused only moves the head
+        ui.invoke_converter_seek(0.5);
+        assert!(!ui.get_convert_playing());
+        assert_eq!(ui.get_convert_clock().as_str(), "0:10 / 0:20");
+        ui.invoke_converter_action("play".into());
+        assert!(ui.get_convert_playing());
+        std::thread::sleep(Duration::from_millis(400));
+        controller.tick();
+        let position = ui.get_convert_position();
+        if controller.audio.borrow().player.is_some() {
+            assert!(position > 0.5 && position < 0.6, "{position}");
+        } else {
+            // No audio device (a CI machine): playback ends with a message instead of hanging
+            assert!(!ui.get_convert_message().is_empty());
+        }
+        ui.invoke_converter_action("forward".into());
+        ui.invoke_converter_action("play".into());
+        assert!(!ui.get_convert_playing());
+        assert!(
+            ui.get_convert_position() >= 0.75,
+            "{}",
+            ui.get_convert_position()
+        );
+        ui.invoke_converter_action("play".into());
+        controller.suspend_preview();
+        assert!(
+            controller.audio.borrow().player.is_none(),
+            "leaving the page stops playback"
+        );
+        assert!(!ui.get_convert_audio());
         engine.shutdown();
         fs::remove_dir_all(root).unwrap();
     }
@@ -1109,6 +1582,7 @@ mod tests {
                 output: None,
                 status: "Ready".into(),
                 subfolder: None,
+                bytes_out: None,
             });
         }
         normalize_groups(&mut inputs);

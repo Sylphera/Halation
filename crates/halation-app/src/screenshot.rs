@@ -184,6 +184,13 @@ fn write_png(path: &Path, width: u32, height: u32, pixels: &[Rgb8Pixel]) -> std:
     fs::write(path, png)
 }
 
+fn profile_tools(out_dir: &Path, page: &str) -> PathBuf {
+    out_dir
+        .join(format!("fixtures-{page}"))
+        .join("profile")
+        .join("tools")
+}
+
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     // home, home-open (sidebar open), settings, settings-<0..7> (a section)
     let (page, mode, section) = match spec.page.as_str() {
@@ -193,6 +200,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         "converter" => (4, 0, -1),
         "converter-open" => (4, 2, -1),
         "converter-ready" => (4, 3, -1),
+        "converter-audio" => (4, 4, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -200,7 +208,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open or converter-ready"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready or converter-audio"
                 )
                 .into());
             }
@@ -250,6 +258,26 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         write_png(&fixture, 320, 200, &pixels)?;
         controller.add_converter_files(vec![fixture]);
         pump(&queue, Duration::from_millis(1000));
+    }
+    if mode == 4 {
+        // Generated audio (FFmpeg from the profile's tools or PATH): a pulsing tone with a quiet start
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-audio needs FFmpeg on PATH to generate its fixture")?;
+        // Absolute: FFmpeg runs from its own folder
+        let fixture = std::path::absolute(out_dir.join("generated-converter-tone.flac"))?;
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args(["-hide_banner", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i"])
+            .arg("aevalsrc=min(1\\,t/6)*(0.25+0.75*abs(sin(2*PI*0.21*t)))*(0.6+0.4*sin(2*PI*2.1*t))*sin(2*PI*330*t):s=44100:d=94")
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the audio fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        // A paused head part-way through, so the heard part and the head show without real-time playback
+        ui.invoke_converter_seek(0.38);
+        pump(&queue, Duration::from_millis(200));
     }
     if section >= 0 {
         // After the page has laid out, so the section tops are known
