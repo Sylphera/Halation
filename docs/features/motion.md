@@ -108,7 +108,8 @@ entrar el puntero en la lista aparece en la fila (su color pasa de transparente 
 `glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se cierra sobre ella, una sola forma todo el
 camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla. **Su velocidad sigue a la del ratón** (Java, 2026-10-22): al entrar en una fila, la lista mira cuánto
 tardó el puntero desde la anterior (`animation-tick()`, leído en el callback, no en un binding: no pide frames); si
-cruza filas a menos de dos `glide` de distancia, `glide` y `trail` se acortan en proporción, hasta un 30 %. Despacio, la
+cruza filas a menos de dos `glide` de distancia, `glide` y `trail` se acortan en proporción, hasta el 65 % (36 ms, nunca un salto seco), promediado
+con el cruce anterior para que un pulso irregular no dé tirones entre filas. Despacio, la
 velocidad es la normal. Es una cuenta por fila cruzada, sin coste por frame; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
@@ -126,8 +127,8 @@ opciones de Settings. La zona de soltar baja solo a 99 %.
 
 La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
 `Rectangle` sin hijos por lista) que se estira hacia la nueva fila y se funde en ella como la de hover. En la sidebar
-la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono de la fila activa se
-pinta de acento (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
+la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono y el nombre de la fila
+activa se pintan de acento (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
 llega después.
 
 **Control segmentado** (`Segmented`, componente nuevo; Java, 2026-10-22: en las herramientas y en Settings la píldora

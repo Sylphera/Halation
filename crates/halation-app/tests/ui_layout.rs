@@ -354,20 +354,23 @@ fn a_faster_sweep_gives_a_faster_hover_pill() {
         (to - pill_y(&ui, "PillList::hover-pill")).abs() / (to - from).abs()
     };
     // Slow: the pointer rests on a row before moving on
-    let (_, start) = point_at(&ui, "Downloader");
+    let (_, start) = point_at(&ui, "Background Remover");
     advance(1000);
-    let (_, next) = point_at(&ui, "Converter");
+    let (_, next) = point_at(&ui, "Upscale");
     let slow = left(start, next);
-    // Fast: it crosses a row in 10 ms on its way to the next
+    // Faster: the same last step, after rows crossed 90 ms apart (the pill has about settled on each)
     point_at(&ui, "Grade");
     advance(1000);
-    let (_, start) = point_at(&ui, "Cover Test");
-    advance(1);
-    advance(10);
-    let (_, next) = point_at(&ui, "Background Remover");
+    for row in ["Cover Test", "Background Remover"] {
+        point_at(&ui, row);
+        advance(1);
+        advance(90);
+    }
+    let start = pill_y(&ui, "PillList::hover-pill");
+    let (_, next) = point_at(&ui, "Upscale");
     let fast = left(start, next);
     assert!(
-        fast < slow * 0.7,
+        fast < slow * 0.9,
         "faster pointer, faster pill: {fast} vs {slow}"
     );
 }

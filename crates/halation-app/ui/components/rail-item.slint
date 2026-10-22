@@ -109,7 +109,7 @@ export component SidebarItem inherits FocusScope {
             y: (parent.height - self.height) / 2;
             width: Theme.sidebar-open - 17px - self.x - 8px;
             text: root.label;
-            color: (root.lit ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
+            color: (root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
             animate color { duration: Motion.fade; easing: Curve.ease; }
             font-size: root.roomy ? 14px : Theme.font-body;
             font-weight: 500;

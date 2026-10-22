@@ -39,9 +39,10 @@ export component PillList inherits Rectangle {
         if (on) {
             // Appearing, it starts at the row; moving between rows (or across a gap between them), it glides
             // The faster the pointer crosses rows, the shorter the glide: rows crossed at less than twice `glide`
-            // apart shorten it in proportion, down to 30 %. One sum per row crossed; no frame is added.
+            // apart shorten it in proportion, to no less than 65 % (36 ms). Averaged with the last crossing, so an uneven hand does
+            // not jolt the pill from one row to the next. One sum per row crossed; no frame is added.
             root.hover-pace = root.hover-idle || Motion.glide <= 0ms ? 1
-                : max(0.3, min(1, (animation-tick() - root.hover-tick) / (Motion.glide * 2)));
+                : (root.hover-pace + max(0.65, min(1, (animation-tick() - root.hover-tick) / (Motion.glide * 2)))) / 2;
             root.hover-tick = animation-tick();
             root.hover-snap = root.hover-idle;
             root.hover-idle = false;
