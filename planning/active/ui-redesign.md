@@ -6,6 +6,14 @@ Annex of [docs/SLINT_SPEC.md](../../docs/SLINT_SPEC.md); it supersedes the *layo
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
 Drape, lavender accent, near-black ground) does not change. Static mockup: Artifact published with this spec (https://claude.ai/artifact/VaQf6JbL7m9DGtNa9xv2hX).
 
+**Implementation (2026-10-22): implemented, pending Java's visual review** in the native window. Done: tokens (§5),
+sidebar (§6), top bar (§7), Drape inside Home's content (§8, variant 1), Home, Settings by category and Library (§9),
+with headless tests for the sidebar's width rule, `Ctrl+B` and one category at a time. Not done in this pass, on
+purpose or for lack of an engine: the tool frame (§9; tools still have no pages, so it has nothing to hold), the 1.2 s
+highlight of a found setting, Up/Down between sidebar items, the native title bar's colour, opening a recent file
+selected in Library (the row opens Library). The Drape is still decoded at the window's size and drawn in the content
+rectangle.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged

@@ -1,11 +1,12 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 
-component DockButton inherits FocusScope {
+// A 28 px icon button of the top bar, with a tooltip below it
+export component BarButton inherits FocusScope {
     in property <string> icon;
     in property <string> label;
     callback activated;
-    width: 36px;
+    width: 28px;
     height: 28px;
     focus-on-tab-navigation: true;
     accessible-role: button;
@@ -20,31 +21,33 @@ component DockButton inherits FocusScope {
         }
     }
     Rectangle {
-        border-radius: 10px;
-        background: touch.has-hover ? #ffffff12 : transparent;
+        border-radius: Theme.radius-control;
+        background: touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : transparent);
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
     @children
-    ToolIcon {
+    if root.icon != "" : ToolIcon {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         name: root.icon;
-        size: 15px;
+        size: 16px;
         tint: touch.has-hover ? Theme.text : Theme.muted;
     }
-    if touch.has-hover : Rectangle {
+    if touch.has-hover || root.has-focus : Rectangle {
         x: parent.width - self.width;
         y: parent.height + 8px;
         width: tip.preferred-width + 20px;
         height: 26px;
-        border-radius: 13px;
-        background: Theme.text;
+        border-radius: Theme.radius-overlay;
+        background: Theme.control;
+        border-width: 1px;
+        border-color: Theme.line-strong;
         tip := Text {
             text: root.label;
-            color: Theme.panel;
-            font-size: 13px;
-            font-weight: 600;
+            color: Theme.text;
+            font-size: Theme.font-small;
+            font-weight: 500;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -55,8 +58,9 @@ component DockButton inherits FocusScope {
     }
 }
 
-// The small bar at the top right: activity, keyboard shortcuts, the Halation folder, language and saving the session.
-export component TopDock inherits Rectangle {
+// The global actions at the right of the top bar: activity, keyboard shortcuts, the Halation folder, language and
+// saving the session
+export component TopActions inherits HorizontalLayout {
     in property <bool> busy: false;
     callback activity();
     callback shortcuts();
@@ -64,32 +68,24 @@ export component TopDock inherits Rectangle {
     callback language();
     callback save-session();
 
-    width: 184px;
-    height: 32px;
-    border-radius: 14px;
-    background: Theme.panel;
-    border-width: 1px;
-    border-color: Theme.line;
+    spacing: 2px;
+    alignment: end;
 
-    HorizontalLayout {
-        padding: 2px;
-        spacing: 0px;
-        DockButton {
-            icon: "";
-            label: root.busy ? "Activity: working" : "Activity: all quiet";
-            activated => { root.activity(); }
-            Rectangle {
-                x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
-                width: 10px;
-                height: 10px;
-                border-radius: 5px;
-                background: root.busy ? Theme.accent : Theme.activity;
-            }
+    BarButton {
+        icon: "";
+        label: root.busy ? "Activity: working" : "Activity: all quiet";
+        activated => { root.activity(); }
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.busy ? Theme.activity : Theme.subtle;
         }
-        DockButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
-        DockButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
-        DockButton { icon: "globe"; label: "Language"; activated => { root.language(); } }
-        DockButton { icon: "save"; label: "Save Session"; activated => { root.save-session(); } }
     }
+    BarButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
+    BarButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
+    BarButton { icon: "globe"; label: "Language"; activated => { root.language(); } }
+    BarButton { icon: "save"; label: "Save Session"; activated => { root.save-session(); } }
 }

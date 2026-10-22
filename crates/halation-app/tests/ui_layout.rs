@@ -2,9 +2,12 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, ItemRow, JobRow, RecentItem, SectionRow, ToolItem};
+use halation_app::ui::{AppWindow, ItemRow, JobRow, Prefs, RecentItem, SectionRow, ToolItem};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
-use slint::{ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel, platform::WindowEvent};
+use slint::{
+    ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
+    platform::{Key, WindowEvent},
+};
 use std::rc::Rc;
 
 const SIZES: [(f32, f32); 4] = [
@@ -141,7 +144,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
         for page in [0, 1, 3] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
-            // Settings scrolls under its fixed tab bar, which ends 100 px down
+            // Settings' pane scrolls under the top bar and the category title, which end 100 px down
             let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { f32::MAX });
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
@@ -202,4 +205,86 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
         let downloader = ElementHandle::find_by_accessible_label(&ui, "Downloader").count();
         assert!(downloader >= 1, "the rail lists the tools on page {page}");
     }
+}
+
+fn press_ctrl_b(ui: &AppWindow) {
+    let control = SharedString::from(Key::Control);
+    let b = SharedString::from("b");
+    ui.window().dispatch_event(WindowEvent::KeyPressed {
+        text: control.clone(),
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyPressed { text: b.clone() });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyReleased { text: b });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyReleased { text: control });
+}
+
+#[test]
+fn the_sidebar_follows_the_window_width_the_setting_and_ctrl_b() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    // "Expand when needed", the default: open from 1180 px, collapsed below
+    ui.set_prefs(Prefs {
+        dock_mode: 1,
+        show_dock: true,
+        ..Prefs::default()
+    });
+    resize(&ui, 1280.0, 800.0);
+    assert!(ui.get_rail_open(), "open at 1280 px");
+    resize(&ui, 1100.0, 700.0);
+    assert!(!ui.get_rail_open(), "collapsed at 1100 px");
+    press_ctrl_b(&ui);
+    assert!(ui.get_rail_open(), "Ctrl+B opens it");
+    press_ctrl_b(&ui);
+    assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
+    // "Keep open" keeps it open in a narrow window; "Compact" keeps it closed in a wide one
+    ui.set_prefs(Prefs {
+        dock_mode: 2,
+        show_dock: true,
+        ..Prefs::default()
+    });
+    // `changed` handlers run on the next pass of the event loop
+    slint::platform::update_timers_and_animations();
+    assert!(ui.get_rail_open(), "keep open at 1100 px");
+    ui.set_prefs(Prefs {
+        dock_mode: 0,
+        show_dock: true,
+        ..Prefs::default()
+    });
+    resize(&ui, 1920.0, 1080.0);
+    assert!(!ui.get_rail_open(), "compact at 1920 px");
+    // Collapsed, the tools stay reachable by their names
+    assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
+}
+
+#[test]
+fn settings_shows_one_category_at_a_time() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    ui.set_page(3);
+    slint::platform::update_timers_and_animations();
+    let shown = |label: &str| ElementHandle::find_by_accessible_label(&ui, label).count() > 0;
+    assert!(shown("Language"), "General is the first category");
+    assert!(
+        !shown("Processor jobs at once"),
+        "Processing is not shown with General"
+    );
+    let processing = ElementHandle::find_by_accessible_label(&ui, "Processing")
+        .next()
+        .expect("the Processing category exists");
+    processing.invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert_eq!(ui.get_settings_category(), 4);
+    assert!(
+        shown("Processor jobs at once"),
+        "Processing shows its settings"
+    );
+    assert!(!shown("Language"), "General's settings are gone");
 }

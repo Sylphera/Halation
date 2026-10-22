@@ -1,276 +1,329 @@
 import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
-import { ToolItem, RecentItem } from "../models.slint";
+import { RecentItem } from "../models.slint";
 
-// One entry of Home's tool strip: icon over its name
-component StripItem inherits FocusScope {
-    in property <string> icon;
-    in property <string> label;
-    in property <duration> motion-duration: 160ms;
-    callback activated;
-    // Shrinks towards the label's width when the window is narrow
-    preferred-width: name.preferred-width + 20px;
-    min-width: name.preferred-width + 4px;
-    height: 52px;
-    focus-on-tab-navigation: true;
-    accessible-role: button;
-    accessible-label: label;
-    accessible-action-default => { activated(); }
-    key-pressed(event) => {
-        if (event.text == Key.Return || event.text == Key.Space) {
-            activated();
-            accept
-        } else {
-            reject
+// Heading of a Home block: its name, and an optional link at the right
+component BlockHead inherits Rectangle {
+    in property <string> title;
+    in property <string> link: "";
+    callback link-activated;
+    height: 28px;
+    Text {
+        x: 0px;
+        y: (parent.height - self.height) / 2;
+        text: root.title;
+        color: Theme.muted;
+        font-size: Theme.font-small;
+        font-weight: 600;
+    }
+    if root.link != "" : Rectangle {
+        x: parent.width - self.width;
+        width: link-text.preferred-width + 8px;
+        accessible-role: button;
+        accessible-label: root.link;
+        accessible-action-default => { root.link-activated(); }
+        link-text := Text {
+            x: 4px;
+            y: (parent.height - self.height) / 2;
+            text: root.link;
+            color: link-touch.has-hover ? Theme.text : Theme.subtle;
+            font-size: Theme.font-small;
+            font-weight: 500;
+        }
+        link-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.link-activated(); }
         }
     }
     Rectangle {
-        border-radius: 12px;
-        background: touch.pressed ? #ffffff17 : (touch.has-hover ? #ffffff0f : transparent);
-        border-width: root.has-focus ? 2px : 0px;
-        border-color: Theme.accent;
-        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
-    }
-    ToolIcon {
-        x: (parent.width - self.width) / 2;
-        y: 9px;
-        name: root.icon;
-        size: 17px;
-        tint: touch.has-hover ? Theme.text : Theme.muted;
-    }
-    name := Text {
-        x: (parent.width - self.width) / 2;
-        y: 31px;
-        text: root.label;
-        color: touch.has-hover ? Theme.text : Theme.muted;
-        font-size: Theme.font-tiny;
-        font-weight: 500;
-    }
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.focus();
-            root.activated();
-        }
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.line;
     }
 }
 
-// Home as in the original: the mark and wordmark, the tagline, the strip of tools, and the drop zone with recent
-// files anchored to the bottom.
+// A name and its value on one 32 px line, with the line under it
+component Fact inherits Rectangle {
+    in property <string> name;
+    in property <string> value;
+    in property <color> ink: Theme.muted;
+    height: 32px;
+    Text {
+        x: 0px;
+        width: parent.width - value-text.width - 12px;
+        y: (parent.height - self.height) / 2;
+        text: root.name;
+        color: root.ink;
+        font-size: Theme.font-body;
+        overflow: elide;
+    }
+    value-text := Text {
+        x: parent.width - self.width;
+        y: (parent.height - self.height) / 2;
+        text: root.value;
+        color: root.ink == Theme.muted ? Theme.text : root.ink;
+        font-size: Theme.font-body;
+        font-weight: 500;
+    }
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.line;
+    }
+}
+
+// Home: a starting point, not a launcher (planning/active/ui-redesign.md §9). One 720 px column over the Drape: a
+// small header, the drop line, recent files, and the Library and Activity blocks. Blocks have no fill, only lines.
 export component HomePage inherits Rectangle {
-    in property <[ToolItem]> tools;
     in property <[RecentItem]> recent;
     in property <bool> library-loaded: false;
+    in property <int> library-total: 0;
+    in property <int> library-missing: 0;
+    in property <int> sections-count: 0;
+    in property <bool> sections-loaded: false;
+    in property <int> jobs-count: 0;
+    in property <bool> jobs-busy: false;
+    in property <bool> jobs-has-finished: false;
+    in property <string> build-label: "";
     in property <duration> motion-duration: 160ms;
 
-    callback tool-activated(string);
     callback choose-reference();
     callback file-dropped(data-transfer);
+    callback open-library();
+    callback open-activity();
 
-    // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
-    property <length> hero-top: max(24px, root.height / 2 - 259px);
-    property <length> drop-top: max(root.hero-top + 286px, root.height - 70px - 55px - 15px - 150px);
+    property <length> column: min(720px, root.width - 48px);
 
-    Image {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top;
-        width: 176px;
-        height: 87px;
-        source: Assets.mark;
-        image-fit: contain;
-        accessible-role: image;
-        accessible-label: "Halation";
-    }
+    flick := Flickable {
+        width: root.width;
+        height: root.height;
+        content-width: root.width;
+        content-height: max(root.height, body.preferred-height + 64px);
 
-    Image {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top + 113px;
-        width: 241px;
-        height: 26px;
-        source: Assets.wordmark;
-        colorize: Theme.text;
-        image-fit: contain;
-    }
+        body := VerticalLayout {
+            x: (root.width - root.column) / 2;
+            y: 28px;
+            width: root.column;
+            height: self.preferred-height;
+            spacing: 20px;
 
-    Text {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top + 153px;
-        text: "Take your time. Everything else is instant.";
-        color: Theme.muted;
-        font-size: Theme.font-title;
-    }
-
-    // Tool strip
-    Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top + 202px;
-        width: min(strip.preferred-width, parent.width - 24px);
-        height: 62px;
-        border-radius: 18px;
-        background: Theme.glass;
-        border-width: 1px;
-        border-color: Theme.hairline;
-        Rectangle {
-            x: 18px;
-            y: 1px;
-            width: parent.width - 36px;
-            height: 1px;
-            background: Theme.sheen;
-        }
-        strip := HorizontalLayout {
-            padding-left: 5px;
-            padding-right: 5px;
-            padding-top: 5px;
-            padding-bottom: 5px;
-            spacing: 0px;
-            for tool in root.tools : StripItem {
-                icon: tool.icon;
-                label: tool.name;
-                motion-duration: root.motion-duration;
-                activated => { root.tool-activated(tool.id); }
+            // Header: the mark and wordmark, small, with the tagline
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+                Image {
+                    width: 44px;
+                    height: 22px;
+                    y: 4px;
+                    source: Assets.mark;
+                    image-fit: contain;
+                    accessible-role: image;
+                    accessible-label: "Halation";
+                }
+                VerticalLayout {
+                    spacing: 4px;
+                    Image {
+                        width: 112px;
+                        height: 12px;
+                        source: Assets.wordmark;
+                        colorize: Theme.text;
+                        image-fit: contain;
+                        horizontal-alignment: left;
+                    }
+                    Text {
+                        text: "Take your time. Everything else is instant.";
+                        color: Theme.muted;
+                        font-size: Theme.font-body;
+                    }
+                }
             }
-        }
-    }
 
-    // Drop zone
-    Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: root.drop-top;
-        width: 640px;
-        height: 150px;
-        border-radius: 24px;
-        background: drop-area.has-drag ? #a3a8dc1f : (drop-touch.has-hover ? #181818c0 : Theme.glass);
-        animate background { duration: root.motion-duration; easing: ease-out; }
-
-        Image {
-            width: parent.width;
-            height: parent.height;
-            source: Assets.drop-outline;
-            colorize: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-        }
-        Rectangle {
-            x: 24px;
-            y: 1px;
-            width: parent.width - 48px;
-            height: 1px;
-            background: Theme.sheen;
-        }
-
-        Rectangle {
-            x: (parent.width - self.width) / 2;
-            y: 23px;
-            width: 48px;
-            height: 48px;
-            border-radius: 16px;
-            background: Theme.raised;
-            border-width: 1px;
-            border-color: Theme.sheen;
-            ToolIcon {
-                x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
-                name: "upload";
-                size: 22px;
-                tint: Theme.text;
+            // Drop line: the page's one action
+            Rectangle {
+                height: 96px;
+                border-radius: Theme.radius-overlay;
+                background: drop-area.has-drag ? #a3a8dc1f : (drop-touch.has-hover ? Theme.hover-fill : transparent);
+                animate background { duration: root.motion-duration; easing: ease-out; }
+                Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: Assets.drop-outline;
+                    image-fit: fill;
+                    colorize: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 14px;
+                    VerticalLayout {
+                        alignment: center;
+                        ToolIcon {
+                            name: "upload";
+                            size: 20px;
+                            tint: drop-area.has-drag ? Theme.accent : Theme.muted;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 3px;
+                        Text {
+                            text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
+                            color: Theme.text;
+                            font-size: Theme.font-title;
+                            font-weight: 600;
+                        }
+                        Text {
+                            text: "Or click to browse. Files are added to your Library, never copied.";
+                            color: Theme.subtle;
+                            font-size: Theme.font-small;
+                        }
+                    }
+                }
+                drop-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        drop-focus.focus();
+                        root.choose-reference();
+                    }
+                }
+                drop-focus := FocusScope {
+                    width: 0px;
+                    height: 0px;
+                    focus-on-tab-navigation: true;
+                    accessible-role: button;
+                    accessible-label: "Drop a song or an image, or click to browse";
+                    accessible-action-default => { root.choose-reference(); }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == Key.Space) {
+                            root.choose-reference();
+                            accept
+                        } else {
+                            reject
+                        }
+                    }
+                }
+                drop-area := DropArea {
+                    can-drop(event) => { DragAction.copy }
+                    dropped(event) => {
+                        root.file-dropped(event.data);
+                        event.proposed-action
+                    }
+                }
             }
-        }
 
-        Text {
-            x: (parent.width - self.width) / 2;
-            y: 83px;
-            text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
-            color: Theme.text;
-            font-size: 15.5px;
-            font-weight: 600;
-        }
-        Text {
-            x: (parent.width - self.width) / 2;
-            y: 108px;
-            text: "Or click to browse. Files are added to your Library, never copied.";
-            color: Theme.subtle;
-            font-size: Theme.font-body;
-        }
-
-        drop-touch := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                drop-focus.focus();
-                root.choose-reference();
+            // Recent files
+            VerticalLayout {
+                spacing: 0px;
+                BlockHead {
+                    title: "Recent files";
+                    link: "Show all";
+                    link-activated => { root.open-library(); }
+                }
+                if root.recent.length == 0 : Text {
+                    height: 40px;
+                    text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
+                    color: Theme.subtle;
+                    font-size: Theme.font-body;
+                    vertical-alignment: center;
+                }
+                for item in root.recent : Rectangle {
+                    height: 40px;
+                    accessible-role: button;
+                    accessible-label: item.name;
+                    accessible-action-default => { root.open-library(); }
+                    background: row-touch.has-hover ? Theme.hover-fill : transparent;
+                    HorizontalLayout {
+                        padding-left: 4px;
+                        padding-right: 4px;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            ToolIcon { name: "library"; size: 16px; tint: Theme.muted; }
+                        }
+                        Text {
+                            horizontal-stretch: 2;
+                            text: item.name;
+                            color: Theme.text;
+                            font-size: Theme.font-body;
+                            font-weight: 500;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        Text {
+                            horizontal-stretch: 1;
+                            text: item.folder;
+                            color: Theme.subtle;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                    }
+                    Rectangle {
+                        y: parent.height - 1px;
+                        height: 1px;
+                        background: Theme.line;
+                    }
+                    row-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open-library(); }
+                    }
+                }
             }
-        }
-        drop-focus := FocusScope {
-            width: 0px;
-            height: 0px;
-            focus-on-tab-navigation: true;
-            accessible-role: button;
-            accessible-label: "Drop a song or an image, or click to browse";
-            accessible-action-default => { root.choose-reference(); }
-            key-pressed(event) => {
-                if (event.text == Key.Return || event.text == Key.Space) {
-                    root.choose-reference();
-                    accept
-                } else {
-                    reject
+
+            // Library and Activity, side by side
+            HorizontalLayout {
+                spacing: 32px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 0px;
+                    BlockHead {
+                        title: "Library";
+                        link: "Open";
+                        link-activated => { root.open-library(); }
+                    }
+                    Fact {
+                        name: "References";
+                        value: root.library-loaded ? "" + root.library-total : "…";
+                    }
+                    if root.sections-loaded : Fact {
+                        name: "Sections";
+                        value: "" + root.sections-count;
+                    }
+                    if root.library-missing > 0 : Fact {
+                        name: root.library-missing == 1 ? "1 file moved or deleted" : "" + root.library-missing + " files moved or deleted";
+                        value: "Review";
+                        ink: Theme.warning;
+                    }
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 0px;
+                    BlockHead {
+                        title: "Activity";
+                        link: "Details";
+                        link-activated => { root.open-activity(); }
+                    }
+                    Fact {
+                        name: "Processes";
+                        value: root.jobs-busy ? "Working" : (root.jobs-count == 0 ? "All quiet" : "" + root.jobs-count + (root.jobs-has-finished ? " finished" : " queued"));
+                    }
+                    // The beta has no engines: nothing can be queued or run yet
+                    Fact {
+                        name: "Engines";
+                        value: "Not connected";
+                        ink: Theme.warning;
+                    }
                 }
             }
         }
-        drop-area := DropArea {
-            can-drop(event) => { DragAction.copy }
-            dropped(event) => {
-                root.file-dropped(event.data);
-                event.proposed-action
-            }
-        }
     }
 
-    // Recent files
-    Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: root.drop-top + 165px;
-        width: 593px;
-        height: 55px;
-        border-radius: 22px;
-        background: Theme.glass;
-        border-width: 1px;
-        border-color: Theme.hairline;
-        Rectangle {
-            x: 22px;
-            y: 1px;
-            width: parent.width - 44px;
-            height: 1px;
-            background: Theme.sheen;
-        }
-        Text {
-            x: 21px;
-            y: (parent.height - self.height) / 2;
-            text: "RECENT FILES";
-            color: Theme.subtle;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1.32px;
-        }
-        if root.recent.length == 0 : Text {
-            x: 130px;
-            y: (parent.height - self.height) / 2;
-            width: parent.width - 150px;
-            text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
-            color: Theme.subtle;
-            font-size: Theme.font-small;
-            overflow: elide;
-        }
-        if root.recent.length > 0 : HorizontalLayout {
-            x: 130px;
-            width: parent.width - 150px;
-            spacing: 16px;
-            for item in root.recent : Text {
-                text: item.name;
-                color: Theme.muted;
-                font-size: Theme.font-small;
-                vertical-alignment: center;
-                overflow: elide;
-                max-width: 150px;
-            }
-            Rectangle { horizontal-stretch: 1; }
-        }
+    // Build, at the foot of the content
+    Text {
+        x: 24px;
+        y: root.height - self.height - 12px;
+        text: root.build-label;
+        color: Theme.subtle;
+        font-size: Theme.font-caption;
     }
 }

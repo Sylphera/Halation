@@ -1,14 +1,15 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
-// Visual system: docs/SLINT_VISUAL_SYSTEM.md, measured on the rendered original Halation.
-pub const GROUND: Rgb = Rgb(0x07, 0x07, 0x07);
-pub const GROUND_TOP: Rgb = Rgb(0x0b, 0x0b, 0x0c);
-pub const PANEL: Rgb = Rgb(0x11, 0x11, 0x11);
-pub const RAISED: Rgb = Rgb(0x24, 0x24, 0x24);
-pub const FIELD: Rgb = Rgb(0x08, 0x08, 0x08);
-pub const LINE: Rgb = Rgb(0x3d, 0x3d, 0x39);
-pub const LINE_STRONG: Rgb = Rgb(0x55, 0x55, 0x4f);
+// Visual system: planning/active/ui-redesign.md §5 (anchored frame, flat surfaces, 1 px lines).
+pub const CHROME: Rgb = Rgb(0x0b, 0x0b, 0x0c);
+pub const CANVAS: Rgb = Rgb(0x10, 0x10, 0x11);
+pub const CANVAS_DEEP: Rgb = Rgb(0x0a, 0x0a, 0x0b);
+pub const CONTROL: Rgb = Rgb(0x16, 0x16, 0x17);
+pub const CONTROL_HOVER: Rgb = Rgb(0x1c, 0x1c, 0x1e);
+pub const CONTROL_ACTIVE: Rgb = Rgb(0x23, 0x23, 0x25);
+pub const LINE: Rgb = Rgb(0x1f, 0x1f, 0x21);
+pub const LINE_STRONG: Rgb = Rgb(0x2d, 0x2d, 0x30);
 pub const TEXT: Rgb = Rgb(0xf5, 0xf5, 0xf2);
 pub const MUTED: Rgb = Rgb(0xb5, 0xb5, 0xaf);
 pub const SUBTLE: Rgb = Rgb(0x9a, 0x99, 0x93);
@@ -40,17 +41,21 @@ fn relative_luminance(color: Rgb) -> f64 {
     0.2126 * channel(color.0) + 0.7152 * channel(color.1) + 0.0722 * channel(color.2)
 }
 
-pub const TEXT_PAIRS: [(&str, Rgb, Rgb); 12] = [
-    ("primary text on the ground", TEXT, GROUND),
-    ("primary text on a panel", TEXT, PANEL),
-    ("primary text on a raised item", TEXT, RAISED),
-    ("secondary text on a panel", MUTED, PANEL),
-    ("secondary text on a field", MUTED, FIELD),
-    ("secondary text on a raised item", MUTED, RAISED),
-    ("tertiary text on a panel", SUBTLE, PANEL),
-    ("tertiary text on the ground", SUBTLE, GROUND),
-    ("accent on a panel", ACCENT, PANEL),
-    ("warning on a panel", WARNING, PANEL),
-    ("beta tag on a panel", BETA, PANEL),
-    ("error text on a panel", DANGER, PANEL),
+pub const TEXT_PAIRS: [(&str, Rgb, Rgb); 16] = [
+    ("primary text on the chrome", TEXT, CHROME),
+    ("primary text on the canvas", TEXT, CANVAS),
+    ("primary text on a control", TEXT, CONTROL),
+    ("primary text on an active item", TEXT, CONTROL_ACTIVE),
+    ("secondary text on the chrome", MUTED, CHROME),
+    ("secondary text on the canvas", MUTED, CANVAS),
+    ("secondary text on a control", MUTED, CONTROL),
+    ("secondary text on a hovered item", MUTED, CONTROL_HOVER),
+    ("tertiary text on the chrome", SUBTLE, CHROME),
+    ("tertiary text on the canvas", SUBTLE, CANVAS),
+    ("tertiary text on an active item", SUBTLE, CONTROL_ACTIVE),
+    ("accent on the chrome", ACCENT, CHROME),
+    ("accent on an active item", ACCENT, CONTROL_ACTIVE),
+    ("warning on the canvas", WARNING, CANVAS),
+    ("beta tag on the canvas", BETA, CANVAS),
+    ("error text on the canvas", DANGER, CANVAS),
 ];

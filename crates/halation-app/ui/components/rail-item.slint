@@ -1,17 +1,17 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 
-// One entry of the rail. Closed: a 44 px icon button with a tooltip; open: icon and label on one row.
-export component RailItem inherits FocusScope {
+// One entry of the sidebar: a 28 px row with icon and label. Collapsed, only the icon shows and a tooltip gives the
+// name on hover and keyboard focus.
+export component SidebarItem inherits FocusScope {
     in property <string> icon: "download";
     in property <string> label: "";
     in property <bool> active: false;
-    in property <bool> open: false;
-    in property <length> icon-size: 20px;
+    in property <bool> open: true;
     in property <duration> motion-duration: 160ms;
     callback activated;
 
-    height: 44px;
+    height: Theme.item;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -28,59 +28,46 @@ export component RailItem inherits FocusScope {
     }
 
     Rectangle {
-        width: parent.width;
-        height: parent.height;
-        border-radius: Theme.radius-icon;
-        background: root.active ? Theme.raised : (touch.pressed ? #ffffff14 : (touch.has-hover ? #ffffff0d : transparent));
-        border-width: root.has-focus ? 2px : (root.active ? 1px : 0px);
-        border-color: root.has-focus ? Theme.accent : Theme.sheen;
-        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
-    }
-
-    // Accent bar on the rail's edge, 8 px left of the item
-    if root.active : Rectangle {
-        x: -8px;
-        y: (parent.height - self.height) / 2;
-        width: 3px;
-        height: 18px;
-        border-radius: 1.5px;
-        background: Theme.accent;
+        border-radius: Theme.radius-control;
+        background: root.active ? Theme.control-active : (touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.control-hover : transparent));
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
     }
 
     ToolIcon {
-        x: (44px - self.width) / 2;
+        x: root.open ? 8px : (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         name: root.icon;
-        size: root.icon-size;
-        tint: root.active || touch.has-hover ? Theme.text : Theme.muted;
+        size: 16px;
+        tint: root.active ? Theme.accent : (touch.has-hover ? Theme.text : Theme.muted);
     }
 
-    Text {
-        x: 44px;
+    if root.open : Text {
+        x: 32px;
         y: (parent.height - self.height) / 2;
-        width: max(0px, parent.width - 52px);
+        width: max(0px, parent.width - 40px);
         text: root.label;
-        color: root.active ? Theme.text : Theme.muted;
-        font-size: Theme.font-title;
+        color: root.active || touch.has-hover ? Theme.text : Theme.muted;
+        font-size: Theme.font-body;
         font-weight: 500;
         overflow: elide;
-        opacity: root.open ? 1 : 0;
-        animate opacity { duration: root.motion-duration; easing: ease-out; }
     }
 
-    // Tooltip of the closed rail
-    if !root.open && touch.has-hover : Rectangle {
-        x: parent.width + 16px;
+    // Tooltip of the collapsed sidebar: an overlay to the right
+    if !root.open && (touch.has-hover || root.has-focus) : Rectangle {
+        x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
         width: tip.preferred-width + 20px;
         height: 26px;
-        border-radius: 13px;
-        background: Theme.text;
+        border-radius: Theme.radius-overlay;
+        background: Theme.control;
+        border-width: 1px;
+        border-color: Theme.line-strong;
         tip := Text {
             text: root.label;
-            color: Theme.panel;
-            font-size: 13px;
-            font-weight: 600;
+            color: Theme.text;
+            font-size: Theme.font-small;
+            font-weight: 500;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -92,5 +79,27 @@ export component RailItem inherits FocusScope {
             root.focus();
             root.activated();
         }
+    }
+}
+
+// The label over a group of tools; collapsed, a 1 px line in its place
+export component SidebarGroup inherits Rectangle {
+    in property <string> label;
+    in property <bool> open: true;
+    height: root.open ? 26px : 13px;
+    if root.open : Text {
+        x: 8px;
+        y: parent.height - self.height - 4px;
+        text: root.label;
+        color: Theme.subtle;
+        font-size: Theme.font-caption;
+        font-weight: 500;
+    }
+    if !root.open : Rectangle {
+        x: 8px;
+        y: 6px;
+        width: parent.width - 16px;
+        height: 1px;
+        background: Theme.line;
     }
 }

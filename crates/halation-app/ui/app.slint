@@ -8,21 +8,10 @@ export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, C
 import { HomePage } from "pages/home.slint";
 import { LibraryPage } from "pages/library.slint";
 import { SettingsPage } from "pages/settings.slint";
-import { RailItem } from "components/rail-item.slint";
-import { TopDock } from "components/top-dock.slint";
-
-// A divider between rail groups
-component RailDivider inherits Rectangle {
-    in property <length> gap;
-    height: 2 * gap + 1px;
-    Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: root.gap;
-        width: 22px;
-        height: 1px;
-        background: Theme.line;
-    }
-}
+import { SidebarItem, SidebarGroup } from "components/rail-item.slint";
+import { TopActions, BarButton } from "components/top-dock.slint";
+import { AppButton } from "components/button.slint";
+import { SearchField } from "components/controls.slint";
 
 export component AppWindow inherits Window {
     title: "Halation";
@@ -30,13 +19,15 @@ export component AppWindow inherits Window {
     preferred-height: 800px;
     min-width: 960px;
     min-height: 600px;
-    background: Theme.ground;
+    background: Theme.canvas;
     icon: Assets.mark;
     default-font-family: "Inter";
     default-font-size: Theme.font-body;
 
     init => {
         Palette.color-scheme = ColorScheme.dark;
+        root.rail-open = root.auto-open();
+        keys.focus();
     }
 
     // Pages: 0 Home, 1 Library, 3 Settings (2 was Jobs; its queue stays in the backend without a page)
@@ -83,10 +74,12 @@ export component AppWindow inherits Window {
     in property <bool> sections-busy: false;
     // Library tab: 0 references, 1 sections (in-out so a headless snapshot can fix it)
     in-out property <int> library-mode: 0;
-    // The rail open with labels (the original's "dock")
-    in-out property <bool> rail-open: false;
-    // Settings section to open at (headless snapshots)
+    // The sidebar open with labels; closed it shows icons only (planning/active/ui-redesign.md §6)
+    in-out property <bool> rail-open: true;
+    // Settings category to open at (headless snapshots)
     in property <int> settings-jump: -1;
+    // Settings category shown (the top bar's search changes it)
+    in-out property <int> settings-category: 0;
 
     callback navigate(int);
     callback choose-reference();
@@ -117,234 +110,388 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    // Where pages start, right of the rail
-    property <length> content-left: root.rail-open ? 254px : 80px;
-    animate content-left { duration: root.motion-duration * 1.6; easing: ease-out; }
+    // Open by default from 1180 px of window width, collapsed below; "Keep open" keeps it open and "Compact" closed.
+    // The user's toggle wins until the width crosses 1180 px again or the setting changes.
+    property <bool> wide: root.width >= 1180px;
+    property <int> dock-mode: root.prefs.dock-mode;
+    pure function auto-open() -> bool {
+        root.dock-mode == 2 || (root.dock-mode == 1 && root.wide)
+    }
+    changed wide => { root.rail-open = root.auto-open(); }
+    changed dock-mode => { root.rail-open = root.auto-open(); }
 
-    // Home's backdrop: the recorded Drape scaled to the window, with a fixed film grain over it. Nothing
-    // of it exists on other pages.
-    if root.page == 0 && root.diagnostic-scene != 0 : Rectangle {
+    property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
+    animate side { duration: root.motion-duration * 1.6; easing: ease-out; }
+
+    pure function group-name(group: int) -> string {
+        group == 1 ? "Get" : group == 2 ? "Audio" : group == 3 ? "Image" : group == 4 ? "Video" : ""
+    }
+
+    keys := FocusScope {
         width: parent.width;
         height: parent.height;
-        background: Theme.ground;
-        Image {
-            width: parent.width;
-            height: parent.height;
-            source: root.backdrop;
-            image-fit: cover;
-            image-rendering: smooth;
-        }
-        Image {
-            width: parent.width;
-            height: parent.height;
-            source: Assets.grain;
-            horizontal-tiling: repeat;
-            vertical-tiling: repeat;
-            // The grain's strength, Java's choice (2026-10-21)
-            opacity: 0.1;
-        }
-    }
-    if root.page != 0 : Rectangle {
-        width: parent.width;
-        height: parent.height;
-        background: @linear-gradient(180deg, Theme.ground-top 0%, Theme.ground 30%, Theme.ground 100%);
-    }
-
-    if root.diagnostic-scene != 0 : Rectangle {
-        x: root.content-left;
-        width: parent.width - root.content-left;
-        height: parent.height;
-
-        if root.page == 0 : HomePage {
-            width: parent.width;
-            height: parent.height;
-            tools: root.active-tools;
-            recent: root.recent;
-            library-loaded: root.library-loaded;
-            motion-duration: root.motion-duration;
-            tool-activated(id) => { root.tool-activated(id); }
-            choose-reference => { root.choose-reference(); }
-            file-dropped(data) => { root.file-dropped(data); }
-        }
-
-        if root.page == 1 : LibraryPage {
-            width: parent.width;
-            height: parent.height;
-            rows: root.library-rows;
-            query: root.library-query;
-            total: root.library-total;
-            missing: root.library-missing;
-            loaded: root.library-loaded;
-            busy: root.library-busy;
-            writable: root.library-writable;
-            error: root.library-error;
-            motion-duration: root.motion-duration;
-            choose-reference => { root.choose-reference(); }
-            remove-reference(id) => { root.remove-reference(id); }
-            set-query(value) => { root.set-query(value); }
-            mode <=> root.library-mode;
-            sections: root.sections;
-            section-items: root.section-items;
-            section-id: root.section-id;
-            section-name: root.section-name;
-            section-kind: root.section-kind;
-            section-hidden: root.section-hidden;
-            sections-loaded: root.sections-loaded;
-            sections-busy: root.sections-busy;
-            sections-opened => { root.sections-opened(); }
-            select-section(id) => { root.select-section(id); }
-            create-section(name) => { root.create-section(name); }
-            rename-section(id, name) => { root.rename-section(id, name); }
-            delete-section(id) => { root.delete-section(id); }
-            link-folder => { root.link-folder(); }
-            unlink-folder(id) => { root.unlink-folder(id); }
-        }
-
-        if root.page == 3 : SettingsPage {
-            width: parent.width;
-            height: parent.height;
-            prefs: root.prefs;
-            jump-to: root.settings-jump;
-            tools: root.tools;
-            writable: root.settings-writable;
-            error: root.settings-error;
-            profile-path: root.profile-path;
-            build-label: root.build-label;
-            library-limit: root.library-limit;
-            storage-used: root.storage-used;
-            app-size: root.app-size;
-            workspace-size: root.workspace-size;
-            components: root.components;
-            folders: root.folders;
-            search(text) => { return root.search-settings(text); }
-            motion-duration: root.motion-duration;
-            set-pref(key, value) => { root.set-pref(key, value); }
-            set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
-            reset-settings => { root.reset-settings(); }
-            action(name) => { root.dock-action(name); }
-        }
-    }
-
-    // Top-right dock
-    if root.diagnostic-scene != 0 && root.prefs.show-dock : TopDock {
-        x: parent.width - self.width - 24px;
-        y: 8px;
-        busy: root.jobs-busy;
-        activity => { root.dock-action("activity"); }
-        shortcuts => { root.dock-action("shortcuts"); }
-        open-folder => { root.dock-action("folder"); }
-        language => { root.dock-action("language"); }
-        save-session => { root.dock-action("session"); }
-    }
-
-    // Notice: one line at the top centre, closed with a click
-    if root.notice != "" : Rectangle {
-        x: root.content-left + (parent.width - root.content-left - self.width) / 2;
-        y: 8px;
-        width: min(notice-text.preferred-width + 72px, parent.width - root.content-left - 260px);
-        height: 32px;
-        border-radius: 14px;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.line;
-        notice-text := Text {
-            x: 16px;
-            width: parent.width - 56px;
-            y: (parent.height - self.height) / 2;
-            text: root.notice;
-            color: Theme.muted;
-            font-size: Theme.font-body;
-            overflow: elide;
-        }
-        Text {
-            x: parent.width - 30px;
-            y: (parent.height - self.height) / 2;
-            text: "✕";
-            color: Theme.subtle;
-            font-size: 11px;
-        }
-        TouchArea {
-            mouse-cursor: pointer;
-            accessible-role: button;
-            accessible-label: "Dismiss: " + root.notice;
-            accessible-action-default => { root.dismiss-notice(); }
-            clicked => { root.dismiss-notice(); }
-        }
-    }
-
-    // Rail, drawn last so its tooltips sit above the pages. Its items keep 44 px while there is room; the gaps
-    // and divider margins take what is left, as in the original (4 and 10 px at 800 px of rail).
-    property <int> rail-count: root.active-tools.length + 2;
-    property <length> rail-height: root.rail-open ? root.height - 24px : min(800px, root.height - 90px);
-    property <length> rail-item: min(44px, (root.rail-height - 29px) / (root.rail-count + 0.8));
-    property <float> rail-give: max(0, (root.rail-height - (root.rail-count * 44px + 35px + 29px)) / 164px);
-    // Open, the rail runs the window's height: gaps grow to 17 px and divider margins to 20 px
-    property <length> rail-gap: root.rail-give <= 1 ? 4px * root.rail-give : 4px + 13px * min(1, root.rail-give - 1);
-    property <length> rail-margin: 10px * min(2, root.rail-give);
-
-    if root.diagnostic-scene != 0 : Rectangle {
-        x: 22px;
-        y: (parent.height - self.height) / 2;
-        width: root.rail-open ? 232px : 62px;
-        height: root.rail-height;
-        border-radius: 26px;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.hairline;
-        animate width, height { duration: root.motion-duration * 1.6; easing: ease-out; }
-
-        VerticalLayout {
-            padding-left: 9px;
-            padding-right: 9px;
-            padding-top: 11px;
-            padding-bottom: 11px;
-            spacing: root.rail-gap;
-
-            RailItem {
-                height: root.rail-item;
-                icon: "mark";
-                label: "Home";
-                open: root.rail-open;
-                active: root.page == 0;
-                motion-duration: root.motion-duration;
-                activated => { root.navigate(0); }
+        key-pressed(event) => {
+            if (event.modifiers.control && (event.text == "b" || event.text == "B")) {
+                root.rail-open = !root.rail-open;
+                return accept;
             }
-            for tool[index] in root.active-tools : VerticalLayout {
-                spacing: root.rail-gap;
-                if index == 0 || tool.group != root.active-tools[index - 1].group : RailDivider {
-                    gap: max(0px, root.rail-margin - root.rail-gap);
+            reject
+        }
+
+        // The page, right of the sidebar and under the top bar
+        if root.diagnostic-scene != 0 : Rectangle {
+            x: root.side;
+            y: Theme.bar;
+            width: parent.width - root.side;
+            height: parent.height - Theme.bar;
+            background: Theme.canvas;
+            clip: true;
+
+            // Home's backdrop: the recorded Drape and a fixed film grain, only inside Home's content (§8)
+            if root.page == 0 : Image {
+                width: parent.width;
+                height: parent.height;
+                source: root.backdrop;
+                image-fit: cover;
+                image-rendering: smooth;
+            }
+            if root.page == 0 : Image {
+                width: parent.width;
+                height: parent.height;
+                source: Assets.grain;
+                horizontal-tiling: repeat;
+                vertical-tiling: repeat;
+                // The grain's strength, Java's choice (2026-10-21)
+                opacity: 0.1;
+            }
+
+            if root.page == 0 : HomePage {
+                width: parent.width;
+                height: parent.height;
+                recent: root.recent;
+                library-loaded: root.library-loaded;
+                library-total: root.library-total;
+                library-missing: root.library-missing;
+                sections-count: root.sections.length;
+                sections-loaded: root.sections-loaded;
+                jobs-count: root.jobs.length;
+                jobs-busy: root.jobs-busy;
+                jobs-has-finished: root.jobs-has-finished;
+                build-label: root.build-label;
+                motion-duration: root.motion-duration;
+                choose-reference => { root.choose-reference(); }
+                file-dropped(data) => { root.file-dropped(data); }
+                open-library => { root.navigate(1); }
+                open-activity => { root.dock-action("activity"); }
+            }
+
+            if root.page == 1 : LibraryPage {
+                width: parent.width;
+                height: parent.height;
+                rows: root.library-rows;
+                query: root.library-query;
+                total: root.library-total;
+                missing: root.library-missing;
+                loaded: root.library-loaded;
+                busy: root.library-busy;
+                writable: root.library-writable;
+                error: root.library-error;
+                motion-duration: root.motion-duration;
+                choose-reference => { root.choose-reference(); }
+                remove-reference(id) => { root.remove-reference(id); }
+                mode <=> root.library-mode;
+                sections: root.sections;
+                section-items: root.section-items;
+                section-id: root.section-id;
+                section-name: root.section-name;
+                section-kind: root.section-kind;
+                section-hidden: root.section-hidden;
+                sections-loaded: root.sections-loaded;
+                sections-busy: root.sections-busy;
+                sections-opened => { root.sections-opened(); }
+                select-section(id) => { root.select-section(id); }
+                create-section(name) => { root.create-section(name); }
+                rename-section(id, name) => { root.rename-section(id, name); }
+                delete-section(id) => { root.delete-section(id); }
+                link-folder => { root.link-folder(); }
+                unlink-folder(id) => { root.unlink-folder(id); }
+            }
+
+            if root.page == 3 : SettingsPage {
+                width: parent.width;
+                height: parent.height;
+                prefs: root.prefs;
+                jump-to: root.settings-jump;
+                category <=> root.settings-category;
+                tools: root.tools;
+                writable: root.settings-writable;
+                error: root.settings-error;
+                profile-path: root.profile-path;
+                build-label: root.build-label;
+                library-limit: root.library-limit;
+                storage-used: root.storage-used;
+                app-size: root.app-size;
+                workspace-size: root.workspace-size;
+                components: root.components;
+                folders: root.folders;
+                motion-duration: root.motion-duration;
+                set-pref(key, value) => { root.set-pref(key, value); }
+                set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
+                action(name) => { root.dock-action(name); }
+            }
+        }
+
+        // Top bar: title, notice, the page's actions, the global actions (§7). Drawn after the page so its
+        // tooltips sit above it.
+        if root.diagnostic-scene != 0 : Rectangle {
+            x: root.side;
+            y: 0px;
+            width: parent.width - root.side;
+            height: Theme.bar;
+            background: Theme.chrome;
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.line;
+            }
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 8px;
+                spacing: 12px;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: root.page == 0 ? "Home" : root.page == 1 ? "Library" : root.page == 3 ? "Settings" : "";
+                        color: Theme.text;
+                        font-size: Theme.font-title;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                    if root.page == 1 && root.library-mode == 1 : Text {
+                        text: root.section-name == "" ? "· Sections" : "· Sections · " + root.section-name;
+                        color: Theme.subtle;
+                        font-size: Theme.font-title;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        max-width: 280px;
+                    }
                 }
-                RailItem {
-                    height: root.rail-item;
-                    icon: tool.icon;
-                    label: tool.name;
+
+                // Notice: one line after the title, closed with its ✕
+                Rectangle {
+                    horizontal-stretch: 1;
+                    if root.notice != "" : HorizontalLayout {
+                        spacing: 8px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: root.notice;
+                            color: Theme.muted;
+                            font-size: Theme.font-body;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            BarButton {
+                                icon: "";
+                                label: "Dismiss: " + root.notice;
+                                activated => { root.dismiss-notice(); }
+                                Text {
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    text: "✕";
+                                    color: Theme.subtle;
+                                    font-size: 11px;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // The page's actions
+                if root.page == 1 && root.library-mode == 0 : HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        SearchField {
+                            placeholder: "Search everything...";
+                            label: "Filter references";
+                            text: root.library-query;
+                            edited(value) => { root.set-query(value); }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        AppButton {
+                            small: true;
+                            icon: "upload";
+                            text: "Add";
+                            enabled: root.library-loaded && root.library-writable && !root.library-busy;
+                            clicked => { root.choose-reference(); }
+                        }
+                    }
+                }
+                if root.page == 3 : HorizontalLayout {
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        // Enter opens the category that holds the words (Rust matches them)
+                        SearchField {
+                            placeholder: "Search settings...";
+                            label: "Search settings";
+                            accepted(value) => {
+                                let found = root.search-settings(value);
+                                if (found >= 0) {
+                                    root.settings-category = found;
+                                }
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        AppButton {
+                            quiet: true;
+                            small: true;
+                            icon: "rotate-ccw";
+                            text: "Restore defaults";
+                            enabled: root.settings-writable;
+                            clicked => { root.reset-settings(); }
+                        }
+                    }
+                }
+
+                if root.prefs.show-dock : VerticalLayout {
+                    alignment: center;
+                    TopActions {
+                        busy: root.jobs-busy;
+                        activity => { root.dock-action("activity"); }
+                        shortcuts => { root.dock-action("shortcuts"); }
+                        open-folder => { root.dock-action("folder"); }
+                        language => { root.dock-action("language"); }
+                        save-session => { root.dock-action("session"); }
+                    }
+                }
+            }
+        }
+
+        // Sidebar, the full height of the window (§6); drawn last so its tooltips sit above the page
+        if root.diagnostic-scene != 0 : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: root.side;
+            height: parent.height;
+            background: Theme.chrome;
+            clip: false;
+            Rectangle {
+                x: parent.width - 1px;
+                width: 1px;
+                background: Theme.line;
+            }
+
+            // Header: as tall as the top bar, with the same line under it
+            Rectangle {
+                y: 0px;
+                height: Theme.bar;
+                Rectangle {
+                    y: parent.height - 1px;
+                    height: 1px;
+                    background: Theme.line;
+                }
+                Image {
+                    x: root.rail-open ? 14px : (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 28px;
+                    height: 14px;
+                    source: Assets.mark;
+                    image-fit: contain;
+                }
+                if root.rail-open : Text {
+                    x: 50px;
+                    y: (parent.height - self.height) / 2;
+                    text: "Halation";
+                    color: Theme.text;
+                    font-size: Theme.font-title;
+                    font-weight: 600;
+                }
+                TouchArea {
+                    width: root.rail-open ? 120px : parent.width;
+                    mouse-cursor: pointer;
+                    clicked => { root.navigate(0); }
+                }
+                if root.rail-open : BarButton {
+                    x: parent.width - self.width - 9px;
+                    y: (parent.height - self.height) / 2;
+                    icon: "panel-left-close";
+                    label: "Collapse the sidebar (Ctrl+B)";
+                    activated => { root.rail-open = false; }
+                }
+            }
+
+            VerticalLayout {
+                y: Theme.bar;
+                height: parent.height - Theme.bar - foot.height;
+                padding: 8px;
+                padding-right: 9px;
+                spacing: 0px;
+                alignment: start;
+
+                SidebarItem {
+                    icon: "house";
+                    label: "Home";
                     open: root.rail-open;
-                    active: tool.id == "library" && root.page == 1;
-                    motion-duration: root.motion-duration;
-                    activated => { root.tool-activated(tool.id); }
+                    active: root.page == 0;
+                    activated => { root.navigate(0); }
+                }
+                SidebarItem {
+                    icon: "library";
+                    label: "Library";
+                    open: root.rail-open;
+                    active: root.page == 1;
+                    activated => { root.navigate(1); }
+                }
+                for tool[index] in root.active-tools : VerticalLayout {
+                    spacing: 0px;
+                    if tool.id != "library" && (index == 0 || tool.group != root.active-tools[index - 1].group) : SidebarGroup {
+                        label: root.group-name(tool.group);
+                        open: root.rail-open;
+                    }
+                    if tool.id != "library" : SidebarItem {
+                        icon: tool.icon;
+                        label: tool.name;
+                        open: root.rail-open;
+                        activated => { root.tool-activated(tool.id); }
+                    }
                 }
             }
-            RailDivider { gap: max(0px, root.rail-margin - root.rail-gap); }
-            RailItem {
-                height: root.rail-item;
-                icon: "settings";
-                label: "Settings";
-                open: root.rail-open;
-                active: root.page == 3;
-                motion-duration: root.motion-duration;
-                activated => { root.navigate(3); }
+
+            // Foot: Settings, and the toggle while collapsed
+            foot := VerticalLayout {
+                y: parent.height - self.height;
+                height: self.preferred-height;
+                padding: 8px;
+                padding-right: 9px;
+                spacing: 2px;
+                Rectangle {
+                    height: 1px;
+                    background: Theme.line;
+                }
+                Rectangle { height: 6px; }
+                if !root.rail-open : SidebarItem {
+                    icon: "panel-left-open";
+                    label: "Expand the sidebar (Ctrl+B)";
+                    open: false;
+                    activated => { root.rail-open = true; }
+                }
+                SidebarItem {
+                    icon: "settings";
+                    label: "Settings";
+                    open: root.rail-open;
+                    active: root.page == 3;
+                    activated => { root.navigate(3); }
+                }
             }
-            RailDivider { gap: max(0px, root.rail-margin - root.rail-gap); }
-            RailItem {
-                height: root.rail-item * 35 / 44;
-                icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                icon-size: 18px;
-                label: root.rail-open ? "Close the dock" : "Open the dock";
-                open: root.rail-open;
-                motion-duration: root.motion-duration;
-                activated => { root.rail-open = !root.rail-open; }
-            }
-            Rectangle { vertical-stretch: 1; }
         }
     }
 }

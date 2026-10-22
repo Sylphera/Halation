@@ -273,7 +273,6 @@ impl Controller {
                     .map(|meta| size_label(meta.len()))
                     .unwrap_or_default(),
             ));
-            ui.set_rail_open(services.settings.current().dock_mode == 2);
             ui.set_jobs(ModelRc::from(services.jobs_model.clone()));
             ui.set_recent(ModelRc::from(services.recent_model.clone()));
             ui.set_library_rows(ModelRc::from(services.library.model().clone()));
@@ -322,7 +321,6 @@ impl Controller {
                     Ok(()) => {
                         let current = s.settings.current();
                         match key.as_str() {
-                            "dock-mode" => ui.set_rail_open(current.dock_mode == 2),
                             "language" if current.language == 1 => {
                                 s.notice = "Saved. The beta is in English only for now.".to_owned();
                             }
@@ -1082,17 +1080,20 @@ fn start_diagnostic_cycle(weak: &Weak<AppWindow>) -> Rc<slint::Timer> {
     timer
 }
 
+/// Recent files Home lists (planning/active/ui-redesign.md §9)
+const RECENT_FILES: usize = 6;
+
 fn update_recent_model(
     library: &crate::library::LibraryModel,
     cache: &RefCell<Vec<(String, String)>>,
     model: &VecModel<RecentItem>,
 ) -> bool {
     let mut cached = cache.borrow_mut();
-    if library.recent_matches(&cached, 3) {
+    if library.recent_matches(&cached, RECENT_FILES) {
         return false;
     }
 
-    let entries = library.recent_entries(3);
+    let entries = library.recent_entries(RECENT_FILES);
     *cached = entries
         .iter()
         .map(|entry| (entry.id.clone(), entry.display_name.clone()))
@@ -1328,11 +1329,12 @@ impl BackdropPlayer {
 
 fn apply_theme(ui: &AppWindow) {
     let theme = ui.global::<Theme>();
-    theme.set_ground(color(theme::GROUND));
-    theme.set_ground_top(color(theme::GROUND_TOP));
-    theme.set_panel(color(theme::PANEL));
-    theme.set_raised(color(theme::RAISED));
-    theme.set_field(color(theme::FIELD));
+    theme.set_chrome(color(theme::CHROME));
+    theme.set_canvas(color(theme::CANVAS));
+    theme.set_canvas_deep(color(theme::CANVAS_DEEP));
+    theme.set_control(color(theme::CONTROL));
+    theme.set_control_hover(color(theme::CONTROL_HOVER));
+    theme.set_control_active(color(theme::CONTROL_ACTIVE));
     theme.set_line(color(theme::LINE));
     theme.set_line_strong(color(theme::LINE_STRONG));
     theme.set_text(color(theme::TEXT));

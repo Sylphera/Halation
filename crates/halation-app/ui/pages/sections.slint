@@ -30,11 +30,13 @@ export component SectionsView inherits Rectangle {
     background: transparent;
 
     HorizontalLayout {
-        spacing: 12px;
+        spacing: 0px;
 
+        // The sections list: 240 px, a 1 px line on its right
         VerticalLayout {
-            width: 236px;
+            width: 240px;
             spacing: 8px;
+            padding: 8px;
 
             HorizontalLayout {
                 spacing: 6px;
@@ -63,8 +65,8 @@ export component SectionsView inherits Rectangle {
                 height: root.editing != "" ? 34px : 0px;
                 visible: root.editing != "";
                 clip: true;
-                border-radius: Theme.radius-field;
-                background: Theme.panel;
+                border-radius: Theme.radius-control;
+                background: Theme.control;
                 border-width: 1px;
                 border-color: Theme.accent;
                 HorizontalLayout {
@@ -124,7 +126,7 @@ export component SectionsView inherits Rectangle {
             ListView {
                 vertical-stretch: 1;
                 for section in root.sections : Rectangle {
-                    height: 54px;
+                    height: 44px;
                     width: parent.width;
                     accessible-role: list-item;
                     accessible-label: section.name;
@@ -133,14 +135,14 @@ export component SectionsView inherits Rectangle {
                     Rectangle {
                         y: 2px;
                         height: parent.height - 4px;
-                        border-radius: Theme.radius-icon;
-                        background: section.selected ? Theme.raised : (section-touch.has-hover ? Theme.panel : transparent);
+                        border-radius: Theme.radius-control;
+                        background: section.selected ? Theme.control-active : (section-touch.has-hover ? Theme.control-hover : transparent);
                         animate background { duration: root.motion-duration; easing: ease-out; }
                     }
 
                     HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
+                        padding-left: 8px;
+                        padding-right: 8px;
                         spacing: 8px;
                         VerticalLayout {
                             horizontal-stretch: 1;
@@ -181,11 +183,13 @@ export component SectionsView inherits Rectangle {
         }
 
         Rectangle {
+            width: 1px;
+            background: Theme.line;
+        }
+
+        // The selected section's items
+        Rectangle {
             horizontal-stretch: 1;
-            border-radius: Theme.radius-panel;
-            background: Theme.panel;
-            border-width: 1px;
-            border-color: Theme.line;
             clip: true;
 
             if root.selected-id == "" : VerticalLayout {
@@ -209,7 +213,8 @@ export component SectionsView inherits Rectangle {
             }
 
             if root.selected-id != "" : VerticalLayout {
-                padding: 14px;
+                padding: 16px;
+                padding-top: 10px;
                 spacing: 10px;
 
                 HorizontalLayout {
@@ -218,7 +223,7 @@ export component SectionsView inherits Rectangle {
                         text: root.selected-name;
                         color: Theme.text;
                         font-size: Theme.font-title;
-                        font-weight: 700;
+                        font-weight: 600;
                         vertical-alignment: center;
                         overflow: elide;
                         horizontal-stretch: 1;
@@ -244,7 +249,7 @@ export component SectionsView inherits Rectangle {
                         text: "Delete with files";
                         small: true;
                         width: 112px;
-                            enabled: !root.busy;
+                        enabled: !root.busy;
                         clicked => {
                             root.confirm-delete = false;
                             root.delete-section(root.selected-id);
@@ -279,7 +284,7 @@ export component SectionsView inherits Rectangle {
                 if root.items.length > 0 : ListView {
                     vertical-stretch: 1;
                     for item in root.items : Rectangle {
-                        height: 36px;
+                        height: 40px;
                         width: parent.width;
                         HorizontalLayout {
                             spacing: 10px;
@@ -302,7 +307,6 @@ export component SectionsView inherits Rectangle {
                             y: parent.height - 1px;
                             height: 1px;
                             background: Theme.line;
-                            opacity: 0.6;
                         }
                     }
                 }

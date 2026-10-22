@@ -2,45 +2,55 @@ import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { Toggle, ToggleRow, Select, Field, Labelled, Help, Tag, Advanced, Section } from "../components/controls.slint";
+import { Toggle, Select, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
 import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
 
-// Header of a page, top left: an icon in a small box and the page name
-export component PageTitle inherits Rectangle {
-    in property <string> icon;
-    in property <string> title;
-    width: 26px + 9px + name.preferred-width;
-    height: 26px;
-    Rectangle {
-        x: 0px;
-        y: 0px;
-        width: 26px;
-        height: 26px;
-        border-radius: 9px;
-        background: Theme.raised;
-        border-width: 1px;
-        border-color: Theme.sheen;
-        ToolIcon {
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            name: root.icon;
-            size: 14px;
-            tint: Theme.accent;
+// One category of the list at the left
+component CategoryItem inherits FocusScope {
+    in property <string> label;
+    in property <bool> active;
+    callback activated;
+    height: Theme.item;
+    focus-on-tab-navigation: true;
+    accessible-role: tab;
+    accessible-label: label;
+    accessible-item-selected: active;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
         }
     }
-    name := Text {
-        x: 35px;
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: root.active ? Theme.control-active : (touch.has-hover ? Theme.control-hover : transparent);
+        border-width: root.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    Text {
+        x: 8px;
         y: (parent.height - self.height) / 2;
-        text: root.title;
-        color: Theme.text;
-        font-size: Theme.font-title;
-        font-weight: 600;
-        letter-spacing: 0.135px;
+        width: parent.width - 16px;
+        text: root.label;
+        color: root.active || touch.has-hover ? Theme.text : Theme.muted;
+        font-size: Theme.font-body;
+        font-weight: 500;
+        overflow: elide;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
     }
 }
 
-// One tool of Settings > Tools: icon, name, what it uses, its switch, and what it still needs
-component ToolCard inherits Rectangle {
+// One tool of Settings > Tools: icon, name and what it does, its switch; what it still needs under it
+component ToolCell inherits Rectangle {
     in property <ToolItem> tool;
     in property <bool> always-on: false;
     in property <string> icon;
@@ -48,90 +58,93 @@ component ToolCard inherits Rectangle {
     callback toggled(bool);
     callback install();
 
-    border-radius: 14px;
-    background: #141414;
-    clip: true;
-    border-width: 1px;
-    border-color: Theme.hairline;
-
-    VerticalLayout {
-        padding: 13px;
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.line;
+    }
+    HorizontalLayout {
+        padding-top: 10px;
+        padding-bottom: 10px;
         spacing: 10px;
-        alignment: center;
-        HorizontalLayout {
-            spacing: 10px;
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 9px;
-                    background: root.icon == "mark" ? transparent : Theme.raised;
-                    ToolIcon {
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        name: root.icon;
-                        size: 17px;
-                        tint: Theme.muted;
-                    }
-                }
-            }
-            VerticalLayout {
-                horizontal-stretch: 1;
-                spacing: 3px;
-                alignment: center;
-                // Long names put their Beta tag on the next line, as the original wraps it
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: start;
-                    Text {
-                        text: root.tool.name;
-                        color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    if root.tool.beta && root.tool.name.character-count <= 15 : Tag { text: "Beta"; ink: Theme.beta; }
-                }
-                if root.tool.beta && root.tool.name.character-count > 15 : HorizontalLayout {
-                    alignment: start;
-                    Tag { text: "Beta"; ink: Theme.beta; }
-                }
-                Text {
-                    text: root.tool.summary;
-                    color: Theme.muted;
-                    font-size: Theme.font-small;
-                    wrap: word-wrap;
-                }
-            }
-            VerticalLayout {
-                alignment: center;
-                if root.always-on : Tag { text: "Always on"; ink: Theme.activity; }
-                if !root.always-on : Toggle {
-                    label: root.tool.name;
-                    checked: root.tool.enabled;
-                    motion-duration: root.motion-duration;
-                    toggled(value) => { root.toggled(value); }
-                }
+        VerticalLayout {
+            alignment: start;
+            ToolIcon {
+                name: root.icon;
+                size: 16px;
+                tint: Theme.muted;
             }
         }
-        if root.tool.missing != "" : VerticalLayout {
-            spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            spacing: 2px;
             alignment: start;
             HorizontalLayout {
+                spacing: 6px;
                 alignment: start;
-                Tag { text: "Missing: " + root.tool.missing; ink: Theme.warning; limit: root.width - 26px; }
+                Text {
+                    text: root.tool.name;
+                    color: Theme.text;
+                    font-size: Theme.font-body;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if root.tool.beta : Tag { text: "Beta"; ink: Theme.beta; }
             }
-            HorizontalLayout {
+            Text {
+                text: root.tool.summary;
+                color: Theme.subtle;
+                font-size: Theme.font-caption;
+                overflow: elide;
+            }
+            if root.tool.missing != "" : HorizontalLayout {
+                spacing: 8px;
                 alignment: start;
+                padding-top: 4px;
+                Tag { text: "Missing: " + root.tool.missing; ink: Theme.warning; limit: root.width - 200px; }
                 AppButton { text: "Install"; small: true; clicked => { root.install(); } }
+            }
+        }
+        VerticalLayout {
+            alignment: start;
+            if root.always-on : Tag { text: "Always on"; ink: Theme.activity; }
+            if !root.always-on : Toggle {
+                label: root.tool.name;
+                checked: root.tool.enabled;
+                motion-duration: root.motion-duration;
+                toggled(value) => { root.toggled(value); }
             }
         }
     }
 }
 
-// Settings as in the original: a tab bar over sections that scroll; a tab jumps to its section.
+// A row of a list inside a group (components, folders): name and detail at the left, extras at the right
+component ListRow inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    height: 48px;
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.line;
+    }
+    HorizontalLayout {
+        spacing: 12px;
+        VerticalLayout {
+            width: 200px;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.name; color: Theme.text; font-size: Theme.font-body; font-weight: 500; overflow: elide; }
+            Text { text: root.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+        }
+        @children
+    }
+}
+
+// Settings (planning/active/ui-redesign.md §9): the categories at the left, the chosen one alone at the right in
+// groups of cells, two per row. Search and Restore defaults live in the top bar (app.slint).
 export component SettingsPage inherits Rectangle {
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
@@ -146,686 +159,617 @@ export component SettingsPage inherits Rectangle {
     in property <string> app-size: "";
     in property <string> workspace-size: "";
     in property <duration> motion-duration: 160ms;
+    // The category shown; interface state, kept only while the app runs
+    in-out property <int> category: 0;
 
     callback set-pref(string, string);
     callback set-tool-enabled(string, bool);
-    callback reset-settings();
-    callback search(string) -> int;
     // Buttons without an engine behind them in the beta, and folder openers: handled in Rust
     callback action(string);
 
-    property <length> column: min(880px, root.width - 48px);
-    property <length> column-x: (root.width - root.column) / 2;
-    property <[string]> tabs: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
-    // Section tops inside the scrolled content, for the tabs
-    property <[length]> tops: [s0.y, s1.y, s2.y, s3.y, s4.y, s5.y, s6.y, s7.y];
-    property <int> current: -flick.content-y + 100px >= s7.y ? 7 : -flick.content-y + 100px >= s6.y ? 6
-        : -flick.content-y + 100px >= s5.y ? 5 : -flick.content-y + 100px >= s4.y ? 4
-        : -flick.content-y + 100px >= s3.y ? 3 : -flick.content-y + 100px >= s2.y ? 2
-        : -flick.content-y + 100px >= s1.y ? 1 : 0;
+    property <[string]> names: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
+    property <length> list-width: 200px;
+    property <length> column: min(880px, root.width - root.list-width - 64px);
 
-    // Section to show first (headless snapshots); -1 leaves the page at the top
+    // Category to show first (headless snapshots); -1 leaves the current one
     in property <int> jump-to: -1;
     init => {
         if (root.jump-to >= 0) {
-            root.jump(root.jump-to);
+            root.category = root.jump-to;
         }
     }
     changed jump-to => {
         if (root.jump-to >= 0) {
-            root.jump(root.jump-to);
+            root.category = root.jump-to;
+        }
+    }
+    changed category => {
+        flick.content-y = 0;
+    }
+
+    // Category list
+    Rectangle {
+        width: root.list-width;
+        x: 0px;
+        Rectangle {
+            x: parent.width - 1px;
+            width: 1px;
+            background: Theme.line;
+        }
+        VerticalLayout {
+            padding: 8px;
+            padding-right: 9px;
+            spacing: 0px;
+            alignment: start;
+            Rectangle {
+                height: 26px;
+                Text {
+                    x: 8px;
+                    y: (parent.height - self.height) / 2;
+                    text: "Settings";
+                    color: Theme.subtle;
+                    font-size: Theme.font-caption;
+                    font-weight: 500;
+                }
+            }
+            for name[index] in root.names : CategoryItem {
+                label: name;
+                active: root.category == index;
+                activated => { root.category = index; }
+            }
         }
     }
 
-    function jump(index: int) {
-        flick.content-y = -min(root.tops[index] - 12px, max(0px, flick.content-height - flick.height));
-    }
-
-    PageTitle {
-        x: 24px;
-        y: 11px;
-        icon: "settings";
-        title: "Settings";
-    }
-
     flick := Flickable {
-        x: 0px;
-        y: 100px;
-        width: root.width;
-        height: root.height - 100px;
-        content-width: root.width;
-        content-height: content.preferred-height + 36px;
+        x: root.list-width;
+        width: root.width - root.list-width;
+        height: root.height - (root.error != "" ? 36px : 0px);
+        content-width: self.width;
+        content-height: max(self.height, pane.preferred-height + 48px);
 
-        content := VerticalLayout {
-            x: root.column-x;
-            y: 12px;
+        pane := VerticalLayout {
+            x: 32px;
+            y: 24px;
             width: root.column;
             height: self.preferred-height;
-            spacing: 12px;
+            spacing: 0px;
 
-            s0 := Section {
-                title: "General";
-                Labelled {
-                    text: "Language";
-                    Select {
-                        width: 260px;
-                        label: "Language";
-                        options: ["English", "Español"];
-                        current: root.prefs.language;
-                        chosen(i) => { root.set-pref("language", i); }
-                    }
-                }
-                VerticalLayout {
-                    ToggleRow {
-                        label: "Reduce animations";
-                        checked: root.prefs.reduce-motion;
-                        motion-duration: root.motion-duration;
-                        toggled(v) => { root.set-pref("reduce-motion", v ? "1" : "0"); }
-                    }
-                    ToggleRow {
-                        label: "Show processes dock";
-                        checked: root.prefs.show-dock;
-                        motion-duration: root.motion-duration;
-                        toggled(v) => { root.set-pref("show-dock", v ? "1" : "0"); }
-                    }
-                    ToggleRow {
-                        label: "Notify when a job finishes";
-                        checked: root.prefs.notify;
-                        motion-duration: root.motion-duration;
-                        toggled(v) => { root.set-pref("notify", v ? "1" : "0"); }
-                    }
-                }
-                Help { text: "Only while Halation is not in view."; }
-                Advanced {
-                    Help { text: "Turns off the interface animations (tabs, menus, lists, progress). The Windows setting \"Animation effects\" is always respected too."; }
-                    HorizontalLayout {
-                        alignment: start;
-                        AppButton { text: "Send a test notification"; icon: "circle-help"; clicked => { root.action("test-notification"); } }
-                    }
-                }
+            Text {
+                text: root.names[root.category];
+                color: Theme.text;
+                font-size: Theme.font-heading;
+                font-weight: 600;
             }
+            Rectangle { height: 18px; }
 
-            s1 := Section {
-                title: "Interface";
-                Labelled {
-                    text: "Dock";
-                    Select {
-                        width: 260px;
-                        label: "Dock";
-                        options: ["Compact (icons only)", "Expand when needed", "Keep open"];
-                        current: root.prefs.dock-mode;
-                        chosen(i) => { root.set-pref("dock-mode", i); }
-                    }
-                }
-                ToggleRow {
-                    label: "Show activity on the dock";
-                    checked: root.prefs.dock-activity;
-                    motion-duration: root.motion-duration;
-                    toggled(v) => { root.set-pref("dock-activity", v ? "1" : "0"); }
-                }
-                Labelled {
-                    text: "Open the window";
-                    Select {
-                        width: 260px;
-                        label: "Open the window";
-                        options: ["As I left it", "Maximized", "Full screen"];
-                        current: root.prefs.open-window;
-                        chosen(i) => { root.set-pref("open-window", i); }
-                    }
-                }
-            }
-
-            s2 := Section {
-                title: "You";
-                Labelled {
-                    text: "Artist name";
-                    Field {
-                        label: "Artist name";
-                        placeholder: "Empty";
-                        value: root.prefs.artist;
-                        committed(v) => { root.set-pref("artist", v); }
-                    }
-                }
-                Help { text: "Your name is the default everywhere: the artist text in the Audio Visualizer and {artist} in file names."; }
-                HorizontalLayout {
-                    spacing: 10px;
-                    Labelled {
-                        text: "YouTube";
-                        Field { label: "YouTube"; placeholder: "youtube.com/@name"; value: root.prefs.youtube; committed(v) => { root.set-pref("youtube", v); } }
-                    }
-                    Labelled {
-                        text: "Spotify";
-                        Field { label: "Spotify"; placeholder: "open.spotify.com/artist/..."; value: root.prefs.spotify; committed(v) => { root.set-pref("spotify", v); } }
-                    }
-                }
-                HorizontalLayout {
-                    spacing: 10px;
-                    Labelled {
-                        text: "SoundCloud";
-                        Field { label: "SoundCloud"; placeholder: "soundcloud.com/name"; value: root.prefs.soundcloud; committed(v) => { root.set-pref("soundcloud", v); } }
-                    }
-                    Labelled {
-                        text: "Instagram";
-                        Field { label: "Instagram"; placeholder: "instagram.com/name"; value: root.prefs.instagram; committed(v) => { root.set-pref("instagram", v); } }
-                    }
-                }
-                HorizontalLayout {
-                    spacing: 10px;
-                    Labelled {
-                        horizontal-stretch: 1;
-                        text: "TikTok";
-                        Field { label: "TikTok"; placeholder: "tiktok.com/@name"; value: root.prefs.tiktok; committed(v) => { root.set-pref("tiktok", v); } }
-                    }
-                    Rectangle { horizontal-stretch: 1; }
-                }
-                HorizontalLayout {
-                    alignment: start;
-                    AppButton { text: "Search other sites"; icon: "search"; clicked => { root.action("search-sites"); } }
-                }
-                Help { text: "Optional. Thumbnails will fill these in on their own in a coming version."; }
-            }
-
-            s3 := Section {
-                title: "Files";
-                Text {
-                    text: "Save & export location";
-                    color: Theme.text;
-                    font-size: Theme.font-title;
-                    font-weight: 600;
-                }
-                HorizontalLayout {
-                    spacing: 10px;
-                    for choice[index] in [
-                        { title: "Ask every time", text: "Choose where to save each export. Halation remembers the last folder you used across all tools." },
-                        { title: "Halation Folder", text: "Save exports automatically in Halation Folder." }
-                    ] : Rectangle {
-                        height: 75px;
-                        border-radius: 12px;
-                        background: root.prefs.save-mode == index ? #151515 : Theme.field;
-                        border-width: 1px;
-                        border-color: root.prefs.save-mode == index ? Theme.accent.transparentize(40%) : Theme.line;
-                        accessible-role: radio-button;
-                        accessible-checked: root.prefs.save-mode == index;
-                        accessible-label: choice.title;
-                        accessible-action-default => { root.set-pref("save-mode", index); }
-                        Rectangle {
-                            x: 18px;
-                            y: 14px;
-                            width: 14px;
-                            height: 14px;
-                            border-radius: 7px;
-                            border-width: root.prefs.save-mode == index ? 4px : 1px;
-                            border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
-                        }
-                        VerticalLayout {
-                            x: 44px;
-                            width: parent.width - 60px;
-                            padding-top: 11px;
-                            spacing: 2px;
-                            Text {
-                                text: choice.title;
-                                color: Theme.text;
-                                font-size: Theme.font-title;
-                                font-weight: 600;
-                            }
-                            Text {
-                                text: choice.text;
-                                color: Theme.muted;
-                                font-size: Theme.font-body;
-                                wrap: word-wrap;
+            if root.category == 0 : VerticalLayout {
+                Group {
+                    title: "Basics";
+                    Pair {
+                        Cell {
+                            name: "Language";
+                            Select {
+                                width: 180px;
+                                label: "Language";
+                                options: ["English", "Español"];
+                                current: root.prefs.language;
+                                chosen(i) => { root.set-pref("language", i); }
                             }
                         }
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.set-pref("save-mode", index); }
+                        Cell {
+                            name: "Reduce animations";
+                            help: "The Windows setting \"Animation effects\" is always respected too.";
+                            Toggle {
+                                label: "Reduce animations";
+                                checked: root.prefs.reduce-motion;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("reduce-motion", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Show processes dock";
+                            help: "Activity and shortcuts in the top bar.";
+                            Toggle {
+                                label: "Show processes dock";
+                                checked: root.prefs.show-dock;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("show-dock", v ? "1" : "0"); }
+                            }
+                        }
+                        Cell {
+                            name: "Notify when a job finishes";
+                            help: "Only while Halation is not in view.";
+                            Toggle {
+                                label: "Notify when a job finishes";
+                                checked: root.prefs.notify;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("notify", v ? "1" : "0"); }
+                            }
                         }
                     }
                 }
-                Rectangle {
-                    height: 64px;
-                    border-radius: 12px;
-                    background: Theme.field;
-                    border-width: 1px;
-                    border-color: Theme.line;
-                    VerticalLayout {
-                        x: 13px;
-                        width: parent.width - 160px;
-                        alignment: center;
-                        spacing: 6px;
-                        Text {
-                            text: "Halation Folder";
-                            color: Theme.text;
-                            font-size: Theme.font-title;
-                            font-weight: 600;
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Test notification";
+                            help: "Sends one now.";
+                            AppButton { small: true; text: "Send"; icon: "circle-help"; clicked => { root.action("test-notification"); } }
                         }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 1 : VerticalLayout {
+                Group {
+                    title: "Frame";
+                    Pair {
+                        Cell {
+                            name: "Dock";
+                            help: "The sidebar at the left.";
+                            Select {
+                                width: 180px;
+                                label: "Dock";
+                                options: ["Compact (icons only)", "Expand when needed", "Keep open"];
+                                current: root.prefs.dock-mode;
+                                chosen(i) => { root.set-pref("dock-mode", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Show activity on the dock";
+                            Toggle {
+                                label: "Show activity on the dock";
+                                checked: root.prefs.dock-activity;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("dock-activity", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                }
+                Group {
+                    title: "Window";
+                    Pair {
+                        Cell {
+                            name: "Open the window";
+                            Select {
+                                width: 180px;
+                                label: "Open the window";
+                                options: ["As I left it", "Maximized", "Full screen"];
+                                current: root.prefs.open-window;
+                                chosen(i) => { root.set-pref("open-window", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 2 : VerticalLayout {
+                Group {
+                    title: "Artist";
+                    Pair {
+                        Cell {
+                            name: "Artist name";
+                            help: "The artist text in the Audio Visualizer and {artist} in file names.";
+                            Field { width: 200px; label: "Artist name"; placeholder: "Empty"; value: root.prefs.artist; committed(v) => { root.set-pref("artist", v); } }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Links";
+                    Pair {
+                        Cell {
+                            name: "YouTube";
+                            Field { width: 200px; label: "YouTube"; placeholder: "youtube.com/@name"; value: root.prefs.youtube; committed(v) => { root.set-pref("youtube", v); } }
+                        }
+                        Cell {
+                            name: "Spotify";
+                            Field { width: 200px; label: "Spotify"; placeholder: "open.spotify.com/artist/..."; value: root.prefs.spotify; committed(v) => { root.set-pref("spotify", v); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "SoundCloud";
+                            Field { width: 200px; label: "SoundCloud"; placeholder: "soundcloud.com/name"; value: root.prefs.soundcloud; committed(v) => { root.set-pref("soundcloud", v); } }
+                        }
+                        Cell {
+                            name: "Instagram";
+                            Field { width: 200px; label: "Instagram"; placeholder: "instagram.com/name"; value: root.prefs.instagram; committed(v) => { root.set-pref("instagram", v); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "TikTok";
+                            Field { width: 200px; label: "TikTok"; placeholder: "tiktok.com/@name"; value: root.prefs.tiktok; committed(v) => { root.set-pref("tiktok", v); } }
+                        }
+                        Cell {
+                            name: "Other sites";
+                            help: "Optional. Thumbnails will fill these in on their own in a coming version.";
+                            AppButton { small: true; text: "Search other sites"; icon: "search"; clicked => { root.action("search-sites"); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 3 : VerticalLayout {
+                Group {
+                    title: "Save & export location";
+                    Wide {
+                        HorizontalLayout {
+                            spacing: 12px;
+                            for choice[index] in [
+                                { title: "Ask every time", text: "Choose where to save each export. Halation remembers the last folder you used across all tools." },
+                                { title: "Halation Folder", text: "Save exports automatically in Halation Folder." }
+                            ] : Rectangle {
+                                height: 68px;
+                                border-radius: Theme.radius-control;
+                                background: root.prefs.save-mode == index ? Theme.control-active : (choice-touch.has-hover ? Theme.control-hover : Theme.control);
+                                border-width: 1px;
+                                border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
+                                accessible-role: radio-button;
+                                accessible-checked: root.prefs.save-mode == index;
+                                accessible-label: choice.title;
+                                accessible-action-default => { root.set-pref("save-mode", index); }
+                                Rectangle {
+                                    x: 12px;
+                                    y: 12px;
+                                    width: 14px;
+                                    height: 14px;
+                                    border-radius: 7px;
+                                    border-width: root.prefs.save-mode == index ? 4px : 1px;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
+                                }
+                                VerticalLayout {
+                                    x: 36px;
+                                    width: parent.width - 48px;
+                                    padding-top: 9px;
+                                    spacing: 2px;
+                                    Text { text: choice.title; color: Theme.text; font-size: Theme.font-body; font-weight: 600; }
+                                    Text { text: choice.text; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                                }
+                                choice-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.set-pref("save-mode", index); }
+                                }
+                            }
+                        }
+                    }
+                    ListRow {
+                        name: "Halation Folder";
+                        detail: "Where the beta keeps its files";
                         Text {
+                            horizontal-stretch: 1;
                             text: root.profile-path;
                             color: Theme.muted;
                             font-size: Theme.font-small;
                             font-family: "Consolas";
+                            vertical-alignment: center;
                             overflow: elide;
                         }
-                    }
-                    AppButton {
-                        x: parent.width - self.width - 9px;
-                        y: 9px;
-                        small: true;
-                        text: "Open Halation Folder";
-                        clicked => { root.action("open:main"); }
-                    }
-                }
-                Advanced {
-                    HorizontalLayout {
-                        spacing: 10px;
-                        Labelled {
-                            text: "Video name template";
-                            Field { label: "Video name template"; placeholder: "{title}"; value: root.prefs.video-template; committed(v) => { root.set-pref("video-template", v); } }
-                        }
-                        Labelled {
-                            text: "Image name template";
-                            Field { label: "Image name template"; placeholder: "{title}"; value: root.prefs.image-template; committed(v) => { root.set-pref("image-template", v); } }
-                        }
-                    }
-                    Help { text: "Use {title}, {artist} and {date}."; }
-                    Help { text: "Example: Title.mp4 · Title.png"; }
-                }
-            }
-
-            s4 := Section {
-                title: "Processing";
-                Labelled {
-                    text: "Mode";
-                    Select {
-                        label: "Mode";
-                        options: ["Quiet", "Balanced", "Fast"];
-                        current: root.prefs.processing;
-                        chosen(i) => { root.set-pref("processing", i); }
-                    }
-                }
-                Help {
-                    text: root.prefs.processing == 0 ? "One job at a time on the processor and one on the graphics card."
-                        : root.prefs.processing == 2 ? "As many jobs as the processor and the graphics card take at once."
-                        : "Up to 2 jobs on the processor and 2 on the graphics card at once.";
-                }
-                ToggleRow {
-                    label: "Use the graphics card";
-                    checked: root.prefs.use-gpu;
-                    motion-duration: root.motion-duration;
-                    toggled(v) => { root.set-pref("use-gpu", v ? "1" : "0"); }
-                }
-                Help { text: "Off: Upscale, Interpolate and exports run on the processor, slower."; }
-                Labelled {
-                    text: "Vocal Remover";
-                    Select {
-                        label: "Vocal Remover";
-                        options: ["Auto (graphics card when it works)", "Processor only"];
-                        current: root.prefs.vocal-device;
-                        chosen(i) => { root.set-pref("vocal-device", i); }
-                    }
-                }
-                Help { text: "Auto uses the graphics card through DirectX 12 and falls back to the processor by itself."; }
-                Advanced {
-                    HorizontalLayout {
-                        spacing: 10px;
-                        Labelled {
-                            text: "Processor jobs at once";
-                            Select { label: "Processor jobs at once"; options: ["Auto (2)", "1", "2", "3", "4"]; current: root.prefs.cpu-jobs; chosen(i) => { root.set-pref("cpu-jobs", i); } }
-                        }
-                        Labelled {
-                            text: "Graphics card jobs at once";
-                            Select { label: "Graphics card jobs at once"; options: ["Auto (2)", "1", "2"]; current: root.prefs.gpu-jobs; chosen(i) => { root.set-pref("gpu-jobs", i); } }
-                        }
-                        Labelled {
-                            text: "Downloads at once";
-                            Select { label: "Downloads at once"; options: ["Auto (3)", "1", "2", "3", "4"]; current: root.prefs.downloads; chosen(i) => { root.set-pref("downloads", i); } }
-                        }
-                    }
-                    Labelled {
-                        text: "When Halation is minimized";
-                        Select { width: 260px; label: "When Halation is minimized"; options: ["Keep working", "Pause queued jobs"]; current: root.prefs.minimized; chosen(i) => { root.set-pref("minimized", i); } }
-                    }
-                    Help { text: "No encoders are connected in this beta."; }
-                }
-            }
-
-            s5 := Section {
-                title: "Tools";
-                Help { text: "Turn tools on or off. A tool turned off leaves the rail and Home at once; its files and settings stay."; }
-                Rectangle {
-                    property <length> cell: (self.width - 2 * 10px) / 3;
-                    property <length> card-h: 188px;
-                    height: ceil((root.tools.length + 2) / 3) * (self.card-h + 10px) - 10px;
-                    ToolCard {
-                        x: 0px;
-                        y: 0px;
-                        width: parent.cell;
-                        height: parent.card-h;
-                        tool: { name: "Home", summary: "Needs nothing extra", enabled: true };
-                        icon: "mark";
-                        always-on: true;
-                    }
-                    for tool[index] in root.tools : ToolCard {
-                        x: mod(index + 1, 3) * (parent.cell + 10px);
-                        y: floor((index + 1) / 3) * (parent.card-h + 10px);
-                        width: parent.cell;
-                        height: parent.card-h;
-                        tool: tool;
-                        icon: tool.icon;
-                        motion-duration: root.motion-duration;
-                        toggled(on) => { root.set-tool-enabled(tool.id, on); }
-                        install => { root.action("install"); }
-                    }
-                    ToolCard {
-                        x: mod(root.tools.length + 1, 3) * (parent.cell + 10px);
-                        y: floor((root.tools.length + 1) / 3) * (parent.card-h + 10px);
-                        width: parent.cell;
-                        height: parent.card-h;
-                        tool: { name: "Settings", summary: "Needs nothing extra", enabled: true };
-                        icon: "settings";
-                        always-on: true;
-                    }
-                }
-                Text {
-                    text: "Components";
-                    color: Theme.text;
-                    font-size: Theme.font-title;
-                    font-weight: 600;
-                }
-                VerticalLayout {
-                    spacing: 8px;
-                    for component in root.components : Rectangle {
-                        height: 54px;
-                        border-radius: 12px;
-                        background: Theme.field;
-                        border-width: 1px;
-                        border-color: Theme.line;
                         VerticalLayout {
-                            x: 13px;
                             alignment: center;
-                            spacing: 2px;
-                            Text {
-                                text: component.name;
-                                color: Theme.text;
-                                font-size: Theme.font-title;
-                                font-weight: 600;
-                            }
-                            Text {
-                                text: "Not installed";
-                                color: Theme.muted;
-                                font-size: Theme.font-small;
+                            AppButton { small: true; text: "Open Halation Folder"; clicked => { root.action("open:main"); } }
+                        }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Video name template";
+                            help: "Use {title}, {artist} and {date}. Example: Title.mp4";
+                            Field { width: 160px; label: "Video name template"; placeholder: "{title}"; value: root.prefs.video-template; committed(v) => { root.set-pref("video-template", v); } }
+                        }
+                        Cell {
+                            name: "Image name template";
+                            help: "Example: Title.png";
+                            Field { width: 160px; label: "Image name template"; placeholder: "{title}"; value: root.prefs.image-template; committed(v) => { root.set-pref("image-template", v); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 4 : VerticalLayout {
+                Group {
+                    title: "Jobs";
+                    Pair {
+                        Cell {
+                            name: "Mode";
+                            help: root.prefs.processing == 0 ? "One job at a time on the processor and one on the graphics card."
+                                : root.prefs.processing == 2 ? "As many jobs as the processor and the graphics card take at once."
+                                : "Up to 2 jobs on the processor and 2 on the graphics card at once.";
+                            Select {
+                                width: 160px;
+                                label: "Mode";
+                                options: ["Quiet", "Balanced", "Fast"];
+                                current: root.prefs.processing;
+                                chosen(i) => { root.set-pref("processing", i); }
                             }
                         }
-                        HorizontalLayout {
-                            x: parent.width - self.width - 9px;
-                            width: self.preferred-width;
+                        Cell {
+                            name: "Use the graphics card";
+                            help: "Off: Upscale, Interpolate and exports run on the processor, slower.";
+                            Toggle {
+                                label: "Use the graphics card";
+                                checked: root.prefs.use-gpu;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("use-gpu", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Vocal Remover";
+                            help: "Auto uses the graphics card through DirectX 12 and falls back to the processor by itself.";
+                            Select {
+                                width: 180px;
+                                label: "Vocal Remover";
+                                options: ["Auto (graphics card when it works)", "Processor only"];
+                                current: root.prefs.vocal-device;
+                                chosen(i) => { root.set-pref("vocal-device", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Processor jobs at once";
+                            Select { width: 120px; label: "Processor jobs at once"; options: ["Auto (2)", "1", "2", "3", "4"]; current: root.prefs.cpu-jobs; chosen(i) => { root.set-pref("cpu-jobs", i); } }
+                        }
+                        Cell {
+                            name: "Graphics card jobs at once";
+                            Select { width: 120px; label: "Graphics card jobs at once"; options: ["Auto (2)", "1", "2"]; current: root.prefs.gpu-jobs; chosen(i) => { root.set-pref("gpu-jobs", i); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Downloads at once";
+                            Select { width: 120px; label: "Downloads at once"; options: ["Auto (3)", "1", "2", "3", "4"]; current: root.prefs.downloads; chosen(i) => { root.set-pref("downloads", i); } }
+                        }
+                        Cell {
+                            name: "When Halation is minimized";
+                            help: "No encoders are connected in this beta.";
+                            Select { width: 160px; label: "When Halation is minimized"; options: ["Keep working", "Pause queued jobs"]; current: root.prefs.minimized; chosen(i) => { root.set-pref("minimized", i); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 5 : VerticalLayout {
+                Group {
+                    title: "Tools";
+                    Help { text: "A tool turned off leaves the sidebar at once; its files and settings stay."; }
+                    Rectangle { height: 8px; }
+                    Rectangle {
+                        property <length> cell: (self.width - 32px) / 2;
+                        property <length> cell-h: 88px;
+                        height: ceil((root.tools.length + 2) / 2) * self.cell-h;
+                        ToolCell {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: { name: "Home", summary: "Needs nothing extra", enabled: true };
+                            icon: "house";
+                            always-on: true;
+                        }
+                        for tool[index] in root.tools : ToolCell {
+                            x: mod(index + 1, 2) * (parent.cell + 32px);
+                            y: floor((index + 1) / 2) * parent.cell-h;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: tool;
+                            icon: tool.icon;
+                            motion-duration: root.motion-duration;
+                            toggled(on) => { root.set-tool-enabled(tool.id, on); }
+                            install => { root.action("install"); }
+                        }
+                        ToolCell {
+                            x: mod(root.tools.length + 1, 2) * (parent.cell + 32px);
+                            y: floor((root.tools.length + 1) / 2) * parent.cell-h;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: { name: "Settings", summary: "Needs nothing extra", enabled: true };
+                            icon: "settings";
+                            always-on: true;
+                        }
+                    }
+                }
+                Group {
+                    title: "Components";
+                    for component in root.components : ListRow {
+                        name: component.name;
+                        detail: "Not installed";
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "About " + component.size + " to download";
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            AppButton { text: "Install"; small: true; clicked => { root.action("install"); } }
+                        }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Engine";
+                            help: "Downloaded when a tool needs it, to the Halation folder's Tools. Not part of the installer.";
+                            AppButton { small: true; text: "Update engine"; clicked => { root.action("update-engine"); } }
+                        }
+                        Cell {
+                            name: "Tools folder";
+                            AppButton { small: true; text: "Open Tools folder"; clicked => { root.action("open:main"); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 6 : VerticalLayout {
+                Group {
+                    title: "Usage";
+                    Wide {
+                        Text {
+                            text: "Halation uses " + root.storage-used;
+                            color: Theme.text;
+                            font-size: Theme.font-heading;
+                            font-weight: 600;
+                        }
+                        for bar in [
+                            { label: "App and components", value: root.app-size },
+                            { label: "Workspace", value: root.workspace-size + " / " + ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"][root.prefs.budget] },
+                            { label: "Your work", value: "0 B" }
+                        ] : HorizontalLayout {
+                            height: 24px;
                             spacing: 12px;
                             Text {
-                                text: "About " + component.size + " to download";
+                                width: 170px;
+                                text: bar.label;
                                 color: Theme.muted;
                                 font-size: Theme.font-body;
                                 vertical-alignment: center;
                             }
                             VerticalLayout {
                                 alignment: center;
-                                AppButton { text: "Install"; small: true; clicked => { root.action("install"); } }
+                                horizontal-stretch: 1;
+                                Rectangle {
+                                    height: 4px;
+                                    border-radius: 2px;
+                                    background: Theme.control-active;
+                                }
+                            }
+                            Text {
+                                text: bar.value;
+                                color: Theme.text;
+                                font-size: Theme.font-body;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Help { text: "What Halation takes on this PC: the app, the components it downloaded, and caches. The beta keeps everything in its own profile folder."; }
+                    }
+                }
+                Group {
+                    title: "Workspace";
+                    Pair {
+                        Cell {
+                            name: "Workspace budget";
+                            help: "Caches and previews past this size are cleared, oldest first.";
+                            Select {
+                                width: 120px;
+                                label: "Workspace budget";
+                                options: ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"];
+                                current: root.prefs.budget;
+                                chosen(i) => { root.set-pref("budget", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 7 : VerticalLayout {
+                Group {
+                    title: "Halation";
+                    Pair {
+                        Cell {
+                            name: "Version";
+                            help: root.build-label + " · Free software (GPL-3.0)";
+                            HorizontalLayout {
+                                spacing: 6px;
+                                AppButton { small: true; text: "License"; clicked => { root.action("license"); } }
+                                AppButton { small: true; text: "Third-party notices"; clicked => { root.action("notices"); } }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Updates";
+                    Pair {
+                        Cell {
+                            name: "When a new version is out";
+                            Select {
+                                width: 200px;
+                                label: "When a new version is out";
+                                options: ["Ask when Halation opens", "Only show it in Activity", "Don't check by itself"];
+                                current: root.prefs.updates;
+                                chosen(i) => { root.set-pref("updates", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Show what's new after an update";
+                            Toggle {
+                                label: "Show what's new after an update";
+                                checked: root.prefs.whats-new;
+                                motion-duration: root.motion-duration;
+                                toggled(v) => { root.set-pref("whats-new", v ? "1" : "0"); }
                             }
                         }
                     }
-                }
-                Advanced {
-                    Help { text: "Downloaded when a tool needs them, to the Halation folder's Tools. They are not part of the installer."; }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-                        AppButton { text: "Update engine"; clicked => { root.action("update-engine"); } }
-                        AppButton { text: "Open Tools folder"; clicked => { root.action("open:main"); } }
-                    }
-                }
-            }
-
-            s6 := Section {
-                title: "Storage";
-                Text {
-                    text: "Halation uses " + root.storage-used;
-                    color: Theme.text;
-                    font-size: 20px;
-                    font-weight: 700;
-                }
-                for bar in [
-                    { label: "App and components", value: root.app-size },
-                    { label: "Workspace", value: root.workspace-size + " / " + ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"][root.prefs.budget] },
-                    { label: "Your work", value: "0 B" }
-                ] : HorizontalLayout {
-                    height: 16px;
-                    spacing: 12px;
-                    Text {
-                        width: 170px;
-                        text: bar.label;
-                        color: Theme.muted;
-                        font-size: Theme.font-body;
-                        vertical-alignment: center;
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        horizontal-stretch: 1;
-                        Rectangle {
-                            height: 3px;
-                            border-radius: 1.5px;
-                            background: Theme.line;
+                    Pair {
+                        Cell {
+                            name: "Check now";
+                            help: "The native beta is not updated by itself; new builds come from the beta launcher.";
+                            HorizontalLayout {
+                                spacing: 6px;
+                                AppButton { small: true; text: "Check for updates"; icon: "refresh-cw"; clicked => { root.action("check-updates"); } }
+                                AppButton { small: true; text: "Changelog"; icon: "file-text"; clicked => { root.action("changelog"); } }
+                            }
                         }
-                    }
-                    Text {
-                        text: bar.value;
-                        color: Theme.text;
-                        font-size: Theme.font-body;
-                        font-weight: 600;
-                        vertical-alignment: center;
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
                     }
                 }
-                Labelled {
-                    text: "Workspace budget";
-                    Select {
-                        width: 280px;
-                        label: "Workspace budget";
-                        options: ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"];
-                        current: root.prefs.budget;
-                        chosen(i) => { root.set-pref("budget", i); }
-                    }
-                }
-                Help { text: "Caches and previews past this size are cleared, oldest first."; }
-                Advanced {
-                    Help { text: "What Halation takes on this PC: the app, the components it downloaded, and caches. The beta keeps everything in its own profile folder."; }
-                }
-            }
-
-            s7 := Section {
-                title: "About";
-                Image {
-                    width: 112px;
-                    height: 56px;
-                    source: Assets.mark;
-                    image-fit: contain;
-                    horizontal-alignment: left;
-                }
-                Help { text: root.build-label + " · Free software (GPL-3.0)"; }
-                HorizontalLayout {
-                    spacing: 6px;
-                    alignment: start;
-                    AppButton { small: true; text: "License"; clicked => { root.action("license"); } }
-                    AppButton { small: true; text: "Third-party notices"; clicked => { root.action("notices"); } }
-                }
-                Text { text: "Updates"; color: Theme.text; font-size: Theme.font-title; font-weight: 600; }
-                Labelled {
-                    text: "When a new version is out";
-                    Select {
-                        width: 280px;
-                        label: "When a new version is out";
-                        options: ["Ask when Halation opens", "Only show it in Activity", "Don't check by itself"];
-                        current: root.prefs.updates;
-                        chosen(i) => { root.set-pref("updates", i); }
-                    }
-                }
-                ToggleRow {
-                    label: "Show what's new after an update";
-                    checked: root.prefs.whats-new;
-                    motion-duration: root.motion-duration;
-                    toggled(v) => { root.set-pref("whats-new", v ? "1" : "0"); }
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    AppButton { small: true; text: "Check for updates"; icon: "refresh-cw"; clicked => { root.action("check-updates"); } }
-                    AppButton { small: true; text: "Changelog"; icon: "file-text"; clicked => { root.action("changelog"); } }
-                }
-                Help { text: "The native beta is not updated by itself; new builds come from the beta launcher."; }
-                Text { text: "Folders"; color: Theme.text; font-size: Theme.font-title; font-weight: 600; }
-                Help { text: "The beta keeps everything in its own profile. You can copy these folders as a backup."; }
-                VerticalLayout {
-                    spacing: 8px;
-                    for folder in root.folders : Rectangle {
-                        height: 52px;
-                        border-radius: 12px;
-                        background: Theme.field;
-                        border-width: 1px;
-                        border-color: Theme.line;
-                        VerticalLayout {
-                            x: 13px;
-                            width: 150px;
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: folder.name; color: Theme.text; font-size: Theme.font-title; font-weight: 600; overflow: elide; }
-                            Text { text: folder.detail; color: Theme.muted; font-size: Theme.font-small; overflow: elide; }
-                        }
+                Group {
+                    title: "Folders";
+                    Help { text: "The beta keeps everything in its own profile. You can copy these folders as a backup."; }
+                    Rectangle { height: 8px; }
+                    for folder in root.folders : ListRow {
+                        name: folder.name;
+                        detail: folder.detail;
                         Text {
-                            x: 175px;
-                            width: parent.width - 175px - 80px;
-                            y: (parent.height - self.height) / 2;
+                            horizontal-stretch: 1;
                             text: folder.path;
                             color: Theme.muted;
                             font-size: Theme.font-small;
                             font-family: "Consolas";
+                            vertical-alignment: center;
                             overflow: elide;
                         }
-                        AppButton {
-                            x: parent.width - self.width - 9px;
-                            y: (parent.height - self.height) / 2;
-                            text: "Open";
-                            clicked => { root.action("open:" + folder.key); }
+                        VerticalLayout {
+                            alignment: center;
+                            AppButton { small: true; text: "Open"; clicked => { root.action("open:" + folder.key); } }
                         }
                     }
                 }
-                Text { text: "Data from an earlier version"; color: Theme.text; font-size: Theme.font-title; font-weight: 600; }
-                Help { text: "The beta never reads the released app's data; there was nothing to import."; }
-            }
-        }
-    }
-
-    // Tab bar, fixed above the sections
-    Rectangle {
-        x: root.column-x;
-        y: 52px;
-        width: root.column;
-        height: 48px;
-        border-radius: Theme.radius-panel;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.hairline;
-        Rectangle {
-            x: 20px;
-            y: 1px;
-            width: parent.width - 40px;
-            height: 1px;
-            background: Theme.sheen;
-        }
-        HorizontalLayout {
-            padding: 9px;
-            padding-left: 10px;
-            spacing: 2px;
-            for tab-name[index] in root.tabs : Rectangle {
-                width: tab-label.preferred-width + 18px;
-                border-radius: 14px;
-                background: root.current == index ? Theme.raised : (tab-touch.has-hover ? #ffffff0d : transparent);
-                accessible-role: tab;
-                accessible-label: tab-name;
-                accessible-item-selected: root.current == index;
-                accessible-action-default => { root.jump(index); }
-                animate background { duration: root.motion-duration; easing: ease-out; }
-                tab-label := Text {
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    text: tab-name;
-                    color: root.current == index ? Theme.text : Theme.muted;
-                    font-size: Theme.font-body;
-                    font-weight: 600;
+                Group {
+                    title: "Data from an earlier version";
+                    Help { text: "The beta never reads the released app's data; there was nothing to import."; }
                 }
-                tab-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.jump(index); }
-                }
-            }
-            Rectangle { horizontal-stretch: 1; }
-            // Search: Enter jumps to the section that holds the words (Rust matches them)
-            Rectangle {
-                preferred-width: 198px;
-                min-width: 110px;
-                border-radius: 14px;
-                background: #191919;
-                border-width: search.has-focus ? 2px : 1px;
-                border-color: search.has-focus ? Theme.accent : Theme.hairline;
-                ToolIcon {
-                    x: 10px;
-                    y: (parent.height - self.height) / 2;
-                    name: "search";
-                    size: 15px;
-                    tint: Theme.subtle;
-                }
-                search := TextInput {
-                    x: 32px;
-                    width: parent.width - 42px;
-                    height: parent.height;
-                    single-line: true;
-                    vertical-alignment: center;
-                    color: Theme.text;
-                    font-size: Theme.font-small;
-                    accessible-role: text-input;
-                    accessible-label: "Search settings";
-                    accepted => {
-                        let found = root.search(self.text);
-                        if (found >= 0) {
-                            root.jump(found);
-                        }
-                    }
-                }
-                if search.text == "" : Text {
-                    x: 32px;
-                    y: (parent.height - self.height) / 2;
-                    text: "Search settings...";
-                    color: Theme.subtle;
-                    font-size: Theme.font-small;
-                }
-            }
-            Rectangle { width: 6px; }
-            AppButton {
-                quiet: true;
-                small: true;
-                icon: "rotate-ccw";
-                text: "Restore defaults";
-                enabled: root.writable;
-                clicked => { root.reset-settings(); }
             }
         }
     }
 
     if root.error != "" : Rectangle {
-        x: root.column-x;
-        y: root.height - 52px;
-        width: root.column;
+        x: root.list-width;
+        y: root.height - 36px;
+        width: root.width - root.list-width;
         height: 36px;
-        border-radius: 12px;
         background: #2a1717;
         Text {
-            x: 14px;
-            width: parent.width - 28px;
+            x: 32px;
+            width: parent.width - 64px;
             y: (parent.height - self.height) / 2;
             text: root.error;
             color: Theme.danger;
