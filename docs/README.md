@@ -10,7 +10,7 @@ being changed and why is in [planning/](../planning/STATUS.md); measurements are
 | --- | --- | --- |
 | Anything | [SLINT_SPEC.md](SLINT_SPEC.md) (scope, stack, gates), [planning/decisions.md](../planning/decisions.md) | |
 | Look and feel: colours, type, layout, Home, rail, backdrop | [SLINT_VISUAL_SYSTEM.md](SLINT_VISUAL_SYSTEM.md); the approved redesign in [planning/active/ui-redesign.md](../planning/active/ui-redesign.md); colour background in [COLOR_REWORK_SPEC.md](COLOR_REWORK_SPEC.md) | `crates/halation-app/ui/`, `crates/halation-app/src/theme.rs`, `backdrop.rs` |
-| Animation | [MOTION.md](MOTION.md) for the principles (its web mechanics apply to the Tauri app only); native rules in [AGENTS.md](../AGENTS.md) | `crates/halation-app/src/motion.rs`, `ui/` |
+| Animation | [MOTION.md](MOTION.md) for the principles (its web mechanics apply to the Tauri app only); the native plan in [features/motion.md](features/motion.md); native rules in [AGENTS.md](../AGENTS.md) | `crates/halation-app/src/motion.rs`, `ui/` |
 | Backend code taken from the Tauri app | [SLINT_BACKEND_IMPORT.md](SLINT_BACKEND_IMPORT.md) | `crates/halation-core/` |
 | Jobs, processes, engines | [features/jobs.md](features/jobs.md) | `crates/halation-core/src/` (`queue`, `process`, `engine`) |
 | Library and sections | [features/library.md](features/library.md) | `crates/halation-app/src/library.rs`, `halation-core` `sections` |
@@ -31,6 +31,7 @@ exists, not that it was verified; verification is a test, a measurement or Java'
 | [save-location.md](features/save-location.md) | Planned |
 | [backgrounds.md](features/backgrounds.md) | Partial (Drape) |
 | [process-menu.md](features/process-menu.md) | Planned |
+| [motion.md](features/motion.md) | Planned (pending Java's review) |
 | [converter.md](features/converter.md), [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
 
 `python tools/check-docs.py` checks that every link here resolves and every spec has its `Status:` line.
