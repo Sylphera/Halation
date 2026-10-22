@@ -6,11 +6,10 @@ import { LibraryRow, SectionRow, ItemRow } from "../models.slint";
 import { SectionsView } from "sections.slint";
 import { ListView } from "std-widgets.slint";
 
-// Library under the top bar: a 36 px sub-header with the two views and the counts, then the view, edge to edge.
-// Search and Add live in the top bar (app.slint). Two views: references (files kept where they are) and sections.
-export component LibraryPage inherits Rectangle {
+// "Your files", the Library inside the Workspace: a heading with the two views (files kept where they are, and
+// sections) and the counts, then the view. Search and Add live in the top bar (app.slint).
+export component FilesBlock inherits VerticalLayout {
     in property <[LibraryRow]> rows;
-    in property <string> query: "";
     in property <int> total: 0;
     in property <int> missing: 0;
     in property <bool> loaded: false;
@@ -26,10 +25,9 @@ export component LibraryPage inherits Rectangle {
     in property <int> section-hidden: 0;
     in property <bool> sections-loaded: false;
     in property <bool> sections-busy: false;
-    // Presentation only: 0 = references, 1 = sections
+    // Presentation only: 0 = files, 1 = sections
     in-out property <int> mode: 0;
 
-    callback choose-reference();
     callback select-section(string);
     callback create-section(string);
     callback rename-section(string, string);
@@ -39,21 +37,36 @@ export component LibraryPage inherits Rectangle {
     callback sections-opened();
     callback remove-reference(string);
 
-    // Sub-header: the views as text tabs, the counts at the right
+    spacing: 0px;
+
+    // Heading: the block's name and count, the views as text tabs at the right
     Rectangle {
-        y: 0px;
-        height: Theme.sub-bar;
-        background: Theme.chrome;
-        Rectangle {
-            y: parent.height - 1px;
-            height: 1px;
-            background: Theme.line;
-        }
+        height: 36px;
         HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 16px;
-            spacing: 4px;
-            for label[index] in ["References", "Sections"] : Rectangle {
+            spacing: 10px;
+            Text {
+                text: "Your files";
+                color: Theme.text;
+                font-size: Theme.font-title;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+            if root.mode == 0 && root.total > 0 : Text {
+                text: "" + root.total;
+                color: Theme.subtle;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+            }
+            if root.mode == 0 && root.missing > 0 : VerticalLayout {
+                alignment: center;
+                Tag { text: root.missing + " missing"; ink: Theme.danger; }
+            }
+            if root.busy : VerticalLayout {
+                alignment: center;
+                Tag { text: "Saving"; ink: Theme.accent; }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            for label[index] in ["Files", "Sections"] : Rectangle {
                 width: tab-label.preferred-width + 20px;
                 accessible-role: tab;
                 accessible-label: label;
@@ -85,159 +98,131 @@ export component LibraryPage inherits Rectangle {
                     }
                 }
             }
-            Rectangle { horizontal-stretch: 1; }
-            if root.busy : VerticalLayout {
-                alignment: center;
-                Tag { text: "Saving"; ink: Theme.accent; }
-            }
-            if root.mode == 0 && root.total > 0 : Text {
-                text: root.total + (root.total == 1 ? " reference" : " references");
-                color: Theme.subtle;
-                font-size: Theme.font-small;
-                vertical-alignment: center;
-            }
-            if root.mode == 0 && root.missing > 0 : VerticalLayout {
-                alignment: center;
-                Tag { text: root.missing + " missing"; ink: Theme.danger; }
-            }
+        }
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.line;
         }
     }
 
-    VerticalLayout {
-        y: Theme.sub-bar;
-        height: root.height - Theme.sub-bar;
-        spacing: 0px;
-
-        if root.error != "" : Rectangle {
-            height: 32px;
-            background: #2a1717;
-            Text {
-                x: 16px;
-                width: parent.width - 32px;
-                y: (parent.height - self.height) / 2;
-                text: root.error;
-                color: Theme.danger;
-                font-size: Theme.font-body;
-                overflow: elide;
-            }
-        }
-
-        if root.mode == 0 && !root.loaded : Text {
-            vertical-stretch: 1;
-            text: "Reading your Library…";
-            color: Theme.muted;
+    if root.error != "" : Rectangle {
+        height: 32px;
+        background: #2a1717;
+        Text {
+            x: 12px;
+            width: parent.width - 24px;
+            y: (parent.height - self.height) / 2;
+            text: root.error;
+            color: Theme.danger;
             font-size: Theme.font-body;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+            overflow: elide;
         }
+    }
 
-        if root.mode == 0 && root.loaded && root.rows.length == 0 : Text {
-            vertical-stretch: 1;
-            text: root.total == 0
-                ? "Nothing here yet. Add files of this PC with Add, or drop them on Home; they stay where they are."
-                : "No matches. Try a different name or path.";
-            color: Theme.muted;
-            font-size: Theme.font-body;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            wrap: word-wrap;
-        }
+    if root.mode == 0 && !root.loaded : Text {
+        vertical-stretch: 1;
+        text: "Reading your files…";
+        color: Theme.muted;
+        font-size: Theme.font-body;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
 
-        // References: a table, header row and rows edge to edge
-        if root.mode == 0 && root.loaded && root.rows.length > 0 : Rectangle {
-            height: 32px;
-            HorizontalLayout {
-                padding-left: 16px;
-                padding-right: 16px;
-                spacing: 12px;
-                Rectangle { width: 16px; }
-                Text { horizontal-stretch: 2; text: "Name"; color: Theme.subtle; font-size: Theme.font-caption; font-weight: 500; vertical-alignment: center; }
-                Text { horizontal-stretch: 3; text: "Location"; color: Theme.subtle; font-size: Theme.font-caption; font-weight: 500; vertical-alignment: center; }
-                Rectangle { width: 150px; }
-            }
+    if root.mode == 0 && root.loaded && root.rows.length == 0 : Text {
+        vertical-stretch: 1;
+        text: root.total == 0
+            ? "Nothing here yet. Drop files above or use Add; they stay where they are."
+            : "No matches. Try a different name or path.";
+        color: Theme.muted;
+        font-size: Theme.font-body;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        wrap: word-wrap;
+    }
+
+    // Files: one 48 px row each, its kind at the right and Remove on hover
+    if root.mode == 0 && root.loaded && root.rows.length > 0 : ListView {
+        vertical-stretch: 1;
+        for row in root.rows : Rectangle {
+            height: 48px;
+            width: parent.width;
+            background: row-hover.has-hover ? Theme.hover-fill : transparent;
             Rectangle {
                 y: parent.height - 1px;
                 height: 1px;
                 background: Theme.line;
             }
-        }
-        if root.mode == 0 && root.loaded && root.rows.length > 0 : ListView {
-            vertical-stretch: 1;
-            for row in root.rows : Rectangle {
-                height: 40px;
-                width: parent.width;
-                background: row-hover.has-hover ? Theme.hover-fill : transparent;
-                Rectangle {
-                    y: parent.height - 1px;
-                    height: 1px;
-                    background: Theme.line;
+            row-hover := TouchArea { }
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 12px;
+                VerticalLayout {
+                    alignment: center;
+                    ToolIcon { name: "file-text"; size: 16px; tint: row.missing ? Theme.danger : Theme.muted; }
                 }
-                row-hover := TouchArea { }
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 12px;
-                    VerticalLayout {
-                        alignment: center;
-                        ToolIcon { name: "library"; size: 16px; tint: row.missing ? Theme.danger : Theme.muted; }
+                Text {
+                    horizontal-stretch: 2;
+                    text: row.name;
+                    color: Theme.text;
+                    font-size: Theme.font-body;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Text {
+                    horizontal-stretch: 3;
+                    text: row.path;
+                    color: Theme.subtle;
+                    font-size: Theme.font-small;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if row.missing : VerticalLayout {
+                    alignment: center;
+                    Tag { text: "Missing"; ink: Theme.danger; }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    width: 76px;
+                    AppButton {
+                        small: true;
+                        quiet: true;
+                        text: "Remove";
+                        opacity: row-hover.has-hover ? 1 : 0;
+                        enabled: root.writable && !root.busy;
+                        clicked => { root.remove-reference(row.id); }
                     }
-                    Text {
-                        horizontal-stretch: 2;
-                        text: row.name;
-                        color: Theme.text;
-                        font-size: Theme.font-body;
-                        font-weight: 500;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    Text {
-                        horizontal-stretch: 3;
-                        text: row.path;
-                        color: Theme.subtle;
-                        font-size: Theme.font-small;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    HorizontalLayout {
-                        width: 150px;
-                        spacing: 8px;
-                        alignment: end;
-                        if row.missing : VerticalLayout {
-                            alignment: center;
-                            Tag { text: "Missing"; ink: Theme.danger; }
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            AppButton {
-                                small: true;
-                                quiet: true;
-                                text: "Remove";
-                                enabled: root.writable && !root.busy;
-                                clicked => { root.remove-reference(row.id); }
-                            }
-                        }
-                    }
+                }
+                Text {
+                    width: 52px;
+                    text: row.kind;
+                    color: Theme.muted;
+                    font-size: Theme.font-small;
+                    horizontal-alignment: right;
+                    vertical-alignment: center;
                 }
             }
         }
+    }
 
-        if root.mode == 1 : SectionsView {
-            vertical-stretch: 1;
-            sections: root.sections;
-            items: root.section-items;
-            selected-id: root.section-id;
-            selected-name: root.section-name;
-            selected-kind: root.section-kind;
-            hidden: root.section-hidden;
-            loaded: root.sections-loaded;
-            busy: root.sections-busy;
-            motion-duration: root.motion-duration;
-            select-section(id) => { root.select-section(id); }
-            create-section(name) => { root.create-section(name); }
-            rename-section(id, name) => { root.rename-section(id, name); }
-            delete-section(id) => { root.delete-section(id); }
-            link-folder => { root.link-folder(); }
-            unlink-folder(id) => { root.unlink-folder(id); }
-        }
+    if root.mode == 1 : SectionsView {
+        vertical-stretch: 1;
+        sections: root.sections;
+        items: root.section-items;
+        selected-id: root.section-id;
+        selected-name: root.section-name;
+        selected-kind: root.section-kind;
+        hidden: root.section-hidden;
+        loaded: root.sections-loaded;
+        busy: root.sections-busy;
+        motion-duration: root.motion-duration;
+        select-section(id) => { root.select-section(id); }
+        create-section(name) => { root.create-section(name); }
+        rename-section(id, name) => { root.rename-section(id, name); }
+        delete-section(id) => { root.delete-section(id); }
+        link-folder => { root.link-folder(); }
+        unlink-folder(id) => { root.unlink-folder(id); }
     }
 }

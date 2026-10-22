@@ -2,7 +2,9 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, ItemRow, JobRow, Prefs, RecentItem, SectionRow, ToolItem};
+use halation_app::ui::{
+    AppWindow, ItemRow, JobRow, LibraryRow, Prefs, RecentItem, SectionRow, ToolItem,
+};
 use i_slint_backend_testing::{ElementHandle, ElementQuery};
 use slint::{
     ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
@@ -138,6 +140,13 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
     ui.set_sections_loaded(true);
     ui.set_library_loaded(true);
     ui.set_library_writable(true);
+    ui.set_library_rows(ModelRc::from(Rc::new(VecModel::from(vec![LibraryRow {
+        id: "r_000001".into(),
+        name: "a-file-with-a-long-name-that-will-need-eliding-in-the-workspace.flac".into(),
+        path: "D:/A folder/with a long path/that keeps going/a-file.flac".into(),
+        missing: true,
+        kind: "Audio".into(),
+    }]))));
 
     for (w, h) in SIZES {
         resize(&ui, w, h);
@@ -148,8 +157,8 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
             let stray = outside_above(&ui, w, h, if page == 3 { 100.0 } else { f32::MAX });
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
-        // Library, Sections tab
-        ui.set_page(1);
+        // Workspace, Sections tab
+        ui.set_page(0);
         let tab = ElementHandle::find_by_accessible_label(&ui, "Sections")
             .next()
             .expect("the Sections tab exists");
@@ -157,9 +166,9 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
         slint::platform::update_timers_and_animations();
         let stray = outside(&ui, w, h);
         assert!(stray.is_empty(), "sections tab at {w}x{h}: {stray:?}");
-        let back = ElementHandle::find_by_accessible_label(&ui, "References")
+        let back = ElementHandle::find_by_accessible_label(&ui, "Files")
             .next()
-            .expect("the References tab exists");
+            .expect("the Files tab exists");
         back.invoke_accessible_default_action();
     }
 }
@@ -183,8 +192,8 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Pages and the rail entry that marks each; Jobs (2) has no page any more
-    let places = [(0, "Home"), (1, "Library"), (3, "Settings")];
+    // Pages and the sidebar entry that marks each: the Workspace holds Home, the Library (1) and the jobs
+    let places = [(0, "Workspace"), (3, "Settings")];
     for (page, _) in places {
         ui.set_page(page);
         slint::platform::update_timers_and_animations();

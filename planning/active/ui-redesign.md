@@ -14,6 +14,12 @@ highlight of a found setting, Up/Down between sidebar items, the native title ba
 selected in Library (the row opens Library). The Drape is still decoded at the window's size and drawn in the content
 rectangle.
 
+**Workspace (Java, 2026-10-22):** Home, the Library and the jobs are one page, Workspace (sidebar entry and
+top-bar title), replacing §9's Home and the Library page: drop line, "Your files" (Files and Sections tabs, the
+kind of each file by extension, Remove on hover) taking the height left, and Jobs (up to three rows). No header of
+its own: the mark and name live in the sidebar. The sidebar's rows grow with the window's height (28 to 54 px) and
+the group headers take the rest, so the tools fill it. Pending Java's visual review.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged

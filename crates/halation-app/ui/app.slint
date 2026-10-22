@@ -5,8 +5,7 @@ import { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, C
 export { Theme } from "theme.slint";
 export { Assets } from "assets.slint";
 export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
-import { HomePage } from "pages/home.slint";
-import { LibraryPage } from "pages/library.slint";
+import { WorkspacePage } from "pages/home.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { SidebarItem, SidebarGroup } from "components/rail-item.slint";
 import { TopActions, BarButton } from "components/top-dock.slint";
@@ -30,7 +29,7 @@ export component AppWindow inherits Window {
         keys.focus();
     }
 
-    // Pages: 0 Home, 1 Library, 3 Settings (2 was Jobs; its queue stays in the backend without a page)
+    // Pages: 0 Workspace (Home, Library and jobs in one page; 1, the Library, shows it too), 3 Settings; 2 is unused
     in property <int> page: 0;
     in property <bool> reduced-motion: false;
     in property <int> diagnostic-scene: 1;
@@ -147,15 +146,15 @@ export component AppWindow inherits Window {
             background: Theme.canvas;
             clip: true;
 
-            // Home's backdrop: the recorded Drape and a fixed film grain, only inside Home's content (§8)
-            if root.page == 0 : Image {
+            // The Workspace's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
+            if root.page <= 1 : Image {
                 width: parent.width;
                 height: parent.height;
                 source: root.backdrop;
                 image-fit: cover;
                 image-rendering: smooth;
             }
-            if root.page == 0 : Image {
+            if root.page <= 1 : Image {
                 width: parent.width;
                 height: parent.height;
                 source: Assets.grain;
@@ -165,40 +164,19 @@ export component AppWindow inherits Window {
                 opacity: 0.1;
             }
 
-            if root.page == 0 : HomePage {
-                width: parent.width;
-                height: parent.height;
-                recent: root.recent;
-                library-loaded: root.library-loaded;
-                library-total: root.library-total;
-                library-missing: root.library-missing;
-                sections-count: root.sections.length;
-                sections-loaded: root.sections-loaded;
-                jobs-count: root.jobs.length;
-                jobs-busy: root.jobs-busy;
-                jobs-has-finished: root.jobs-has-finished;
-                build-label: root.build-label;
-                motion-duration: root.motion-duration;
-                choose-reference => { root.choose-reference(); }
-                file-dropped(data) => { root.file-dropped(data); }
-                open-library => { root.navigate(1); }
-                open-activity => { root.dock-action("activity"); }
-            }
-
-            if root.page == 1 : LibraryPage {
+            if root.page <= 1 : WorkspacePage {
                 width: parent.width;
                 height: parent.height;
                 rows: root.library-rows;
-                query: root.library-query;
                 total: root.library-total;
                 missing: root.library-missing;
                 loaded: root.library-loaded;
                 busy: root.library-busy;
                 writable: root.library-writable;
                 error: root.library-error;
+                jobs: root.jobs;
+                jobs-has-finished: root.jobs-has-finished;
                 motion-duration: root.motion-duration;
-                choose-reference => { root.choose-reference(); }
-                remove-reference(id) => { root.remove-reference(id); }
                 mode <=> root.library-mode;
                 sections: root.sections;
                 section-items: root.section-items;
@@ -208,6 +186,9 @@ export component AppWindow inherits Window {
                 section-hidden: root.section-hidden;
                 sections-loaded: root.sections-loaded;
                 sections-busy: root.sections-busy;
+                choose-reference => { root.choose-reference(); }
+                file-dropped(data) => { root.file-dropped(data); }
+                remove-reference(id) => { root.remove-reference(id); }
                 sections-opened => { root.sections-opened(); }
                 select-section(id) => { root.select-section(id); }
                 create-section(name) => { root.create-section(name); }
@@ -215,6 +196,9 @@ export component AppWindow inherits Window {
                 delete-section(id) => { root.delete-section(id); }
                 link-folder => { root.link-folder(); }
                 unlink-folder(id) => { root.unlink-folder(id); }
+                open-activity => { root.dock-action("activity"); }
+                cancel-job(id) => { root.cancel-job(id); }
+                clear-finished-jobs => { root.clear-finished-jobs(); }
             }
 
             if root.page == 3 : SettingsPage {
@@ -262,13 +246,13 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: root.page == 0 ? "Home" : root.page == 1 ? "Library" : root.page == 3 ? "Settings" : "";
+                        text: root.page <= 1 ? "Workspace" : root.page == 3 ? "Settings" : "";
                         color: Theme.text;
                         font-size: Theme.font-title;
                         font-weight: 600;
                         vertical-alignment: center;
                     }
-                    if root.page == 1 && root.library-mode == 1 : Text {
+                    if root.page <= 1 && root.library-mode == 1 : Text {
                         text: root.section-name == "" ? "· Sections" : "· Sections · " + root.section-name;
                         color: Theme.subtle;
                         font-size: Theme.font-title;
@@ -311,13 +295,13 @@ export component AppWindow inherits Window {
                 }
 
                 // The page's actions
-                if root.page == 1 && root.library-mode == 0 : HorizontalLayout {
+                if root.page <= 1 && root.library-mode == 0 : HorizontalLayout {
                     spacing: 8px;
                     VerticalLayout {
                         alignment: center;
                         SearchField {
-                            placeholder: "Search everything...";
-                            label: "Filter references";
+                            placeholder: "Search your files...";
+                            label: "Search your files";
                             text: root.library-query;
                             edited(value) => { root.set-query(value); }
                         }
@@ -440,17 +424,10 @@ export component AppWindow inherits Window {
 
                 SidebarItem {
                     icon: "house";
-                    label: "Home";
+                    label: "Workspace";
                     open: root.rail-open;
-                    active: root.page == 0;
+                    active: root.page <= 1;
                     activated => { root.navigate(0); }
-                }
-                SidebarItem {
-                    icon: "library";
-                    label: "Library";
-                    open: root.rail-open;
-                    active: root.page == 1;
-                    activated => { root.navigate(1); }
                 }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;

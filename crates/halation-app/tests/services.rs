@@ -739,3 +739,13 @@ fn settings_search_finds_the_section_that_holds_the_words() {
     assert_eq!(catalog::settings_section("   "), None);
     assert_eq!(catalog::settings_section("zzz"), None);
 }
+
+#[test]
+fn media_kind_names_files_by_extension() {
+    use halation_app::library::media_kind;
+    assert_eq!(media_kind("C:/Music/Night Drive.FLAC"), "Audio");
+    assert_eq!(media_kind("cover-final.png"), "Image");
+    assert_eq!(media_kind("teaser.mp4"), "Video");
+    assert_eq!(media_kind("notes.txt"), "File");
+    assert_eq!(media_kind("no-extension"), "File");
+}
