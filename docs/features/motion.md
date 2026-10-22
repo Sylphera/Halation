@@ -1,135 +1,165 @@
 # Movimiento nativo (Slint)
 
-Status: Planned — spec pendiente del visto bueno de Java; hoy solo animan colores, el knob del switch y el ancho de la
-sidebar (160 ms, `ease-out`).
+Status: Planned — spec v2 pendiente del visto bueno de Java. Hoy solo animan algunos colores, el knob del switch y el
+ancho de la sidebar (160 ms, `ease-out`); los hovers de la sidebar y de la barra superior son instantáneos.
 
-Qué se mueve en la app Slint, cómo y con qué valores. Los principios siguen siendo los de [MOTION.md](../MOTION.md)
-(un muelle críticamente amortiguado, la primera imagen responde, interrumpible con la velocidad heredada, nada aparece de
-la nada, sin pantallas de carga); su mecánica web (GSAP, Flip, CSS) es solo de Tauri. Esta spec sustituye, para el
-movimiento, a la sección *Motion* de [SLINT_SPEC.md](../SLINT_SPEC.md) («navegación inmediata, 160 ms, sin muelle»).
+Qué se mueve en la app Slint, con qué valores y cuánto cuesta. Diseñada desde cero sobre lo que hace Slint 1.18 con Skia
+(Java, 2026-10-22: no se toma como referencia el código anterior; se buscan las animaciones más baratas posibles; el
+hover es lo más importante). Sustituye, para el movimiento, a la sección *Motion* de [SLINT_SPEC.md](../SLINT_SPEC.md);
+[MOTION.md](../MOTION.md) queda como documento de la app Tauri.
 
-La app Tauri (`main`) es la referencia de comportamiento: duraciones, curvas y escalonados se han medido leyendo su
-código; la implementación es propia (regla clean-room de [AGENTS.md](../../AGENTS.md)).
+## 1. Qué cuesta una animación en Slint + Skia
 
-## 1. Inventario: original frente a Slint hoy
+Comprobado en el código de Slint 1.18.1 (`i-slint-renderer-skia`, `i-slint-core`):
 
-| Momento | Original (Tauri) | Slint hoy |
+- **Cada frame animado repinta la ventana entera.** El renderer Skia sobre OpenGL no usa repintado parcial
+  (`use_partial_rendering() = false`): mientras una animación está activa se pinta todo, incluidos el Drape y el grano
+  de Home, a la frecuencia del monitor (60 Hz o más). El coste de una animación ≈ número de frames × un repintado
+  completo. **La primera palanca es la duración**, no la propiedad.
+- **Un `delay` también cuesta.** Durante la espera la animación ya pide frames (`current_tick()` marca animación
+  activa): frames completos sin ningún cambio visible. Los escalonados (`stagger`) multiplican eso.
+- **`opacity` sobre un contenedor abre una capa** (`save_layer_alpha`, un buffer intermedio del tamaño del elemento)
+  cuando tiene más de un hijo o hijos con hijos. Sobre una hoja (un `Text`, una `Image`, un `Rectangle` sin hijos) solo
+  multiplica el alfa: gratis.
+- **`transform-scale` / `transform-rotation`** son una matriz en el canvas: sin capa ni relayout.
+- **Animar `width`/`height` de algo con layout** recalcula el layout del subárbol en cada frame.
+- **Un muelle (`spring`) dura más que su `duration`:** termina cuando se asienta (≈1.5 × duración con `spring(0)`).
+  A cambio, interrumpido hereda la velocidad. Una curva `ease-out` acaba exactamente en su duración.
+
+### Escala de coste (de menos a más)
+
+| Nivel | Qué | Coste por animación |
 |---|---|---|
-| Arranque | Sidebar entra desde −18 px con fade (300 ms); iconos uno tras otro (28 ms, desde −8 px y 0.9); el contenido avanza (0.97 → 1, blur 8 → 0) | Instantáneo |
-| Entrada de Home | Marca, wordmark, frase y barra de herramientas suben 8 px y aparecen escalonadas (28 ms, +40 ms); la marca además 0.96 → 1 | Instantáneo |
-| Cambio de página | La página nueva crece desde su icono (0.72 → 1) mientras la vieja retrocede (0.96, blur, fade); 300 ms | Instantáneo |
-| Abrir/cerrar la sidebar | La superficie cambia de forma en el muelle (320 ms); las filas se deslizan; los nombres entran escalonados desde −8 px; el contenido se desplaza | Ancho 256 ms `ease-out`; nombres y logo saltan |
-| Selección en la sidebar | Una sola píldora que se desliza a la pestaña elegida, heredando velocidad | El fondo cambia en el sitio, sin animar |
-| Hover en la sidebar | Una píldora compartida que se desliza entre filas | El fondo aparece/desaparece de golpe |
-| Tooltips | Aparecen tras 120 ms con fade y 4 px de desplazamiento (320 ms) | Aparecen y desaparecen de golpe |
-| Pulsar un botón | Se hunde a 0.97 en 60 ms; vuelve en el muelle | Solo cambia el color (0 ms al pulsar, 160 ms al soltar) |
-| Switch | Knob en el muelle (320 ms) | Knob 160 ms `ease-out` |
-| Menús (Select) | Crecen desde el botón (0.96 → 1, fade); opciones escalonadas 4 px (≈17 ms) | Instantáneo |
-| Categorías de Settings | El panel nuevo entra con fade y una pequeña subida | Instantáneo |
-| Avisos (notice, error) | Entran con fade y subida corta; salen con fade (140 ms) | Instantáneo |
-| Zona de soltar | Se inclina hacia el puntero al arrastrar (1.006–1.012) y cede al soltar | Solo color |
-| Movimiento reducido | Todo pasa a un fade de 140 ms | Duración 0 |
+| 0 | Cambio instantáneo | 1 frame |
+| 1 | Color (fondo, borde, texto, tinte) · `x`/`y` de un elemento · `transform-scale` · `opacity` de una hoja | N repintados |
+| 2 | Muelle en vez de `ease-out` | ≈1.5 × N repintados |
+| 3 | `opacity` de un contenedor | N repintados + una capa por frame |
+| 4 | Ancho/alto con layout | N repintados + relayout por frame |
+| 5 | `delay`, escalonados | Frames vacíos añadidos |
+| — | Blur, sombras animadas, animación continua | Prohibido |
 
-## 2. Base técnica
+## 2. Reglas
 
-Slint 1.18 trae lo que hace falta sin motor propio:
-
-- `easing: spring(0)`: muelle críticamente amortiguado (sin rebote). Su `duration` fija la frecuencia natural
-  (ω = 2π / duración), no el tiempo de asentamiento.
-- Un muelle interrumpido arranca hacia el nuevo destino con la velocidad que llevaba (retarget nativo): la regla 4 de
-  MOTION.md sale gratis.
-- `transform-scale`, `transform-origin` y `opacity` en cualquier elemento; `animate … { delay }`; `states` con
-  transiciones `in`/`out` distintas.
-
-Límites de Slint que fijan el diseño:
-
-- No hay `blur` sobre elementos: la profundidad se expresa solo con escala y opacidad.
-- Un elemento de `if` desaparece al instante: no hay animación de salida salvo mantenerlo vivo (coste). Por eso la
-  página vieja no anima su salida (ver §6).
-- `opacity` sobre un contenedor lo pinta en una capa aparte mientras es < 1: solo se usa durante la transición.
+1. Solo niveles 0–2 por defecto. El nivel 4 solo en la sidebar (§4.5). Niveles 3 y 5 fuera.
+2. Para desvanecer algo compuesto (un tooltip: fondo + texto) se anima el **alfa de sus colores**, no `opacity`.
+3. Sin `delay` en `animate`. Una espera (tooltip) la hace un `Timer` de Slint de un solo disparo, que no pinta nada y
+   solo existe mientras dura el hover.
+4. Duraciones cortas: nada por encima de 180 ms salvo el asentamiento de un muelle.
+5. Entrar rápido, salir suave: el estado nuevo se ve casi en el primer frame; lo que se va se desvanece.
+6. `ease-out` en todo lo que no se interrumpe a menudo; `spring(0)` solo en lo que sigue al puntero o a clics rápidos
+   (píldoras, knob), donde heredar la velocidad evita tirones.
+7. Movimiento reducido: todas las duraciones a 0 (estado final en el primer frame); la píldora de hover salta en vez de
+   deslizarse.
+8. Nada anima en reposo: sin `iteration-count` infinito; la CPU/GPU en reposo no cambia.
 
 ## 3. Tokens
 
-Un global `Motion` (Slint) cuyos valores calcula Rust (`motion.rs`) desde Settings; con movimiento reducido todas las
-duraciones son 0 y las escalas 100 %.
+Un global `Motion` (`ui/motion.slint`) cuyos valores calcula Rust (`motion.rs`) desde Settings; con movimiento
+reducido, todos a 0 ms.
 
-| Token | Valor | Equivale en el original | Uso |
+| Token | Valor | Curva | Uso |
 |---|---|---|---|
-| `spring` | 218 ms (`spring(0)`) | `--spring` 320 ms: asentado en 320 ms | La interfaz: píldoras, sidebar, knob, menús, tooltips, soltar un botón |
-| `place` | 204 ms (`spring(0)`) | `--place` 300 ms | Cambio de lugar: entrada de página, arranque |
-| `fade` | 140 ms (`ease-out`) | `--fade` | Lo que solo se desvanece: salidas de tooltips, avisos |
-| `stagger` | 28 ms | `--stagger` | Entre elementos de un grupo que llegan juntos (máx. 12) |
-| `press` | 60 ms (`ease-out`) | press 60 ms | Hundir al pulsar |
-| `press-scale` | 97 % | `--press-scale` 0.97 | Escala al pulsar |
-| `tip-delay` | 120 ms | delay del tooltip | Espera antes de mostrar un tooltip |
+| `hover-in` | 70 ms | `ease-out` | Aparece el estado de hover |
+| `hover-out` | 160 ms | `ease-out` | Se va el estado de hover |
+| `press` | 0 ms | — | Al pulsar: color y escala al instante |
+| `release` | 120 ms | `ease-out` | Al soltar, vuelve al hover |
+| `glide` | 160 ms | `spring(0)` (se asienta en ≈235 ms) | Píldoras de hover y selección, knob |
+| `fade` | 120 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
+| `panel` | 180 ms | `ease-out` | Ancho de la sidebar |
+| `tip-wait` | 400 ms | `Timer` | Espera antes de mostrar un tooltip |
+| `press-scale` | 97 % | — | Escala al pulsar |
 
-Conversión: el original llega al 99.9 % en T con ω·T = 9.23; Slint usa ω = 2π / d, así que d = 2π·T / 9.23 ≈ 0.68·T.
-Con eso, 218 ms en Slint se siente igual que los 320 ms del original. Los colores siguen cambiando con `fade`.
+`ease-out` = `cubic-bezier(0.2, 0, 0, 1)`: casi todo el cambio en el primer tercio, así que 70 ms se perciben como
+respuesta inmediata.
 
-## 4. Qué se mueve (valores por defecto)
+## 4. Qué se mueve
 
-Movimiento normal; con movimiento reducido, todo llega a su estado final al instante.
+### 4.1 Hover (lo principal)
 
-1. **Arranque** (una vez, al mostrar la ventana): la sidebar entra desde x −18 px con opacidad 0 → 1 (`place`); sus
-   iconos, desde −8 px y 90 %, escalonados (`stagger`, empiezan a 60 ms); la hoja de contenido 97 % → 100 % con
-   opacidad (`place`, 40 ms de retraso). Sin blur.
-2. **Entrada de Home** (al arrancar y al volver a Home): marca (96 % → 100 %), wordmark, frase, barra de herramientas y
-   zona de soltar suben 8 px con fade, escalonados 28 ms a partir de 40 ms (`spring`).
-3. **Cambio de página** (Home ↔ Settings, y las herramientas cuando existan): la página nueva aparece con opacidad
-   0 → 1 y escala 98.5 % → 100 % desde su centro (`place`). La vieja se quita en el primer frame (§6). El título de la
-   barra superior cambia con un fade cruzado corto (`fade`).
-4. **Sidebar abrir/cerrar**: el ancho en el muelle (`spring`, no 1.6× ease-out); el logo se desliza a su sitio; los
-   nombres y títulos de grupo entran desde −8 px con fade, escalonados (`stagger`) al abrir, y se van con `fade` al
-   cerrar. La página se desplaza con el ancho (como hoy).
-5. **Píldora de selección**: un único rectángulo en la sidebar que se desliza (`y`, `spring`) a la fila activa; al
-   cambiar rápido de página hereda la velocidad. Reemplaza el fondo por fila.
-6. **Hover de la sidebar**: una píldora de hover compartida que se desliza a la fila bajo el puntero (`spring`) y aparece
-   o se va con `fade`. Sin la fusión «metaball» con la píldora activa del original.
-7. **Tooltips** (sidebar cerrada y barra superior): siempre presentes con opacidad 0; al hover o foco aparecen tras
-   `tip-delay` con fade y 4 px de desplazamiento hacia su sitio (`spring`); se van sin espera (`fade`).
-8. **Pulsación**: botones, filas de la sidebar, elementos de la barra de Home, botones de la barra superior y opciones
-   de Settings bajan a `press-scale` en `press`; al soltar vuelven en el muelle. Las tarjetas grandes (zona de soltar)
-   bajan solo a 99 %.
-9. **Switch**: el knob en el muelle; el color con `fade`.
-10. **Select**: el menú crece desde el botón (96 % → 100 %, fade, `spring`); las opciones entran 4 px escalonadas
-    (≈17 ms, desde 20 ms). Se cierra al instante (PopupWindow no permite salida animada).
-11. **Categorías de Settings**: el contenido nuevo entra con fade y 4 px de subida (`spring`); la píldora de la lista
-    de categorías se desliza como la de la sidebar.
-12. **Avisos**: el aviso de la barra superior y el error de Settings entran con fade y 4 px de subida (`spring`); al
-    cerrar se van con `fade` (se mantienen vivos hasta acabar).
-13. **Zona de soltar**: al arrastrar encima crece a 101 % (`spring`) y al soltar vuelve; el color como hoy.
+Cada elemento interactivo tiene hover, con `hover-in` al entrar y `hover-out` al salir, solo en color (nivel 1).
+Cambian juntos el fondo, el tinte del icono y el color del texto.
+
+| Elemento | Hover |
+|---|---|
+| Filas de la sidebar | Píldora de hover compartida (abajo); icono y nombre de `muted` a `text` |
+| Lista de categorías de Settings | La misma píldora compartida |
+| Botones de la barra superior | Fondo `transparent` → `control-hover`; icono `muted` → `text` |
+| Elementos de la barra de herramientas de Home | Fondo → `hover-fill`; icono y nombre → `text` |
+| `AppButton` (normal, quiet, primary) | Fondo a su tono de hover; primary aclara su relleno |
+| `Select`, `Field`, `SearchField` | Borde `line-strong` → `line-strong` aclarado; fondo → `control-hover` |
+| Opciones de un `Select` abierto | Fondo → `control-active` |
+| Tarjetas de modo de guardado y celdas de Settings | Fondo → `control-hover` |
+| Zona de soltar de Home | Fondo y borde como hoy, con `hover-in`/`hover-out` |
+| `Toggle` | Pista un tono más clara |
+
+**Píldora de hover compartida** (sidebar y lista de categorías): un único `Rectangle` sin hijos por lista, detrás de las
+filas. Al entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
+`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza en `y` con `glide`, heredando la
+velocidad si el puntero sigue moviéndose; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
+queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
+al recorrer la lista.
+
+### 4.2 Pulsación
+
+Al pulsar: el color de pulsado y `press-scale` (97 %, `transform-scale` desde el centro) en el mismo frame. Al soltar
+vuelve en `release`. En botones, filas de la sidebar, botones de la barra superior, elementos de la barra de Home y
+opciones de Settings. La zona de soltar baja solo a 99 %.
+
+### 4.3 Selección
+
+La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
+`Rectangle` sin hijos por lista) que se desliza en `y` con `glide` a la nueva fila. La navegación cambia en el primer
+frame; la píldora llega después.
+
+### 4.4 Tooltips
+
+Siempre presentes con colores transparentes. Tras `tip-wait` de hover continuo (o al instante con foco de teclado)
+sus colores pasan a opacos en `fade`; al salir vuelven a transparente en `fade`, sin espera. Si el puntero pasa
+directamente de un elemento con tooltip a otro, el segundo aparece sin espera (el `Timer` solo cuenta desde fuera de la
+barra o la sidebar).
+
+### 4.5 Sidebar abrir/cerrar
+
+El ancho en `panel` (nivel 4: la página se recoloca en cada frame; es el único caso). Los nombres y los títulos de grupo
+aparecen con el alfa de su color en `fade` al abrir; al cerrar desaparecen al instante. El logo cambia de sitio al
+instante.
+
+### 4.6 Switch
+
+El knob se desliza con `glide`; la pista cambia de color en `fade`.
+
+### 4.7 Sin animación (instantáneo)
+
+Cambio de página, arranque, entrada de Home, cambio de categoría de Settings, apertura del `Select`, avisos y errores.
+Animarlos exigiría `opacity` de contenedor (nivel 3) o escalonados (nivel 5). Si con lo de arriba se siguen viendo
+secos, la opción más barata para la página es un fade de 120 ms de la página nueva (una capa del tamaño de la página
+durante ≈8 frames), que se probaría aparte.
 
 ## 5. Criterios de aceptación
 
-1. Todas las animaciones toman sus valores del global `Motion`; ningún `.slint` lleva duraciones o curvas sueltas.
-2. Con «Reduce animations» activo, cada transición de §4 llega a su estado final en el primer frame (test de estado en
-   Rust/Slint: tokens a 0 y escalas a 100 %).
-3. Ninguna animación en reposo: sin timers, sin `iteration-count` infinito; CPU/GPU en reposo en Home no sube respecto
-   a la build actual (medido igual que en `planning/active/ui-redesign.md`, criterio 8).
-4. La navegación cambia de estado en el primer frame tras el clic; ninguna acción espera a una animación.
-5. Clics rápidos (Home ↔ Settings, abrir/cerrar sidebar con Ctrl+B repetido) no encolan ni saltan: la píldora y la
-   sidebar siguen desde donde están con su velocidad.
-6. Durante una transición no se pierden frames de forma visible en KernelPanic (Skia GL); una transición que los pierda
-   se simplifica.
+1. Todas las animaciones leen el global `Motion`; ningún `.slint` lleva duraciones ni curvas sueltas.
+2. Ningún `animate` usa `delay`; ninguna animación anima `opacity` de un contenedor; solo la sidebar anima un ancho
+   (comprobado con un test que recorre los `.slint`).
+3. Con «Reduce animations», cada transición llega a su estado final en el primer frame (test de estado: tokens a 0).
+4. Ninguna animación en reposo; CPU/GPU en reposo en Home y Settings igual que la build actual.
+5. Medición en KernelPanic con un contador de frames (`diag`): un hover completo (entrar + salir) no pasa de ≈15 frames
+   a 60 Hz; recorrer la sidebar de arriba abajo no deja frames después de parar.
+6. Clics rápidos y Ctrl+B repetido no encolan: la píldora y la sidebar siguen desde donde están.
 7. `cargo fmt --check`, clippy `-D warnings` y `cargo test --workspace` en verde.
 8. Visto bueno de Java en la ventana nativa (Preview en KernelPanic) antes del merge.
 
 ## 6. Fuera de alcance
 
-- Blur de profundidad (Slint no lo tiene sobre elementos).
-- Salida animada de la página vieja y crecer desde el icono de la sidebar (0.72 → 1): exigiría mantener dos páginas
-  vivas y medir su origen; se puede añadir después si la entrada sola se queda corta.
-- La fusión «metaball» entre la píldora de hover y la activa.
-- Skeletons, barras de progreso, listas con Flip y acordeones: llegan con las herramientas, Jobs y Library.
-- Welcome (no portado) y la superficie de Processes.
-- Fade de 140 ms con movimiento reducido: AGENTS.md exige estado final inmediato.
+- Transiciones de página, entradas escalonadas, arranque animado (§4.7).
+- Blur, sombras animadas, animación continua.
+- Skeletons, progreso, listas y acordeones: llegan con Jobs, Library y las herramientas, con estas mismas reglas.
 
 ## 7. Implementación (resumen)
 
-- `motion.rs`: calcula los tokens (normal / reducido) y los publica en el global `Motion`; se recalculan al cambiar el
-  ajuste.
-- `ui/motion.slint`: el global `Motion`; los componentes lo leen en vez de recibir `motion-duration`.
-- Entradas: un `property <bool> shown` que pasa a `true` en `init` con `animate` sobre opacidad/escala/y y `delay`
-  según su índice. Píldoras: un solo `Rectangle` por lista con `animate y`.
-- Orden: tokens y migración de lo existente → píldoras y pulsación → tooltips y Select → entradas (arranque, Home,
-  página, Settings) → avisos y zona de soltar. Preview en KernelPanic al final.
+- `motion.rs` calcula los tokens (normal / reducido) y los publica en el global `Motion`; se recalculan al cambiar el
+  ajuste. `motion-duration` desaparece de los componentes.
+- Píldoras: un `Rectangle` por lista con `animate y`; cada fila informa de su `has-hover` a la lista
+  (`changed has-hover`).
+- Tooltips: `Timer` de un disparo y colores con alfa animado.
+- Orden: tokens y migración de lo existente → hover → pulsación y selección → tooltips → sidebar y switch → medición de
+  frames → Preview en KernelPanic.
