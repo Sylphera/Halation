@@ -34,7 +34,7 @@ exists, not that it was verified; verification is a test, a measurement or Java'
 | [motion.md](features/motion.md) | Implemented, approved (2026-10-22) |
 | [material.md](features/material.md) | Implemented, approved (2026-10-22) |
 | [themes.md](features/themes.md) | Implemented, approved (2026-10-22) |
-| [converter.md](features/converter.md) | Partial, native implementation in progress |
+| [converter.md](features/converter.md) | Partial, native Converter approved (Send to and sessions remain) |
 | [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
 
 `python tools/check-docs.py` checks that every link here resolves and every spec has its `Status:` line.

@@ -1,6 +1,6 @@
 # Native Converter
 
-Status: Implemented, pending visual review — Java selected the complete media Converter (2026-10-22). No visual approval yet.
+Status: Implemented, approved — Java selected the complete media Converter and approved it in the native window on 8179b05 (2026-10-22).
 
 ## Scope and boundaries
 
