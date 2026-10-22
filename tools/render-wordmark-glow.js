@@ -14,12 +14,13 @@ const { chromium } = require("playwright");
 const SETTINGS = {
     width: 600,
     height: 68.2,
-    fringe: 10,
-    halation: { radius: 30, strength: 55, spread: 1, outside: 40, colour: "#ffd4bd" },
-    bloom: { radius: 6, strength: 45, colour: "#fff6ea" },
-    haze: { strength: 18, radius: 120 },
+    fringe: 0,
+    halation: { radius: 16, strength: 0, spread: 0, outside: 0, colour: "#ff4a1c" },
+    bloom: { radius: 10, strength: 70, colour: "#ffffff" },
+    haze: { strength: 10, radius: 80 },
 };
-const MARGIN = 260;
+// Room for the haze to fade out (about two of its radii)
+const MARGIN = 180;
 
 const root = path.join(__dirname, "..");
 const svg = fs.readFileSync(path.join(root, "assets", "halation-wordmark.svg"), "utf8");

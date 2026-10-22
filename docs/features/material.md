@@ -133,6 +133,9 @@ from the letters, `#ffd4bd`), a white bloom (radius 6, 45 %, `#fff6ea`) and a 10
 beneath the wordmark: no blur runs on Home. The image is 1120 x 588 at 1x (about 2.6 MB decoded); at 1x the glow,
 being a blur, loses nothing visible on HiDPI screens.
 
+Java then chose a plain bloom (2026-10-22): no halation and no fringe; a white bloom (radius 10, 70 %, `#ffffff`) and
+a faint haze (10 %, radius 80, `#ff4a1c`); the letters at 100 %. The image is 960 x 428 (about 1.6 MB decoded).
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

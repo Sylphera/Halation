@@ -7,7 +7,7 @@ It is used only as the product mark. The static Home reference image is kept out
 
 `halation-wordmark.svg` is the HALATION wordmark (one path, identity asset): Bodoni Moda (SIL OFL 1.1) at weight 600,
 optical size 60, tracked 0.20 em, converted to outlines (Java's choice, 2026-10-22).
-`halation-wordmark-glow.png` is the wordmark's halation glow (1120 x 588, the wordmark plus 260 px around it), drawn
+`halation-wordmark-glow.png` is the wordmark's halation glow (960 x 428, the wordmark plus 180 px around it), drawn
 from the wordmark by `tools/render-wordmark-glow.js` with Java's settings (2026-10-22).
 `drop-outline.svg` is the dashed outline of Home's drop zone, drawn for this crate.
 `fonts/SchibstedGrotesk.ttf` (variable weight, © The Schibsted-Grotesk Project Authors) is the interface face and
