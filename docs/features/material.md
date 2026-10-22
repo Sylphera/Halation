@@ -136,6 +136,13 @@ being a blur, loses nothing visible on HiDPI screens.
 Java then chose a plain bloom (2026-10-22): no halation and no fringe; a white bloom (radius 10, 70 %, `#ffffff`) and
 a faint haze (10 %, radius 80, `#ff4a1c`); the letters at 100 %. The image is 960 x 428 (about 1.6 MB decoded).
 
+Warm variant (Java, 2026-10-22: "todo halation … pasa de ser azul plateado sutil a ser un amarillo-rojo dorado sutil",
+the whole app, contrast kept): the greys take a faint warm bias (chrome `#121110`, canvas `#0d0c0b`, raised `#252321`,
+lines `#211f1d`/`#302d2a`), the text warms (`#f7f4ec`, `#b9b3a7`, `#9e978b`), the accent turns gold (`#c9a870`,
+lavender's luminance), Activity amber (`#d9a46a`) and the warning moves to orange (`#e8955e`) to stay apart from the
+accent. The Drape keeps its recording; `theme::warm` turns its silver-blue golden as it is coloured (`backdrop.rs`,
+the still frame in `assets.rs`), at the same luma. One commit, to keep or revert.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

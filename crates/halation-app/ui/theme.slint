@@ -2,26 +2,26 @@
 // applies the colour values at start-up; the defaults here match them so headless tests and snapshots render the same.
 export global Theme {
     // Surfaces, from the frame inwards
-    in-out property <color> chrome: #111111;
-    in-out property <color> canvas: #0c0c0c;
-    in-out property <color> canvas-deep: #0a0a0b;
-    in-out property <color> control: #161617;
-    in-out property <color> control-hover: #1c1c1e;
-    in-out property <color> control-active: #232325;
+    in-out property <color> chrome: #121110;
+    in-out property <color> canvas: #0d0c0b;
+    in-out property <color> canvas-deep: #0b0a09;
+    in-out property <color> control: #171615;
+    in-out property <color> control-hover: #1e1c1a;
+    in-out property <color> control-active: #252321;
     // Lines: between regions and rows; control borders and hover
-    in-out property <color> line: #1f1f21;
-    in-out property <color> line-strong: #2d2d30;
+    in-out property <color> line: #211f1d;
+    in-out property <color> line-strong: #302d2a;
     // A control's border under the pointer
-    out property <color> line-hover: #3c3c40;
+    out property <color> line-hover: #403c38;
 
-    in-out property <color> text: #f5f5f2;
-    in-out property <color> muted: #b5b5af;
+    in-out property <color> text: #f7f4ec;
+    in-out property <color> muted: #b9b3a7;
     // Home's wordmark, over its glow (Java, 2026-10-22: letters at 100 %)
-    in-out property <color> wordmark: #f5f5f2;
-    in-out property <color> subtle: #9a9993;
-    in-out property <color> accent: #a3a8dc;
-    in-out property <color> activity: #82b5d6;
-    in-out property <color> warning: #e0b15e;
+    in-out property <color> wordmark: #f7f4ec;
+    in-out property <color> subtle: #9e978b;
+    in-out property <color> accent: #c9a870;
+    in-out property <color> activity: #d9a46a;
+    in-out property <color> warning: #e8955e;
     in-out property <color> beta: #e391a4;
     in-out property <color> danger: #f0a6a6;
     in-out property <color> success: #9fd6b2;
@@ -30,38 +30,38 @@ export global Theme {
     out property <color> hover-fill: #ffffff0f;
     out property <color> press-fill: #ffffff17;
     // The Workspace's panels over the Drape: the canvas at 86%, so the Drape shows faintly through them
-    out property <color> panel: #101011dc;
+    out property <color> panel: #11100edc;
 
     // Material (docs/features/material.md, direction A, "Relief"): light from above. Each level is a flat fill
     // (Java, 2026-10-22: no top-to-bottom fall-off) with a 1 px edge brighter at the top (the sheen); raised levels
-    // stand on a 1 px dark contact edge. No blur. Neutral greys, no blue.
-    out property <brush> raised-fill: #232323;
-    out property <brush> raised-fill-press: #1c1c1c;
+    // stand on a 1 px dark contact edge. No blur. Greys with a faint warm bias (Java, 2026-10-22: the warm variant, golden instead of silver-blue).
+    out property <brush> raised-fill: #252321;
+    out property <brush> raised-fill-press: #1e1c1a;
     out property <brush> raised-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 45%, #ffffff0b 100%);
     // The raised fill as a colour, for shapes that must match it (the pills' neck)
-    out property <color> raised-flat: #232323;
+    out property <color> raised-flat: #252321;
     // Recessed: fields, tracks, the switch off; dark at the top edge, catching light at the bottom
-    out property <brush> well-fill: #090909;
+    out property <brush> well-fill: #0a0908;
     out property <brush> well-edge: @linear-gradient(180deg, #000000b0 0%, #ffffff0a 35%, #ffffff14 100%);
     // Panels; `glass` over the Drape lets it show faintly through
-    out property <brush> bubble-fill: #141414;
-    out property <brush> bubble-glass: #141414e0;
+    out property <brush> bubble-fill: #161412;
+    out property <brush> bubble-glass: #161412e0;
     out property <brush> bubble-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 35%, #ffffff0d 100%);
     // Menus and tooltips: one step above raised
-    out property <brush> popover-fill: #222222;
+    out property <brush> popover-fill: #242220;
     out property <brush> popover-edge: @linear-gradient(180deg, #ffffff30 0%, #ffffff17 100%);
     // A shortcut drawn as a key cap inside a tooltip
-    out property <color> key-fill: #2c2c2c;
+    out property <color> key-fill: #2e2b28;
     out property <color> key-edge: #ffffff1c;
     // The accent as a raised piece (the switch on)
-    out property <brush> accent-fill: #a3a8dc;
+    out property <brush> accent-fill: #c9a870;
     out property <brush> accent-edge: @linear-gradient(180deg, #ffffff70 0%, #ffffff14 45%, #00000026 100%);
     // The one white button of a page
-    out property <brush> primary-fill: #f5f5f2;
-    out property <brush> primary-fill-press: #c9c9c4;
+    out property <brush> primary-fill: #f7f4ec;
+    out property <brush> primary-fill-press: #ccc6ba;
     // The switch's knob, off and on
-    out property <brush> knob-light: #f5f5f2;
-    out property <brush> knob-dark: #111111;
+    out property <brush> knob-light: #f7f4ec;
+    out property <brush> knob-dark: #121110;
     // The page sheet, set into the chrome: a darker well with a shaded top edge
     out property <brush> sheet-edge: @linear-gradient(180deg, #000000a0 0%, #ffffff08 6%, #ffffff0a 100%);
     // The 1 px dark edge a raised piece stands on
