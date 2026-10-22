@@ -18,6 +18,9 @@ Bundled in `app/dist/fonts` as WOFF2 subsets (Latin), taken from the Fontsource 
 | UnifrakturCook | Copyright (c) 2010 j. 'mach' wust with Reserved Font Name UnifrakturCook. Copyright (c) 2009 Peter Wiegel. |
 | JetBrains Mono | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
 | Inter | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
+| Schibsted Grotesk (the native beta's interface) | Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk) |
+| Italiana (the native beta's page titles) | Copyright (c) 2011, Santiago Orozco (hi@typemade.mx), with Reserved Font Name "Italiana". |
+| Bodoni Moda (the native beta's HALATION wordmark, converted to outlines) | Copyright 2020 The Bodoni Moda Project Authors (https://github.com/indestructible-type/Bodoni) |
 | Archivo (variable, width and weight) | Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) |
 | Figtree | Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree) |
 | Roboto | Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic) |
@@ -31,7 +34,7 @@ The full text of the SIL Open Font License 1.1 is at the end of this file.
 |---|---|---|
 | [Mediabunny](https://github.com/Vanilagy/mediabunny) 1.60.0 by Vanilagy and contributors | MPL-2.0 | `app/dist/mediabunny.js` (unmodified minified ES module build; source at https://github.com/Vanilagy/mediabunny) |
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.30.0, Copyright (c) Microsoft Corporation | MIT | `app/dist/onnxruntime.js` (`ort.webgpu.bundle.min.mjs` without its source-map line; runs Cutout's model) |
-| [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses) |
+| [Lucide](https://lucide.dev) icons, Copyright (c) 2026 Lucide Icons and Contributors | ISC | `app/dist/icons.js` (the icons the interface uses), `assets/icons/*.svg` (the same icons as SVG files for the native app) |
 | [GSAP](https://gsap.com) 3.15.0 and its Flip plugin, Copyright 2026 GreenSock | [GSAP Standard License](https://gsap.com/standard-license) | `app/dist/gsap.min.js`, `app/dist/Flip.min.js` (unmodified; combined with Halation under the additional permission in `NOTICE.md`) |
 | [webgl-noise](https://github.com/ashima/webgl-noise) (3D simplex noise), Copyright (C) 2011 by Ashima Arts and Copyright (C) 2011-2016 by Stefan Gustavson | MIT | `app/dist/drape.js` (the Drape background; the GLSL function, with the integer steps rewritten for exact 32-bit arithmetic, and its JavaScript port) |
 
@@ -62,7 +65,7 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 
 ## Example photos (Unsplash License)
 
-`docs/examples/<tool>.jpg` are used only for the README screenshots. They are cropped and resized from the originals. They are not part of the app.
+`docs/examples/<tool>.jpg` (kept on `main`) were used only for the README screenshots in `docs/media/screenshots/`. They are cropped and resized from the originals. They are not part of the app.
 `grade.jpg` is the exception: a widely shared still of The Weeknd on stage (After Hours til Dawn Tour), photographer and licence unknown, chosen by the project owner; it is not under the Unsplash License.
 
 | File | Photo by |
@@ -481,6 +484,24 @@ Every crate compiled into the Windows build (from `cargo metadata --filter-platf
 | zopfli | 0.8.3 | Apache-2.0 |
 | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib |
 | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib |
+
+## Rust crates — native Slint beta (not released)
+
+The native app (`crates/`) has not been released. These are the direct crates and graphics/windowing licenses
+resolved by its `Cargo.lock` (Slint 1.18.1 / Rust 1.99 MSVC validation, 2026-10-20). This section supplements the
+Tauri dependency list above; it is not a complete transitive notice set. Generate and review all notices from
+`Cargo.lock` before any distribution.
+
+| Crate | Resolved version | License | Use |
+|---|---:|---|---|
+| `slint`, `slint-build` | 1.18.1 | GPL-3.0-only OR Slint royalty-free OR commercial (beta uses GPL-3.0-only) | UI runtime and compiler |
+| `skia-safe` | 0.153.3 | MIT | Rust bindings for Skia |
+| Skia native library | resolved through `skia-safe` build | BSD-3-Clause | Skia renderer |
+| `winit` | 0.30.13 | Apache-2.0 | Windowing backend |
+| `rfd` | 0.17.2 | MIT | Native file picker |
+| `serde`, `serde_json` | 1.0.229, 1.0.154 | MIT OR Apache-2.0 | Isolated profile serialization |
+
+Halation remains GPL-3.0-or-later. This beta does not authorize or claim closed-source distribution.
 
 ## SIL Open Font License 1.1
 

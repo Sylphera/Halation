@@ -1,12 +1,11 @@
-node_modules/
 target/
-# Playwright CLI output (may contain credentials)
-.playwright-cli/
-# halation-preview: worktree, exe, profiles and caches (docs/PREVIEW.md)
-.tools/preview/
+node_modules/
 
-# Raw performance traces (summaries stay in docs/performance/**/*.md)
-docs/performance*/**/*.json
-docs/performance*/**/*.jsonl
-docs/performance*/**/*.log
-review/
+# Raw performance traces (summaries stay in research/performance/**/*.md)
+research/performance/**/*.json
+research/performance/**/*.jsonl
+research/performance/**/*.log
+
+# Local state: probes, captures, measurements, build trees. Never product, never versioned.
+.tools/
+.serena/

@@ -1,0 +1,695 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "pills.slint";
+import { Surface, Level } from "surface.slint";
+
+// Switch: 34 x 20, lavender when on
+export component Toggle inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <bool> checked: false;
+    in property <string> label: "";
+    callback toggled(bool);
+
+    width: 34px;
+    height: 20px;
+    focus-on-tab-navigation: true;
+    accessible-role: checkbox;
+    accessible-checked: checked;
+    accessible-label: label;
+    accessible-action-default => {
+        if (root.enabled) {
+            toggled(!checked);
+        }
+    }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            if (root.enabled) {
+                toggled(!checked);
+            }
+            accept
+        } else {
+            reject
+        }
+    }
+
+    // A recessed track; on, the accent rises in it as a raised piece
+    Surface {
+        level: Level.well;
+        radius: 10px;
+        opacity: root.enabled ? 1 : 0.45;
+        veil: touch.has-hover && !root.checked ? Theme.hover-fill : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+    }
+    property <float> off: root.checked ? 0 : 1;
+    animate off { duration: Motion.fade; easing: Curve.ease; }
+    Surface {
+        level: Level.accent;
+        radius: 10px;
+        clear: root.off;
+        opacity: root.enabled ? 1 : 0.45;
+    }
+    Rectangle {
+        border-radius: 10px;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.text;
+    }
+    Rectangle {
+        x: root.checked ? parent.width - 17px : 3px;
+        y: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: root.checked ? Theme.knob-dark : Theme.knob-light;
+        border-width: 1px;
+        border-color: root.checked ? Theme.raised-edge : Theme.contact;
+        animate x { duration: Motion.glide; easing: spring(0); }
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.toggled(!root.checked);
+        }
+    }
+}
+
+// A labelled row with a switch at the far right
+export component ToggleRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked;
+    callback toggled(bool);
+    height: 30px;
+    Text {
+        x: 0px;
+        y: (parent.height - self.height) / 2;
+        text: root.label;
+        color: Theme.muted;
+        font-size: Theme.font-body;
+    }
+    Toggle {
+        x: parent.width - self.width;
+        y: (parent.height - self.height) / 2;
+        label: root.label;
+        checked: root.checked;
+        toggled(value) => { root.toggled(value); }
+    }
+}
+
+// Drop-down: the current choice and a caret; the choices open in a popup below
+export component Select inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <[string]> options;
+    in property <int> current: 0;
+    in property <string> label: "";
+    callback chosen(int);
+
+    height: 32px;
+    focus-on-tab-navigation: true;
+    accessible-role: combobox;
+    accessible-label: label;
+    accessible-value: root.options[root.current];
+    accessible-action-default => { popup.show(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            popup.show();
+            accept
+        } else if (event.text == Key.DownArrow && root.current < root.options.length - 1) {
+            root.chosen(root.current + 1);
+            accept
+        } else if (event.text == Key.UpArrow && root.current > 0) {
+            root.chosen(root.current - 1);
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Surface {
+        level: Level.raised;
+        veil: touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    Text {
+        x: 10px;
+        width: parent.width - 34px;
+        y: (parent.height - self.height) / 2;
+        text: root.options[root.current];
+        color: Theme.text;
+        font-size: Theme.font-body;
+        font-weight: 500;
+        overflow: elide;
+    }
+    Path {
+        x: parent.width - 20px;
+        y: (parent.height - self.height) / 2;
+        width: 9px;
+        height: 5px;
+        viewbox-width: 9;
+        viewbox-height: 5;
+        commands: "M0 0 L9 0 L4.5 5 Z";
+        fill: Theme.subtle;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            popup.show();
+        }
+    }
+    popup := PopupWindow {
+        x: 0px;
+        y: root.height + 4px;
+        width: root.width;
+        Surface {
+            level: Level.popover;
+            radius: Theme.radius-overlay;
+            VerticalLayout {
+                padding: 4px;
+                for option[index] in root.options : Rectangle {
+                    height: 28px;
+                    border-radius: Theme.radius-control;
+                    background: option-touch.has-hover ? Theme.hover-fill : Theme.hover-fill.transparentize(1);
+                    animate background { duration: Motion.hover(option-touch.has-hover); easing: Curve.ease; }
+                    Text {
+                        x: 8px;
+                        y: (parent.height - self.height) / 2;
+                        text: option;
+                        color: index == root.current ? Theme.text : Theme.muted;
+                        font-size: Theme.font-body;
+                        font-weight: index == root.current ? 600 : 400;
+                    }
+                    option-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.chosen(index); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Single-line text field; the value is handed back when Enter is pressed or the field loses focus
+export component Field inherits Rectangle {
+    in property <string> value;
+    in property <string> placeholder;
+    in property <string> label;
+    in property <bool> mono: false;
+    callback committed(string);
+
+    height: 32px;
+    // Recessed; the focus ring on top
+    Surface {
+        level: Level.well;
+        veil: field-hover.has-hover && !input.has-focus ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(field-hover.has-hover); easing: Curve.ease; }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: input.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+
+    // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
+    field-hover := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+        input := TextInput {
+            x: 10px;
+            width: parent.width - 20px;
+            height: parent.height;
+            single-line: true;
+            vertical-alignment: center;
+            text: root.value;
+            color: Theme.text;
+            font-size: Theme.font-body;
+            font-family: root.mono ? "Consolas" : Theme.ui-face;
+            accessible-role: text-input;
+            accessible-label: root.label;
+            accepted => { root.committed(self.text); }
+            changed has-focus => {
+                if (!self.has-focus && self.text != root.value) {
+                    root.committed(self.text);
+                }
+            }
+        }
+        if input.text == "" : Text {
+            x: 10px;
+            y: (parent.height - self.height) / 2;
+            text: root.placeholder;
+            color: Theme.subtle;
+            font-size: Theme.font-body;
+        }
+    }
+}
+
+// Label above a control
+export component Labelled inherits VerticalLayout {
+    in property <string> text;
+    spacing: 6px;
+    Text {
+        text: root.text;
+        color: Theme.muted;
+        font-size: Theme.font-body;
+    }
+    @children
+}
+
+// Help line under a control
+export component Help inherits Text {
+    color: Theme.subtle;
+    font-size: Theme.font-small;
+    wrap: word-wrap;
+}
+
+// Small rounded tag: "Beta", "Always on", "Missing: …"
+export component Tag inherits Rectangle {
+    in property <string> text;
+    in property <color> ink: Theme.activity;
+    // Widest the tag may grow; longer text is elided
+    in property <length> limit: 2000px;
+    height: 20px;
+    width: min(root.limit, tag-text.preferred-width + 16px);
+    border-radius: 10px;
+    background: ink.transparentize(88%);
+    border-width: 1px;
+    border-color: ink.transparentize(55%);
+    tag-text := Text {
+        x: 8px;
+        width: parent.width - 16px;
+        overflow: elide;
+        y: (parent.height - self.height) / 2;
+        text: root.text;
+        color: root.ink;
+        font-size: 11.5px;
+        font-weight: 500;
+    }
+}
+
+// A group of settings: a panel of the material with its label and cells. Groups follow each other 16 px apart.
+export component Group inherits VerticalLayout {
+    in property <string> title;
+    spacing: 0px;
+    padding-bottom: 20px;
+    Rectangle {
+        Surface {
+            level: Level.bubble;
+            radius: Theme.radius;
+        }
+        VerticalLayout {
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 18px;
+            padding-bottom: 8px;
+            spacing: 0px;
+            // Small tracked capitals, quieter than the cells
+            Text {
+                text: root.title.to-uppercase();
+                color: Theme.subtle;
+                font-size: Theme.font-label;
+                font-weight: 600;
+                letter-spacing: Theme.label-tracking;
+            }
+            Rectangle { height: 10px; }
+            @children
+        }
+    }
+}
+
+// One setting: a 1 px line above, the name and an optional help line on the left, its control on the right
+export component Cell inherits Rectangle {
+    in property <string> name;
+    in property <string> help: "";
+    min-height: 54px;
+    preferred-height: max(54px, body.preferred-height);
+    // Cells of a pair share the width equally, whatever their text
+    preferred-width: 0px;
+    min-width: 0px;
+    horizontal-stretch: 1;
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.separator;
+    }
+    body := HorizontalLayout {
+        padding-top: 11px;
+        padding-bottom: 11px;
+        spacing: 24px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 3px;
+            Text {
+                text: root.name;
+                color: Theme.text;
+                font-size: Theme.font-body;
+                overflow: elide;
+            }
+            if root.help != "" : Text {
+                text: root.help;
+                color: Theme.subtle;
+                font-size: Theme.font-caption;
+                wrap: word-wrap;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            @children
+        }
+    }
+}
+
+// Two cells side by side, 32 px apart; an empty slot keeps the left one at half width
+export component Pair inherits HorizontalLayout {
+    spacing: 40px;
+    @children
+}
+
+// Content that takes the whole width of a group (a list, a choice of cards), with the cell's line above
+export component Wide inherits VerticalLayout {
+    spacing: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    Rectangle {
+        height: 1px;
+        background: Theme.separator;
+    }
+    @children
+}
+
+// Search field of the top bar: 240 px, a magnifier, the text and a placeholder
+export component SearchField inherits Rectangle {
+    in property <string> placeholder;
+    in property <string> label;
+    in-out property <string> text;
+    callback edited(string);
+    callback accepted(string);
+    width: 240px;
+    height: 28px;
+    // Recessed; the focus ring on top
+    Surface {
+        level: Level.well;
+        veil: search-hover.has-hover && !input.has-focus ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(search-hover.has-hover); easing: Curve.ease; }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: input.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
+    search-hover := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+        ToolIcon {
+            x: 9px;
+            y: (parent.height - self.height) / 2;
+            name: "search";
+            size: 14px;
+            tint: Theme.subtle;
+        }
+        input := TextInput {
+            x: 30px;
+            width: parent.width - 40px;
+            height: parent.height;
+            single-line: true;
+            vertical-alignment: center;
+            text <=> root.text;
+            color: Theme.text;
+            font-size: Theme.font-small;
+            accessible-role: text-input;
+            accessible-label: root.label;
+            edited => { root.edited(self.text); }
+            accepted => { root.accepted(self.text); }
+        }
+        if root.text == "" : Text {
+            x: 30px;
+            y: (parent.height - self.height) / 2;
+            text: root.placeholder;
+            color: Theme.subtle;
+            font-size: Theme.font-small;
+        }
+    }
+}
+
+// A choice of two to four short options in one capsule; the chosen one carries a pill that glides to it, and the
+// hover pill follows the pointer along the others (docs/features/motion.md §4.3)
+export component Segmented inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <[string]> options;
+    in property <int> current: 0;
+    in property <string> label: "";
+    callback chosen(int);
+
+    height: 32px;
+    min-width: row.min-width;
+    preferred-width: row.preferred-width;
+    focus-on-tab-navigation: true;
+    accessible-role: tab-list;
+    accessible-label: label;
+    key-pressed(event) => {
+        if (event.text == Key.RightArrow && root.current < root.options.length - 1) {
+            root.chosen(root.current + 1);
+            accept
+        } else if (event.text == Key.LeftArrow && root.current > 0) {
+            root.chosen(root.current - 1);
+            accept
+        } else {
+            reject
+        }
+    }
+
+    // A recessed track; the chosen option is a raised thumb
+    Surface {
+        level: Level.well;
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    pills := PillList {
+        x: 3px;
+        y: 3px;
+        width: parent.width - 6px;
+        height: parent.height - 6px;
+        horizontal: true;
+        hover-fill: Theme.raised-flat;
+        select-fill: Theme.raised-flat;
+        raised-select: true;
+        raised-hover: true;
+        soft-hover: true;
+        radius: Theme.radius-control - 3px;
+    }
+    row := HorizontalLayout {
+        padding: 3px;
+        spacing: 4px;
+        for option[index] in root.options : Rectangle {
+            property <bool> active: index == root.current;
+            min-width: name.preferred-width + 24px;
+            horizontal-stretch: 1;
+            accessible-role: tab;
+            accessible-label: option;
+            accessible-item-selected: self.active;
+            accessible-action-default => { root.chosen(index); }
+            init => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, true);
+                }
+            }
+            changed active => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, false);
+                }
+            }
+            // The capsule changed size: the pills follow at once
+            changed width => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, true);
+                }
+                if (option-touch.has-hover) {
+                    pills.hover(true, self.absolute-position.x, self.width);
+                }
+            }
+            name := Text {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                text: option;
+                color: parent.active || option-touch.has-hover ? Theme.text : Theme.muted;
+                animate color { duration: Motion.hover(option-touch.has-hover); easing: Curve.ease; }
+                font-size: Theme.font-body;
+                font-weight: parent.active ? 600 : 500;
+                accessible-role: none;
+                // Sinks at once on press, back on release
+                // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+                transform-scale-x: option-touch.pressed ? Motion.press-scale : 100%;
+                transform-scale-y: self.transform-scale-x;
+                animate transform-scale-x, transform-scale-y { duration: option-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+            }
+            option-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.focus();
+                    root.chosen(index);
+                }
+                changed has-hover => {
+                    pills.hover(self.has-hover, parent.absolute-position.x, parent.width);
+                }
+            }
+        }
+    }
+}
+
+// The accent's hue (docs/features/themes.md): a recessed strip of every accent the theme can take, at the luminance
+// that keeps its contrast, with a raised knob in the current accent. Dragging previews the colour live; releasing, a
+// click or the arrow keys choose it.
+export component HueStrip inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <string> label: "";
+    // The chosen hue in degrees, or `theme-hue` shown when the theme's own accent is in use
+    in property <int> hue: 0;
+    callback preview(int);
+    callback chosen(int);
+
+    property <length> knob: 18px;
+    property <length> travel: root.width - root.knob;
+    property <int> dragged: root.hue;
+    property <int> shown: touch.pressed ? root.dragged : root.hue;
+    pure function hue-at(x: length) -> int {
+        return Math.clamp(Math.round((x - root.knob / 2) / root.travel * 359), 0, 359);
+    }
+
+    width: 220px;
+    height: 32px;
+    focus-on-tab-navigation: true;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.shown + "°";
+    accessible-value-minimum: 0;
+    accessible-value-maximum: 359;
+    accessible-value-step: 5;
+    accessible-action-increment => { root.chosen(Math.mod(root.hue + 5, 360)); }
+    accessible-action-decrement => { root.chosen(Math.mod(root.hue + 355, 360)); }
+    key-pressed(event) => {
+        if (event.text == Key.RightArrow) {
+            root.chosen(Math.mod(root.hue + 5, 360));
+            accept
+        } else if (event.text == Key.LeftArrow) {
+            root.chosen(Math.mod(root.hue + 355, 360));
+            accept
+        } else {
+            reject
+        }
+    }
+
+    Surface {
+        y: (parent.height - 12px) / 2;
+        height: 12px;
+        level: Level.well;
+        radius: 6px;
+    }
+    // Four quarters of 90° with four stops each (the software renderer of the screenshots drops longer gradients)
+    strip := Rectangle {
+        x: 2px;
+        y: (parent.height - 8px) / 2;
+        width: parent.width - 4px;
+        height: 8px;
+        border-radius: 4px;
+        clip: true;
+        opacity: 0.9;
+        Rectangle {
+            x: 0 * parent.width / 4;
+            width: parent.width / 4;
+            background: @linear-gradient(90deg, #da9b9b 0%, #cea479 33%, #b0b041 67%, #82bc49 100%);
+        }
+        Rectangle {
+            x: 1 * parent.width / 4;
+            width: parent.width / 4;
+            background: @linear-gradient(90deg, #82bc49 0%, #58c158 33%, #53c089 67%, #49bcbc 100%);
+        }
+        Rectangle {
+            x: 2 * parent.width / 4;
+            width: parent.width / 4;
+            background: @linear-gradient(90deg, #49bcbc 0%, #8bb0d4 33%, #a7a7de 67%, #bea0dc 100%);
+        }
+        Rectangle {
+            x: 3 * parent.width / 4;
+            width: parent.width / 4;
+            background: @linear-gradient(90deg, #bea0dc 0%, #d894d8 33%, #d999b9 67%, #da9b9b 100%);
+        }
+    }
+    Rectangle {
+        x: root.shown / 359 * root.travel;
+        y: (parent.height - root.knob) / 2;
+        width: root.knob;
+        height: root.knob;
+        border-radius: root.knob / 2;
+        background: Theme.accent;
+        border-width: 2px;
+        border-color: Theme.chrome;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #00000080;
+        drop-shadow-offset-y: 1px;
+    }
+    Rectangle {
+        x: root.shown / 359 * root.travel - 2px;
+        y: (parent.height - root.knob) / 2 - 2px;
+        width: root.knob + 4px;
+        height: root.knob + 4px;
+        border-radius: root.knob / 2 + 2px;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.text;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        changed pressed => {
+            if (self.pressed) {
+                root.focus();
+                root.dragged = root.hue-at(self.pressed-x);
+                root.preview(root.dragged);
+            } else {
+                root.chosen(root.dragged);
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.dragged = root.hue-at(self.mouse-x);
+                root.preview(root.dragged);
+            }
+        }
+    }
+}

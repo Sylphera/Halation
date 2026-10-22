@@ -1,0 +1,28 @@
+// Motion tokens (docs/features/motion.md §3). Rust (`motion.rs`) sets them from Settings; the defaults are the normal
+// values so headless tests and snapshots see the same. With reduced motion every duration is 0 ms and nothing scales.
+// Every animated frame repaints the whole window (Skia on OpenGL), so motion is short, colour-first, never delayed.
+export global Motion {
+    in-out property <duration> hover-in: 40ms;
+    in-out property <duration> hover-out: 90ms;
+    in-out property <duration> release: 70ms;
+    // The leading edge of a pill, and the switch's knob (with `spring(0)`): about as fast as the pointer
+    in-out property <duration> glide: 55ms;
+    // The trailing edge of a pill: the pill stretches by the gap between the two, then closes up
+    in-out property <duration> trail: 110ms;
+    in-out property <duration> fade: 80ms;
+    in-out property <duration> panel: 120ms;
+    // A Timer, not an animation delay: a delay repaints every frame while it waits
+    in-out property <duration> tip-wait: 400ms;
+    in-out property <percent> press-scale: 97%;
+
+    // Fast in, soft out
+    public pure function hover(on: bool) -> duration {
+        on ? root.hover-in : root.hover-out
+    }
+}
+
+// The one curve of what is not a spring: most of the change in the first third, so even 70 ms reads as an immediate
+// answer. Its own global because Rust cannot hold an easing.
+export global Curve {
+    out property <easing> ease: Easing.cubic-bezier(0.2, 0, 0, 1);
+}

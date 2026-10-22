@@ -3,7 +3,7 @@
 The source code of Halation is free software under the GNU General Public License version 3 or later (`LICENSE`,
 `NOTICE.md`). The GPL is a copyright license and does not grant rights to the project's name or logo.
 
-"Halation", the Halation logo, the app icon and the wordmark (`docs/brand/`, `app/src-tauri/icons/`) are reserved by
+"Halation", the Halation logo, the app icon and the wordmark (`docs/media/brand/`, and the app icon on `main` in `app/src-tauri/icons/`) are reserved by
 Sylphera.
 
 ## Allowed without asking

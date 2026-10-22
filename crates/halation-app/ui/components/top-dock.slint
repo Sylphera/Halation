@@ -1,0 +1,221 @@
+import { Theme } from "../theme.slint";
+import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { Tooltip } from "tooltip.slint";
+import { Surface, Level } from "surface.slint";
+
+// A 32 px icon button of the top bar, with a tooltip below it. Hovered or pressed it is a raised piece of the material,
+// as the sidebar's rows are (Java, 2026-10-22)
+export component BarButton inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <string> icon;
+    in property <string> label;
+    // Its shortcut, shown as a key cap in the tooltip
+    in property <string> key: "";
+    // False where the top bar itself grows to name the button (`BarHint`) instead of a tooltip
+    in property <bool> bubble: true;
+    out property <bool> lit: touch.has-hover || root.keyboard-focus;
+    callback activated;
+    width: 32px;
+    height: 32px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: root.key != "" ? root.label + " (" + root.key + ")" : root.label;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+    property <float> rest: touch.has-hover || touch.pressed ? 0 : 1;
+    animate rest { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+    Surface {
+        level: Level.raised;
+        pressed: touch.pressed;
+        clear: root.rest;
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    content := Rectangle {
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+        @children
+        if root.icon != "" : ToolIcon {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            name: root.icon;
+            size: 17px;
+            tint: touch.has-hover ? Theme.text : Theme.muted;
+            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+    }
+    if root.bubble : Tooltip {
+        x: parent.width - self.width;
+        y: parent.height + 8px;
+        text: root.label;
+        key: root.key;
+        show: touch.has-hover || root.keyboard-focus;
+        at-once: root.keyboard-focus;
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.activated(); }
+    }
+}
+
+// Activity: a dot, lit while jobs run, beside the page's name in the top bar
+export component ActivityButton inherits BarButton {
+    in property <bool> busy: false;
+    icon: "";
+    label: root.busy ? "Activity: working" : "Activity: all quiet";
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: root.busy ? Theme.activity : Theme.subtle;
+    }
+}
+
+// The global actions at the right of the top bar: keyboard shortcuts, the Halation folder, language and saving the
+// session. They have no tooltips: the top bar grows under them to name the one hovered (`BarHint`; Java, 2026-10-22)
+export component TopActions inherits HorizontalLayout {
+    callback shortcuts();
+    callback open-folder();
+    callback language();
+    callback save-session();
+    // The hovered or focused button's name and shortcut, empty when none
+    callback hinted(string, string);
+    property <string> hint: keys.lit ? "Keyboard shortcuts" : folder.lit ? "Halation folder" : globe.lit ? "Language" : save.lit ? "Save Session" : "";
+    changed hint => { root.hinted(root.hint, keys.lit ? "?" : ""); }
+
+    spacing: 6px;
+    alignment: end;
+
+    keys := BarButton { icon: "keyboard"; label: "Keyboard shortcuts"; key: "?"; bubble: false; activated => { root.shortcuts(); } }
+    folder := BarButton { icon: "folder-open"; label: "Halation folder"; bubble: false; activated => { root.open-folder(); } }
+    globe := BarButton { icon: "globe"; label: "Language"; bubble: false; activated => { root.language(); } }
+    save := BarButton { icon: "save"; label: "Save Session"; bubble: false; activated => { root.save-session(); } }
+}
+
+// The top bar growing down into the page under its global actions to name the one hovered: one surface of the
+// toolbar's colour reaching the window's right frame (Java, 2026-10-22), its width following the name, the name's right
+// edge fixed, joined to the bar by an inverted curve and giving the page's corner back below it
+export component BarHint inherits Rectangle {
+    in property <string> text;
+    in property <string> key;
+    // From the anchor (the name's right edge, under the buttons) to the bar's right edge, and the frame's width there
+    in property <length> tail: 12px;
+    in property <length> frame: Theme.sheet-inset;
+    // The last name, kept while the surface closes
+    property <string> shown;
+    property <string> shown-key;
+    changed text => {
+        if (root.text != "") {
+            root.shown = root.text;
+            root.shown-key = root.key;
+        }
+    }
+    property <bool> open: root.text != "";
+    // Measured from the name and the key cap themselves (the row's preferred width lags behind the name)
+    property <length> cap: root.shown-key != "" ? 8px + max(18px, key-measure.preferred-width + 10px) : 0px;
+    property <length> reach: root.open ? name.preferred-width + root.cap + 28px : 0px;
+    animate reach { duration: Motion.panel; easing: Curve.ease; }
+    property <float> hidden-by: root.open ? 0 : 1;
+    animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
+    property <length> fillet: min(8px, root.reach / 2);
+
+    width: 0px;
+    height: 28px;
+    key-measure := Text {
+        visible: false;
+        text: root.shown-key;
+        font-size: 10.5px;
+        font-weight: 600;
+        accessible-role: none;
+    }
+
+    if root.reach > 0.5px : Rectangle {
+        x: -root.reach;
+        width: root.reach + root.tail;
+        height: root.height;
+        background: Theme.chrome;
+        border-bottom-left-radius: min(10px, root.reach / 2);
+    }
+    Rectangle {
+        x: -root.reach;
+        width: root.reach;
+        height: root.height;
+        clip: true;
+        HorizontalLayout {
+            x: parent.width - name.preferred-width - root.cap - 14px;
+            width: name.preferred-width + root.cap;
+            spacing: 8px;
+            name := Text {
+                text: root.shown;
+                color: Theme.text.transparentize(root.hidden-by);
+                font-size: Theme.font-small;
+                font-weight: 500;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+            if root.shown-key != "" : VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: max(18px, key-text.preferred-width + 10px);
+                    height: 18px;
+                    border-radius: 5px;
+                    background: Theme.key-fill.transparentize(root.hidden-by);
+                    border-width: 1px;
+                    border-color: Theme.key-edge.transparentize(root.hidden-by);
+                    key-text := Text {
+                        text: root.shown-key;
+                        color: Theme.muted.transparentize(root.hidden-by);
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        accessible-role: none;
+                    }
+                }
+            }
+        }
+    }
+    // The inverted curves where the surface leaves the bar
+    if root.reach > 0.5px : Path {
+        x: -root.reach - root.fillet;
+        y: 0px;
+        width: root.fillet;
+        height: root.fillet;
+        viewbox-width: 8;
+        viewbox-height: 8;
+        commands: "M 0 0 L 8 0 L 8 8 A 8 8 0 0 0 0 0 Z";
+        fill: Theme.chrome;
+    }
+    // The page's top right corner, given back under the surface
+    if root.reach > 0.5px : Path {
+        x: root.tail - root.frame - self.width;
+        y: root.height;
+        width: min(Theme.radius-sheet, root.reach);
+        height: self.width;
+        viewbox-width: 8;
+        viewbox-height: 8;
+        commands: "M 0 0 L 8 0 L 8 8 A 8 8 0 0 0 0 0 Z";
+        fill: Theme.chrome;
+    }
+}

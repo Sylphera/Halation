@@ -1,0 +1,37 @@
+import { Assets } from "assets.slint";
+
+// Lucide icons (ISC licence, see NOTICE.md) and the Halation mark, loaded from the assets folder and tinted with
+// `colorize`. "jobs" is drawn as a path.
+component IconJobs inherits Path {
+    in property <color> tint: #f5f5f2;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    commands: "M4 12 L8 12 L10 6 L14 18 L16 12 L20 12";
+    stroke: tint;
+    stroke-width: 1.7px;
+    fill: transparent;
+}
+
+export component ToolIcon inherits Rectangle {
+    in property <string> name: "download";
+    in property <color> tint: #f5f5f2;
+    in property <length> size: 20px;
+    width: size;
+    height: size;
+
+    if name == "mark" : Image {
+        source: Assets.mark;
+        width: parent.width * 1.4;
+        height: parent.height * 0.7;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        image-fit: contain;
+    }
+    if name == "jobs" : IconJobs { width: parent.width; height: parent.height; tint: root.tint; }
+    if name != "mark" && name != "jobs" : Image {
+        source: Assets.icon(root.name);
+        colorize: root.tint;
+        width: parent.width;
+        height: parent.height;
+    }
+}

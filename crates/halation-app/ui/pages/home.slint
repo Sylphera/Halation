@@ -1,0 +1,320 @@
+import { Theme } from "../theme.slint";
+import { Assets } from "../assets.slint";
+import { ToolIcon } from "../icons.slint";
+import { ToolItem, RecentItem } from "../models.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
+
+// One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
+component StripItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <string> icon;
+    in property <string> label;
+    callback activated;
+    callback hovered(bool, length, length);
+    changed x => {
+        if (touch.has-hover) {
+            root.hovered(true, root.absolute-position.x, root.width);
+        }
+    }
+    // Every tool the same width (the hover pill keeps one size along the strip); narrow windows shrink them all
+    // alike and the longest labels elide
+    preferred-width: 124px;
+    min-width: 72px;
+    horizontal-stretch: 1;
+    height: 52px;
+    focus-on-tab-navigation: true;
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+    Rectangle {
+        border-radius: Theme.radius;
+        background: touch.pressed ? Theme.press-fill : transparent;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    Rectangle {
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+        ToolIcon {
+            x: (parent.width - self.width) / 2;
+            y: 9px;
+            name: root.icon;
+            size: 17px;
+            tint: touch.has-hover ? Theme.text : Theme.muted;
+            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+        Text {
+            x: 4px;
+            y: 31px;
+            width: parent.width - 8px;
+            horizontal-alignment: center;
+            overflow: elide;
+            text: root.label;
+            color: touch.has-hover ? Theme.text : Theme.muted;
+            animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+            font-size: Theme.font-caption;
+            font-weight: 500;
+            accessible-role: none;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+        changed has-hover => {
+            root.hovered(self.has-hover, root.absolute-position.x, root.width);
+        }
+    }
+}
+
+// Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the wordmark (no mark), the
+// tagline, the strip of tools, and the drop zone with recent files anchored to the bottom. Surfaces and corners use
+// the frame's tokens: the panel fill, a faint line and the one radius.
+export component HomePage inherits Rectangle {
+    in property <[ToolItem]> tools;
+    in property <[RecentItem]> recent;
+    in property <bool> library-loaded: false;
+
+    callback tool-activated(string);
+    callback choose-reference();
+    callback file-dropped(data-transfer);
+
+    // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
+    property <length> hero-top: max(24px, root.height / 2 - 240px);
+    property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
+
+    // The wordmark's halation glow (docs/features/material.md), a prepared image: no blur runs on Home
+    Image {
+        x: (parent.width - 600px) / 2 - 180px;
+        y: root.hero-top - 180px;
+        width: 960px;
+        height: 428px;
+        source: Assets.wordmark-glow;
+        image-fit: fill;
+        accessible-role: none;
+    }
+    // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600, tracked 0.20 em, as outlines; 88 px ("bastante
+    // más grande" than the 60 px first chosen)
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top;
+        width: 600px;
+        height: 68.2px;
+        source: Assets.wordmark;
+        colorize: Theme.wordmark;
+        image-fit: contain;
+        accessible-role: image;
+        accessible-label: "Halation";
+    }
+
+    Text {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 90px;
+        text: "Take your time. Everything else is instant.";
+        color: Theme.muted;
+        font-size: Theme.font-title;
+    }
+
+    // Tool strip
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.hero-top + 138px;
+        width: min(strip.preferred-width, parent.width - 24px);
+        height: 62px;
+        // A panel over the Drape; the tool under the pointer rises as a raised piece
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
+        strip-pills := PillList {
+            x: 5px;
+            y: 5px;
+            width: parent.width - 10px;
+            height: parent.height - 10px;
+            horizontal: true;
+            has-selection: false;
+            hover-fill: Theme.raised-flat;
+            raised-hover: true;
+            radius: Theme.radius;
+        }
+        strip := HorizontalLayout {
+            padding-left: 5px;
+            padding-right: 5px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            spacing: 0px;
+            for tool in root.tools : StripItem {
+                icon: tool.icon;
+                label: tool.name;
+                activated => { root.tool-activated(tool.id); }
+                hovered(on, at, size) => { strip-pills.hover(on, at, size); }
+            }
+        }
+    }
+
+    // Drop zone
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top;
+        // Taller and wider, recent files lower (Java, 2026-10-22)
+        width: min(780px, parent.width - 48px);
+        height: 196px;
+        // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+            animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        }
+        Rectangle {
+            border-radius: Theme.radius;
+            border-width: 1px;
+            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.accent.transparentize(1);
+            animate border-color { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
+        }
+        // Grows a little under a dragged file, sinks a little on press
+        // (nothing scales with reduced motion, when the press scale is 100 %)
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: Motion.press-scale >= 100% ? 100% : drop-touch.pressed ? 99% : drop-area.has-drag ? 101% : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: drop-touch.pressed ? 0ms : Motion.glide; easing: spring(0); }
+
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: 48px;
+            width: 48px;
+            height: 48px;
+            Surface {
+                level: Level.raised;
+                radius: Theme.radius;
+            }
+            ToolIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                name: "upload";
+                size: 22px;
+                tint: Theme.text;
+            }
+        }
+
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 110px;
+            text: drop-area.has-drag ? "Drop to add it to your Library" : "Drop a song or an image";
+            color: Theme.text;
+            font-size: 15.5px;
+            font-weight: 600;
+        }
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 135px;
+            text: "Or click to browse. Files are added to your Library, never copied.";
+            color: Theme.subtle;
+            font-size: Theme.font-body;
+        }
+
+        drop-touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                drop-focus.focus();
+                root.choose-reference();
+            }
+        }
+        drop-focus := FocusScope {
+            width: 0px;
+            height: 0px;
+            focus-on-tab-navigation: true;
+            accessible-role: button;
+            accessible-label: "Drop a song or an image, or click to browse";
+            accessible-action-default => { root.choose-reference(); }
+            key-pressed(event) => {
+                if (event.text == Key.Return || event.text == Key.Space) {
+                    root.choose-reference();
+                    accept
+                } else {
+                    reject
+                }
+            }
+        }
+        drop-area := DropArea {
+            can-drop(event) => { DragAction.copy }
+            dropped(event) => {
+                root.file-dropped(event.data);
+                event.proposed-action
+            }
+        }
+    }
+
+    // Recent files: as wide as the drop zone, its label over the files or the description, centred like it
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: root.drop-top + 196px + 14px;
+        width: min(780px, parent.width - 48px);
+        height: 72px;
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
+        Text {
+            x: (parent.width - self.width) / 2;
+            y: 17px;
+            text: "RECENT FILES";
+            color: Theme.subtle;
+            font-size: Theme.font-label;
+            font-weight: 600;
+            letter-spacing: Theme.label-tracking;
+        }
+        if root.recent.length == 0 : Text {
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            horizontal-alignment: center;
+            text: root.library-loaded ? "Files you add to the Library show up here." : "Reading your Library…";
+            color: Theme.muted;
+            font-size: Theme.font-small;
+            overflow: elide;
+        }
+        if root.recent.length > 0 : HorizontalLayout {
+            x: 24px;
+            y: 37px;
+            width: parent.width - 48px;
+            height: 18px;
+            spacing: 16px;
+            alignment: center;
+            for item in root.recent : Text {
+                text: item.name;
+                color: Theme.muted;
+                font-size: Theme.font-small;
+                vertical-alignment: center;
+                overflow: elide;
+                max-width: 160px;
+            }
+        }
+    }
+}

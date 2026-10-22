@@ -1,0 +1,232 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// The hover and selection pills of a list of rows: two rectangles without children that stretch to the row the rows
+// report and close up on it. Draw it behind the rows, in the same parent; it covers the parent's width less `inset-left`
+// and `inset-right`. Positions come in window coordinates.
+export component PillList inherits Rectangle {
+    in property <length> inset-left: 8px;
+    in property <length> inset-right: 9px;
+    // Horizontal lists (Home's strip): the pills glide in x and take the reported width
+    in property <bool> horizontal: false;
+    in property <color> hover-fill: Theme.control-hover;
+    in property <color> select-fill: Theme.control-active;
+    in property <length> radius: Theme.radius-control;
+    // False while no row of the list stands for what is shown
+    in property <bool> has-selection: true;
+    // An accent bar beside the selected row (the sidebar)
+    in property <bool> bar: false;
+    // The pills as raised pieces of the material (docs/features/material.md): a falling fill, a lit top edge and a dark
+    // contact edge under them; `select-fill` and `hover-fill` then only colour the neck, so they take `raised-flat`
+    in property <bool> raised-select: false;
+    in property <bool> raised-hover: false;
+    // The hover pill half as strong as the selection, so a hovered option beside the chosen one never reads as a
+    // second choice (segmented controls and tabs; Java, 2026-10-22); full strength as it fuses with the selection
+    in property <bool> soft-hover: false;
+
+    property <length> hover-at;
+    // Where the hover pill came from: the neck only forms when it leaves or reaches the selected row
+    property <length> hover-from;
+    property <length> hover-size;
+    property <bool> hover-on: false;
+    property <bool> hover-snap: true;
+    // Which way the pill last moved: down or right is forward
+    property <bool> hover-forward: true;
+    // The pill is gone (no row hovered for a moment): the next hover places it at once instead of gliding
+    property <bool> hover-idle: true;
+    // When the pointer last entered a row, and the glide of the pill's leading edge now (its trailing edge takes twice)
+    property <duration> hover-tick;
+    property <duration> hover-lead: Motion.glide;
+    property <length> select-at;
+    property <length> select-size;
+    property <bool> select-on: false;
+    property <bool> select-snap: true;
+    property <bool> select-forward: true;
+    property <length> origin: root.horizontal ? root.absolute-position.x : root.absolute-position.y;
+
+    public function hover(on: bool, at: length, size: length) {
+        if (on) {
+            // Appearing, it starts at the row; moving between rows (or across a gap between them), it glides
+            // While the pointer sweeps the list, the glide follows its pace: about the time it takes to cross a row,
+            // so the pill is still on its way when the next row turns it, and never stops at each row. Faster sweeps
+            // give a faster pill (down to 65 % of `glide`), slower ones a slower one (up to three times); from rest,
+            // or after a pause of over 250 ms, it is `glide`. Averaged with the last crossing so an uneven hand does
+            // not jolt it. One sum per row crossed; no frame is added.
+            root.hover-lead = Motion.glide <= 0ms ? 0ms
+                : root.hover-idle || animation-tick() - root.hover-tick > 250ms ? Motion.glide
+                : (root.hover-lead + max(Motion.glide * 0.65, min(Motion.glide * 3, (animation-tick() - root.hover-tick) * 0.8))) / 2;
+            root.hover-tick = animation-tick();
+            root.hover-snap = root.hover-idle;
+            root.hover-idle = false;
+            leave.running = false;
+            root.hover-forward = at - root.origin >= root.hover-at;
+            root.hover-from = root.hover-snap ? at - root.origin : root.hover-at;
+            root.hover-at = at - root.origin;
+            root.hover-size = size;
+            root.hover-on = true;
+        } else if (root.hover-at == at - root.origin) {
+            root.hover-on = false;
+            leave.running = true;
+        }
+    }
+    public function select(at: length, size: length, snap: bool) {
+        root.select-snap = snap || !root.select-on;
+        root.select-forward = at - root.origin >= root.select-at;
+        root.select-at = at - root.origin;
+        root.select-size = size;
+        root.select-on = true;
+    }
+
+    leave := Timer {
+        interval: 200ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            if (!root.hover-on) {
+                root.hover-idle = true;
+            }
+        }
+    }
+
+    // Each pill is drawn between two edges along the list. Moving, the edge in front leads (`glide`) and the edge
+    // behind follows (`trail`): the pill stretches towards the new row and closes up on it, one shape all the way.
+    // A spring, not an ease curve: a sweep retargets the pill at every row, and a spring keeps its speed across a
+    // retarget where an ease curve restarts from standstill (the pill stopped and started at each row)
+    property <length> select-start: root.select-at;
+    property <length> select-end: root.select-at + root.select-size;
+    animate select-start { duration: root.select-snap ? 0ms : root.select-forward ? Motion.trail : Motion.glide; easing: spring(0); }
+    animate select-end { duration: root.select-snap ? 0ms : root.select-forward ? Motion.glide : Motion.trail; easing: spring(0); }
+    property <length> hover-start: root.hover-at;
+    property <length> hover-end: root.hover-at + root.hover-size;
+    animate hover-start { duration: root.hover-snap ? 0ms : root.hover-forward ? root.hover-lead * 2 : root.hover-lead; easing: spring(0); }
+    animate hover-end { duration: root.hover-snap ? 0ms : root.hover-forward ? root.hover-lead : root.hover-lead * 2; easing: spring(0); }
+
+    property <bool> select-shown: root.select-on && root.has-selection;
+    if root.raised-select : Rectangle {
+        x: selection.x;
+        y: selection.y + 1px;
+        width: selection.width;
+        height: selection.height;
+        border-radius: root.radius;
+        background: root.select-shown ? Theme.contact : Theme.contact.transparentize(1);
+    }
+    selection := Rectangle {
+        x: root.horizontal ? root.select-start : root.inset-left;
+        y: root.horizontal ? 0px : root.select-start;
+        width: root.horizontal ? max(0px, root.select-end - root.select-start) : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : max(0px, root.select-end - root.select-start);
+        border-radius: root.radius;
+        background: !root.raised-select ? (root.select-shown ? root.select-fill : root.select-fill.transparentize(1))
+            : root.select-shown ? Theme.raised-fill : Theme.raised-fill.transparentize(1);
+        border-width: root.raised-select ? 1px : 0px;
+        border-color: root.select-shown ? Theme.raised-edge : Theme.raised-edge.transparentize(1);
+    }
+    // The accent bar beside the selected row (vertical lists with `bar`), stretching with the pill
+    if root.bar && !root.horizontal : Rectangle {
+        x: max(0px, root.inset-left - 6px);
+        y: root.select-start + root.select-size * 0.3;
+        width: 3px;
+        height: max(0px, root.select-end - root.select-start - root.select-size * 0.6);
+        border-radius: 1.5px;
+        background: root.select-on && root.has-selection ? Theme.accent : Theme.accent.transparentize(1);
+    }
+    // Fusion. Near the selection, while the hover pill moves, the two flow into each other through a neck instead of
+    // one lying over the other (Java, 2026-10-22). Both pills run along the same axis with the same cross size, so the
+    // neck is one path with fixed commands: from the nearer end of one pill to the nearer end of the other, its sides
+    // pinched in by how far apart they are. The hover pill takes the selection's colour as it closes in, so the
+    // joined shape is one surface; overlapping, it is the selection. At rest side by side they stand apart. A few
+    // bindings and one small path, drawn only while the pills move.
+    property <length> overlap: min(root.hover-end, root.select-end) - max(root.hover-start, root.select-start);
+    // Neck reach: pills further apart than this never join
+    property <length> reach: 18px;
+    property <bool> hover-moving: abs(root.hover-start - root.hover-at) > 0.5px || abs(root.hover-end - root.hover-at - root.hover-size) > 0.5px;
+    // 1 while the hover pill moves, back to 0 once it rests
+    property <float> join: root.hover-moving ? 1 : 0;
+    animate join { duration: Motion.fade; easing: Curve.ease; }
+    // Only a pill that leaves the selected row or heads for it joins it: passing from one row to another beside the
+    // selection draws no neck between them (Java, 2026-10-22)
+    property <bool> touches-selection: abs(root.hover-at - root.select-at) < 0.5px || abs(root.hover-from - root.select-at) < 0.5px;
+    property <bool> fusing: root.hover-on && root.select-on && root.has-selection && root.touches-selection;
+    // 0 apart, 1 joined into one surface
+    property <float> closeness: !root.fusing ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
+    property <color> hover-colour: root.select-fill.mix(root.hover-fill, root.closeness);
+    property <float> hover-alpha: root.hover-on ? 0 : 1;
+    animate hover-alpha { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
+
+    // The neck's ends (along the list) and sides (across it), in the list's own coordinates
+    property <bool> hover-first: root.hover-start < root.select-start;
+    property <length> neck-a: (root.hover-first ? root.hover-end : root.select-end) - root.radius * root.closeness - 1px;
+    property <length> neck-b: (root.hover-first ? root.select-start : root.hover-start) + root.radius * root.closeness + 1px;
+    property <length> cross-0: (root.horizontal ? 0px : root.inset-left) + root.radius * (1 - root.closeness);
+    property <length> cross-1: (root.horizontal ? root.height : root.width - root.inset-right) - root.radius * (1 - root.closeness);
+    // How far each side bows in at the middle; a cubic with both controls at `bow / 0.75` reaches it
+    property <length> bow: (root.cross-1 - root.cross-0) / 2 * (1 - root.closeness) * 0.85 / 0.75;
+    // Main and cross coordinates to path numbers
+    pure function px(main: length, across: length) -> float {
+        (root.horizontal ? main : across) / 1px
+    }
+    pure function py(main: length, across: length) -> float {
+        (root.horizontal ? across : main) / 1px
+    }
+
+    if root.overlap <= 0px && root.closeness > 0.02 : Path {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        viewbox-x: 0;
+        viewbox-y: 0;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        fill: root.hover-colour.transparentize(root.hover-alpha);
+        MoveTo {
+            x: root.px(root.neck-a, root.cross-0);
+            y: root.py(root.neck-a, root.cross-0);
+        }
+        CubicTo {
+            control-1-x: root.px(root.neck-a, root.cross-0 + root.bow);
+            control-1-y: root.py(root.neck-a, root.cross-0 + root.bow);
+            control-2-x: root.px(root.neck-b, root.cross-0 + root.bow);
+            control-2-y: root.py(root.neck-b, root.cross-0 + root.bow);
+            x: root.px(root.neck-b, root.cross-0);
+            y: root.py(root.neck-b, root.cross-0);
+        }
+        LineTo {
+            x: root.px(root.neck-b, root.cross-1);
+            y: root.py(root.neck-b, root.cross-1);
+        }
+        CubicTo {
+            control-1-x: root.px(root.neck-b, root.cross-1 - root.bow);
+            control-1-y: root.py(root.neck-b, root.cross-1 - root.bow);
+            control-2-x: root.px(root.neck-a, root.cross-1 - root.bow);
+            control-2-y: root.py(root.neck-a, root.cross-1 - root.bow);
+            x: root.px(root.neck-a, root.cross-1);
+            y: root.py(root.neck-a, root.cross-1);
+        }
+        Close {}
+    }
+
+    // Raised: the hover pill carries the raised edges; over or joined to a raised selection it takes them as it
+    // becomes the selection, so hovering the selected row keeps its relief
+    property <float> hover-strength: root.soft-hover ? 0.45 + 0.55 * root.closeness : 1;
+    property <float> hover-clear: 1 - (1 - root.hover-alpha) * root.hover-strength;
+    property <float> edge-clear: root.raised-hover ? root.hover-clear : 1 - root.closeness * (1 - root.hover-alpha);
+    if root.raised-hover || root.raised-select : Rectangle {
+        x: hover-pill.x;
+        y: hover-pill.y + 1px;
+        width: hover-pill.width;
+        height: hover-pill.height;
+        border-radius: root.radius;
+        background: Theme.contact.transparentize(root.edge-clear);
+    }
+    hover-pill := Rectangle {
+        x: root.horizontal ? root.hover-start : root.inset-left;
+        y: root.horizontal ? 0px : root.hover-start;
+        width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
+        border-radius: root.radius;
+        background: root.raised-hover ? Theme.raised-fill.transparentize(root.hover-clear) : root.hover-colour.transparentize(root.hover-alpha);
+        border-width: root.raised-hover || root.raised-select ? 1px : 0px;
+        border-color: Theme.raised-edge.transparentize(root.edge-clear);
+    }
+}

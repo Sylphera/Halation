@@ -1,0 +1,13 @@
+[workspace]
+resolver = "3"
+members = ["crates/halation-core", "crates/halation-app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+license = "GPL-3.0-or-later"
+publish = false
+
+[profile.release]
+strip = "debuginfo"

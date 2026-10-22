@@ -1,4 +1,0 @@
-// Benchmark-only original source upload; no alternate production renderer.
-const assert=require('assert/strict');
-const modern="    do {\n      if (!(await sourceVisible()) || my !== sourceSeq) return;\n      bitmap = await prepareSource(file, el);\n      if (my !== sourceSeq) return;\n      if (!window.__ui.away) break;\n      bitmap?.close(); bitmap = null;\n    } while (true);\n    uploadSource(bitmap || el, el.naturalWidth, el.naturalHeight);\n    G.lastSrc = { el, w: el.naturalWidth, h: el.naturalHeight };\n    bitmap?.close(); bitmap = null; uploadMask(null);";
-module.exports=code=>{if(!code.includes(modern)){assert(code.includes('uploadSource(el, el.naturalWidth, el.naturalHeight); uploadMask(null);'),'Original source upload anchor');return code;}return code.replace(modern,"    uploadSource(el, el.naturalWidth, el.naturalHeight); uploadMask(null);");};

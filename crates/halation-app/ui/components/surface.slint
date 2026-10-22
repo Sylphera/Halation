@@ -1,0 +1,54 @@
+import { Theme } from "../theme.slint";
+
+// The material's levels (docs/features/material.md §3)
+export enum Level { well, bubble, raised, popover, accent }
+
+// One piece of material: a two-stop fill, a 1 px edge brighter at the top and, for pieces that stand above their
+// ground, a 1 px dark contact edge under them. Two rectangles at most, no blur. `veil` lays the hover or press tint
+// over the fill (it animates where a gradient cannot); children are drawn on top.
+export component Surface inherits Rectangle {
+    in property <Level> level: Level.raised;
+    in property <length> radius: Theme.radius-control;
+    // Over the Drape: the panel lets it through, so it has no contact edge (it would show through the fill)
+    in property <bool> glass: false;
+    in property <bool> pressed: false;
+    in property <brush> veil: transparent;
+    // 0 shown, 1 gone: fades the piece by its colours, not by `opacity` (no layer; docs/features/motion.md §2)
+    in property <float> clear: 0;
+
+    property <bool> stands: !root.glass && (root.level == Level.raised || root.level == Level.popover || root.level == Level.accent);
+
+    if root.stands : Rectangle {
+        y: 1px;
+        width: root.width;
+        height: root.height;
+        border-radius: root.radius;
+        background: Theme.contact.transparentize(root.clear);
+    }
+    Rectangle {
+        width: root.width;
+        height: root.height;
+        border-radius: root.radius;
+        property <brush> fill: root.level == Level.well ? Theme.well-fill
+            : root.level == Level.bubble ? (root.glass ? Theme.bubble-glass : Theme.bubble-fill)
+            : root.level == Level.popover ? Theme.popover-fill
+            : root.level == Level.accent ? Theme.accent-fill
+            : root.pressed ? Theme.raised-fill-press
+            : Theme.raised-fill;
+        property <brush> edge: root.level == Level.well ? Theme.well-edge
+            : root.level == Level.bubble ? Theme.bubble-edge
+            : root.level == Level.popover ? Theme.popover-edge
+            : root.level == Level.accent ? Theme.accent-edge
+            : Theme.raised-edge;
+        background: self.fill.transparentize(root.clear);
+        border-width: 1px;
+        border-color: self.edge.transparentize(root.clear);
+    }
+    Rectangle {
+        width: root.width;
+        height: root.height;
+        border-radius: root.radius;
+        background: root.veil;
+    }
+    @children
+}

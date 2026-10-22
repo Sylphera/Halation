@@ -1,5 +1,0 @@
-target/
-gen/
-
-# the identity package, packed by build.rs
-windows/identity-out/

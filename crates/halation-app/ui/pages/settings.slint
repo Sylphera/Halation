@@ -1,0 +1,899 @@
+import { Theme } from "../theme.slint";
+import { Assets } from "../assets.slint";
+import { ToolIcon } from "../icons.slint";
+import { AppButton } from "../components/button.slint";
+import { Toggle, Select, Segmented, HueStrip, Field, SearchField, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
+import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
+
+// One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
+// it is.
+component CategoryItem inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
+    in property <string> label;
+    in property <bool> active;
+    callback activated;
+    callback hovered(bool, length, length);
+    callback selected(length, length, bool);
+    init => {
+        if (root.active) {
+            root.selected(root.absolute-position.x, root.width, true);
+        }
+    }
+    changed active => {
+        if (root.active) {
+            root.selected(root.absolute-position.x, root.width, false);
+        }
+    }
+    // A tab of the bar at the top: as wide as its name
+    changed x => {
+        if (root.active) {
+            root.selected(root.absolute-position.x, root.width, true);
+        }
+    }
+    height: 30px;
+    // Every tab the same width, so the row has one rhythm (Java, 2026-10-22); set by the page
+    in property <length> tab-width: 96px;
+    width: root.tab-width;
+    focus-on-tab-navigation: true;
+    accessible-role: tab;
+    accessible-label: label;
+    accessible-item-selected: active;
+    accessible-action-default => { activated(); }
+    key-pressed(event) => {
+        if (event.text == Key.Return || event.text == Key.Space) {
+            activated();
+            accept
+        } else {
+            reject
+        }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: touch.pressed ? Theme.press-fill : transparent;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
+    name := Text {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        text: root.label;
+        color: root.active || touch.has-hover ? Theme.text : Theme.muted;
+        animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        font-size: Theme.font-body;
+        font-weight: 500;
+        overflow: elide;
+        accessible-role: none;
+        // Sinks at once on press, back on release
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.focus();
+            root.activated();
+        }
+        changed has-hover => {
+            root.hovered(self.has-hover, root.absolute-position.x, root.width);
+        }
+    }
+}
+
+// One tool of Settings > Tools: icon, name and what it does, its switch; what it still needs under it
+component ToolCell inherits Rectangle {
+    in property <ToolItem> tool;
+    in property <bool> always-on: false;
+    in property <string> icon;
+    callback toggled(bool);
+    callback install();
+
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.separator;
+    }
+    HorizontalLayout {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 10px;
+        VerticalLayout {
+            alignment: start;
+            ToolIcon {
+                name: root.icon;
+                size: 16px;
+                tint: Theme.muted;
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            spacing: 2px;
+            alignment: start;
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: start;
+                Text {
+                    text: root.tool.name;
+                    color: Theme.text;
+                    font-size: Theme.font-body;
+                    font-weight: 500;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if root.tool.beta : Tag { text: "Beta"; ink: Theme.beta; }
+            }
+            Text {
+                text: root.tool.summary;
+                color: Theme.subtle;
+                font-size: Theme.font-caption;
+                overflow: elide;
+            }
+            if root.tool.missing != "" : HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                padding-top: 4px;
+                Tag { text: "Missing: " + root.tool.missing; ink: Theme.warning; limit: root.width - 200px; }
+                AppButton { text: "Install"; small: true; clicked => { root.install(); } }
+            }
+        }
+        VerticalLayout {
+            alignment: start;
+            if root.always-on : Tag { text: "Always on"; ink: Theme.activity; }
+            if !root.always-on : Toggle {
+                label: root.tool.name;
+                checked: root.tool.enabled;
+                toggled(value) => { root.toggled(value); }
+            }
+        }
+    }
+}
+
+// A row of a list inside a group (components, folders): name and detail at the left, extras at the right
+component ListRow inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    height: 48px;
+    Rectangle {
+        y: 0px;
+        height: 1px;
+        background: Theme.separator;
+    }
+    HorizontalLayout {
+        spacing: 12px;
+        VerticalLayout {
+            width: 200px;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.name; color: Theme.text; font-size: Theme.font-body; font-weight: 500; overflow: elide; }
+            Text { text: root.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+        }
+        @children
+    }
+}
+
+// Settings (planning/active/ui-redesign.md §9): the categories as tabs at the top (Java, 2026-10-22: a list at the
+// left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore
+// defaults stand at the right of the tabs, on their row (Java, 2026-10-22).
+export component SettingsPage inherits Rectangle {
+    in property <Prefs> prefs;
+    in property <[ToolItem]> tools;
+    in property <[ComponentRow]> components;
+    in property <[FolderRow]> folders;
+    in property <bool> writable: true;
+    in property <string> error: "";
+    in property <string> profile-path: "";
+    in property <string> build-label: "";
+    in property <int> library-limit: 2000;
+    in property <string> storage-used: "";
+    in property <string> app-size: "";
+    in property <string> workspace-size: "";
+    // The category shown; interface state, kept only while the app runs
+    in-out property <int> category: 0;
+
+    callback set-pref(string, string);
+    // Shows an accent hue while the strip is dragged, without saving it
+    callback preview-accent(int);
+    callback set-tool-enabled(string, bool);
+    // Buttons without an engine behind them in the beta, and folder openers: handled in Rust
+    callback action(string);
+    callback reset();
+    // Enter in the search opens the category that holds the words (Rust matches them; -1 when none does)
+    callback search(string) -> int;
+
+    property <[string]> names: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
+    // The tabs' bar and the content start below it
+    property <length> tabs-top: 16px;
+    property <length> content-top: root.tabs-top + 36px + 16px;
+    property <length> column: min(1200px, root.width - 64px);
+    // Tabs and content share one centred column
+    property <length> column-x: (root.width - root.column) / 2;
+    // The tabs' row: the tabs at the left, the search and Restore defaults at the right. Short of room, Restore
+    // defaults keeps only its icon. The search takes all the width left (Java, 2026-10-22), at least 120 px.
+    // One width for every tab: 96 px, less when the row is short of room (down to what "Processing" needs), so the
+    // search keeps its 120 px and Restore defaults its icon
+    property <length> tab-width: max(72px, min(96px, (root.column - 6px - 6px * (root.names.length - 1) - 12px - 120px - 8px - 46px) / root.names.length));
+    property <length> room: root.column - tabs.preferred-width - 12px;
+    property <bool> restore-text: root.room >= 160px + 8px + 150px;
+    property <length> search-width: max(120px, root.room - 8px - restore.width);
+
+    // Category to show first (headless snapshots); -1 leaves the current one
+    in property <int> jump-to: -1;
+    init => {
+        if (root.jump-to >= 0) {
+            root.category = root.jump-to;
+        }
+    }
+    changed jump-to => {
+        if (root.jump-to >= 0) {
+            root.category = root.jump-to;
+        }
+    }
+    changed category => {
+        flick.content-y = 0;
+    }
+
+    // Category tabs: a recessed track, the chosen tab raised, the hover pill raised too and fused with it
+    Rectangle {
+        x: root.column-x;
+        y: root.tabs-top;
+        width: min(tabs.preferred-width, root.column);
+        height: 36px;
+        Surface {
+            level: Level.well;
+        }
+        category-pills := PillList {
+            x: 3px;
+            y: 3px;
+            width: parent.width - 6px;
+            height: parent.height - 6px;
+            horizontal: true;
+            select-fill: Theme.raised-flat;
+            hover-fill: Theme.raised-flat;
+            raised-select: true;
+            raised-hover: true;
+            soft-hover: true;
+            radius: Theme.radius-control - 3px;
+        }
+        tabs := HorizontalLayout {
+            padding: 3px;
+            spacing: 6px;
+            for name[index] in root.names : CategoryItem {
+                tab-width: root.tab-width;
+                label: name;
+                active: root.category == index;
+                activated => { root.category = index; }
+                hovered(on, at, size) => { category-pills.hover(on, at, size); }
+                selected(at, size, snap) => { category-pills.select(at, size, snap); }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        x: root.column-x + root.column - self.width;
+        y: root.tabs-top;
+        width: self.preferred-width;
+        height: 36px;
+        spacing: 8px;
+        SearchField {
+            width: root.search-width;
+            height: 36px;
+            placeholder: "Search settings...";
+            label: "Search settings";
+            accepted(value) => {
+                let found = root.search(value);
+                if (found >= 0) {
+                    root.category = found;
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            restore := AppButton {
+                quiet: true;
+                icon: "rotate-ccw";
+                text: root.restore-text ? "Restore defaults" : "";
+                name: "Restore defaults";
+                enabled: root.writable;
+                clicked => { root.reset(); }
+            }
+        }
+    }
+
+    flick := Flickable {
+        x: 0px;
+        y: root.content-top;
+        width: root.width;
+        height: root.height - root.content-top - (root.error != "" ? 36px : 0px);
+        content-width: self.width;
+        content-height: max(self.height, pane.preferred-height + 48px);
+
+        pane := VerticalLayout {
+            x: root.column-x;
+            y: 0px;
+            width: root.column;
+            height: self.preferred-height;
+            spacing: 0px;
+
+            if root.category == 0 : VerticalLayout {
+                Group {
+                    title: "Basics";
+                    Pair {
+                        Cell {
+                            name: "Language";
+                            Select {
+                                width: 180px;
+                                label: "Language";
+                                options: ["English", "Español"];
+                                current: root.prefs.language;
+                                chosen(i) => { root.set-pref("language", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Reduce animations";
+                            help: "The Windows setting \"Animation effects\" is always respected too.";
+                            Toggle {
+                                label: "Reduce animations";
+                                checked: root.prefs.reduce-motion;
+                                toggled(v) => { root.set-pref("reduce-motion", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Show processes dock";
+                            help: "Activity and shortcuts in the top bar.";
+                            Toggle {
+                                label: "Show processes dock";
+                                checked: root.prefs.show-dock;
+                                toggled(v) => { root.set-pref("show-dock", v ? "1" : "0"); }
+                            }
+                        }
+                        Cell {
+                            name: "Notify when a job finishes";
+                            help: "Only while Halation is not in view.";
+                            Toggle {
+                                label: "Notify when a job finishes";
+                                checked: root.prefs.notify;
+                                toggled(v) => { root.set-pref("notify", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Test notification";
+                            help: "Sends one now.";
+                            AppButton { small: true; text: "Send"; icon: "circle-help"; clicked => { root.action("test-notification"); } }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 1 : VerticalLayout {
+                Group {
+                    title: "Theme";
+                    Pair {
+                        Cell {
+                            name: "Theme";
+                            Segmented {
+                                label: "Theme";
+                                options: ["Silver", "Gold"];
+                                current: root.prefs.theme;
+                                chosen(i) => { root.set-pref("theme", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Accent";
+                            help: "Every hue keeps the theme's contrast.";
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: end;
+                                HueStrip {
+                                    width: 168px;
+                                    label: "Accent";
+                                    // 360: the theme's own accent, shown at its hue
+                                    hue: root.prefs.accent-hue < 360 ? root.prefs.accent-hue : (root.prefs.theme == 1 ? 38 : 235);
+                                    preview(h) => { root.preview-accent(h); }
+                                    chosen(h) => { root.set-pref("accent-hue", h); }
+                                }
+                                AppButton {
+                                    small: true;
+                                    quiet: true;
+                                    text: "Default";
+                                    name: "Theme's own accent";
+                                    enabled: root.prefs.accent-hue < 360;
+                                    clicked => { root.set-pref("accent-hue", 360); }
+                                }
+                            }
+                        }
+                    }
+                }
+                Group {
+                    title: "Frame";
+                    Pair {
+                        Cell {
+                            name: "Show activity on the dock";
+                            Toggle {
+                                label: "Show activity on the dock";
+                                checked: root.prefs.dock-activity;
+                                toggled(v) => { root.set-pref("dock-activity", v ? "1" : "0"); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Window";
+                    Pair {
+                        Cell {
+                            name: "Open the window";
+                            Segmented {
+                                label: "Open the window";
+                                options: ["As I left it", "Maximized", "Full screen"];
+                                current: root.prefs.open-window;
+                                chosen(i) => { root.set-pref("open-window", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 2 : VerticalLayout {
+                Group {
+                    title: "Artist";
+                    Pair {
+                        Cell {
+                            name: "Artist name";
+                            help: "The artist text in the Audio Visualizer and {artist} in file names.";
+                            Field { width: 200px; label: "Artist name"; placeholder: "Empty"; value: root.prefs.artist; committed(v) => { root.set-pref("artist", v); } }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Links";
+                    Pair {
+                        Cell {
+                            name: "YouTube";
+                            Field { width: 200px; label: "YouTube"; placeholder: "youtube.com/@name"; value: root.prefs.youtube; committed(v) => { root.set-pref("youtube", v); } }
+                        }
+                        Cell {
+                            name: "Spotify";
+                            Field { width: 200px; label: "Spotify"; placeholder: "open.spotify.com/artist/..."; value: root.prefs.spotify; committed(v) => { root.set-pref("spotify", v); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "SoundCloud";
+                            Field { width: 200px; label: "SoundCloud"; placeholder: "soundcloud.com/name"; value: root.prefs.soundcloud; committed(v) => { root.set-pref("soundcloud", v); } }
+                        }
+                        Cell {
+                            name: "Instagram";
+                            Field { width: 200px; label: "Instagram"; placeholder: "instagram.com/name"; value: root.prefs.instagram; committed(v) => { root.set-pref("instagram", v); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "TikTok";
+                            Field { width: 200px; label: "TikTok"; placeholder: "tiktok.com/@name"; value: root.prefs.tiktok; committed(v) => { root.set-pref("tiktok", v); } }
+                        }
+                        Cell {
+                            name: "Other sites";
+                            help: "Optional. Thumbnails will fill these in on their own in a coming version.";
+                            AppButton { small: true; text: "Search other sites"; icon: "search"; clicked => { root.action("search-sites"); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 3 : VerticalLayout {
+                Group {
+                    title: "Save & export location";
+                    Wide {
+                        HorizontalLayout {
+                            spacing: 12px;
+                            for choice[index] in [
+                                { title: "Ask every time", text: "Choose where to save each export. Halation remembers the last folder you used across all tools." },
+                                { title: "Halation Folder", text: "Save exports automatically in Halation Folder." }
+                            ] : Rectangle {
+                                height: 68px;
+                                // Raised cards; the chosen one carries an accent edge
+                                Surface {
+                                    level: Level.raised;
+                                    veil: choice-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+                                    animate veil { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                }
+                                Rectangle {
+                                    border-radius: Theme.radius-control;
+                                    border-width: 1px;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.accent.transparentize(1);
+                                    animate border-color { duration: Motion.fade; easing: Curve.ease; }
+                                }
+                                // Large surfaces sink only a little
+                                // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+                                transform-scale-x: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
+                                transform-scale-y: self.transform-scale-x;
+                                animate transform-scale-x, transform-scale-y { duration: choice-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+                                accessible-role: radio-button;
+                                accessible-checked: root.prefs.save-mode == index;
+                                accessible-label: choice.title;
+                                accessible-action-default => { root.set-pref("save-mode", index); }
+                                Rectangle {
+                                    x: 12px;
+                                    y: 12px;
+                                    width: 14px;
+                                    height: 14px;
+                                    border-radius: 7px;
+                                    background: root.prefs.save-mode == index ? transparent : Theme.well-fill;
+                                    border-width: root.prefs.save-mode == index ? 4px : 1px;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.well-edge;
+                                }
+                                VerticalLayout {
+                                    x: 36px;
+                                    width: parent.width - 48px;
+                                    padding-top: 9px;
+                                    spacing: 2px;
+                                    Text { text: choice.title; color: Theme.text; font-size: Theme.font-body; font-weight: 600; }
+                                    Text { text: choice.text; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                                }
+                                choice-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.set-pref("save-mode", index); }
+                                }
+                            }
+                        }
+                    }
+                    ListRow {
+                        name: "Halation Folder";
+                        detail: "Where the beta keeps its files";
+                        Text {
+                            horizontal-stretch: 1;
+                            text: root.profile-path;
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            font-family: "Consolas";
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            AppButton { small: true; text: "Open Halation Folder"; clicked => { root.action("open:main"); } }
+                        }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Video name template";
+                            help: "Use {title}, {artist} and {date}. Example: Title.mp4";
+                            Field { width: 160px; label: "Video name template"; placeholder: "{title}"; value: root.prefs.video-template; committed(v) => { root.set-pref("video-template", v); } }
+                        }
+                        Cell {
+                            name: "Image name template";
+                            help: "Example: Title.png";
+                            Field { width: 160px; label: "Image name template"; placeholder: "{title}"; value: root.prefs.image-template; committed(v) => { root.set-pref("image-template", v); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 4 : VerticalLayout {
+                Group {
+                    title: "Jobs";
+                    Pair {
+                        Cell {
+                            name: "Mode";
+                            help: root.prefs.processing == 0 ? "One job at a time on the processor and one on the graphics card."
+                                : root.prefs.processing == 2 ? "As many jobs as the processor and the graphics card take at once."
+                                : "Up to 2 jobs on the processor and 2 on the graphics card at once.";
+                            Segmented {
+                                label: "Mode";
+                                options: ["Quiet", "Balanced", "Fast"];
+                                current: root.prefs.processing;
+                                chosen(i) => { root.set-pref("processing", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Use the graphics card";
+                            help: "Off: Upscale, Interpolate and exports run on the processor, slower.";
+                            Toggle {
+                                label: "Use the graphics card";
+                                checked: root.prefs.use-gpu;
+                                toggled(v) => { root.set-pref("use-gpu", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Vocal Remover";
+                            help: "Auto uses the graphics card through DirectX 12 and falls back to the processor by itself.";
+                            Select {
+                                width: 250px;
+                                label: "Vocal Remover";
+                                options: ["Auto (graphics card when it works)", "Processor only"];
+                                current: root.prefs.vocal-device;
+                                chosen(i) => { root.set-pref("vocal-device", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Processor jobs at once";
+                            Select { width: 120px; label: "Processor jobs at once"; options: ["Auto (2)", "1", "2", "3", "4"]; current: root.prefs.cpu-jobs; chosen(i) => { root.set-pref("cpu-jobs", i); } }
+                        }
+                        Cell {
+                            name: "Graphics card jobs at once";
+                            Select { width: 120px; label: "Graphics card jobs at once"; options: ["Auto (2)", "1", "2"]; current: root.prefs.gpu-jobs; chosen(i) => { root.set-pref("gpu-jobs", i); } }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Downloads at once";
+                            Select { width: 120px; label: "Downloads at once"; options: ["Auto (3)", "1", "2", "3", "4"]; current: root.prefs.downloads; chosen(i) => { root.set-pref("downloads", i); } }
+                        }
+                        Cell {
+                            name: "When Halation is minimized";
+                            help: "No encoders are connected in this beta.";
+                            Select { width: 160px; label: "When Halation is minimized"; options: ["Keep working", "Pause queued jobs"]; current: root.prefs.minimized; chosen(i) => { root.set-pref("minimized", i); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 5 : VerticalLayout {
+                Group {
+                    title: "Tools";
+                    Help { text: "A tool turned off leaves the sidebar at once; its files and settings stay."; }
+                    Rectangle { height: 8px; }
+                    Rectangle {
+                        property <length> cell: (self.width - 32px) / 2;
+                        property <length> cell-h: 88px;
+                        height: ceil((root.tools.length + 2) / 2) * self.cell-h;
+                        ToolCell {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: { name: "Home", summary: "Needs nothing extra", enabled: true };
+                            icon: "house";
+                            always-on: true;
+                        }
+                        for tool[index] in root.tools : ToolCell {
+                            x: mod(index + 1, 2) * (parent.cell + 32px);
+                            y: floor((index + 1) / 2) * parent.cell-h;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: tool;
+                            icon: tool.icon;
+                            toggled(on) => { root.set-tool-enabled(tool.id, on); }
+                            install => { root.action("install"); }
+                        }
+                        ToolCell {
+                            x: mod(root.tools.length + 1, 2) * (parent.cell + 32px);
+                            y: floor((root.tools.length + 1) / 2) * parent.cell-h;
+                            width: parent.cell;
+                            height: parent.cell-h;
+                            tool: { name: "Settings", summary: "Needs nothing extra", enabled: true };
+                            icon: "settings";
+                            always-on: true;
+                        }
+                    }
+                }
+                Group {
+                    title: "Components";
+                    for component in root.components : ListRow {
+                        name: component.name;
+                        detail: "Not installed";
+                        Text {
+                            horizontal-stretch: 1;
+                            text: "About " + component.size + " to download";
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            AppButton { text: "Install"; small: true; clicked => { root.action("install"); } }
+                        }
+                    }
+                }
+                Group {
+                    title: "Advanced";
+                    Pair {
+                        Cell {
+                            name: "Engine";
+                            help: "Downloaded when a tool needs it, to the Halation folder's Tools. Not part of the installer.";
+                            AppButton { small: true; text: "Update engine"; clicked => { root.action("update-engine"); } }
+                        }
+                        Cell {
+                            name: "Tools folder";
+                            AppButton { small: true; text: "Open Tools folder"; clicked => { root.action("open:main"); } }
+                        }
+                    }
+                }
+            }
+
+            if root.category == 6 : VerticalLayout {
+                Group {
+                    title: "Usage";
+                    Wide {
+                        Text {
+                            text: "Halation uses " + root.storage-used;
+                            color: Theme.text;
+                            font-size: Theme.font-heading;
+                            font-weight: 600;
+                        }
+                        for bar in [
+                            { label: "App and components", value: root.app-size },
+                            { label: "Workspace", value: root.workspace-size + " / " + ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"][root.prefs.budget] },
+                            { label: "Your work", value: "0 B" }
+                        ] : HorizontalLayout {
+                            height: 24px;
+                            spacing: 12px;
+                            Text {
+                                width: 170px;
+                                text: bar.label;
+                                color: Theme.muted;
+                                font-size: Theme.font-body;
+                                vertical-alignment: center;
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 1;
+                                Rectangle {
+                                    height: 4px;
+                                    border-radius: 2px;
+                                    background: Theme.well-fill;
+                                    border-width: 1px;
+                                    border-color: Theme.well-edge;
+                                }
+                            }
+                            Text {
+                                text: bar.value;
+                                color: Theme.text;
+                                font-size: Theme.font-body;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Help { text: "What Halation takes on this PC: the app, the components it downloaded, and caches. The beta keeps everything in its own profile folder."; }
+                    }
+                }
+                Group {
+                    title: "Workspace";
+                    Pair {
+                        Cell {
+                            name: "Workspace budget";
+                            help: "Caches and previews past this size are cleared, oldest first.";
+                            Select {
+                                width: 120px;
+                                label: "Workspace budget";
+                                options: ["2 GB", "4 GB", "8 GB", "16 GB", "32 GB"];
+                                current: root.prefs.budget;
+                                chosen(i) => { root.set-pref("budget", i); }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+            }
+
+            if root.category == 7 : VerticalLayout {
+                Group {
+                    title: "Halation";
+                    Pair {
+                        Cell {
+                            name: "Version";
+                            help: root.build-label + " · Free software (GPL-3.0)";
+                            HorizontalLayout {
+                                spacing: 6px;
+                                AppButton { small: true; text: "License"; clicked => { root.action("license"); } }
+                                AppButton { small: true; text: "Third-party notices"; clicked => { root.action("notices"); } }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Updates";
+                    Pair {
+                        Cell {
+                            name: "When a new version is out";
+                            Select {
+                                width: 200px;
+                                label: "When a new version is out";
+                                options: ["Ask when Halation opens", "Only show it in Activity", "Don't check by itself"];
+                                current: root.prefs.updates;
+                                chosen(i) => { root.set-pref("updates", i); }
+                            }
+                        }
+                        Cell {
+                            name: "Show what's new after an update";
+                            Toggle {
+                                label: "Show what's new after an update";
+                                checked: root.prefs.whats-new;
+                                toggled(v) => { root.set-pref("whats-new", v ? "1" : "0"); }
+                            }
+                        }
+                    }
+                    Pair {
+                        Cell {
+                            name: "Check now";
+                            help: "The native beta is not updated by itself; new builds come from the beta launcher.";
+                            HorizontalLayout {
+                                spacing: 6px;
+                                AppButton { small: true; text: "Check for updates"; icon: "refresh-cw"; clicked => { root.action("check-updates"); } }
+                                AppButton { small: true; text: "Changelog"; icon: "file-text"; clicked => { root.action("changelog"); } }
+                            }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: "Folders";
+                    Help { text: "The beta keeps everything in its own profile. You can copy these folders as a backup."; }
+                    Rectangle { height: 8px; }
+                    for folder in root.folders : ListRow {
+                        name: folder.name;
+                        detail: folder.detail;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: folder.path;
+                            color: Theme.muted;
+                            font-size: Theme.font-small;
+                            font-family: "Consolas";
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            AppButton { small: true; text: "Open"; clicked => { root.action("open:" + folder.key); } }
+                        }
+                    }
+                }
+                Group {
+                    title: "Data from an earlier version";
+                    Help { text: "The beta never reads the released app's data; there was nothing to import."; }
+                }
+            }
+        }
+    }
+
+    if root.error != "" : Rectangle {
+        x: 0px;
+        y: root.height - 36px;
+        width: root.width;
+        height: 36px;
+        background: #2a1717;
+        Text {
+            x: 32px;
+            width: parent.width - 64px;
+            y: (parent.height - self.height) / 2;
+            text: root.error;
+            color: Theme.danger;
+            font-size: Theme.font-body;
+            overflow: elide;
+        }
+    }
+}

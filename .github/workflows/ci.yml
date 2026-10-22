@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: ["slint/**"]
+  pull_request:
+    branches: ["slint/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Tests
+        run: cargo test --workspace --locked
+      - name: Runtime renderers (winit + Skia only)
+        shell: bash
+        run: |
+          if cargo tree -e features -p halation-app --locked | grep -iE "renderer-software|femtovg|i-slint-backend-qt"; then
+            echo "::error::a renderer other than Skia is in the runtime graph"; exit 1
+          fi
+      - name: halation-core does not depend on Slint
+        shell: bash
+        run: |
+          if cargo tree -p halation-core --locked -e normal | grep -E "^.*(slint|tauri)"; then
+            echo "::error::halation-core depends on Slint or Tauri"; exit 1
+          fi
+      - name: Documentation links and Status lines
+        run: python tools/check-docs.py

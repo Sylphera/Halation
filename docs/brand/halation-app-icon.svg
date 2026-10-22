@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<rect width="1024" height="1024" rx="228" fill="#111111"/>
-<rect x="4" y="4" width="1016" height="1016" rx="224" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="8"/>
-<g transform="translate(512 512) scale(9.6194) translate(-50 -50)"><g transform="rotate(-18 50 50)"><path d="M27 68V47a11.5 11.5 0 0 1 23 0v6a11.5 11.5 0 0 0 23 0V32" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></g></g>
-</svg>

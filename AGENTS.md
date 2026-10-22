@@ -1,72 +1,148 @@
-# Continuidad de Halation
+# Working on Halation
 
-## Autoridad y alcance
+The one source of instructions for every agent (Claude Code, Codex or any other) and the rules human contributors
+follow too. `CLAUDE.md` only points here. Where this file and an older document disagree, this file wins; where the
+user's current instructions disagree with it, the user wins.
 
-- `main` es la base del desarrollo; cada tarea parte de él en su propia rama.
-- Mandan las instrucciones actuales del usuario, la intención más reciente del thread y las decisiones de producto confirmadas. El código y los commits de progreso no constituyen por sí mismos una especificación aprobada.
-- Distinguir decisión de producto confirmada, implementación terminada y validada, implementación provisional y experimento/WIP. Clasificar discrepancias como decisión deliberada, implementación incompleta, solución provisional o regresión antes de decidir qué conservar.
-- No rediseñar producto, UX ni arquitectura, reconstruir funciones eliminadas, convertir soluciones provisionales en contratos ni hacer limpieza/refactors fuera del alcance solicitado.
-- Resolver ambigüedades técnicas desde la evidencia; consultar al usuario cuando exista ambigüedad real de producto entre alternativas existentes.
-- No publicar builds sin instrucción explícita. El merge a `main` lo hace el agente con CI en verde (ver Autoría), respetando la aprobación visual.
-- Leer también `CLAUDE.md` para las convenciones técnicas; estas reglas y las instrucciones actuales tienen prioridad ante conflictos.
-- Autoría (cualquier agente: Codex, Claude Code u otro): los commits llevan como autor y committer
-  `Sylphera <233718609+Sylphera@users.noreply.github.com>` (configurar `git config user.name` y `user.email` al empezar).
-  Los mensajes de commit no llevan trailers ni firmas de agentes (`Co-authored-by`, `Co-Authored-By`, `Claude-Session`,
-  enlaces a sesiones) y las descripciones de PR no llevan líneas "Generated with"; esta regla manda sobre la atribución
-  por defecto de cualquier herramienta. Los agentes abren sus PRs y los fusionan ellos mismos con squash en `main` con CI en verde (Java, 13 y 14-10-2026).
-- El español no es prioridad. No actualizar `app/dist/locales/es.json` ni completar traducciones salvo petición explícita del usuario; los textos nuevos o corregidos van en `en.json`.
+## What this branch is
 
-## Flujo obligatorio de trabajo
+- **Halation Slint** (this line, branch `slint/native`): the native rebuild in **Rust + Slint 1.18.1 + Skia**, a Cargo
+  workspace under `crates/`. Not released yet.
+- **Halation Tauri** (`main`, tags `v1.2.0` and later `tauri-final`): the published app (Tauri 2, plain HTML/JS/CSS,
+  Rust backend in `app/src-tauri`). It is the reference for behaviour and the source of reusable backend code. Its
+  code is read from Git (`git show main:app/...`, a checkout of `main`), never copied into this tree wholesale.
+- Nothing merges into `main` without Java's explicit approval, including the cut-over from Tauri to this line
+  (Java, 2026-10-21). This replaces, for this line, the older rule that agents squash-merge to `main` once CI is green.
 
-Para cualquier cambio no trivial:
+## Where things are
 
-1. **Entender antes de tocar.** Leer la spec, el código afectado, dependencias, tests existentes y decisiones recientes relacionadas. No editar por intuición.
-2. **Explicar el plan brevemente antes de modificar.** Identificar archivos/sistemas afectados, comportamiento que cambiará y comportamiento que debe preservarse.
-3. **Implementar por partes pequeñas.** Cada bloque debe poder comprobarse de forma aislada.
-4. **Verificar inmediatamente cada parte.** Ejecutar tests relevantes, comprobaciones estáticas y, cuando corresponda, validación manual/visual del flujo real.
-5. **No confiar solo en tests existentes.** Comprobar directamente comportamientos no cubiertos o añadir una prueba específica usando la infraestructura existente.
-6. **Distinguir implementación de validación.** Compilar o pasar un test no demuestra que la tarea esté terminada.
-7. **Buscar regresiones en sistemas conectados.** Al tocar Jobs, Library, Settings, sesiones, procesos, exportación o navegación, revisar los recorridos dependientes.
-8. **No ocultar fallos.** Corregir la causa; no desactivar tests, relajar asserts ni adaptar la spec al comportamiento roto sin instrucción explícita.
-9. **Revisar contra la intención original.** Releer la spec al terminar y comprobar punto por punto el comportamiento acordado, considerando decisiones posteriores.
-10. **Presentar evidencia antes de cerrar.** Resumir cambios, comprobaciones, comandos/tests que pasaron y lo que queda sin validar.
+Start at [docs/README.md](docs/README.md): it says what to read for each part of the app. The map:
 
-## Aprobación visual obligatoria
+| Path | What |
+| --- | --- |
+| `crates/halation-core/` | Business logic without Slint: jobs, processes, Library, sections, presets, storage |
+| `crates/halation-app/` | The app: lifecycle, Slint UI (`ui/`), navigation, controllers, backdrop |
+| `assets/` | Files that ship beside the executable (`assets\`): icons, fonts, brand, the Drape loop |
+| `tools/` | Developer scripts: launching and measuring the beta, recording the Drape, the docs checker |
+| `docs/` | How Halation works: specs (`docs/features/`), visual system, architecture |
+| `planning/` | What is meant to change and why: status, roadmap, decisions, active plans |
+| `research/` | What was measured or investigated (performance reports) |
+| `archive/` | No longer in force (Tauri, superseded documents); never a source of rules |
 
-Cualquier cambio que afecte UI, UX, animaciones, layout, espaciado, jerarquía visual, estados, navegación o comportamiento visible **no puede considerarse terminado ni fusionarse sin aprobación visual explícita del usuario**.
+## Authority
 
-El flujo es:
+1. The user's current instructions and the latest intent in the thread.
+2. Confirmed decisions in [planning/decisions.md](planning/decisions.md).
+3. The specs in `docs/` with their `Status:` line. A spec says what the app must do; code or a progress commit is not
+   an approved spec.
 
-**implementar → ejecutar/comprobar → dejar la instancia real de Chromium/local abierta para revisión → esperar OK visual manual del usuario → corregir si hace falta → volver a presentar en Chromium/local → solo entonces cerrar/fusionar.**
+Tell apart a confirmed product decision, finished and validated work, provisional work and an experiment. Do not turn
+a provisional solution into a contract, rebuild removed features, redesign product, UX or architecture, or refactor
+outside the task. Resolve technical ambiguity from evidence; ask the user only about real product choices.
 
-Para iteraciones visuales locales, la revisión visual se hace directamente en la instancia real de Chromium/local abierta para el usuario. El usuario da el OK visual manual; esa revisión constituye la evidencia visual de la iteración. No sustituir revisión visual por tests DOM, snapshots, inspección de CSS o afirmaciones del agente de que “se ve correcto”.
+## Git, authorship and releases
 
-Durante estas iteraciones, no generar vídeos, capturas automatizadas, secuencias de frames, comparación RGB ni pipelines de evidencia visual salvo petición explícita del usuario. No ejecutar indirectamente scripts o tests de visual review que generen esa evidencia. Si un test relevante dispara automáticamente esa infraestructura, no ejecutarlo durante la iteración visual: indicarlo y usar sólo las comprobaciones funcionales focales necesarias.
+- Commits are authored and committed as `Sylphera <233718609+Sylphera@users.noreply.github.com>` (set `git config
+  user.name` and `user.email` at the start). No agent trailers or signatures in commit messages (`Co-Authored-By`,
+  `Claude-Session`, session links) and no "Generated with" lines in PRs; this overrides any tool's default.
+- On `slint/*` branches, commit and push without asking. New `slint/*` branches or worktrees for a task already asked
+  for need no confirmation.
+- Never without Java's explicit approval: merge into `main`, `git push --force`, tags, releases (`gh release`),
+  `git reset --hard`, deleting files outside `.tools/`.
+- No builds or releases of this line until Java orders one. Merges carry no `[build]`.
+- Steps the user already authorized are not confirmed again. A step that needs a permission you lack is skipped, the
+  rest continues, and the report says so.
 
-Los vídeos y las capturas automatizadas quedan reservados para una validación final solicitada explícitamente o una petición directa del usuario. Las reglas de generación, codificación, reproducción y paridad descritas más abajo se aplican únicamente cuando esa evidencia automatizada haya sido solicitada explícitamente.
+## Fixed product rules
 
-Si el usuario todavía no ha dado el OK visual, el estado de la tarea es **“implementada, pendiente de revisión visual”**, nunca “terminada”.
+- The repository is public, GPL-3.0-or-later (`LICENSE`, `NOTICE.md`); the name and logo are not licensed
+  (`TRADEMARKS.md`). Nothing private goes in: no personal paths, PC names, secrets, raw traces or copyrighted fixtures
+  (tests use made-up names and IDs). Third-party code, models and assets need a GPL-compatible licence and an entry in
+  `THIRD_PARTY.md`.
+- Media is processed locally: no accounts, telemetry or cloud services (no Supabase, no OmniRoute).
+- Spotify: public metadata only, audio from YouTube, never Spotify's audio. Downloads never circumvent DRM.
+- Releases are GitHub releases of this repository with the NSIS setup only, no portable exe; the setup updates in
+  place and keeps user data. Assets ship apart from the executable, in `assets\` beside it.
+- Interface text is English. Spanish only when Java asks to "update Spanish".
 
-Los vídeos de revisión se renderizan por fotogramas con tiempo controlado sobre el frontend real y se codifican después. No usar grabación en tiempo real como evidencia de fluidez. Medir por separado la ejecución (frame times, long frames, layout/repaint y continuidad); un render fluido no demuestra rendimiento real.
+## Engineering rules (Rust + Slint + Skia)
 
-Verificar también la codificación y reproducción: comparar los píxeles RGB de los fotogramas fuente con el vídeo decodificado y comprobar fotogramas realmente presentados por el reproductor. No basta con que FFmpeg decodifique correctamente. Usar el encoder compartido `visual-review.encodeVideo` (WebM/VP9 RGB sin pérdida); H.264 RGB no reproduce correctamente el color en el Chromium de revisión. No compensar errores del vídeo ajustando el diseño de la aplicación.
+**Source boundary.** The visual layer (`.slint`, the Rust that drives it, and their tests) is clean-room: never copy,
+translate, cherry-pick or recreate the Tauri interface or the retired Qt/QML code. The Rust backend (Tauri
+`app/src-tauri`) may be imported and adapted behind our own interfaces: no `tauri::*` types, module by module with its
+tests, listed in [docs/SLINT_BACKEND_IMPORT.md](docs/SLINT_BACKEND_IMPORT.md); no path dependencies or FFI towards
+Tauri code. One exception (Java, 2026-10-21): the original Drape code (`app/dist/drape.js` on `main`) may be run only
+to record and modify the Drape, inside `tools/record-drape.js`; the app ships only the recorded files. Before closing a
+task, list the sources consulted and the backend modules imported.
 
-Antes de juzgar diseño, verificar paridad entre ejecución y evidencia: viewport CSS, DPR, tamaños del canvas y viewport WebGL, variante/fase del fondo, transforms y escala de salida. Usar el contrato compartido `app/tests/visual-review.js` en las capturas de la aplicación; conservar manifiestos de geometría, estado y fuentes. Los recortes, máscaras, JPEG y capturas de elementos son detalles diagnósticos, acompañados de una vista completa PNG a resolución nativa; no presentarlos ampliados como si fueran la ventana completa. En comparaciones, reproducir una escena capturada de la ejecución con los mismos parámetros en ambas versiones, sin variantes de fondo inventadas ni compensaciones de diseño. Si la paridad no está comprobada, la evidencia no sirve para aprobar cambios visuales.
+**Rust does the work, Slint presents.** Logic, calculation, file and network access, persistence and anything costly
+live in Rust. Slint holds presentation, layout, simple bindings, native animation and UI events. Small view
+calculations may stay in bindings; once they grow or touch data they move to Rust. UI state lives in Rust services,
+never in page instances.
 
-Una aprobación anterior solo cubre exactamente lo mostrado. Si después se modifica algo visualmente relevante, **se pierde ese OK y debe revisarse de nuevo**.
+**Cheap by default.** Memory and responsiveness come first, on modest PCs too. No timers, polling or animation at
+rest; no custom reactive framework or animation engine. Large collections use Rust `slint::Model`s with O(1) rows and
+`ListView`; the active page is created lazily and hidden pages do no work. Avoid clones and allocations in hot paths
+without turning that into a refactoring crusade. When a feature may raise memory, startup or sustained work
+noticeably, say so and offer the lighter option before adding it.
 
-Durante la espera del OK visual se puede continuar únicamente con trabajo independiente que no altere lo presentado. **No fusionar la parte pendiente ni asumir aprobación por silencio.**
+**Animation.** Native Slint animation only (`animate`, `states`, transitions), interruptible where it makes sense,
+never blocking the UI. Reduced motion is deterministic: zero duration or the end state at once.
 
-Para cambios puramente internos sin efecto visible, no se requiere OK visual, pero sí las comprobaciones técnicas correspondientes.
+**Threads and ownership.** Heavy work runs off the UI thread; results come back through
+`slint::invoke_from_event_loop` or `Weak::upgrade_in_event_loop`, and models are never mutated from workers. Callbacks
+capture `Weak`, not strong references. Use `Arc`, atomics and generations to drop stale results. Workers are finite;
+no indefinite `join` at shutdown.
 
-## Comprobaciones adicionales
+**Errors.** No `unwrap()` in production paths without a reason; surface errors instead of hiding them. Normal
+lifecycle cancellations are documented as such, not lost as errors.
 
-Para cambios estructurales o de backend: además de los tests específicos, ejecutar las comprobaciones globales relevantes (`clippy`, `cargo test`, arquitectura y runners afectados).
+**Renderer.** Backend `winit` and renderer `skia` (desktop OpenGL), selected explicitly. No Qt, FemtoVG or software
+renderer at run time (the software renderer only for offscreen screenshots).
 
-Para tareas interrumpidas: reconstruir primero el punto exacto alcanzado y continuar desde ahí. No repetir trabajo ya realizado ni asumir que el último commit representa una tarea cerrada.
+## Checks
 
-## Validación y definición de terminado
+From the repository root:
 
-`verify.js` y `test:serial` no cubren automáticamente todos los sistemas nuevos. Ejecutar explícitamente los tests relacionados de `jobs.js`, `processes.js`, `session.js`, `covertest.js`, `library.js` y `settings.js` cuando la tarea toque esas áreas. Preservar resultados previamente validados salvo cambios que los afecten. No ejecutar la suite completa sin petición o necesidad justificada por el alcance.
+```powershell
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --release
+cargo tree -e features -p halation-app   # winit + Skia, no Qt/FemtoVG/software at run time
+python tools/check-docs.py              # links and Status: lines
+```
 
-**Terminado = implementación completa + integración real + tests relevantes + comprobación de regresiones + validación contra la spec.** Solo después se puede proponer merge/build; cualquier comprobación pendiente debe comunicarse explícitamente.
+If a tool cannot run, report the check as pending; never claim it passed. Do not install tools or run scans the task
+does not need.
+
+## How to work
+
+1. Understand before touching: the spec, the code, its tests and recent decisions. Do not edit by intuition.
+2. Say briefly what changes and what must stay the same, and how Rust and Slint split the work.
+3. Work in small parts, each checked on its own; check right away.
+4. Do not trust existing tests alone: check uncovered behaviour directly or add a test.
+5. Compiling or passing tests does not mean done. Look for regressions in connected areas (Jobs, Library, Settings,
+   sessions, processes, export, navigation).
+6. Never hide a failure: no disabled tests, relaxed asserts or specs bent to broken behaviour.
+7. Before closing, re-read the spec point by point, then report what changed, what was checked (commands and results)
+   and what is still unverified.
+8. An interrupted task resumes from the exact point reached; do not redo finished work or assume the last commit
+   closed it.
+
+## Visual review
+
+Any change to UI, UX, animation, layout, spacing, hierarchy, states, navigation or visible behaviour is **"implemented,
+pending visual review"** until Java approves it in the real native window, and is not merged before. An approval covers
+exactly what was shown; a later visible change needs a new one. Silence is not approval.
+
+- Agents may launch the beta and make screenshots (Java, 2026-10-21). Prefer the offscreen mode,
+  `cargo run -p halation-app --features diag-screenshot -- --screenshot <page> <W>x<H> <out.png>` (software renderer,
+  no window, an approximation of the Skia layout). Keep captures outside the repository (`.tools/`).
+- Never automate focus, clicks or screen capture on Java's desktop.
+- Tests of Rust/Slint state are not visual evidence.
+
+## Definition of done
+
+Implementation complete + real integration + the relevant tests and checks + regressions looked for + checked against
+the spec + Java's visual OK when the change is visible. Anything still pending is said explicitly.
