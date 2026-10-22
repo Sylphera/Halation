@@ -27,12 +27,12 @@ component HeadLink inherits Rectangle {
     }
 }
 
-// One of the Workspace's panels: a near-opaque surface over the Drape with a 1 px line and its own padding
+// One of the Workspace's panels: a near-opaque, rounded surface over the Drape with a faint 1 px edge
 component Panel inherits Rectangle {
-    border-radius: Theme.radius-overlay;
+    border-radius: Theme.radius-sheet;
     background: Theme.panel;
     border-width: 1px;
-    border-color: Theme.line-strong;
+    border-color: Theme.line;
     clip: true;
 }
 
@@ -78,10 +78,10 @@ export component WorkspacePage inherits Rectangle {
     property <int> job-rows: min(3, max(1, root.jobs.length));
 
     VerticalLayout {
-        x: 32px;
-        width: root.width - 64px;
-        padding-top: 24px;
-        padding-bottom: 20px;
+        x: 16px;
+        width: root.width - 32px;
+        padding-top: 16px;
+        padding-bottom: 16px;
         spacing: 16px;
 
         // Drop panel: the page's first action
@@ -151,9 +151,9 @@ export component WorkspacePage inherits Rectangle {
             vertical-stretch: 1;
             min-height: 200px;
             VerticalLayout {
-                padding-left: 16px;
-                padding-right: 16px;
-                padding-bottom: 4px;
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-bottom: 8px;
                 FilesBlock {
                     rows: root.rows;
                     total: root.total;
@@ -187,9 +187,9 @@ export component WorkspacePage inherits Rectangle {
         // Jobs: up to three rows, then the list scrolls
         Panel {
             VerticalLayout {
-                padding-left: 16px;
-                padding-right: 16px;
-                padding-bottom: 4px;
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-bottom: 8px;
                 spacing: 0px;
                 Rectangle {
                     height: 36px;

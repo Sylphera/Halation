@@ -32,7 +32,7 @@ export component SectionsView inherits Rectangle {
     HorizontalLayout {
         spacing: 0px;
 
-        // The sections list: a quarter of the width, 240 to 360 px, a 1 px line on its right
+        // The sections list: a quarter of the width, 240 to 360 px, then a gap
         VerticalLayout {
             width: clamp(root.width / 4, 240px, 360px);
             spacing: 8px;
@@ -182,10 +182,7 @@ export component SectionsView inherits Rectangle {
             }
         }
 
-        Rectangle {
-            width: 1px;
-            background: Theme.line;
-        }
+        Rectangle { width: 8px; }
 
         // The selected section's items
         Rectangle {

@@ -18,7 +18,7 @@ export component AppWindow inherits Window {
     preferred-height: 800px;
     min-width: 960px;
     min-height: 600px;
-    background: Theme.canvas;
+    background: Theme.chrome;
     icon: Assets.mark;
     default-font-family: "Inter";
     default-font-size: Theme.font-body;
@@ -137,12 +137,14 @@ export component AppWindow inherits Window {
             reject
         }
 
-        // The page, right of the sidebar and under the top bar
+        // The page: a rounded sheet set into the chrome, right of the sidebar and under the top bar. Its corners are
+        // the frame's inverted curves; no lines separate it from the sidebar or the top bar.
         if root.diagnostic-scene != 0 : Rectangle {
             x: root.side;
             y: Theme.bar;
-            width: parent.width - root.side;
-            height: parent.height - Theme.bar;
+            width: parent.width - root.side - Theme.sheet-inset;
+            height: parent.height - Theme.bar - Theme.sheet-inset;
+            border-radius: Theme.radius-sheet;
             background: Theme.canvas;
             clip: true;
 
@@ -233,11 +235,6 @@ export component AppWindow inherits Window {
             width: parent.width - root.side;
             height: Theme.bar;
             background: Theme.chrome;
-            Rectangle {
-                y: parent.height - 1px;
-                height: 1px;
-                background: Theme.line;
-            }
             HorizontalLayout {
                 padding-left: 16px;
                 padding-right: 8px;
@@ -368,21 +365,11 @@ export component AppWindow inherits Window {
             height: parent.height;
             background: Theme.chrome;
             clip: false;
-            Rectangle {
-                x: parent.width - 1px;
-                width: 1px;
-                background: Theme.line;
-            }
 
-            // Header: as tall as the top bar, with the same line under it
+            // Header: as tall as the top bar
             Rectangle {
                 y: 0px;
                 height: Theme.bar;
-                Rectangle {
-                    y: parent.height - 1px;
-                    height: 1px;
-                    background: Theme.line;
-                }
                 Image {
                     x: root.rail-open ? 14px : (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
@@ -444,15 +431,10 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Foot: Settings, and the toggle while collapsed, under a line; in the same layout so the rows match
+                // Foot: Settings, and the toggle while collapsed, after a gap; in the same layout so the rows match
                 Rectangle {
                     min-height: 7px;
                     vertical-stretch: 1;
-                    Rectangle {
-                        y: parent.height - 7px;
-                        height: 1px;
-                        background: Theme.line;
-                    }
                 }
                 if !root.rail-open : SidebarItem {
                     icon: "panel-left-open";
