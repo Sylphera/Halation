@@ -1,23 +1,32 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { Tooltip } from "tooltip.slint";
+export { PillList } from "pills.slint";
 
 // One entry of the sidebar: a 28 px row with icon and label. Collapsed, only the icon shows and a tooltip gives the
-// name on hover and keyboard focus.
+// name on hover and keyboard focus. The hover and selection fills are not drawn here: the list draws one sliding pill
+// for each (`PillList`), and the row tells it where it is.
 export component SidebarItem inherits FocusScope {
     in property <string> icon: "download";
     in property <string> label: "";
     in property <bool> active: false;
     in property <bool> open: true;
-    in property <duration> motion-duration: 160ms;
     callback activated;
+    // Where this row's pill goes, in window coordinates: on hover, and while it is the active row. `snap` places the
+    // pill at once (a layout change), otherwise it glides there.
+    callback hovered(bool, length, length);
+    callback selected(length, length, bool);
 
     // Rows share the sidebar's height equally; the highlighted pill stays at most 40 px, centred in its row
     min-height: Theme.item;
     preferred-height: Theme.item;
     vertical-stretch: 1;
     property <length> pill: min(root.height, 40px);
+    property <length> pill-top: root.absolute-position.y + (root.height - root.pill) / 2;
     // Taller rows, when the window has room, get a larger icon and label
     property <bool> roomy: root.pill >= 36px;
+    property <bool> lit: root.active || touch.has-hover;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -33,52 +42,73 @@ export component SidebarItem inherits FocusScope {
         }
     }
 
+    init => {
+        if (root.active) {
+            root.selected(root.pill-top, root.pill, true);
+        }
+    }
+    changed active => {
+        if (root.active) {
+            root.selected(root.pill-top, root.pill, false);
+        }
+    }
+    // The window or the sidebar changed size: the pills follow at once
+    changed pill-top => {
+        if (root.active) {
+            root.selected(root.pill-top, root.pill, true);
+        }
+        if (touch.has-hover) {
+            root.hovered(true, root.pill-top, root.pill);
+        }
+    }
+
+    // Pressed fill and keyboard focus ring; hover and selection are the list's pills
     Rectangle {
         y: (parent.height - self.height) / 2;
         height: root.pill;
         border-radius: Theme.radius-control;
-        background: root.active ? Theme.control-active : (touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.control-hover : transparent));
+        background: touch.pressed ? Theme.press-fill : transparent;
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
 
-    ToolIcon {
-        x: root.open ? 8px : (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        name: root.icon;
-        size: root.roomy ? 18px : 16px;
-        tint: root.active ? Theme.accent : (touch.has-hover ? Theme.text : Theme.muted);
+    content := Rectangle {
+        // Sinks at once on press, back on release
+        transform-scale: touch.pressed ? Motion.press-scale : 100%;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+
+        ToolIcon {
+            x: root.open ? 8px : (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            name: root.icon;
+            size: root.roomy ? 18px : 16px;
+            tint: root.active ? Theme.accent : (touch.has-hover ? Theme.text : Theme.muted);
+            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+
+        // The label fades in as the sidebar opens (its colour's alpha, not `opacity`: no layer); closing, it goes at
+        // once. Always there, so the fade has a start.
+        Text {
+            x: root.roomy ? 36px : 32px;
+            y: (parent.height - self.height) / 2;
+            width: max(0px, parent.width - self.x - 8px);
+            text: root.label;
+            color: (root.lit ? Theme.text : Theme.muted).transparentize(root.open ? 0 : 1);
+            animate color { duration: !root.open ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+            font-size: root.roomy ? 14px : Theme.font-body;
+            font-weight: 500;
+            overflow: elide;
+            accessible-role: none;
+        }
     }
 
-    if root.open : Text {
-        x: root.roomy ? 36px : 32px;
-        y: (parent.height - self.height) / 2;
-        width: max(0px, parent.width - self.x - 8px);
-        text: root.label;
-        color: root.active || touch.has-hover ? Theme.text : Theme.muted;
-        font-size: root.roomy ? 14px : Theme.font-body;
-        font-weight: 500;
-        overflow: elide;
-    }
-
-    // Tooltip of the collapsed sidebar: an overlay to the right
-    if !root.open && (touch.has-hover || root.has-focus) : Rectangle {
+    // Tooltip of the collapsed sidebar, to the right
+    if !root.open : Tooltip {
         x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
-        width: tip.preferred-width + 20px;
-        height: 26px;
-        border-radius: Theme.radius-overlay;
-        background: Theme.control;
-        border-width: 1px;
-        border-color: Theme.line-strong;
-        tip := Text {
-            text: root.label;
-            color: Theme.text;
-            font-size: Theme.font-small;
-            font-weight: 500;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+        text: root.label;
+        show: touch.has-hover || root.has-focus;
+        at-once: root.has-focus;
     }
 
     touch := TouchArea {
@@ -86,6 +116,9 @@ export component SidebarItem inherits FocusScope {
         clicked => {
             root.focus();
             root.activated();
+        }
+        changed has-hover => {
+            root.hovered(self.has-hover, root.pill-top, root.pill);
         }
     }
 }
@@ -96,12 +129,15 @@ export component SidebarGroup inherits Rectangle {
     in property <bool> open: true;
     // A fixed gap, the same for every group, so only the rows take the sidebar's spare height
     height: root.open ? 30px : 17px;
-    if root.open : Text {
+    // Fades in as the sidebar opens, goes at once as it closes (always there, so the fade has a start)
+    Text {
         x: 8px;
         y: parent.height - self.height - 6px;
         text: root.label;
-        color: Theme.subtle;
+        color: Theme.subtle.transparentize(root.open ? 0 : 1);
+        animate color { duration: root.open ? Motion.fade : 0ms; easing: Curve.ease; }
         font-size: Theme.font-caption;
         font-weight: 500;
+        accessible-role: none;
     }
 }

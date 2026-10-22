@@ -1,11 +1,12 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { PillList } from "pills.slint";
 
 // Switch: 34 x 20, lavender when on
 export component Toggle inherits FocusScope {
     in property <bool> checked: false;
     in property <string> label: "";
-    in property <duration> motion-duration: 160ms;
     callback toggled(bool);
 
     width: 34px;
@@ -32,11 +33,11 @@ export component Toggle inherits FocusScope {
 
     Rectangle {
         border-radius: 10px;
-        background: root.checked ? Theme.accent : Theme.line-strong;
+        background: root.checked ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
         border-width: root.has-focus ? 2px : 0px;
         border-color: Theme.text;
         opacity: root.enabled ? 1 : 0.45;
-        animate background { duration: root.motion-duration; easing: ease-out; }
+        animate background { duration: Motion.fade; easing: Curve.ease; }
     }
     Rectangle {
         x: root.checked ? parent.width - 17px : 3px;
@@ -45,9 +46,10 @@ export component Toggle inherits FocusScope {
         height: 14px;
         border-radius: 7px;
         background: root.checked ? Theme.chrome : Theme.text;
-        animate x { duration: root.motion-duration; easing: ease-out; }
+        animate x { duration: Motion.glide; easing: spring(0); }
+        animate background { duration: Motion.fade; easing: Curve.ease; }
     }
-    TouchArea {
+    touch := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => {
@@ -61,7 +63,6 @@ export component Toggle inherits FocusScope {
 export component ToggleRow inherits Rectangle {
     in property <string> label;
     in property <bool> checked;
-    in property <duration> motion-duration: 160ms;
     callback toggled(bool);
     height: 30px;
     Text {
@@ -76,7 +77,6 @@ export component ToggleRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         label: root.label;
         checked: root.checked;
-        motion-duration: root.motion-duration;
         toggled(value) => { root.toggled(value); }
     }
 }
@@ -113,7 +113,8 @@ export component Select inherits FocusScope {
         border-radius: Theme.radius-control;
         background: touch.has-hover ? Theme.control-hover : Theme.control;
         border-width: root.has-focus ? 2px : 1px;
-        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
+        border-color: root.has-focus ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
+        animate background, border-color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
     }
     Text {
         x: 10px;
@@ -156,7 +157,8 @@ export component Select inherits FocusScope {
                 for option[index] in root.options : Rectangle {
                     height: 28px;
                     border-radius: Theme.radius-control;
-                    background: option-touch.has-hover ? Theme.control-active : transparent;
+                    background: option-touch.has-hover ? Theme.control-active : Theme.control-active.transparentize(1);
+                    animate background { duration: Motion.hover(option-touch.has-hover); easing: Curve.ease; }
                     Text {
                         x: 8px;
                         y: (parent.height - self.height) / 2;
@@ -185,35 +187,41 @@ export component Field inherits Rectangle {
 
     height: 32px;
     border-radius: Theme.radius-control;
-    background: Theme.control;
+    background: field-hover.has-hover && !input.has-focus ? Theme.control-hover : Theme.control;
     border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : Theme.line-strong;
+    border-color: input.has-focus ? Theme.accent : (field-hover.has-hover ? Theme.line-hover : Theme.line-strong);
+    animate background, border-color { duration: Motion.hover(field-hover.has-hover); easing: Curve.ease; }
 
-    input := TextInput {
-        x: 10px;
-        width: parent.width - 20px;
-        height: parent.height;
-        single-line: true;
-        vertical-alignment: center;
-        text: root.value;
-        color: Theme.text;
-        font-size: Theme.font-body;
-        font-family: root.mono ? "Consolas" : "Inter";
-        accessible-role: text-input;
-        accessible-label: root.label;
-        accepted => { root.committed(self.text); }
-        changed has-focus => {
-            if (!self.has-focus && self.text != root.value) {
-                root.committed(self.text);
+    // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
+    field-hover := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+        input := TextInput {
+            x: 10px;
+            width: parent.width - 20px;
+            height: parent.height;
+            single-line: true;
+            vertical-alignment: center;
+            text: root.value;
+            color: Theme.text;
+            font-size: Theme.font-body;
+            font-family: root.mono ? "Consolas" : "Inter";
+            accessible-role: text-input;
+            accessible-label: root.label;
+            accepted => { root.committed(self.text); }
+            changed has-focus => {
+                if (!self.has-focus && self.text != root.value) {
+                    root.committed(self.text);
+                }
             }
         }
-    }
-    if input.text == "" : Text {
-        x: 10px;
-        y: (parent.height - self.height) / 2;
-        text: root.placeholder;
-        color: Theme.subtle;
-        font-size: Theme.font-body;
+        if input.text == "" : Text {
+            x: 10px;
+            y: (parent.height - self.height) / 2;
+            text: root.placeholder;
+            color: Theme.subtle;
+            font-size: Theme.font-body;
+        }
     }
 }
 
@@ -346,35 +354,140 @@ export component SearchField inherits Rectangle {
     width: 240px;
     height: 28px;
     border-radius: Theme.radius-control;
-    background: Theme.control;
+    background: search-hover.has-hover && !input.has-focus ? Theme.control-hover : Theme.control;
     border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : Theme.line-strong;
-    ToolIcon {
-        x: 9px;
-        y: (parent.height - self.height) / 2;
-        name: "search";
-        size: 14px;
-        tint: Theme.subtle;
+    border-color: input.has-focus ? Theme.accent : (search-hover.has-hover ? Theme.line-hover : Theme.line-strong);
+    animate background, border-color { duration: Motion.hover(search-hover.has-hover); easing: Curve.ease; }
+    // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
+    search-hover := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        clicked => { input.focus(); }
+        ToolIcon {
+            x: 9px;
+            y: (parent.height - self.height) / 2;
+            name: "search";
+            size: 14px;
+            tint: Theme.subtle;
+        }
+        input := TextInput {
+            x: 30px;
+            width: parent.width - 40px;
+            height: parent.height;
+            single-line: true;
+            vertical-alignment: center;
+            text <=> root.text;
+            color: Theme.text;
+            font-size: Theme.font-small;
+            accessible-role: text-input;
+            accessible-label: root.label;
+            edited => { root.edited(self.text); }
+            accepted => { root.accepted(self.text); }
+        }
+        if root.text == "" : Text {
+            x: 30px;
+            y: (parent.height - self.height) / 2;
+            text: root.placeholder;
+            color: Theme.subtle;
+            font-size: Theme.font-small;
+        }
     }
-    input := TextInput {
-        x: 30px;
-        width: parent.width - 40px;
-        height: parent.height;
-        single-line: true;
-        vertical-alignment: center;
-        text <=> root.text;
-        color: Theme.text;
-        font-size: Theme.font-small;
-        accessible-role: text-input;
-        accessible-label: root.label;
-        edited => { root.edited(self.text); }
-        accepted => { root.accepted(self.text); }
+}
+
+// A choice of two to four short options in one capsule; the chosen one carries a pill that glides to it, and the
+// hover pill follows the pointer along the others (docs/features/motion.md §4.3)
+export component Segmented inherits FocusScope {
+    in property <[string]> options;
+    in property <int> current: 0;
+    in property <string> label: "";
+    callback chosen(int);
+
+    height: 32px;
+    min-width: row.min-width;
+    preferred-width: row.preferred-width;
+    focus-on-tab-navigation: true;
+    accessible-role: tab-list;
+    accessible-label: label;
+    key-pressed(event) => {
+        if (event.text == Key.RightArrow && root.current < root.options.length - 1) {
+            root.chosen(root.current + 1);
+            accept
+        } else if (event.text == Key.LeftArrow && root.current > 0) {
+            root.chosen(root.current - 1);
+            accept
+        } else {
+            reject
+        }
     }
-    if root.text == "" : Text {
-        x: 30px;
-        y: (parent.height - self.height) / 2;
-        text: root.placeholder;
-        color: Theme.subtle;
-        font-size: Theme.font-small;
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: Theme.control;
+        border-width: root.has-focus ? 2px : 1px;
+        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
+    }
+    pills := PillList {
+        x: 3px;
+        y: 3px;
+        width: parent.width - 6px;
+        height: parent.height - 6px;
+        horizontal: true;
+        hover-fill: Theme.hover-fill;
+        select-fill: Theme.control-active;
+        radius: Theme.radius-control - 3px;
+    }
+    row := HorizontalLayout {
+        padding: 3px;
+        spacing: 0px;
+        for option[index] in root.options : Rectangle {
+            property <bool> active: index == root.current;
+            min-width: name.preferred-width + 24px;
+            horizontal-stretch: 1;
+            accessible-role: tab;
+            accessible-label: option;
+            accessible-item-selected: self.active;
+            accessible-action-default => { root.chosen(index); }
+            init => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, true);
+                }
+            }
+            changed active => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, false);
+                }
+            }
+            // The capsule changed size: the pills follow at once
+            changed width => {
+                if (self.active) {
+                    pills.select(self.absolute-position.x, self.width, true);
+                }
+                if (option-touch.has-hover) {
+                    pills.hover(true, self.absolute-position.x, self.width);
+                }
+            }
+            name := Text {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                text: option;
+                color: parent.active || option-touch.has-hover ? Theme.text : Theme.muted;
+                animate color { duration: Motion.hover(option-touch.has-hover); easing: Curve.ease; }
+                font-size: Theme.font-body;
+                font-weight: parent.active ? 600 : 500;
+                accessible-role: none;
+                // Sinks at once on press, back on release
+                transform-scale: option-touch.pressed ? Motion.press-scale : 100%;
+                animate transform-scale-x, transform-scale-y { duration: option-touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
+            }
+            option-touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.focus();
+                    root.chosen(index);
+                }
+                changed has-hover => {
+                    pills.hover(self.has-hover, parent.absolute-position.x, parent.width);
+                }
+            }
+        }
     }
 }

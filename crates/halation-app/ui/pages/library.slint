@@ -16,7 +16,6 @@ export component FilesBlock inherits VerticalLayout {
     in property <bool> busy: false;
     in property <bool> writable: false;
     in property <string> error: "";
-    in property <duration> motion-duration: 160ms;
     in property <[SectionRow]> sections;
     in property <[ItemRow]> section-items;
     in property <string> section-name: "";
@@ -217,7 +216,6 @@ export component FilesBlock inherits VerticalLayout {
         hidden: root.section-hidden;
         loaded: root.sections-loaded;
         busy: root.sections-busy;
-        motion-duration: root.motion-duration;
         select-section(id) => { root.select-section(id); }
         create-section(name) => { root.create-section(name); }
         rename-section(id, name) => { root.rename-section(id, name); }

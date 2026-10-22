@@ -1,0 +1,81 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// A tooltip: always there with transparent colours; after `Motion.tip-wait` of hover (at once with keyboard focus,
+// or when another tooltip was just showing) its colours fade in; it leaves without waiting. Colours, not `opacity`, so
+// no layer; a Timer for the wait, which paints nothing.
+export global TooltipState {
+    // Tooltips showing now
+    in-out property <int> showing: 0;
+    // A tooltip showed recently: the next one skips the wait (moving along a bar)
+    in-out property <bool> warm: false;
+}
+
+export component Tooltip inherits Rectangle {
+    in property <string> text;
+    in property <bool> show: false;
+    in property <bool> at-once: false;
+    property <bool> visible-now: false;
+    width: tip.preferred-width + 20px;
+    height: 26px;
+    border-radius: Theme.radius-overlay;
+    background: Theme.control.transparentize(root.visible-now ? 0 : 1);
+    border-width: 1px;
+    border-color: Theme.line-strong.transparentize(root.visible-now ? 0 : 1);
+    animate background, border-color { duration: Motion.fade; easing: Curve.ease; }
+
+    function update() {
+        if (!root.show) {
+            wait.running = false;
+            root.visible-now = false;
+        } else if (root.at-once || TooltipState.warm) {
+            wait.running = false;
+            root.visible-now = true;
+        } else if (!root.visible-now) {
+            wait.running = true;
+        }
+    }
+    init => { root.update(); }
+    changed show => { root.update(); }
+    changed at-once => { root.update(); }
+    changed visible-now => {
+        if (root.visible-now) {
+            TooltipState.showing += 1;
+            TooltipState.warm = true;
+        } else {
+            TooltipState.showing -= 1;
+            cool.running = true;
+        }
+    }
+
+    wait := Timer {
+        interval: Motion.tip-wait;
+        running: false;
+        triggered => {
+            self.running = false;
+            root.visible-now = root.show;
+        }
+    }
+    // Leaving a tooltip keeps the bar warm for one wait, so the next tooltip along it shows at once
+    cool := Timer {
+        interval: Motion.tip-wait;
+        running: false;
+        triggered => {
+            self.running = false;
+            if (TooltipState.showing <= 0) {
+                TooltipState.warm = false;
+            }
+        }
+    }
+
+    tip := Text {
+        text: root.text;
+        color: Theme.text.transparentize(root.visible-now ? 0 : 1);
+        animate color { duration: Motion.fade; easing: Curve.ease; }
+        font-size: Theme.font-small;
+        font-weight: 500;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        accessible-role: none;
+    }
+}

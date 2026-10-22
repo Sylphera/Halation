@@ -21,7 +21,7 @@ colours are superseded by the anchored redesign, [planning/active/ui-redesign.md
    never in the beta; the beta ships the recorded frames, which are allowed as rendered assets.
 3. **As cheap as possible** (Java, 2026-10-21): the original was heavy because of its renderer and costly animations.
    Here nothing runs at rest: no timer, shader, blur, drop shadow or continuous animation. Motion is native Slint
-   `animate` on colour, opacity, position and size, only while something changes (hover, rail opening, toggles).
+   `animate`, only while something changes, under the cost rules of [features/motion.md](features/motion.md).
 
 ## Measured layout (1920 × 1080; 1280 × 800 checked too)
 

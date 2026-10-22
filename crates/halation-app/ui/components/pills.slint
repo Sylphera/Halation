@@ -1,0 +1,81 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// The hover and selection pills of a list of rows: two rectangles without children that glide on a spring to the
+// row the rows report. Draw it behind the rows, in the same parent; it covers the parent's width less `inset-left`
+// and `inset-right`. Positions come in window coordinates.
+export component PillList inherits Rectangle {
+    in property <length> inset-left: 8px;
+    in property <length> inset-right: 9px;
+    // Horizontal lists (Home's strip): the pills glide in x and take the reported width
+    in property <bool> horizontal: false;
+    in property <color> hover-fill: Theme.control-hover;
+    in property <color> select-fill: Theme.control-active;
+    in property <length> radius: Theme.radius-control;
+    // False while no row of the list stands for what is shown
+    in property <bool> has-selection: true;
+
+    property <length> hover-at;
+    property <length> hover-size;
+    property <bool> hover-on: false;
+    property <bool> hover-snap: true;
+    // The pill is gone (no row hovered for a moment): the next hover places it at once instead of gliding
+    property <bool> hover-idle: true;
+    property <length> select-at;
+    property <length> select-size;
+    property <bool> select-on: false;
+    property <bool> select-snap: true;
+    property <length> origin: root.horizontal ? root.absolute-position.x : root.absolute-position.y;
+
+    public function hover(on: bool, at: length, size: length) {
+        if (on) {
+            // Appearing, it starts at the row; moving between rows (or across a gap between them), it glides
+            root.hover-snap = root.hover-idle;
+            root.hover-idle = false;
+            leave.running = false;
+            root.hover-at = at - root.origin;
+            root.hover-size = size;
+            root.hover-on = true;
+        } else if (root.hover-at == at - root.origin) {
+            root.hover-on = false;
+            leave.running = true;
+        }
+    }
+    public function select(at: length, size: length, snap: bool) {
+        root.select-snap = snap || !root.select-on;
+        root.select-at = at - root.origin;
+        root.select-size = size;
+        root.select-on = true;
+    }
+
+    leave := Timer {
+        interval: 200ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            if (!root.hover-on) {
+                root.hover-idle = true;
+            }
+        }
+    }
+
+    selection := Rectangle {
+        x: root.horizontal ? root.select-at : root.inset-left;
+        y: root.horizontal ? 0px : root.select-at;
+        width: root.horizontal ? root.select-size : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : root.select-size;
+        border-radius: root.radius;
+        background: root.select-on && root.has-selection ? root.select-fill : root.select-fill.transparentize(1);
+        animate x, y { duration: root.select-snap ? 0ms : Motion.glide; easing: spring(0); }
+    }
+    hover-pill := Rectangle {
+        x: root.horizontal ? root.hover-at : root.inset-left;
+        y: root.horizontal ? 0px : root.hover-at;
+        width: root.horizontal ? root.hover-size : parent.width - root.inset-left - root.inset-right;
+        height: root.horizontal ? parent.height : root.hover-size;
+        border-radius: root.radius;
+        background: root.hover-on ? root.hover-fill : root.hover-fill.transparentize(1);
+        animate background { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
+        animate x, y { duration: root.hover-snap ? 0ms : Motion.glide; easing: spring(0); }
+    }
+}

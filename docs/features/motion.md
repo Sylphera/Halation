@@ -1,7 +1,8 @@
 # Movimiento nativo (Slint)
 
-Status: Planned — spec v2 pendiente del visto bueno de Java. Hoy solo animan algunos colores, el knob del switch y el
-ancho de la sidebar (160 ms, `ease-out`); los hovers de la sidebar y de la barra superior son instantáneos.
+Status: Implemented — pendiente de revisión visual de Java en la ventana nativa. Spec aprobada por Java (2026-10-22).
+Código: `motion.rs`, `ui/motion.slint`, `ui/components/{pills,tooltip}.slint`; tests en `tests/services.rs` (reglas de
+coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimiento reducido).
 
 Qué se mueve en la app Slint, con qué valores y cuánto cuesta. Diseñada desde cero sobre lo que hace Slint 1.18 con Skia
 (Java, 2026-10-22: no se toma como referencia el código anterior; se buscan las animaciones más baratas posibles; el
@@ -48,14 +49,15 @@ Comprobado en el código de Slint 1.18.1 (`i-slint-renderer-skia`, `i-slint-core
 5. Entrar rápido, salir suave: el estado nuevo se ve casi en el primer frame; lo que se va se desvanece.
 6. `ease-out` en todo lo que no se interrumpe a menudo; `spring(0)` solo en lo que sigue al puntero o a clics rápidos
    (píldoras, knob), donde heredar la velocidad evita tirones.
-7. Movimiento reducido: todas las duraciones a 0 (estado final en el primer frame); la píldora de hover salta en vez de
-   deslizarse.
+7. Movimiento reducido: todas las duraciones a 0 (estado final en el primer frame) y nada escala; la píldora de hover
+   salta en vez de deslizarse. La espera del tooltip se mantiene: es una espera, no movimiento.
 8. Nada anima en reposo: sin `iteration-count` infinito; la CPU/GPU en reposo no cambia.
 
 ## 3. Tokens
 
 Un global `Motion` (`ui/motion.slint`) cuyos valores calcula Rust (`motion.rs`) desde Settings; con movimiento
-reducido, todos a 0 ms.
+reducido, todas las duraciones a 0 ms y `press-scale` a 100 %. La curva vive en un global aparte (`Curve.ease`) porque
+Rust no puede contener un `easing`; `spring(0)` se escribe en cada sitio porque Slint solo lo acepta como literal.
 
 | Token | Valor | Curva | Uso |
 |---|---|---|---|
@@ -116,15 +118,14 @@ frame; la píldora llega después.
 **Control segmentado** (`Segmented`, componente nuevo; Java, 2026-10-22: en las herramientas y en Settings la píldora
 hace lo mismo con clic): una fila de opciones dentro de una cápsula, con una píldora de selección que se desliza en `x`
 con `glide` a la opción pulsada y toma su ancho al instante. Las opciones sin seleccionar tienen hover de color. En
-Settings sustituye a las elecciones de 2–4 opciones (modo de guardado y similares); las herramientas lo usarán para
-sus pestañas y filtros cuando se porten.
+Settings sustituye a «Open the window» y a «Mode» (Processing); las tarjetas del modo de guardado siguen como tarjetas.
+Las herramientas lo usarán para sus pestañas y filtros cuando se porten.
 
 ### 4.4 Tooltips
 
 Siempre presentes con colores transparentes. Tras `tip-wait` de hover continuo (o al instante con foco de teclado)
-sus colores pasan a opacos en `fade`; al salir vuelven a transparente en `fade`, sin espera. Si el puntero pasa
-directamente de un elemento con tooltip a otro, el segundo aparece sin espera (el `Timer` solo cuenta desde fuera de la
-barra o la sidebar).
+sus colores pasan a opacos en `fade`; al salir vuelven a transparente en `fade`, sin espera. Si el puntero pasa de un
+elemento con tooltip a otro antes de `tip-wait`, el segundo aparece sin espera (estado compartido `TooltipState`).
 
 ### 4.5 Sidebar abrir/cerrar
 
@@ -166,8 +167,12 @@ durante ≈8 frames), que se probaría aparte.
 
 - `motion.rs` calcula los tokens (normal / reducido) y los publica en el global `Motion`; se recalculan al cambiar el
   ajuste. `motion-duration` desaparece de los componentes.
-- Píldoras: un `Rectangle` por lista con `animate y`; cada fila informa de su `has-hover` a la lista
-  (`changed has-hover`).
+- Píldoras (`PillList`): dos `Rectangle` sin hijos por lista; cada fila informa de su posición (`absolute-position`) al
+  cambiar su hover, al pasar a activa y al moverse por un cambio de layout (entonces la píldora se coloca sin
+  deslizarse). Al dejar de haber fila con hover, la píldora espera 200 ms antes de darse por ida: cruzar el hueco
+  entre grupos sigue deslizándose.
+- `transform-scale` se aplica a un contenedor interior, no a la raíz del componente: Slint 1.18 informa la posición
+  absoluta de los hijos de un `Transform` desplazada por su origen, y eso movía los nombres accesibles.
 - Tooltips: `Timer` de un disparo y colores con alfa animado.
 - Orden: tokens y migración de lo existente → hover → pulsación y selección → tooltips → sidebar y switch → medición de
   frames → Preview en KernelPanic.

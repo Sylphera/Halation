@@ -1,5 +1,6 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
 
 // Button of the anchored frame: a control fill with a 1 px border, the control radius, optional leading icon. `quiet` drops the
 // fill and border; `primary` is the one white button of a page.
@@ -9,7 +10,6 @@ export component AppButton inherits FocusScope {
     in property <bool> quiet: false;
     in property <bool> small: false;
     in property <bool> primary: false;
-    in property <duration> motion-duration: 160ms;
     callback clicked;
 
     width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
@@ -34,34 +34,42 @@ export component AppButton inherits FocusScope {
         }
     }
 
+    // Sinks at once on press, back on release (a matrix on the canvas: no layer, no layout)
     Rectangle {
-        width: parent.width;
-        height: parent.height;
-        border-radius: Theme.radius-control;
-        background: root.primary ? (touch.pressed ? Theme.muted : Theme.text)
-            : touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : (root.quiet ? transparent : Theme.control));
-        border-width: root.has-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
-        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
-        opacity: root.enabled ? 1 : 0.45;
-        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
-    }
+        transform-scale: touch.pressed ? Motion.press-scale : 100%;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
-    HorizontalLayout {
-        padding-left: root.small ? 11px : 15px;
-        padding-right: root.small ? 11px : 15px;
-        spacing: 8px;
-        alignment: center;
-        if root.icon != "" : VerticalLayout {
-            alignment: center;
-            ToolIcon { name: root.icon; size: 15px; tint: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text); }
+        Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: Theme.radius-control;
+            background: root.primary ? (touch.pressed ? Theme.muted : Theme.text)
+                : touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : (root.quiet ? transparent : Theme.control));
+            border-width: root.has-focus ? 2px : (root.quiet || root.primary ? 0px : 1px);
+            border-color: root.has-focus ? Theme.accent : Theme.line-strong;
+            opacity: root.enabled ? 1 : 0.45;
+            animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
-        label := Text {
-            text: root.text;
-            color: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text);
-            font-size: Theme.font-body;
-            font-weight: 500;
-            vertical-alignment: center;
-            opacity: root.enabled ? 1 : 0.6;
+
+        HorizontalLayout {
+            padding-left: root.small ? 11px : 15px;
+            padding-right: root.small ? 11px : 15px;
+            spacing: 8px;
+            alignment: center;
+            if root.icon != "" : VerticalLayout {
+                alignment: center;
+                ToolIcon { name: root.icon; size: 15px; tint: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text); }
+            }
+            label := Text {
+                text: root.text;
+                color: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text);
+                font-size: Theme.font-body;
+                font-weight: 500;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1 : 0.6;
+                // The button carries the name
+                accessible-role: none;
+            }
         }
     }
 

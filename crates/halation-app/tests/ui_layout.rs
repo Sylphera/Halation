@@ -243,3 +243,114 @@ fn settings_shows_one_category_at_a_time() {
     );
     assert!(!shown("Language"), "General's settings are gone");
 }
+
+fn advance(ms: u64) {
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(ms));
+    slint::platform::update_timers_and_animations();
+}
+
+fn point_at(ui: &AppWindow, label: &str) -> (f32, f32) {
+    // The sidebar's row (Home's strip and the top bar may hold the same name)
+    let row = ElementHandle::find_by_accessible_label(ui, label)
+        .find(|e| e.absolute_position().x < 40.0 && e.size().width > 0.0)
+        .unwrap_or_else(|| panic!("{label} is in the sidebar"));
+    let (pos, size) = (row.absolute_position(), row.size());
+    let (x, y) = (pos.x + size.width / 2.0, pos.y + size.height / 2.0);
+    ui.window().dispatch_event(WindowEvent::PointerMoved {
+        position: slint::LogicalPosition::new(x, y),
+    });
+    (x, y)
+}
+
+fn pill_y(ui: &AppWindow, id: &str) -> f32 {
+    // The sidebar's (the strip and the categories have their own)
+    let pills: Vec<_> = ElementHandle::find_by_element_id(ui, id)
+        .filter(|e| e.absolute_position().x < 40.0)
+        .collect();
+    assert!(!pills.is_empty(), "{id} exists in the sidebar");
+    let p = pills[0].absolute_position();
+    p.y + pills[0].size().height / 2.0
+}
+
+#[test]
+fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    let (_, first) = point_at(&ui, "Downloader");
+    advance(1000);
+    let pill = pill_y(&ui, "PillList::hover-pill");
+    assert!(
+        (pill - first).abs() < 1.0,
+        "the pill sits on the hovered row: {pill} vs {first}"
+    );
+    // To another row: on its way after a few frames, there once settled
+    let (_, second) = point_at(&ui, "Settings");
+    advance(32);
+    let moving = pill_y(&ui, "PillList::hover-pill");
+    assert!(
+        moving > first + 1.0 && moving < second - 1.0,
+        "glides: {first} -> {moving} -> {second}"
+    );
+    advance(1000);
+    let pill = pill_y(&ui, "PillList::hover-pill");
+    assert!(
+        (pill - second).abs() < 1.0,
+        "lands on the new row: {pill} vs {second}"
+    );
+}
+
+#[test]
+fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    let row = |label: &str| {
+        let e = ElementHandle::find_by_accessible_label(&ui, label)
+            .find(|e| e.absolute_position().x < 40.0 && e.size().width > 0.0)
+            .unwrap();
+        e.absolute_position().y + e.size().height / 2.0
+    };
+    let (home, settings) = (row("Home"), row("Settings"));
+    let pill = || pill_y(&ui, "PillList::selection");
+    assert!(
+        (pill() - home).abs() < 1.0,
+        "on Home from the start: {} vs {home}",
+        pill()
+    );
+    ui.set_page(3);
+    // The row learns it is active on the next frame; the pill sets off from there
+    advance(1);
+    advance(32);
+    assert!(
+        pill() > home + 1.0 && pill() < settings - 1.0,
+        "glides to Settings"
+    );
+    advance(1000);
+    assert!((pill() - settings).abs() < 1.0, "lands on Settings");
+
+    // Reduced motion: the end state on the next frame, for both pills
+    let tokens = halation_app::motion::tokens(true);
+    let motion = ui.global::<halation_app::ui::Motion>();
+    let ms = |d: std::time::Duration| d.as_millis() as i64;
+    motion.set_glide(ms(tokens.glide));
+    motion.set_hover_in(ms(tokens.hover_in));
+    motion.set_hover_out(ms(tokens.hover_out));
+    ui.set_page(0);
+    advance(1);
+    advance(1);
+    assert!((pill() - home).abs() < 1.0, "selection at once");
+    point_at(&ui, "Downloader");
+    advance(1);
+    let (_, to) = point_at(&ui, "Settings");
+    advance(1);
+    advance(1);
+    assert!(
+        (pill_y(&ui, "PillList::hover-pill") - to).abs() < 1.0,
+        "hover at once"
+    );
+}
