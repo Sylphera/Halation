@@ -66,8 +66,8 @@ Rust no puede contener un `easing`; `spring(0)` se escribe en cada sitio porque 
 | `hover-out` | 90 ms | `ease-out` | Se va el estado de hover |
 | `press` | 0 ms | — | Al pulsar: color y escala al instante |
 | `release` | 70 ms | `ease-out` | Al soltar, vuelve al hover |
-| `glide` | 55 ms | `ease-out` (`spring(0)` en el knob) | Borde delantero de las píldoras, knob |
-| `trail` | 110 ms | `ease-out` | Borde trasero de las píldoras |
+| `glide` | 30 ms | `ease-out` (`spring(0)` en el knob) | Píldora de hover, borde delantero de la de selección, knob |
+| `trail` | 65 ms | `ease-out` | Borde trasero de la píldora de selección |
 | `fade` | 80 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
 | `panel` | 120 ms | `ease-out` | Ancho de la sidebar |
 | `tip-wait` | 400 ms | `Timer` | Espera antes de mostrar un tooltip |
@@ -101,10 +101,9 @@ píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un 
 detrás de las filas, que sigue al puntero sin clic. En la barra de Home se desliza en `x`; todas sus herramientas
 tienen el mismo ancho (Java, 2026-10-22), las etiquetas largas se recortan con elipsis si la ventana es estrecha. Al
 entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
-`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila **se estira y se funde** en ella (Java,
-2026-10-22: «que se junta estilo Apple»): la píldora se dibuja entre dos bordes; el borde que va delante se mueve en
-`glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se cierra sobre ella, una sola forma todo el
-camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste que deslizarla; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
+`hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza en `glide` (30 ms), al ritmo del puntero; no se estira,
+porque al barrer rápido cada fila nueva reiniciaría el borde retrasado y la píldora quedaría estirada sobre varias
+filas, por detrás del ratón; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
 al recorrer la lista.
 
@@ -117,7 +116,10 @@ opciones de Settings. La zona de soltar baja solo a 99 %.
 ### 4.3 Selección
 
 La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
-`Rectangle` sin hijos por lista) que se estira hacia la nueva fila y se funde en ella como la de hover. En la sidebar
+`Rectangle` sin hijos por lista) que **se estira y se funde** en la nueva fila (Java, 2026-10-22: «que se junta estilo Apple»): se dibuja entre
+dos bordes; el que va delante se mueve en `glide` y el de detrás en `trail`, así que se alarga hacia la fila nueva y se
+cierra sobre ella, una sola forma todo el camino. Son dos propiedades animadas de un `Rectangle` sin hijos: mismo coste
+que deslizarla. En la sidebar
 la acompaña una **barra de acento** de 3 px a su izquierda que se estira con ella; el icono de la fila activa no se
 tiñe de acento, va en `text` como en hover (Java, 2026-10-22). La navegación cambia en el primer frame; la píldora
 llega después.

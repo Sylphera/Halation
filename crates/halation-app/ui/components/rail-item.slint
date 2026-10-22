@@ -130,11 +130,11 @@ export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
     // A fixed gap, the same for every group, so only the rows take the sidebar's spare height
-    height: root.open ? 30px : 17px;
+    height: root.open ? 38px : 17px;
     // A visible line between groups, open or collapsed (Java, 2026-10-22)
     Rectangle {
         x: 10px;
-        y: root.open ? 4px : 8px;
+        y: root.open ? 6px : 8px;
         width: parent.width - 20px;
         height: 1px;
         background: Theme.line-strong;
