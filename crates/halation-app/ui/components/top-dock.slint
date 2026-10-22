@@ -19,6 +19,9 @@ export component BarButton inherits FocusScope {
     in property <string> label;
     // Its shortcut, shown as a key cap in the tooltip
     in property <string> key: "";
+    // False where the top bar itself grows to name the button (`BarHint`) instead of a tooltip
+    in property <bool> bubble: true;
+    out property <bool> lit: touch.has-hover || root.keyboard-focus;
     callback activated;
     width: 32px;
     height: 32px;
@@ -62,7 +65,7 @@ export component BarButton inherits FocusScope {
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
     }
-    Tooltip {
+    if root.bubble : Tooltip {
         x: parent.width - self.width;
         y: parent.height + 8px;
         text: root.label;
@@ -92,18 +95,109 @@ export component ActivityButton inherits BarButton {
 }
 
 // The global actions at the right of the top bar: keyboard shortcuts, the Halation folder, language and saving the
-// session
+// session. They have no tooltips: the top bar grows under them to name the one hovered (`BarHint`; Java, 2026-10-22)
 export component TopActions inherits HorizontalLayout {
     callback shortcuts();
     callback open-folder();
     callback language();
     callback save-session();
+    // The hovered or focused button's name and shortcut, empty when none
+    callback hinted(string, string);
+    property <string> hint: keys.lit ? "Keyboard shortcuts" : folder.lit ? "Halation folder" : globe.lit ? "Language" : save.lit ? "Save Session" : "";
+    changed hint => { root.hinted(root.hint, keys.lit ? "?" : ""); }
 
     spacing: 6px;
     alignment: end;
 
-    BarButton { icon: "keyboard"; label: "Keyboard shortcuts"; key: "?"; activated => { root.shortcuts(); } }
-    BarButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
-    BarButton { icon: "globe"; label: "Language"; activated => { root.language(); } }
-    BarButton { icon: "save"; label: "Save Session"; activated => { root.save-session(); } }
+    keys := BarButton { icon: "keyboard"; label: "Keyboard shortcuts"; key: "?"; bubble: false; activated => { root.shortcuts(); } }
+    folder := BarButton { icon: "folder-open"; label: "Halation folder"; bubble: false; activated => { root.open-folder(); } }
+    globe := BarButton { icon: "globe"; label: "Language"; bubble: false; activated => { root.language(); } }
+    save := BarButton { icon: "save"; label: "Save Session"; bubble: false; activated => { root.save-session(); } }
+}
+
+// The top bar growing down into the page under its global actions to name the one hovered: one surface of the
+// toolbar's colour, its right edge fixed, its width following the name, joined to the bar by inverted curves
+export component BarHint inherits Rectangle {
+    in property <string> text;
+    in property <string> key;
+    // The last name, kept while the surface closes
+    property <string> shown;
+    property <string> shown-key;
+    changed text => {
+        if (root.text != "") {
+            root.shown = root.text;
+            root.shown-key = root.key;
+        }
+    }
+    property <bool> open: root.text != "";
+    property <length> reach: root.open ? row.preferred-width + 28px : 0px;
+    animate reach { duration: Motion.panel; easing: Curve.ease; }
+    property <float> hidden-by: root.open ? 0 : 1;
+    animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
+    property <length> fillet: min(8px, root.reach / 2);
+
+    width: 0px;
+    height: 28px;
+
+    Rectangle {
+        x: -root.reach;
+        width: root.reach;
+        height: root.height;
+        background: Theme.chrome;
+        border-bottom-left-radius: min(10px, root.reach / 2);
+        border-bottom-right-radius: min(10px, root.reach / 2);
+        clip: true;
+        row := HorizontalLayout {
+            x: parent.width - self.preferred-width - 14px;
+            width: self.preferred-width;
+            spacing: 8px;
+            Text {
+                text: root.shown;
+                color: Theme.text.transparentize(root.hidden-by);
+                font-size: Theme.font-small;
+                font-weight: 500;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+            if root.shown-key != "" : VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: max(18px, key-text.preferred-width + 10px);
+                    height: 18px;
+                    border-radius: 5px;
+                    background: Theme.key-fill.transparentize(root.hidden-by);
+                    border-width: 1px;
+                    border-color: Theme.key-edge.transparentize(root.hidden-by);
+                    key-text := Text {
+                        text: root.shown-key;
+                        color: Theme.muted.transparentize(root.hidden-by);
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        accessible-role: none;
+                    }
+                }
+            }
+        }
+    }
+    // The inverted curves where the surface leaves the bar
+    if root.reach > 0.5px : Path {
+        x: -root.reach - root.fillet;
+        y: 0px;
+        width: root.fillet;
+        height: root.fillet;
+        viewbox-width: 8;
+        viewbox-height: 8;
+        commands: "M 0 0 L 8 0 L 8 8 A 8 8 0 0 0 0 0 Z";
+        fill: Theme.chrome;
+    }
+    if root.reach > 0.5px : Path {
+        x: 0px;
+        y: 0px;
+        width: root.fillet;
+        height: root.fillet;
+        viewbox-width: 8;
+        viewbox-height: 8;
+        commands: "M 0 0 L 8 0 A 8 8 0 0 0 0 8 Z";
+        fill: Theme.chrome;
+    }
 }

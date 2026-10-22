@@ -25,6 +25,8 @@ export component PillList inherits Rectangle {
     in property <bool> soft-hover: false;
 
     property <length> hover-at;
+    // Where the hover pill came from: the neck only forms when it leaves or reaches the selected row
+    property <length> hover-from;
     property <length> hover-size;
     property <bool> hover-on: false;
     property <bool> hover-snap: true;
@@ -58,6 +60,7 @@ export component PillList inherits Rectangle {
             root.hover-idle = false;
             leave.running = false;
             root.hover-forward = at - root.origin >= root.hover-at;
+            root.hover-from = root.hover-snap ? at - root.origin : root.hover-at;
             root.hover-at = at - root.origin;
             root.hover-size = size;
             root.hover-on = true;
@@ -140,7 +143,10 @@ export component PillList inherits Rectangle {
     // 1 while the hover pill moves, back to 0 once it rests
     property <float> join: root.hover-moving ? 1 : 0;
     animate join { duration: Motion.fade; easing: Curve.ease; }
-    property <bool> fusing: root.hover-on && root.select-on && root.has-selection;
+    // Only a pill that leaves the selected row or heads for it joins it: passing from one row to another beside the
+    // selection draws no neck between them (Java, 2026-10-22)
+    property <bool> touches-selection: abs(root.hover-at - root.select-at) < 0.5px || abs(root.hover-from - root.select-at) < 0.5px;
+    property <bool> fusing: root.hover-on && root.select-on && root.has-selection && root.touches-selection;
     // 0 apart, 1 joined into one surface
     property <float> closeness: !root.fusing ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
     property <color> hover-colour: root.select-fill.mix(root.hover-fill, root.closeness);

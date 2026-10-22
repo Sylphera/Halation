@@ -117,6 +117,11 @@ Eighth Preview (Java, 2026-10-22): the Collapse row is a plain button: no pill, 
 lights its icon and label. In segmented controls and the Settings tabs the hover pill is half as strong as the
 selection (full as it fuses with it), so a hovered option beside the chosen one is not a second choice.
 
+Ninth Preview (Java, 2026-10-22): the neck between the hover pill and the selection forms only when the hover leaves
+or reaches the selected option; passing between two options beside it draws nothing between them. The top bar's
+global actions have no tooltips: the bar itself grows down under them, one surface of its colour joined by inverted
+curves, its right edge fixed, its width following the hovered button's name (and shortcut key cap) (`BarHint`).
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is
