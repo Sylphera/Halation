@@ -27,6 +27,15 @@ component HeadLink inherits Rectangle {
     }
 }
 
+// One of the Workspace's panels: a near-opaque surface over the Drape with a 1 px line and its own padding
+component Panel inherits Rectangle {
+    border-radius: Theme.radius-overlay;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.line-strong;
+    clip: true;
+}
+
 // The Workspace: Home, the Library and the jobs in one page (Java, 2026-10-22). Over the Drape, top to bottom: the
 // drop line, "Your files" (the Library, which takes the height left), and the jobs. No header of its own: the
 // sidebar and the top bar already carry the mark, the name and the page's title.
@@ -73,15 +82,13 @@ export component WorkspacePage inherits Rectangle {
         width: root.width - 64px;
         padding-top: 24px;
         padding-bottom: 20px;
-        spacing: 24px;
+        spacing: 16px;
 
-        // Drop line: the page's first action
-        Rectangle {
+        // Drop panel: the page's first action
+        Panel {
             height: 88px;
-            border-radius: Theme.radius-overlay;
-            border-width: 1px;
             border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-            background: drop-area.has-drag ? #a3a8dc1f : (drop-touch.has-hover ? Theme.hover-fill : transparent);
+            background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
             animate background { duration: root.motion-duration; easing: ease-out; }
             VerticalLayout {
                 alignment: center;
@@ -140,149 +147,161 @@ export component WorkspacePage inherits Rectangle {
             }
         }
 
-        FilesBlock {
+        Panel {
             vertical-stretch: 1;
-            min-height: 180px;
-            rows: root.rows;
-            total: root.total;
-            missing: root.missing;
-            loaded: root.loaded;
-            busy: root.busy;
-            writable: root.writable;
-            error: root.error;
-            motion-duration: root.motion-duration;
-            mode <=> root.mode;
-            sections: root.sections;
-            section-items: root.section-items;
-            section-id: root.section-id;
-            section-name: root.section-name;
-            section-kind: root.section-kind;
-            section-hidden: root.section-hidden;
-            sections-loaded: root.sections-loaded;
-            sections-busy: root.sections-busy;
-            sections-opened => { root.sections-opened(); }
-            select-section(id) => { root.select-section(id); }
-            create-section(name) => { root.create-section(name); }
-            rename-section(id, name) => { root.rename-section(id, name); }
-            delete-section(id) => { root.delete-section(id); }
-            link-folder => { root.link-folder(); }
-            unlink-folder(id) => { root.unlink-folder(id); }
-            remove-reference(id) => { root.remove-reference(id); }
+            min-height: 200px;
+            VerticalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-bottom: 4px;
+                FilesBlock {
+                    rows: root.rows;
+                    total: root.total;
+                    missing: root.missing;
+                    loaded: root.loaded;
+                    busy: root.busy;
+                    writable: root.writable;
+                    error: root.error;
+                    motion-duration: root.motion-duration;
+                    mode <=> root.mode;
+                    sections: root.sections;
+                    section-items: root.section-items;
+                    section-id: root.section-id;
+                    section-name: root.section-name;
+                    section-kind: root.section-kind;
+                    section-hidden: root.section-hidden;
+                    sections-loaded: root.sections-loaded;
+                    sections-busy: root.sections-busy;
+                    sections-opened => { root.sections-opened(); }
+                    select-section(id) => { root.select-section(id); }
+                    create-section(name) => { root.create-section(name); }
+                    rename-section(id, name) => { root.rename-section(id, name); }
+                    delete-section(id) => { root.delete-section(id); }
+                    link-folder => { root.link-folder(); }
+                    unlink-folder(id) => { root.unlink-folder(id); }
+                    remove-reference(id) => { root.remove-reference(id); }
+                }
+            }
         }
 
         // Jobs: up to three rows, then the list scrolls
-        VerticalLayout {
-            spacing: 0px;
-            Rectangle {
-                height: 36px;
-                HorizontalLayout {
-                    spacing: 10px;
-                    Text {
-                        text: "Jobs";
-                        color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
-                    if root.jobs.length > 0 : Text {
-                        text: "" + root.jobs.length;
-                        color: Theme.subtle;
-                        font-size: Theme.font-small;
-                        vertical-alignment: center;
-                    }
-                    Rectangle { horizontal-stretch: 1; }
-                    if root.jobs-has-finished : HeadLink {
-                        text: "Clear finished";
-                        activated => { root.clear-finished-jobs(); }
-                    }
-                    HeadLink {
-                        text: "View history";
-                        activated => { root.open-activity(); }
-                    }
-                }
+        Panel {
+            VerticalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-bottom: 4px;
+                spacing: 0px;
                 Rectangle {
-                    y: parent.height - 1px;
-                    height: 1px;
-                    background: Theme.line;
-                }
-            }
-            if root.jobs.length == 0 : Text {
-                height: 48px;
-                text: "No jobs. This beta has no engines connected yet, so nothing runs.";
-                color: Theme.subtle;
-                font-size: Theme.font-body;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-            if root.jobs.length > 0 : ListView {
-                height: root.job-rows * 48px;
-                for job in root.jobs : Rectangle {
-                    height: 48px;
-                    width: parent.width;
+                    height: 36px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Text {
+                            text: "Jobs";
+                            color: Theme.text;
+                            font-size: Theme.font-title;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                        if root.jobs.length > 0 : Text {
+                            text: "" + root.jobs.length;
+                            color: Theme.subtle;
+                            font-size: Theme.font-small;
+                            vertical-alignment: center;
+                        }
+                        Rectangle { horizontal-stretch: 1; }
+                        if root.jobs-has-finished : HeadLink {
+                            text: "Clear finished";
+                            activated => { root.clear-finished-jobs(); }
+                        }
+                        HeadLink {
+                            text: "View history";
+                            activated => { root.open-activity(); }
+                        }
+                    }
                     Rectangle {
                         y: parent.height - 1px;
                         height: 1px;
                         background: Theme.line;
                     }
-                    HorizontalLayout {
-                        padding-left: 4px;
-                        padding-right: 4px;
-                        spacing: 12px;
-                        VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 16px;
-                                height: 16px;
+                }
+                if root.jobs.length == 0 : Text {
+                    height: 48px;
+                    text: "No jobs. This beta has no engines connected yet, so nothing runs.";
+                    color: Theme.subtle;
+                    font-size: Theme.font-body;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                if root.jobs.length > 0 : ListView {
+                    height: root.job-rows * 48px;
+                    for job in root.jobs : Rectangle {
+                        height: 48px;
+                        width: parent.width;
+                        Rectangle {
+                            y: parent.height - 1px;
+                            height: 1px;
+                            background: Theme.line;
+                        }
+                        HorizontalLayout {
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            spacing: 12px;
+                            VerticalLayout {
+                                alignment: center;
                                 Rectangle {
-                                    x: 4px;
-                                    y: 4px;
-                                    width: 8px;
-                                    height: 8px;
-                                    border-radius: 4px;
-                                    background: job.failed ? Theme.danger : job.finished ? Theme.success : Theme.activity;
+                                    width: 16px;
+                                    height: 16px;
+                                    Rectangle {
+                                        x: 4px;
+                                        y: 4px;
+                                        width: 8px;
+                                        height: 8px;
+                                        border-radius: 4px;
+                                        background: job.failed ? Theme.danger : job.finished ? Theme.success : Theme.activity;
+                                    }
                                 }
                             }
-                        }
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 2px;
-                            Text {
-                                text: job.name;
-                                color: Theme.text;
-                                font-size: Theme.font-body;
-                                font-weight: 500;
-                                overflow: elide;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: job.name;
+                                    color: Theme.text;
+                                    font-size: Theme.font-body;
+                                    font-weight: 500;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: job.state + (job.detail != "" ? " · " + job.detail : "");
+                                    color: job.failed ? Theme.danger : Theme.subtle;
+                                    font-size: Theme.font-small;
+                                    overflow: elide;
+                                }
                             }
-                            Text {
-                                text: job.state + (job.detail != "" ? " · " + job.detail : "");
-                                color: job.failed ? Theme.danger : Theme.subtle;
-                                font-size: Theme.font-small;
-                                overflow: elide;
-                            }
-                        }
-                        if job.has-progress && !job.finished : VerticalLayout {
-                            alignment: center;
-                            Rectangle {
-                                width: 120px;
-                                height: 4px;
-                                border-radius: 2px;
-                                background: Theme.control-active;
+                            if job.has-progress && !job.finished : VerticalLayout {
+                                alignment: center;
                                 Rectangle {
-                                    x: 0px;
-                                    width: parent.width * clamp(job.progress, 0, 1);
+                                    width: 120px;
+                                    height: 4px;
                                     border-radius: 2px;
-                                    background: Theme.activity;
+                                    background: Theme.control-active;
+                                    Rectangle {
+                                        x: 0px;
+                                        width: parent.width * clamp(job.progress, 0, 1);
+                                        border-radius: 2px;
+                                        background: Theme.activity;
+                                    }
                                 }
                             }
-                        }
-                        if job.cancellable : VerticalLayout {
-                            alignment: center;
-                            AppButton {
-                                small: true;
-                                quiet: true;
-                                text: "Cancel";
-                                clicked => { root.cancel-job(job.id); }
+                            if job.cancellable : VerticalLayout {
+                                alignment: center;
+                                AppButton {
+                                    small: true;
+                                    quiet: true;
+                                    text: "Cancel";
+                                    clicked => { root.cancel-job(job.id); }
+                                }
                             }
                         }
                     }

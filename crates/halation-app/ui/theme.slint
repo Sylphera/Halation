@@ -22,9 +22,11 @@ export global Theme {
     in-out property <color> danger: #f0a6a6;
     in-out property <color> success: #9fd6b2;
 
-    // Hover and pressed fills over anything (the only translucent fills of the frame)
+    // Hover and pressed fills over anything
     out property <color> hover-fill: #ffffff0f;
     out property <color> press-fill: #ffffff17;
+    // The Workspace's panels over the Drape: the canvas at 86%, so the Drape shows faintly through them
+    out property <color> panel: #101011dc;
 
     // Frame metrics
     out property <length> sidebar-open: 224px;
