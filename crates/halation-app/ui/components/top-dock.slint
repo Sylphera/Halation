@@ -66,11 +66,24 @@ export component BarButton inherits FocusScope {
     }
 }
 
-// The global actions at the right of the top bar: activity, keyboard shortcuts, the Halation folder, language and
-// saving the session
-export component TopActions inherits HorizontalLayout {
+// Activity: a dot, lit while jobs run, beside the page's name in the top bar
+export component ActivityButton inherits BarButton {
     in property <bool> busy: false;
-    callback activity();
+    icon: "";
+    label: root.busy ? "Activity: working" : "Activity: all quiet";
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: root.busy ? Theme.activity : Theme.subtle;
+    }
+}
+
+// The global actions at the right of the top bar: keyboard shortcuts, the Halation folder, language and saving the
+// session
+export component TopActions inherits HorizontalLayout {
     callback shortcuts();
     callback open-folder();
     callback language();
@@ -79,19 +92,6 @@ export component TopActions inherits HorizontalLayout {
     spacing: 2px;
     alignment: end;
 
-    BarButton {
-        icon: "";
-        label: root.busy ? "Activity: working" : "Activity: all quiet";
-        activated => { root.activity(); }
-        Rectangle {
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
-            background: root.busy ? Theme.activity : Theme.subtle;
-        }
-    }
     BarButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
     BarButton { icon: "folder-open"; label: "Halation folder"; activated => { root.open-folder(); } }
     BarButton { icon: "globe"; label: "Language"; activated => { root.language(); } }

@@ -138,8 +138,8 @@ fn the_check_does_detect_a_window_that_is_too_small() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     resize(&ui, 300.0, 200.0);
-    // Settings: its top bar (search, Restore defaults and the global actions) cannot fit 300 px; the page's own
-    // content is clipped by the sheet and so leaves the accessibility tree
+    // Settings: its top bar (title, Activity and the global actions) cannot fit 300 px; the page's own content is
+    // clipped by the sheet and so leaves the accessibility tree
     ui.set_page(3);
     slint::platform::update_timers_and_animations();
     assert!(
@@ -239,6 +239,9 @@ fn settings_shows_one_category_at_a_time() {
     slint::platform::update_timers_and_animations();
     let shown = |label: &str| ElementHandle::find_by_accessible_label(&ui, label).count() > 0;
     assert!(shown("Language"), "General is the first category");
+    // Search and Restore defaults stand on the tabs' row
+    assert!(shown("Search settings"), "the search is on the page");
+    assert!(shown("Restore defaults"), "Restore defaults is on the page");
     assert!(
         !shown("Processor jobs at once"),
         "Processing is not shown with General"

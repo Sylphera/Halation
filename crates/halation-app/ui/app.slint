@@ -10,9 +10,7 @@ export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, C
 import { HomePage } from "pages/home.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { SidebarItem, SidebarGroup, PillList } from "components/rail-item.slint";
-import { TopActions, BarButton } from "components/top-dock.slint";
-import { AppButton } from "components/button.slint";
-import { SearchField } from "components/controls.slint";
+import { TopActions, ActivityButton, BarButton } from "components/top-dock.slint";
 
 export component AppWindow inherits Window {
     title: "Halation";
@@ -194,6 +192,8 @@ export component AppWindow inherits Window {
                 set-pref(key, value) => { root.set-pref(key, value); }
                 set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
                 action(name) => { root.dock-action(name); }
+                reset => { root.reset-settings(); }
+                search(value) => { return root.search-settings(value); }
             }
         }
 
@@ -211,6 +211,7 @@ export component AppWindow inherits Window {
                 spacing: 12px;
 
                 HorizontalLayout {
+                    horizontal-stretch: 0;
                     spacing: 6px;
                     Text {
                         text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : "";
@@ -218,6 +219,14 @@ export component AppWindow inherits Window {
                         font-family: Theme.display;
                         font-size: Theme.font-bar-title;
                         vertical-alignment: center;
+                    }
+                    // Activity, beside the page's name (Java, 2026-10-22)
+                    if root.prefs.show-dock : VerticalLayout {
+                        alignment: center;
+                        ActivityButton {
+                            busy: root.jobs-busy;
+                            activated => { root.dock-action("activity"); }
+                        }
                     }
                 }
 
@@ -252,41 +261,9 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // The page's actions
-                if root.page == 3 : HorizontalLayout {
-                    spacing: 8px;
-                    VerticalLayout {
-                        alignment: center;
-                        // Enter opens the category that holds the words (Rust matches them)
-                        SearchField {
-                            placeholder: "Search settings...";
-                            label: "Search settings";
-                            accepted(value) => {
-                                let found = root.search-settings(value);
-                                if (found >= 0) {
-                                    root.settings-category = found;
-                                }
-                            }
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        AppButton {
-                            quiet: true;
-                            small: true;
-                            icon: "rotate-ccw";
-                            text: "Restore defaults";
-                            enabled: root.settings-writable;
-                            clicked => { root.reset-settings(); }
-                        }
-                    }
-                }
-
                 if root.prefs.show-dock : VerticalLayout {
                     alignment: center;
                     TopActions {
-                        busy: root.jobs-busy;
-                        activity => { root.dock-action("activity"); }
                         shortcuts => { root.dock-action("shortcuts"); }
                         open-folder => { root.dock-action("folder"); }
                         language => { root.dock-action("language"); }

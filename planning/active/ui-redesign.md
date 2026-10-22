@@ -203,6 +203,10 @@ Left to right, on `chrome`, with a 1 px `line` underneath and no inner dividers.
    folder, language, Save session. Icon buttons, 28 px, tooltip with name and shortcut. "Show processes dock" in
    Settings (`prefs.show-dock`) hides the whole global group, as it hides the dock today.
 
+Superseded for the beta (Java, 2026-10-22; [material.md](../../docs/features/material.md)): Activity sits beside the
+page's name instead of in the global group, and Settings' search and Restore defaults stand on the row of its tabs, at
+their right, instead of in the top bar.
+
 Tabs for Library (References, Sections) sit in a 36 px **sub-header** under the top
 bar: text tabs, the active one with `text` colour and a 2 px `accent` underline on the sub-header's own line; same
 `chrome` fill.

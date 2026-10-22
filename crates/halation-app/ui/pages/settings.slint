@@ -2,7 +2,7 @@ import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
 import { AppButton } from "../components/button.slint";
-import { Toggle, Select, Segmented, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
+import { Toggle, Select, Segmented, Field, SearchField, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
 import { Surface, Level } from "../components/surface.slint";
@@ -182,7 +182,8 @@ component ListRow inherits Rectangle {
 }
 
 // Settings (planning/active/ui-redesign.md §9): the categories as tabs at the top (Java, 2026-10-22: a list at the
-// left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore defaults live in the top bar (app.slint).
+// left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore
+// defaults stand at the right of the tabs, on their row (Java, 2026-10-22).
 export component SettingsPage inherits Rectangle {
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
@@ -203,6 +204,9 @@ export component SettingsPage inherits Rectangle {
     callback set-tool-enabled(string, bool);
     // Buttons without an engine behind them in the beta, and folder openers: handled in Rust
     callback action(string);
+    callback reset();
+    // Enter in the search opens the category that holds the words (Rust matches them; -1 when none does)
+    callback search(string) -> int;
 
     property <[string]> names: ["General", "Interface", "You", "Files", "Processing", "Tools", "Storage", "About"];
     // The tabs' bar and the content start below it
@@ -211,6 +215,11 @@ export component SettingsPage inherits Rectangle {
     property <length> column: min(1200px, root.width - 64px);
     // Tabs and content share one centred column
     property <length> column-x: (root.width - root.column) / 2;
+    // The tabs' row: the tabs at the left, the search and Restore defaults at the right. Short of room, Restore
+    // defaults keeps only its icon and the search narrows, down to 120 px.
+    property <length> room: root.column - tabs.preferred-width - 12px;
+    property <bool> restore-text: root.room >= 160px + 8px + 150px;
+    property <length> search-width: max(120px, min(260px, root.room - 8px - (root.restore-text ? 150px : 46px)));
 
     // Category to show first (headless snapshots); -1 leaves the current one
     in property <int> jump-to: -1;
@@ -258,6 +267,37 @@ export component SettingsPage inherits Rectangle {
                 activated => { root.category = index; }
                 hovered(on, at, size) => { category-pills.hover(on, at, size); }
                 selected(at, size, snap) => { category-pills.select(at, size, snap); }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        x: root.column-x + root.column - self.width;
+        y: root.tabs-top;
+        width: self.preferred-width;
+        height: 36px;
+        spacing: 8px;
+        SearchField {
+            width: root.search-width;
+            height: 36px;
+            placeholder: "Search settings...";
+            label: "Search settings";
+            accepted(value) => {
+                let found = root.search(value);
+                if (found >= 0) {
+                    root.category = found;
+                }
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            AppButton {
+                quiet: true;
+                icon: "rotate-ccw";
+                text: root.restore-text ? "Restore defaults" : "";
+                name: "Restore defaults";
+                enabled: root.writable;
+                clicked => { root.reset(); }
             }
         }
     }

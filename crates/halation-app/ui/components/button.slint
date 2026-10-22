@@ -19,13 +19,15 @@ export component AppButton inherits FocusScope {
     in property <bool> quiet: false;
     in property <bool> small: false;
     in property <bool> primary: false;
+    // The accessible name, when the button shows only its icon
+    in property <string> name: root.text;
     callback clicked;
 
     width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
     height: root.small ? 28px : 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: text;
+    accessible-label: root.name;
     accessible-action-default => {
         if (root.enabled) {
             clicked();

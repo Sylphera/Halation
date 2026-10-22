@@ -94,6 +94,11 @@ Collapse row moves to the sidebar's header, in place of the mark and "Halation" 
 so the toggle takes no row of its own at the foot; it keeps its icon, label, hover pill and tooltip. Ctrl+B still
 toggles the sidebar.
 
+Fifth Preview (Java, 2026-10-22): the Activity dot sits beside the page's name in the top bar, not among the global
+actions. Settings' search (36 px tall, as the tabs' track) and Restore defaults leave the top bar and stand on the tabs'
+row, at its right ("así se ve todo más lleno"); short of room the search narrows to 120 px and Restore defaults keeps
+only its icon.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is
