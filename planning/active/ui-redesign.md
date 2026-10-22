@@ -6,7 +6,7 @@ Annex of [docs/SLINT_SPEC.md](../../docs/SLINT_SPEC.md); it supersedes the *layo
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
 Drape, lavender accent, near-black ground) does not change. Static mockup: Artifact published with this spec (https://claude.ai/artifact/VaQf6JbL7m9DGtNa9xv2hX).
 
-**Implementation (2026-10-22): implemented; approved by Java in the native window at `ca076f6` (2026-10-22, "terminado")** in the native window. Done: tokens (§5),
+**Implementation (2026-10-22): implemented; approved by Java at `ca076f6` (2026-10-22, "terminado")** in the native window. Done: tokens (§5),
 sidebar (§6), top bar (§7), Drape inside Home's content (§8, variant 1), Home, Settings by category and Library (§9),
 with headless tests for the sidebar's width rule, `Ctrl+B` and one category at a time. Not done in this pass, on
 purpose or for lack of an engine: the tool frame (§9; tools still have no pages, so it has nothing to hold), the 1.2 s
