@@ -282,24 +282,6 @@ export component AppWindow inherits Window {
             background: Theme.chrome;
             clip: false;
 
-            // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
-            // like the others, so it takes the same hover pill
-            HorizontalLayout {
-                y: 0px;
-                height: Theme.bar;
-                padding-left: 8px;
-                padding-right: 9px;
-                SidebarItem {
-                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
-                    label: "Collapse";
-                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
-                    open: root.rail-open;
-                    activated => { root.rail-open = !root.rail-open; }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
-                }
-            }
-
             // The hover and selection pills behind the rows
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
@@ -311,6 +293,27 @@ export component AppWindow inherits Window {
                 raised-hover: true;
                 y: 0px;
                 height: parent.height;
+            }
+
+            // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
+            // like the others, so it takes the same hover pill; after the pills, so they lie behind it
+            HorizontalLayout {
+                // Centred on the top bar's title, its pill kept off the window's top edge
+                y: 0px;
+                height: Theme.bar;
+                padding-top: 2px;
+                padding-bottom: 2px;
+                padding-left: 8px;
+                padding-right: 9px;
+                SidebarItem {
+                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
+                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
+                    label: "Collapse";
+                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
+                    open: root.rail-open;
+                    activated => { root.rail-open = !root.rail-open; }
+                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
+                }
             }
 
             VerticalLayout {
