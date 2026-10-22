@@ -162,7 +162,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
         // Workspace, Sections tab (set directly: below the fold the tab is scrolled out of the accessibility tree)
-        ui.set_page(0);
+        ui.set_page(1);
         ui.set_library_mode(1);
         slint::platform::update_timers_and_animations();
         let stray = outside_above(&ui, w, h, 44.0);
@@ -190,8 +190,8 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Pages and the sidebar entry that marks each: the Workspace holds Home, the Library (1) and the jobs
-    let places = [(0, "Workspace"), (3, "Settings")];
+    // Pages and the sidebar entry that marks each: Home, the Workspace (tools, Library and jobs) and Settings
+    let places = [(0, "Home"), (1, "Workspace"), (3, "Settings")];
     for (page, _) in places {
         ui.set_page(page);
         slint::platform::update_timers_and_animations();

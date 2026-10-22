@@ -6,6 +6,7 @@ export { Theme } from "theme.slint";
 export { Assets } from "assets.slint";
 export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, ComponentRow, FolderRow } from "models.slint";
 import { WorkspacePage } from "pages/home.slint";
+import { HomePage } from "pages/start.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { SidebarItem, SidebarGroup } from "components/rail-item.slint";
 import { TopActions, BarButton } from "components/top-dock.slint";
@@ -29,7 +30,7 @@ export component AppWindow inherits Window {
         keys.focus();
     }
 
-    // Pages: 0 Workspace (Home, Library and jobs in one page; 1, the Library, shows it too), 3 Settings; 2 is unused
+    // Pages: 0 Home (the original, Java 2026-10-22), 1 Workspace (tools, Library and jobs), 3 Settings; 2 is unused
     in property <int> page: 0;
     in property <bool> reduced-motion: false;
     in property <int> diagnostic-scene: 1;
@@ -109,7 +110,7 @@ export component AppWindow inherits Window {
     callback save-finished();
     callback references-finished();
 
-    // "Expand when needed": collapsed on the Workspace, which presents the tools itself (the navigation is not doubled,
+    // "Expand when needed": collapsed on Home and the Workspace, which present the tools themselves (the navigation is not doubled,
     // it hides; Java, 2026-10-22), and open elsewhere from 1180 px of window width. "Keep open" keeps it open and
     // "Compact" closed. The user's toggle wins until the page, the width band or the setting changes.
     property <bool> wide: root.width >= 1180px;
@@ -168,7 +169,19 @@ export component AppWindow inherits Window {
                 opacity: 0.1;
             }
 
-            if root.page <= 1 : WorkspacePage {
+            if root.page == 0 : HomePage {
+                width: parent.width;
+                height: parent.height;
+                tools: root.active-tools;
+                recent: root.recent;
+                library-loaded: root.library-loaded;
+                motion-duration: root.motion-duration;
+                tool-activated(id) => { root.tool-activated(id); }
+                choose-reference => { root.choose-reference(); }
+                file-dropped(data) => { root.file-dropped(data); }
+            }
+
+            if root.page == 1 : WorkspacePage {
                 width: parent.width;
                 height: parent.height;
                 rows: root.library-rows;
@@ -247,13 +260,13 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 6px;
                     Text {
-                        text: root.page <= 1 ? "Workspace" : root.page == 3 ? "Settings" : "";
+                        text: root.page == 0 ? "Home" : root.page == 1 ? "Workspace" : root.page == 3 ? "Settings" : "";
                         color: Theme.text;
                         font-size: Theme.font-title;
                         font-weight: 600;
                         vertical-alignment: center;
                     }
-                    if root.page <= 1 && root.library-mode == 1 : Text {
+                    if root.page == 1 && root.library-mode == 1 : Text {
                         text: root.section-name == "" ? "· Sections" : "· Sections · " + root.section-name;
                         color: Theme.subtle;
                         font-size: Theme.font-title;
@@ -296,7 +309,7 @@ export component AppWindow inherits Window {
                 }
 
                 // The page's actions
-                if root.page <= 1 && root.library-mode == 0 : HorizontalLayout {
+                if root.page == 1 && root.library-mode == 0 : HorizontalLayout {
                     spacing: 8px;
                     VerticalLayout {
                         alignment: center;
@@ -408,10 +421,17 @@ export component AppWindow inherits Window {
 
                 SidebarItem {
                     icon: "house";
+                    label: "Home";
+                    open: root.rail-open;
+                    active: root.page == 0;
+                    activated => { root.navigate(0); }
+                }
+                SidebarItem {
+                    icon: "library";
                     label: "Workspace";
                     open: root.rail-open;
-                    active: root.page <= 1;
-                    activated => { root.navigate(0); }
+                    active: root.page == 1;
+                    activated => { root.navigate(1); }
                 }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;

@@ -27,6 +27,10 @@ hides on the Workspace under "Expand when needed", so the navigation is not doub
 equally, groups keep one fixed gap, and the Collapse toggle sits in a fixed place above Settings. The ten pictures
 take about 6 MB decoded (480 x 300 each). Pending Java's visual review.
 
+**Home back (Java, 2026-10-22):** the original Home (mark, wordmark, tagline, tool strip, drop zone, recent files)
+returns as page 0 inside the curved frame, with the frame's tokens; the Workspace (tools, Library, jobs) is page 1 and
+keeps everything else. Pending Java's visual review.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged
