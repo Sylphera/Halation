@@ -1,6 +1,6 @@
 # Movimiento nativo (Slint)
 
-Status: Implemented — pendiente de revisión visual de Java en la ventana nativa. Spec aprobada por Java (2026-10-22).
+Status: Implemented — aprobado por Java en la ventana nativa (2026-10-22). Spec aprobada por Java (2026-10-22).
 Código: `motion.rs`, `ui/motion.slint`, `ui/components/{pills,tooltip}.slint`; tests en `tests/services.rs` (reglas de
 coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimiento reducido).
 
