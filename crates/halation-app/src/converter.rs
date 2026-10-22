@@ -9,7 +9,7 @@ use halation_core::{
     destinations::{Destinations, ExportLocation, SaveMode, SavePicker},
     engine::JobEngine,
     folders,
-    playback::{self, Player},
+    playback::{self, Picture, Player},
     queue::{JobSpec, JobState, Lane},
 };
 use slint::{
@@ -86,6 +86,11 @@ pub(crate) struct Converter {
     audio: RefCell<Audio>,
     // Runs only while audio plays: moves the head and notices the end
     clock: slint::Timer,
+    /// Playback volume (0..1), kept across files; `muted_from` remembers it while muted
+    volume: std::cell::Cell<f32>,
+    muted_from: std::cell::Cell<Option<f32>>,
+    /// Newest still requested for a paused video: older results are dropped
+    still: Arc<AtomicU64>,
 }
 
 #[derive(Default)]
@@ -103,7 +108,16 @@ struct Audio {
     /// Seconds heard, kept while paused
     position: f64,
     player: Option<Player>,
+    /// A video's picture size and rate; `None` for audio
+    picture: Option<Picture>,
+    /// The source has a sound stream (a silent video plays on the wall clock)
+    sound: bool,
+    /// What a paused video's still is decoded from
+    source: Option<Source>,
 }
+
+/// Video frames are decoded at most this large (the canvas scales them; memory stays near 2 × 3.7 MB).
+const PICTURE_MAX: (u32, u32) = (1280, 720);
 
 /// Arrow keys move the audio head by this much.
 const AUDIO_STEP: f64 = 5.0;
@@ -133,6 +147,9 @@ impl Converter {
             location_writes: Arc::default(),
             audio: RefCell::new(Audio::default()),
             clock: slint::Timer::default(),
+            volume: std::cell::Cell::new(1.0),
+            muted_from: std::cell::Cell::new(None),
+            still: Arc::default(),
         })
     }
 
@@ -182,6 +199,17 @@ impl Converter {
             }
             "install" => controller.install_ffmpeg(),
             "play" => controller.toggle_playback(),
+            "mute" => {
+                let current = controller.volume.get();
+                match controller.muted_from.take() {
+                    Some(before) if current == 0.0 => controller.set_volume(before),
+                    _ if current > 0.0 => {
+                        controller.muted_from.set(Some(current));
+                        controller.set_volume(0.0);
+                    }
+                    _ => controller.set_volume(1.0),
+                }
+            }
             "back" => controller.seek_by(-AUDIO_STEP),
             "forward" => controller.seek_by(AUDIO_STEP),
             "reveal" => controller.reveal(),
@@ -252,6 +280,17 @@ impl Converter {
         ui.on_converter_seek(move |fraction| {
             let duration = controller.audio.borrow().duration;
             controller.seek_to(f64::from(fraction) * duration);
+        });
+        let controller = self.clone();
+        ui.on_converter_volume(move |value| {
+            controller.muted_from.set(None);
+            controller.set_volume(value);
+        });
+        let controller = self.clone();
+        ui.on_converter_remove(move |index| {
+            if let Ok(index) = usize::try_from(index) {
+                controller.remove(index);
+            }
         });
         let controller = self.clone();
         ui.on_converter_loaded(move || {
@@ -337,31 +376,54 @@ impl Converter {
         let Ok(source) = &input.source else {
             return;
         };
+        let ffmpeg = state.ffmpeg.clone();
+        let source = source.clone();
+        let path = input.path.clone();
+        drop(state);
         if source.class == Class::Audio {
-            let Some(ffmpeg) = state.ffmpeg.as_ref().map(|f| f.ffmpeg.clone()) else {
-                return;
-            };
-            let path = input.path.clone();
-            let duration = source.duration;
-            drop(state);
-            self.open_audio(path, ffmpeg, duration, generation);
+            if let Some(ffmpeg) = ffmpeg {
+                self.open_media(path, ffmpeg.ffmpeg, source, generation);
+            }
             return;
         }
         if !matches!(source.class, Class::Image | Class::Animated | Class::Video) {
             return;
         }
-        let source = source.clone();
-        let path = input.path.clone();
-        let ffmpeg = state.ffmpeg.clone();
+        let job = self.submit_still(
+            path.clone(),
+            source.clone(),
+            ffmpeg.clone(),
+            0.0,
+            generation,
+        );
+        *self.preview_job.borrow_mut() = Some(job);
+        if source.class == Class::Video
+            && let Some(ffmpeg) = ffmpeg
+        {
+            self.open_media(path, ffmpeg.ffmpeg, source, generation);
+        }
+    }
+
+    /// One still of an image, or of a video at `at` seconds, decoded in a preview job and shown when it is still
+    /// the newest request for the selected file.
+    fn submit_still(
+        &self,
+        path: PathBuf,
+        source: Source,
+        ffmpeg: Option<Ffmpeg>,
+        at: f64,
+        generation: u64,
+    ) -> String {
         let workspace = self.workspace();
         let weak = self.weak.clone();
         let current = self.preview_generation.clone();
-        drop(state);
+        let latest = self.still.clone();
+        let request = latest.fetch_add(1, Ordering::AcqRel) + 1;
         let mut spec = JobSpec::new("converter-preview", "Prepare preview", Lane::Light);
         // Decoding can touch a large source before thumbnailing. Never decode several previews concurrently.
         spec.cost = Lane::Light.capacity();
         spec.priority = halation_core::queue::Priority::User;
-        let job = self.engine.submit_task(spec, move |context| {
+        self.engine.submit_task(spec, move |context| {
             let thumbnail = workspace.join("preview.png");
             let result = (|| {
                 context.check_cancelled()?;
@@ -370,23 +432,31 @@ impl Converter {
                         return Ok(());
                     };
                     std::fs::create_dir_all(&workspace).map_err(|e| e.to_string())?;
+                    let mut args: Vec<String> = [
+                        "-hide_banner",
+                        "-nostdin",
+                        "-n",
+                        "-protocol_whitelist",
+                        "file,pipe",
+                    ]
+                    .map(String::from)
+                    .into();
+                    if at > 0.0 {
+                        args.extend(["-ss".into(), format!("{at:.3}")]);
+                    }
+                    args.extend([
+                        "-i".into(),
+                        path.to_string_lossy().into_owned(),
+                        "-frames:v".into(),
+                        "1".into(),
+                        "-vf".into(),
+                        "scale=1280:720:force_original_aspect_ratio=decrease".into(),
+                        thumbnail.to_string_lossy().into_owned(),
+                    ]);
                     context.run_process(
                         halation_core::process::ProcessSpec {
                             program: ffmpeg.ffmpeg,
-                            args: vec![
-                                "-hide_banner".into(),
-                                "-nostdin".into(),
-                                "-n".into(),
-                                "-protocol_whitelist".into(),
-                                "file,pipe".into(),
-                                "-i".into(),
-                                path.to_string_lossy().into_owned(),
-                                "-frames:v".into(),
-                                "1".into(),
-                                "-vf".into(),
-                                "scale=1024:768:force_original_aspect_ratio=decrease".into(),
-                                thumbnail.to_string_lossy().into_owned(),
-                            ],
+                            args,
                             low_priority: true,
                             ..Default::default()
                         },
@@ -397,12 +467,14 @@ impl Converter {
                     &path
                 };
                 let (image, _) = convert::decode(preview_path)?;
-                let rgba = image.thumbnail(1024, 768).to_rgba8();
+                let rgba = image.thumbnail(1280, 720).to_rgba8();
                 context.check_cancelled()?;
                 let (width, height) = rgba.dimensions();
                 let bytes = rgba.into_raw();
                 let _ = weak.upgrade_in_event_loop(move |ui| {
-                    if current.load(Ordering::Acquire) == generation {
+                    if current.load(Ordering::Acquire) == generation
+                        && latest.load(Ordering::Acquire) == request
+                    {
                         ui.set_convert_preview(Image::from_rgba8(
                             SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
                                 &bytes, width, height,
@@ -416,26 +488,54 @@ impl Converter {
             let _ = std::fs::remove_file(thumbnail);
             let _ = std::fs::remove_dir(workspace);
             result
-        });
-        *self.preview_job.borrow_mut() = Some(job);
+        })
     }
 
     /* ===== audio preview ===== */
 
-    /// Shows the player at once (skeleton waveform) and computes the waveform in a preview job.
-    fn open_audio(&self, path: PathBuf, ffmpeg: PathBuf, duration: f64, generation: u64) {
+    /// Shows the transport at once. Audio also gets its waveform, computed in a preview job (skeleton meanwhile).
+    fn open_media(&self, path: PathBuf, ffmpeg: PathBuf, source: Source, generation: u64) {
+        let video = source.class == Class::Video;
+        let picture = video
+            .then(|| {
+                let stream = source
+                    .streams
+                    .iter()
+                    .find(|s| s.kind == "video" && !s.cover);
+                Picture::fit(
+                    source.width,
+                    source.height,
+                    stream.map_or(0.0, |s| s.fps),
+                    PICTURE_MAX.0,
+                    PICTURE_MAX.1,
+                )
+            })
+            .flatten();
+        if video && picture.is_none() {
+            return;
+        }
+        let sound = source.streams.iter().any(|s| s.kind == "audio");
+        let duration = source.duration;
         *self.audio.borrow_mut() = Audio {
             path: Some(path.clone()),
             ffmpeg: Some(ffmpeg.clone()),
             duration,
+            picture,
+            sound,
+            source: Some(source),
             ..Default::default()
         };
         if let Some(ui) = self.weak.upgrade() {
-            ui.set_convert_audio(true);
+            ui.set_convert_audio(!video);
+            ui.set_convert_video(video);
+            ui.set_convert_volume(self.volume.get());
             ui.set_convert_wave(Default::default());
             ui.set_convert_wave_bins(playback::WAVE_BINS as f32);
         }
         self.show_audio();
+        if video {
+            return;
+        }
         let weak = self.weak.clone();
         let current = self.preview_generation.clone();
         let mut spec = JobSpec::new("converter-preview", "Prepare preview", Lane::Light);
@@ -457,12 +557,42 @@ impl Converter {
         *self.preview_job.borrow_mut() = Some(job);
     }
 
+    fn set_volume(&self, value: f32) {
+        let value = value.clamp(0.0, 1.0);
+        self.volume.set(value);
+        if let Some(player) = self.audio.borrow().player.as_ref() {
+            player.set_volume(value);
+        }
+        if let Some(ui) = self.weak.upgrade() {
+            ui.set_convert_volume(value);
+        }
+    }
+
+    /// Takes a file off the list (never off the disk). A file converting or queued stays.
+    fn remove(self: &Rc<Self>, index: usize) {
+        let mut state = self.state.borrow_mut();
+        if state.busy
+            || index >= state.inputs.len()
+            || !removable(&state.inputs[index], &self.engine.jobs())
+        {
+            return;
+        }
+        state.inputs.remove(index);
+        if state.selected > index || state.selected >= state.inputs.len() {
+            state.selected = state.selected.saturating_sub(1);
+        }
+        drop(state);
+        self.refresh();
+        self.start_preview();
+    }
+
     /// Stops playback and hides the player (another file, another page, closing).
     fn close_audio(&self) {
         self.clock.stop();
         let had = std::mem::take(&mut *self.audio.borrow_mut()).path.is_some();
         if had && let Some(ui) = self.weak.upgrade() {
             ui.set_convert_audio(false);
+            ui.set_convert_video(false);
             ui.set_convert_playing(false);
             ui.set_convert_wave(Default::default());
             ui.set_convert_position(0.0);
@@ -493,7 +623,17 @@ impl Converter {
         };
         audio.player = None;
         audio.position = at;
-        audio.player = Some(Player::start(&ffmpeg, &path, at, playback::system_output()));
+        // A still still being decoded must not replace the frames that follow
+        self.still.fetch_add(1, Ordering::AcqRel);
+        audio.player = Some(Player::start_media(
+            &ffmpeg,
+            &path,
+            at,
+            audio.sound,
+            audio.picture,
+            self.volume.get(),
+            playback::system_output(),
+        ));
         drop(audio);
         let weak = Rc::downgrade(self);
         self.clock.start(
@@ -554,7 +694,28 @@ impl Converter {
             self.pause();
             self.audio.borrow_mut().position = at;
             self.show_audio();
+            self.still_at(at);
         }
+    }
+
+    /// A paused video shows the frame at the head.
+    fn still_at(&self, at: f64) {
+        let audio = self.audio.borrow();
+        let (Some(path), Some(source), true) = (
+            audio.path.clone(),
+            audio.source.clone(),
+            audio.picture.is_some(),
+        ) else {
+            return;
+        };
+        drop(audio);
+        let ffmpeg = self.state.borrow().ffmpeg.clone();
+        if let Some(job) = self.preview_job.borrow_mut().take() {
+            self.engine.cancel(&job);
+        }
+        let generation = self.preview_generation.load(Ordering::Acquire);
+        let job = self.submit_still(path, source, ffmpeg, at, generation);
+        *self.preview_job.borrow_mut() = Some(job);
     }
 
     fn tick(&self) {
@@ -567,6 +728,19 @@ impl Converter {
         let position = player.position();
         let finished = player.finished();
         let error = player.error();
+        if let (Some(picture), Some(frame)) = (audio.picture, player.take_frame()) {
+            if let Some(ui) = self.weak.upgrade() {
+                ui.set_convert_preview(Image::from_rgba8(
+                    SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                        &frame,
+                        picture.width,
+                        picture.height,
+                    ),
+                ));
+                ui.set_convert_has_preview(true);
+            }
+            player.recycle(frame);
+        }
         audio.position = if audio.duration > 0.0 {
             position.min(audio.duration)
         } else {
@@ -1052,6 +1226,7 @@ impl Converter {
         let state = self.state.borrow();
         ui.set_convert_left_open(state.left_open);
         ui.set_convert_inspector_open(state.inspector_open);
+        let jobs = self.engine.jobs();
         update_rows(
             &self.rows,
             state
@@ -1075,6 +1250,7 @@ impl Converter {
                     state: shown_status(i).into(),
                     target: i.target.to_uppercase().into(),
                     selected: index == state.selected,
+                    removable: removable(i, &jobs),
                     failed: i.source.is_err()
                         || i.status.starts_with("Failed")
                         || i.status == "Unsupported",
@@ -1082,7 +1258,6 @@ impl Converter {
                 .collect(),
         );
         let selected = state.inputs.get(state.selected);
-        let jobs = self.engine.jobs();
         let active = state
             .install_job
             .as_ref()
@@ -1135,7 +1310,15 @@ impl Converter {
                             id: p.target.into(),
                             name: p.target.to_uppercase().into(),
                             detail: p.description().into(),
-                            note: p.notes.join(" · ").into(),
+                            // A copy's description already says what the note would
+                            note: p
+                                .notes
+                                .iter()
+                                .filter(|n| **n != p.description())
+                                .copied()
+                                .collect::<Vec<_>>()
+                                .join(" · ")
+                                .into(),
                             selected: p.target == i.target,
                             audio: video && is_audio_only(p.target),
                             header: first_audio == Some(index),
@@ -1249,6 +1432,14 @@ fn shown_status(input: &Input) -> String {
         ),
         _ => input.status.clone(),
     }
+}
+
+fn removable(input: &Input, jobs: &[halation_core::queue::Job]) -> bool {
+    input.job.as_ref().is_none_or(|id| {
+        jobs.iter()
+            .find(|j| &j.id == id)
+            .is_none_or(|j| j.state.finished())
+    })
 }
 
 fn is_audio_only(target: &str) -> bool {
@@ -1558,6 +1749,97 @@ mod tests {
             "leaving the page stops playback"
         );
         assert!(!ui.get_convert_audio());
+        engine.shutdown();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn video_preview_plays_frames_mutes_and_is_removed_from_the_list() {
+        let Some(pair) = components::Ffmpeg::find(&std::env::temp_dir().join("halation-no-tools"))
+        else {
+            eprintln!("FFmpeg not found: the video preview controller test did not run");
+            return;
+        };
+        i_slint_backend_testing::init_no_event_loop();
+        let ui = AppWindow::new().unwrap();
+        ui.set_page(4);
+        let root = std::env::temp_dir().join(format!(
+            "halation-converter-video-{}-{}",
+            std::process::id(),
+            WORKSPACE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let input = root.join("generated-clip.mkv");
+        let status = std::process::Command::new(&pair.ffmpeg)
+            .args([
+                "-hide_banner",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc2=size=320x180:rate=12:duration=4",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=4",
+            ])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let engine = JobEngine::new(|| {});
+        let controller = Converter::new(ui.as_weak(), Profile::at(&root), engine.clone());
+        controller.install(|| Some(1));
+        controller.add(vec![input.clone()]);
+        until(|| controller.inbox.lock().unwrap().is_some());
+        ui.invoke_converter_loaded();
+        assert!(ui.get_convert_video() && !ui.get_convert_audio());
+        assert_eq!(ui.get_convert_clock().as_str(), "0:00 / 0:04");
+        let picture = controller.audio.borrow().picture.unwrap();
+        assert_eq!((picture.width, picture.height), (320, 180));
+        // A paused seek asks for the still at the head; the first still is no longer wanted
+        ui.invoke_converter_seek(0.5);
+        assert!(!ui.get_convert_playing());
+        assert_eq!(ui.get_convert_clock().as_str(), "0:02 / 0:04");
+        until(|| !engine.busy(Some("converter-preview")));
+        assert!(
+            engine
+                .jobs()
+                .iter()
+                .filter(|j| j.spec.tool == "converter-preview" && j.state == JobState::Done)
+                .count()
+                >= 1
+        );
+        // Mute keeps the level to restore; the slider clears it
+        ui.invoke_converter_volume(0.6);
+        ui.invoke_converter_action("mute".into());
+        assert_eq!(ui.get_convert_volume(), 0.0);
+        ui.invoke_converter_action("mute".into());
+        assert!((ui.get_convert_volume() - 0.6).abs() < 1e-6);
+        ui.invoke_converter_action("play".into());
+        assert!(ui.get_convert_playing());
+        let start = std::time::Instant::now();
+        let mut framed = false;
+        while start.elapsed() < Duration::from_secs(3) && !framed {
+            std::thread::sleep(Duration::from_millis(40));
+            controller.tick();
+            framed = ui.get_convert_has_preview() && controller.audio.borrow().player.is_some();
+        }
+        if controller.audio.borrow().player.is_some() {
+            assert!(framed, "playing shows frames");
+        } else {
+            // No audio device (a CI machine): playback ends with a message instead of hanging
+            assert!(!ui.get_convert_message().is_empty());
+        }
+        // Taking the file off the list stops playback and leaves the file on disk
+        ui.invoke_converter_remove(0);
+        assert!(controller.audio.borrow().player.is_none());
+        assert!(!ui.get_convert_video());
+        assert_eq!(ui.get_convert_rows().row_count(), 0);
+        assert!(input.exists());
         engine.shutdown();
         fs::remove_dir_all(root).unwrap();
     }

@@ -165,6 +165,7 @@ fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
                 target: "MP4".into(),
                 selected: index == 0,
                 failed: false,
+                removable: index > 0,
             })
             .collect::<Vec<_>>(),
     )));

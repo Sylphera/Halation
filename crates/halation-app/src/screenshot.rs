@@ -201,6 +201,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         "converter-open" => (4, 2, -1),
         "converter-ready" => (4, 3, -1),
         "converter-audio" => (4, 4, -1),
+        "converter-video" => (4, 5, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -208,16 +209,18 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready or converter-audio"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio or converter-video"
                 )
                 .into());
             }
         },
     };
-    let out_dir = spec
-        .out
-        .parent()
-        .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+    // Absolute, like a real profile: FFmpeg runs in its own folder
+    let out_dir = std::path::absolute(
+        spec.out
+            .parent()
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf),
+    )?;
     let profile = fixtures(&out_dir.join(format!("fixtures-{}", spec.page)))?;
 
     let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
@@ -264,7 +267,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
             .ok_or("converter-audio needs FFmpeg on PATH to generate its fixture")?;
         // Absolute: FFmpeg runs from its own folder
-        let fixture = std::path::absolute(out_dir.join("generated-converter-tone.flac"))?;
+        let fixture = out_dir.join("generated-converter-tone.flac");
         let status = std::process::Command::new(&ffmpeg.ffmpeg)
             .args(["-hide_banner", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i"])
             .arg("aevalsrc=min(1\\,t/6)*(0.25+0.75*abs(sin(2*PI*0.21*t)))*(0.6+0.4*sin(2*PI*2.1*t))*sin(2*PI*330*t):s=44100:d=94")
@@ -278,6 +281,44 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         // A paused head part-way through, so the heard part and the head show without real-time playback
         ui.invoke_converter_seek(0.38);
         pump(&queue, Duration::from_millis(200));
+    }
+    if mode == 5 {
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-video needs FFmpeg on PATH to generate its fixture")?;
+        let fixture = out_dir.join("generated-converter-clip.mkv");
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args([
+                "-hide_banner",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg("testsrc2=size=1920x800:rate=24:duration=12")
+            .args([
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=330:duration=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+            ])
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the video fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        ui.set_convert_left_open(true);
+        // Paused at 40 %: the still at the head and the seek bar
+        ui.invoke_converter_seek(0.4);
+        pump(&queue, Duration::from_millis(2000));
     }
     if section >= 0 {
         // After the page has laid out, so the section tops are known

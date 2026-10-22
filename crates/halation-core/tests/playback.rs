@@ -143,3 +143,83 @@ fn a_file_without_audio_reports_an_error() {
     assert!(player.error().is_some());
     assert!(playback::waveform(&pair.ffmpeg, &input, 0.0, &|| false).is_err());
 }
+
+/// Generated 2 s video (12 fps) with or without a tone.
+fn generated_video(bin: &Path, out: &Path, sound: bool) {
+    let mut command = Command::new(bin);
+    command.args([
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+    ]);
+    command.arg("testsrc2=size=320x180:rate=12:duration=2");
+    if sound {
+        command.args(["-f", "lavfi", "-i", "sine=frequency=440:duration=2"]);
+    }
+    assert!(command.arg(out).status().unwrap().success());
+}
+
+fn frames_until_finished(player: &Player, picture: &playback::Picture) -> usize {
+    let start = Instant::now();
+    let mut shown = 0;
+    while !player.finished() {
+        assert!(
+            start.elapsed() < Duration::from_secs(6),
+            "video did not finish"
+        );
+        if let Some(frame) = player.take_frame() {
+            assert_eq!(frame.len(), picture.bytes());
+            shown += 1;
+            player.recycle(frame);
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    shown
+}
+
+#[test]
+fn video_frames_follow_the_sound_and_the_wall_clock_without_it() {
+    let Some(pair) = ffmpeg() else { return };
+    let dir = Directory::new();
+    for sound in [true, false] {
+        let input = dir.0.join(format!("clip-{sound}.mkv"));
+        generated_video(&pair.ffmpeg, &input, sound);
+        let picture = playback::Picture::fit(320, 180, 12.0, 160, 160).unwrap();
+        assert_eq!((picture.width, picture.height), (160, 90));
+        let started = Instant::now();
+        let player = Player::start_media(
+            &pair.ffmpeg,
+            &input,
+            1.0,
+            sound,
+            Some(picture),
+            0.5,
+            paced(),
+        );
+        let shown = frames_until_finished(&player, &picture);
+        let elapsed = started.elapsed().as_secs_f64();
+        assert_eq!(player.error(), None, "sound={sound}");
+        // One second remained: shown in real time, about 12 frames (a slow machine may skip a few)
+        assert!(elapsed > 0.85 && elapsed < 3.0, "sound={sound}: {elapsed}");
+        assert!((6..=13).contains(&shown), "sound={sound}: {shown} frames");
+        assert!(
+            (player.position() - 2.0).abs() < 0.25,
+            "{}",
+            player.position()
+        );
+    }
+}
+
+#[test]
+fn picture_fits_without_enlarging_and_caps_the_rate() {
+    let fit = playback::Picture::fit(3840, 2160, 59.94, 1280, 720).unwrap();
+    assert_eq!((fit.width, fit.height, fit.fps), (1280, 720, 30.0));
+    let small = playback::Picture::fit(321, 181, 0.0, 1280, 720).unwrap();
+    assert_eq!((small.width, small.height, small.fps), (322, 182, 30.0));
+    assert!(playback::Picture::fit(0, 10, 24.0, 1280, 720).is_none());
+}

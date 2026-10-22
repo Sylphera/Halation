@@ -103,10 +103,14 @@ export component AppWindow inherits Window {
     in property <bool> convert-playing: false;
     in property <float> convert-position: 0;
     in property <string> convert-clock;
+    in property <bool> convert-video: false;
+    in property <float> convert-volume: 1;
     callback converter-action(string);
     callback converter-select(int);
     callback converter-target(string);
     callback converter-seek(float);
+    callback converter-volume(float);
+    callback converter-remove(int);
     callback converter-loaded();
     callback converter-dropped(data-transfer);
     in-out property <bool> export-choice-visible: false;
@@ -227,6 +231,9 @@ export component AppWindow inherits Window {
                 audio: root.convert-audio; wave: root.convert-wave; wave-bins: root.convert-wave-bins;
                 playing: root.convert-playing; position: root.convert-position; clock: root.convert-clock;
                 seek(fraction) => { root.converter-seek(fraction); }
+                video: root.convert-video; volume: root.convert-volume;
+                volume-changed(value) => { root.converter-volume(value); }
+                remove(index) => { root.converter-remove(index); }
                 action(name) => { root.converter-action(name); }
                 select(index) => { root.converter-select(index); }
                 target(id) => { root.converter-target(id); }

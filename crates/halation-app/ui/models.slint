@@ -20,6 +20,8 @@ export struct ConvertRow {
     target: string,
     selected: bool,
     failed: bool,
+    // It can leave the list: not converting or queued right now
+    removable: bool,
 }
 
 export struct FormatRow {

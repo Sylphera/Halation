@@ -281,6 +281,9 @@ pub trait Output {
 /// Makes the output inside the playback thread (audio clients belong to the thread that created them).
 pub type OutputFactory = Box<dyn FnOnce() -> Result<Box<dyn Output>, String> + Send>;
 
+/// One player thread's body (sound or picture)
+type Work = Box<dyn FnOnce(&Shared) -> Result<(), String> + Send>;
+
 /// The default shared output device. Elsewhere than Windows (development and tests) a silent real-time clock.
 pub fn system_output() -> OutputFactory {
     #[cfg(windows)]
@@ -542,78 +545,207 @@ mod wasapi {
 
 /* ===== player ===== */
 
-struct Shared {
-    stop: AtomicBool,
-    finished: AtomicBool,
-    played: AtomicU64,
-    rate: AtomicU32,
-    error: Mutex<Option<String>>,
-    decoder: Mutex<Option<Arc<Mutex<Option<Child>>>>>,
+/// The picture of a video preview: frames are scaled by FFmpeg to this size (RGBA) and at most 30 per second.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Picture {
+    pub width: u32,
+    pub height: u32,
+    pub fps: f64,
 }
 
-/// One playback from a position to the end. Stopping (or dropping) ends the decoder and the output at once and
-/// never waits for the thread.
+impl Picture {
+    /// The source's size fitted inside `max_w` × `max_h` (never enlarged, even sides) and its rate capped at 30.
+    pub fn fit(width: u32, height: u32, fps: f64, max_w: u32, max_h: u32) -> Option<Self> {
+        if width == 0 || height == 0 {
+            return None;
+        }
+        let scale = (f64::from(max_w) / f64::from(width))
+            .min(f64::from(max_h) / f64::from(height))
+            .min(1.0);
+        let even = |v: f64| ((v / 2.0).round() as u32 * 2).max(2);
+        let fps = if fps.is_finite() && fps > 0.0 {
+            fps.min(30.0)
+        } else {
+            30.0
+        };
+        Some(Self {
+            width: even(f64::from(width) * scale),
+            height: even(f64::from(height) * scale),
+            fps,
+        })
+    }
+
+    pub fn bytes(&self) -> usize {
+        self.width as usize * self.height as usize * 4
+    }
+}
+
+#[derive(Default)]
+struct Frames {
+    /// The newest frame not yet shown
+    ready: Option<Vec<u8>>,
+    /// A shown frame's buffer, handed back for the decoder to reuse
+    spare: Option<Vec<u8>>,
+}
+
+struct Shared {
+    stop: AtomicBool,
+    running: AtomicU32,
+    audio_running: AtomicBool,
+    played: AtomicU64,
+    rate: AtomicU32,
+    /// Volume as `f32` bits (0..1)
+    gain: AtomicU32,
+    /// Without sound (or after it ended), time runs from this moment and offset
+    wall: Mutex<Option<(f64, Instant)>>,
+    /// Seconds after `from` where playback ended, once every thread has
+    end: Mutex<Option<f64>>,
+    error: Mutex<Option<String>>,
+    decoders: Mutex<Vec<Arc<Mutex<Option<Child>>>>>,
+    frames: Mutex<Frames>,
+}
+
+impl Shared {
+    /// Seconds heard (or shown) since the start of this playback.
+    fn clock(&self) -> f64 {
+        let rate = self.rate.load(Ordering::Acquire);
+        let heard = if rate == 0 {
+            0.0
+        } else {
+            self.played.load(Ordering::Acquire) as f64 / f64::from(rate)
+        };
+        if self.audio_running.load(Ordering::Acquire) {
+            return heard;
+        }
+        let mut wall = hold(&self.wall);
+        let (base, at) = *wall.get_or_insert((heard, Instant::now()));
+        base + at.elapsed().as_secs_f64()
+    }
+
+    fn exited(&self, error: Result<(), String>) {
+        if let Err(error) = error
+            && !self.stop.load(Ordering::Acquire)
+        {
+            hold(&self.error).get_or_insert(error);
+        }
+        if self.running.fetch_sub(1, Ordering::AcqRel) == 1 {
+            let at = self.clock();
+            *hold(&self.end) = Some(at);
+        }
+    }
+}
+
+/// One playback from a position to the end: the sound, the picture or both, kept together by the sound's clock.
+/// Stopping (or dropping) ends the decoders and the output at once and never waits for the threads.
 pub struct Player {
     shared: Arc<Shared>,
     from: f64,
 }
 
 impl Player {
+    /// Sound only.
     pub fn start(ffmpeg: &Path, input: &Path, from: f64, output: OutputFactory) -> Self {
+        Self::start_media(ffmpeg, input, from, true, None, 1.0, output)
+    }
+
+    /// `audio`: the source has a sound stream to play. `picture`: decode the first video stream to frames.
+    pub fn start_media(
+        ffmpeg: &Path,
+        input: &Path,
+        from: f64,
+        audio: bool,
+        picture: Option<Picture>,
+        volume: f32,
+        output: OutputFactory,
+    ) -> Self {
+        let threads = u32::from(audio) + u32::from(picture.is_some());
         let shared = Arc::new(Shared {
             stop: AtomicBool::new(false),
-            finished: AtomicBool::new(false),
+            running: AtomicU32::new(threads),
+            audio_running: AtomicBool::new(audio),
             played: AtomicU64::new(0),
             rate: AtomicU32::new(0),
+            gain: AtomicU32::new(volume.clamp(0.0, 1.0).to_bits()),
+            wall: Mutex::new(None),
+            end: Mutex::new((threads == 0).then_some(0.0)),
             error: Mutex::new(None),
-            decoder: Mutex::new(None),
+            decoders: Mutex::new(Vec::new()),
+            frames: Mutex::new(Frames::default()),
         });
-        let thread_shared = shared.clone();
-        let ffmpeg = ffmpeg.to_owned();
-        let input = input.to_owned();
-        let spawned = std::thread::Builder::new()
-            .name("audio-preview".into())
-            .spawn(move || {
-                let shared = thread_shared;
-                if let Err(error) = play(&shared, &ffmpeg, &input, from, output)
-                    && !shared.stop.load(Ordering::Acquire)
-                {
-                    *hold(&shared.error) = Some(error);
-                }
-                shared.finished.store(true, Ordering::Release);
-            });
-        if let Err(error) = spawned {
-            *hold(&shared.error) = Some(error.to_string());
-            shared.finished.store(true, Ordering::Release);
+        let spawn = |name: &str, work: Work| {
+            let thread_shared = shared.clone();
+            let spawned = std::thread::Builder::new()
+                .name(name.into())
+                .spawn(move || {
+                    let result = work(&thread_shared);
+                    thread_shared.exited(result);
+                });
+            if let Err(error) = spawned {
+                shared.exited(Err(error.to_string()));
+            }
+        };
+        if audio {
+            let (ffmpeg, input) = (ffmpeg.to_owned(), input.to_owned());
+            spawn(
+                "preview-sound",
+                Box::new(move |shared| {
+                    let result = play(shared, &ffmpeg, &input, from, output);
+                    shared.audio_running.store(false, Ordering::Release);
+                    result
+                }),
+            );
+        }
+        if let Some(picture) = picture {
+            let (ffmpeg, input) = (ffmpeg.to_owned(), input.to_owned());
+            spawn(
+                "preview-picture",
+                Box::new(move |shared| show(shared, &ffmpeg, &input, from, picture)),
+            );
         }
         Self { shared, from }
     }
 
-    /// Seconds into the source that have been heard.
+    /// Seconds into the source that have been heard or shown.
     pub fn position(&self) -> f64 {
-        let rate = self.shared.rate.load(Ordering::Acquire);
-        if rate == 0 {
-            return self.from;
+        if let Some(end) = *hold(&self.shared.end) {
+            return self.from + end;
         }
-        self.from + self.shared.played.load(Ordering::Acquire) as f64 / f64::from(rate)
+        self.from + self.shared.clock()
     }
 
     /// The end was reached, or playback failed ([`Player::error`]).
     pub fn finished(&self) -> bool {
-        self.shared.finished.load(Ordering::Acquire)
+        self.shared.running.load(Ordering::Acquire) == 0
     }
 
     pub fn error(&self) -> Option<String> {
         hold(&self.shared.error).clone()
     }
 
+    /// Takes effect on the next block of sound (about 20 ms).
+    pub fn set_volume(&self, volume: f32) {
+        self.shared
+            .gain
+            .store(volume.clamp(0.0, 1.0).to_bits(), Ordering::Release);
+    }
+
+    /// The newest frame due on screen (RGBA, [`Picture`] size), if a new one arrived. Hand it back with
+    /// [`Player::recycle`] once copied.
+    pub fn take_frame(&self) -> Option<Vec<u8>> {
+        hold(&self.shared.frames).ready.take()
+    }
+
+    pub fn recycle(&self, buffer: Vec<u8>) {
+        hold(&self.shared.frames).spare = Some(buffer);
+    }
+
     pub fn stop(&self) {
         self.shared.stop.store(true, Ordering::Release);
-        if let Some(child) = hold(&self.shared.decoder).take()
-            && let Some(mut child) = hold(&child).take()
-        {
-            let _ = child.kill();
-            let _ = child.wait();
+        for child in hold(&self.shared.decoders).drain(..) {
+            if let Some(mut child) = hold(&child).take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
         }
     }
 }
@@ -643,7 +775,7 @@ fn play(
         input,
         Some(from),
     )?;
-    *hold(&shared.decoder) = Some(decoder.child.clone());
+    hold(&shared.decoders).push(decoder.child.clone());
     if shared.stop.load(Ordering::Acquire) {
         return Ok(());
     }
@@ -663,11 +795,12 @@ fn play(
         }
         filled += read;
         let whole = filled / 8 * 8;
+        let gain = f32::from_bits(shared.gain.load(Ordering::Acquire));
         samples.clear();
         samples.extend(
             bytes[..whole]
                 .chunks_exact(4)
-                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])),
+                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]) * gain),
         );
         bytes.copy_within(whole..filled, 0);
         filled -= whole;
@@ -676,6 +809,74 @@ fn play(
     }
     output.drain(&shared.stop, &shared.played)?;
     decoder.finish(decoded)
+}
+
+/// Decodes frames and publishes each when the clock reaches it; frames already late are skipped, never queued.
+fn show(
+    shared: &Shared,
+    ffmpeg: &Path,
+    input: &Path,
+    from: f64,
+    picture: Picture,
+) -> Result<(), String> {
+    let filter = format!(
+        "fps={:.3},scale={}:{}:flags=bilinear",
+        picture.fps, picture.width, picture.height
+    );
+    let mut decoder = Decoder::start(
+        ffmpeg,
+        &[
+            "-i", "<input>", "-map", "0:v:0", "-an", "-sn", "-dn", "-vf", &filter, "-pix_fmt",
+            "rgba", "-f", "rawvideo", "-",
+        ],
+        input,
+        Some(from),
+    )?;
+    hold(&shared.decoders).push(decoder.child.clone());
+    let size = picture.bytes();
+    let mut buffer = vec![0_u8; size];
+    let period = 1.0 / picture.fps;
+    let mut index = 0_u64;
+    loop {
+        // One whole frame, or the end
+        let mut filled = 0;
+        while filled < size {
+            if shared.stop.load(Ordering::Acquire) {
+                return Ok(());
+            }
+            let read = decoder.read(&mut buffer[filled..])?;
+            if read == 0 {
+                break;
+            }
+            filled += read;
+        }
+        if filled < size {
+            break;
+        }
+        let due = index as f64 * period;
+        loop {
+            if shared.stop.load(Ordering::Acquire) {
+                return Ok(());
+            }
+            let ahead = due - shared.clock();
+            if ahead <= 0.002 {
+                break;
+            }
+            std::thread::sleep(Duration::from_secs_f64(ahead.min(0.02)));
+        }
+        // More than two frames late: drop it and catch up (the first frame is always shown)
+        if index == 0 || shared.clock() - due < 2.0 * period {
+            let mut frames = hold(&shared.frames);
+            buffer = match frames.ready.replace(std::mem::take(&mut buffer)) {
+                Some(unshown) => unshown,
+                None => frames.spare.take().unwrap_or_default(),
+            };
+            drop(frames);
+            buffer.resize(size, 0);
+        }
+        index += 1;
+    }
+    decoder.finish(index > 0)
 }
 
 #[cfg(test)]

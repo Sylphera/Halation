@@ -44,6 +44,8 @@ pub struct Stream {
     pub rate: u32,
     pub bits: u32,
     pub float: bool,
+    /// Average frame rate of a video stream (0 when unknown)
+    pub fps: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -293,6 +295,19 @@ fn text<'a>(value: &'a Value, key: &str) -> &'a str {
     value[key].as_str().unwrap_or("")
 }
 
+/// "30000/1001" → 29.97; anything unreadable → 0
+fn rate_of(value: &str) -> f64 {
+    let rate = match value.split_once('/') {
+        Some((n, d)) => n.parse::<f64>().unwrap_or(0.0) / d.parse::<f64>().unwrap_or(0.0),
+        None => value.parse().unwrap_or(0.0),
+    };
+    if rate.is_finite() && rate > 0.0 {
+        rate
+    } else {
+        0.0
+    }
+}
+
 fn from_ffprobe(value: &Value, mut source: Source) -> Source {
     source.streams = value["streams"]
         .as_array()
@@ -311,6 +326,7 @@ fn from_ffprobe(value: &Value, mut source: Source) -> Source {
                 rate: number(s, "sample_rate"),
                 bits: number(s, "bits_per_raw_sample").max(number(s, "bits_per_sample")),
                 float: sample.starts_with("flt") || sample.starts_with("dbl"),
+                fps: rate_of(text(s, "avg_frame_rate")),
             }
         })
         .collect();

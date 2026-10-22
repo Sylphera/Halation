@@ -79,9 +79,24 @@ Evidence: `tests/playback.rs` (real FFmpeg: waveform silence/tone, real-time pla
 file without audio); controller test (player state, seek while paused, pause, ±5 s, leaving the page); WASAPI code
 type-checked against `x86_64-pc-windows-msvc`; offscreen capture `converter-audio`.
 
-Still open, not claimed: full video transport (video keeps its first-frame preview; a player would add a decoder
-process and frame uploads while playing, the light option is the current still frame), Send to / sessions while the
-other tools are unported, Windows timings and the WASAPI path heard on a real device (Java's PC).
+Round 1 of Java's review (2026-10-22): "can close files, needs audio controls, video preview with controls, bottom
+bar misaligned". Implemented, pending a new visual review:
+
+- Files rows carry a × that takes the file off the list (never off the disk); a file converting or queued keeps it.
+- Transport for audio and video: −5 s, play/pause, +5 s, clock, mute and a volume slider (mute restores the level).
+- Video player: `Player::start_media` runs one FFmpeg for the sound and one for RGBA frames scaled to fit 1280 × 720
+  (never enlarged, at most 30 fps); frames follow the sound clock, or the wall clock for a silent video, and late
+  frames are skipped. Two frame buffers are reused; the 33 ms timer uploads the newest one. Paused, a seek shows the
+  still at the head (a preview job). Cost while playing: two decoder processes and about 3.5 MB per frame upload at
+  1280 × 720; nothing at rest.
+- Footers of the canvas and inspector share one 64 px height; "Save location" and the source line align.
+- Each row's removable check no longer scans the job list per row (it had pushed batch updates to 70–260 ms).
+
+Evidence added: `tests/playback.rs` (video frames in real time with and without sound, picture fit); controller test
+(video: still after a paused seek, mute/restore, frames while playing, removal); offscreen capture `converter-video`.
+
+Still open, not claimed: Send to / sessions while the other tools are unported, Windows timings and the WASAPI path
+heard on a real device (Java's PC).
 
 ## Sources
 
