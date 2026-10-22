@@ -47,6 +47,11 @@ impl Palette {
     }
 
     pub fn from_tint(tint: &[u8]) -> Result<Self, String> {
+        Self::toned(tint, crate::theme::Tone::Silver)
+    }
+
+    /// The colour table in a theme's colours (`Tone::drape`)
+    pub fn toned(tint: &[u8], tone: crate::theme::Tone) -> Result<Self, String> {
         if tint.len() != 256 * 3 {
             return Err(format!(
                 "the backdrop tint holds {} bytes, not 768",
@@ -64,8 +69,9 @@ impl Palette {
                 let (low, t) = (l.floor() as usize, l.fract());
                 let high = (low + 1).min(255);
                 let at = |index: usize, channel: usize| f32::from(tint[index * 3 + channel]);
-                [0, 1, 2]
-                    .map(|c| ((at(low, c) * (1.0 - t) + at(high, c) * t) * 256.0).round() as i32)
+                let [r, g, b] = [0, 1, 2].map(|c| at(low, c) * (1.0 - t) + at(high, c) * t);
+                tone.drape(r, g, b)
+                    .map(|v| (v.min(255.0) * 256.0).round() as i32)
             })
             .collect();
         let dither = (0..DITHER * DITHER)
@@ -276,26 +282,37 @@ fn gaussian(x: u32, y: u32) -> f32 {
 /// Plays the loop on a decoding thread: `request` asks for the next frame at a size, `deliver` gets it on that thread
 pub struct Player {
     requests: std::sync::mpsc::SyncSender<(u32, u32)>,
+    /// The theme the frames are coloured in (0 Silver, 1 Gold); the thread rebuilds its table when it changes
+    tone: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl Player {
     /// Starts the decoding thread for the loop in `assets`; `None` when the loop cannot play (missing files), and Home
     /// keeps its still frame
-    pub fn start<F>(assets: &Path, deliver: F) -> Option<Self>
+    pub fn start<F>(assets: &Path, tone: crate::theme::Tone, deliver: F) -> Option<Self>
     where
         F: Fn(SharedPixelBuffer<Rgba8Pixel>) + Send + 'static,
     {
-        let palette = Palette::load(&assets.join("drape-tint.bin")).ok()?;
+        let tint = std::fs::read(assets.join("drape-tint.bin")).ok()?;
+        Palette::from_tint(&tint).ok()?;
         let video = assets.join("drape-loop.mp4");
         if !video.is_file() {
             return None;
         }
         let (requests, wanted) = std::sync::mpsc::sync_channel::<(u32, u32)>(1);
+        let tone = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(tone as u8));
+        let seen = tone.clone();
         std::thread::Builder::new()
             .name("backdrop".into())
-            .spawn(move || decode_loop(&video, &palette, &wanted, &deliver))
+            .spawn(move || decode_loop(&video, &tint, &seen, &wanted, &deliver))
             .ok()?;
-        Some(Self { requests })
+        Some(Self { requests, tone })
+    }
+
+    /// Colours the next frames in `tone`
+    pub fn set_tone(&self, tone: crate::theme::Tone) {
+        self.tone
+            .store(tone as u8, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Asks for the next frame for a window of `width` x `height` pixels; skipped while the previous request is still
@@ -308,12 +325,25 @@ impl Player {
 /// The decoding thread: one frame per request until the player is dropped or the decoder fails
 fn decode_loop<F>(
     video: &Path,
-    palette: &Palette,
+    tint: &[u8],
+    tone: &std::sync::atomic::AtomicU8,
     wanted: &std::sync::mpsc::Receiver<(u32, u32)>,
     deliver: &F,
 ) where
     F: Fn(SharedPixelBuffer<Rgba8Pixel>),
 {
+    let toned = |value: u8| {
+        let tone = if value == crate::theme::Tone::Gold as u8 {
+            crate::theme::Tone::Gold
+        } else {
+            crate::theme::Tone::Silver
+        };
+        Palette::toned(tint, tone)
+    };
+    let mut current = tone.load(std::sync::atomic::Ordering::Relaxed);
+    let Ok(mut palette) = toned(current) else {
+        return;
+    };
     let Ok(mut decoder) = mf::Decoder::open(video) else {
         return;
     };
@@ -324,6 +354,14 @@ fn decode_loop<F>(
     let mut frames: [Option<SharedPixelBuffer<Rgba8Pixel>>; 2] = [None, None];
     let mut turn = 0;
     while let Ok((out_w, out_h)) = wanted.recv() {
+        // The theme changed: one new colour table (256 entries), then on as before
+        let now = tone.load(std::sync::atomic::Ordering::Relaxed);
+        if now != current
+            && let Ok(next) = toned(now)
+        {
+            palette = next;
+            current = now;
+        }
         match decoder.next(&mut plane) {
             Ok((width, height, pitch)) => {
                 let mut frame = match frames[turn].take() {
@@ -515,6 +553,22 @@ mod tests {
         assert!(mid[2] >= mid[0], "lighter parts lean blue, like the Drape");
         assert!(top[1] > mid[1], "brighter luma is brighter");
         assert!(Palette::from_tint(&[0; 10]).is_err());
+    }
+
+    #[test]
+    fn the_gold_theme_turns_the_drape_warm_at_the_same_brightness() {
+        let tint = std::fs::read(shipped().join("drape-tint.bin")).unwrap();
+        let silver = Palette::toned(&tint, crate::theme::Tone::Silver).unwrap();
+        let gold = Palette::toned(&tint, crate::theme::Tone::Gold).unwrap();
+        let mid = (30.0 * (COLOURS - 1) as f32 / LIFT) as usize;
+        let [r, g, b] = gold.colour[mid];
+        assert!(r > b, "lighter parts lean gold");
+        let luma = |[r, g, b]: [i32; 3]| 0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32;
+        let (before, after) = (luma(silver.colour[mid]), luma([r, g, b]));
+        assert!(
+            (before - after).abs() <= before * 0.02 + 256.0,
+            "{before} vs {after}"
+        );
     }
 
     #[test]

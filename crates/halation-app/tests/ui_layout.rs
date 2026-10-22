@@ -138,8 +138,8 @@ fn the_check_does_detect_a_window_that_is_too_small() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     resize(&ui, 300.0, 200.0);
-    // Settings: its top bar (search, Restore defaults and the global actions) cannot fit 300 px; the page's own
-    // content is clipped by the sheet and so leaves the accessibility tree
+    // Settings: its top bar (title, Activity and the global actions) cannot fit 300 px; the page's own content is
+    // clipped by the sheet and so leaves the accessibility tree
     ui.set_page(3);
     slint::platform::update_timers_and_animations();
     assert!(
@@ -214,6 +214,18 @@ fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
     // Collapsed, the tools stay reachable by their names
     assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
+    // The Collapse row, in the header, toggles it too
+    let toggle = |label: &str| {
+        ElementHandle::find_by_accessible_label(&ui, label)
+            .next()
+            .expect("the Collapse row toggles the sidebar")
+    };
+    toggle("Expand the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert!(ui.get_rail_open(), "the Collapse row opens it");
+    toggle("Collapse the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    slint::platform::update_timers_and_animations();
+    assert!(!ui.get_rail_open(), "the Collapse row closes it");
 }
 
 #[test]
@@ -227,6 +239,9 @@ fn settings_shows_one_category_at_a_time() {
     slint::platform::update_timers_and_animations();
     let shown = |label: &str| ElementHandle::find_by_accessible_label(&ui, label).count() > 0;
     assert!(shown("Language"), "General is the first category");
+    // Search and Restore defaults stand on the tabs' row
+    assert!(shown("Search settings"), "the search is on the page");
+    assert!(shown("Restore defaults"), "Restore defaults is on the page");
     assert!(
         !shown("Processor jobs at once"),
         "Processing is not shown with General"
@@ -421,5 +436,59 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     assert!(
         (pill_y(&ui, "PillList::hover-pill") - to).abs() < 1.0,
         "hover at once"
+    );
+}
+
+#[test]
+fn dragging_the_accent_strip_previews_and_releasing_saves() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    ui.set_page(3);
+    ui.set_settings_category(1);
+    slint::platform::update_timers_and_animations();
+    let previews = Rc::new(std::cell::RefCell::new(Vec::<i32>::new()));
+    let saved = Rc::new(std::cell::RefCell::new(Vec::<(String, String)>::new()));
+    let p = previews.clone();
+    ui.on_preview_accent(move |hue| p.borrow_mut().push(hue));
+    let s = saved.clone();
+    ui.on_set_pref(move |key, value| s.borrow_mut().push((key.into(), value.into())));
+    let strip = ElementHandle::find_by_accessible_label(&ui, "Accent")
+        .find(|e| e.accessible_role() == Some(i_slint_backend_testing::AccessibleRole::Slider))
+        .expect("the accent strip is on Interface");
+    let (pos, size) = (strip.absolute_position(), strip.size());
+    let y = pos.y + size.height / 2.0;
+    let at = |fraction: f32| slint::LogicalPosition::new(pos.x + size.width * fraction, y);
+    let button = slint::platform::PointerEventButton::Left;
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.2) });
+    ui.window().dispatch_event(WindowEvent::PointerPressed {
+        position: at(0.2),
+        button,
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at(0.5) });
+    ui.window().dispatch_event(WindowEvent::PointerReleased {
+        position: at(0.5),
+        button,
+    });
+    slint::platform::update_timers_and_animations();
+    assert!(
+        previews.borrow().len() >= 2,
+        "previews: {:?}",
+        previews.borrow()
+    );
+    let last = saved
+        .borrow()
+        .last()
+        .cloned()
+        .expect("releasing saves the hue");
+    assert_eq!(last.0, "accent-hue");
+    let hue: i32 = last.1.parse().unwrap();
+    assert!(
+        (160..=200).contains(&hue),
+        "the middle of the strip is about 180°, got {hue}"
     );
 }

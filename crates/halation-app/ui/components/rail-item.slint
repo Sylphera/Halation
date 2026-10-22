@@ -20,26 +20,31 @@ export component SidebarItem inherits FocusScope {
     in property <string> label: "";
     // The collapsed sidebar's tooltip and the accessible name, when they differ from the label
     in property <string> tip: root.label;
+    // A shortcut, shown as a key cap in the tooltip
+    in property <string> key: "";
     in property <bool> active: false;
     in property <bool> open: true;
+    // A plain button (the sidebar's toggle; Java, 2026-10-22): no pill, no press, no transition; hover only lights it
+    in property <bool> plain: false;
     callback activated;
     // Where this row's pill goes, in window coordinates: on hover, and while it is the active row. `snap` places the
     // pill at once (a layout change), otherwise it glides there.
     callback hovered(bool, length, length);
     callback selected(length, length, bool);
 
-    // Rows share the sidebar's height equally; the highlighted pill stays at most 40 px, centred in its row
+    // Rows share the sidebar's height equally; the highlighted pill is centred in its row: collapsed a square as wide
+    // as the sidebar's column (45 px), open a taller bar (up to 50 px; Java, 2026-10-22)
     min-height: Theme.item;
     preferred-height: Theme.item;
     vertical-stretch: 1;
-    property <length> pill: min(root.height, 40px);
+    property <length> pill: min(root.height, root.open ? 50px : Theme.sidebar-closed - 17px);
     property <length> pill-top: root.absolute-position.y + (root.height - root.pill) / 2;
     // Taller rows, when the window has room, get a larger icon and label
     property <bool> roomy: root.pill >= 36px;
     property <bool> lit: root.active || touch.has-hover;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: root.tip;
+    accessible-label: root.key != "" ? root.tip + " (" + root.key + ")" : root.tip;
     accessible-item-selected: active;
     accessible-action-default => { activated(); }
 
@@ -77,7 +82,7 @@ export component SidebarItem inherits FocusScope {
         y: (parent.height - self.height) / 2;
         height: root.pill;
         border-radius: Theme.radius-control;
-        background: touch.pressed ? Theme.press-fill : transparent;
+        background: touch.pressed && !root.plain ? Theme.press-fill : transparent;
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
@@ -88,7 +93,7 @@ export component SidebarItem inherits FocusScope {
         clip: true;
         // Sinks at once on press, back on release
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
-        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-x: touch.pressed && !root.plain ? Motion.press-scale : 100%;
         transform-scale-y: self.transform-scale-x;
         animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
@@ -97,15 +102,15 @@ export component SidebarItem inherits FocusScope {
             x: (Theme.sidebar-closed - 17px - self.width) / 2;
             y: (parent.height - self.height) / 2;
             name: root.icon;
-            size: root.roomy ? 18px : 16px;
+            size: root.roomy ? 21px : 17px;
             tint: root.active ? Theme.accent : root.lit ? Theme.text : Theme.muted;
-            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+            animate tint { duration: root.plain ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
 
         // The label fades with the sidebar (its colour's alpha, not `opacity`: no layer). Always there, so the fade has
         // a start.
         Text {
-            x: root.roomy ? 36px : 32px;
+            x: root.roomy ? 46px : 40px;
             y: (parent.height - self.height) / 2;
             width: Theme.sidebar-open - 17px - self.x - 8px;
             text: root.label;
@@ -123,6 +128,8 @@ export component SidebarItem inherits FocusScope {
         x: parent.width + 12px;
         y: (parent.height - self.height) / 2;
         text: root.tip;
+        key: root.key;
+        from-left: true;
         show: touch.has-hover || root.keyboard-focus;
         at-once: root.keyboard-focus;
     }
@@ -134,12 +141,15 @@ export component SidebarItem inherits FocusScope {
             root.activated();
         }
         changed has-hover => {
-            root.hovered(self.has-hover, root.pill-top, root.pill);
+            if (!root.plain) {
+                root.hovered(self.has-hover, root.pill-top, root.pill);
+            }
         }
     }
 }
 
-// Between groups of tools: open, the group's name; collapsed, a separator line instead
+// Between groups of tools: open, the group's name; collapsed, a separator line instead. A group without a name (the
+// gap before Settings) keeps its line in both states (Java, 2026-10-22)
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
@@ -149,9 +159,9 @@ export component SidebarGroup inherits Rectangle {
     Rectangle {
         x: 10px;
         y: (parent.height - self.height) / 2;
-        width: Theme.sidebar-closed - 17px - 20px;
+        width: root.label == "" ? parent.width - 20px : Theme.sidebar-closed - 17px - 20px;
         height: 1px;
-        background: Theme.line-strong.transparentize(root.open ? 1 : 0);
+        background: Theme.line-strong.transparentize(root.open && root.label != "" ? 1 : 0);
         animate background { duration: Motion.fade; easing: Curve.ease; }
     }
     Text {

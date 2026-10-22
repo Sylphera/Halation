@@ -10,9 +10,7 @@ export { ToolItem, LibraryRow, JobRow, RecentItem, SectionRow, ItemRow, Prefs, C
 import { HomePage } from "pages/home.slint";
 import { SettingsPage } from "pages/settings.slint";
 import { SidebarItem, SidebarGroup, PillList } from "components/rail-item.slint";
-import { TopActions, BarButton } from "components/top-dock.slint";
-import { AppButton } from "components/button.slint";
-import { SearchField } from "components/controls.slint";
+import { TopActions, ActivityButton, BarButton, BarHint } from "components/top-dock.slint";
 
 export component AppWindow inherits Window {
     title: "Halation";
@@ -22,7 +20,7 @@ export component AppWindow inherits Window {
     min-height: 600px;
     background: Theme.chrome;
     icon: Assets.mark;
-    default-font-family: "Inter";
+    default-font-family: Theme.ui-face;
     default-font-size: Theme.font-body;
 
     init => {
@@ -87,6 +85,7 @@ export component AppWindow inherits Window {
     callback set-query(string);
     callback set-reduced-motion(bool);
     callback set-pref(string, string);
+    callback preview-accent(int);
     callback set-tool-enabled(string, bool);
     callback reset-settings();
     callback search-settings(string) -> int;
@@ -116,6 +115,9 @@ export component AppWindow inherits Window {
     property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: Motion.panel; easing: Curve.ease; }
     property <length> page-x: root.side;
+    // The top bar's global action under the pointer, and its shortcut (`BarHint`)
+    property <string> bar-hint: "";
+    property <string> bar-hint-key: "";
 
     pure function group-name(group: int) -> string {
         group == 1 ? "Get" : group == 2 ? "Audio" : group == 3 ? "Image" : group == 4 ? "Video" : ""
@@ -141,6 +143,8 @@ export component AppWindow inherits Window {
             height: parent.height - Theme.bar - Theme.sheet-inset;
             border-radius: Theme.radius-sheet;
             background: Theme.canvas;
+            border-width: 1px;
+            border-color: Theme.sheet-edge;
             clip: true;
 
             // Home's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
@@ -190,8 +194,11 @@ export component AppWindow inherits Window {
                 components: root.components;
                 folders: root.folders;
                 set-pref(key, value) => { root.set-pref(key, value); }
+                preview-accent(hue) => { root.preview-accent(hue); }
                 set-tool-enabled(id, on) => { root.set-tool-enabled(id, on); }
                 action(name) => { root.dock-action(name); }
+                reset => { root.reset-settings(); }
+                search(value) => { return root.search-settings(value); }
             }
         }
 
@@ -205,17 +212,26 @@ export component AppWindow inherits Window {
             background: Theme.chrome;
             HorizontalLayout {
                 padding-left: 16px;
-                padding-right: 8px;
+                padding-right: 12px;
                 spacing: 12px;
 
                 HorizontalLayout {
+                    horizontal-stretch: 0;
                     spacing: 6px;
                     Text {
                         text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : "";
                         color: Theme.text;
-                        font-size: Theme.font-title;
-                        font-weight: 600;
+                        font-family: Theme.display;
+                        font-size: Theme.font-bar-title;
                         vertical-alignment: center;
+                    }
+                    // Activity, beside the page's name (Java, 2026-10-22)
+                    if root.prefs.show-dock : VerticalLayout {
+                        alignment: center;
+                        ActivityButton {
+                            busy: root.jobs-busy;
+                            activated => { root.dock-action("activity"); }
+                        }
                     }
                 }
 
@@ -250,47 +266,26 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // The page's actions
-                if root.page == 3 : HorizontalLayout {
-                    spacing: 8px;
-                    VerticalLayout {
-                        alignment: center;
-                        // Enter opens the category that holds the words (Rust matches them)
-                        SearchField {
-                            placeholder: "Search settings...";
-                            label: "Search settings";
-                            accepted(value) => {
-                                let found = root.search-settings(value);
-                                if (found >= 0) {
-                                    root.settings-category = found;
-                                }
-                            }
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        AppButton {
-                            quiet: true;
-                            small: true;
-                            icon: "rotate-ccw";
-                            text: "Restore defaults";
-                            enabled: root.settings-writable;
-                            clicked => { root.reset-settings(); }
-                        }
-                    }
-                }
-
                 if root.prefs.show-dock : VerticalLayout {
                     alignment: center;
                     TopActions {
-                        busy: root.jobs-busy;
-                        activity => { root.dock-action("activity"); }
+                        hinted(text, key) => {
+                            root.bar-hint = text;
+                            root.bar-hint-key = key;
+                        }
                         shortcuts => { root.dock-action("shortcuts"); }
                         open-folder => { root.dock-action("folder"); }
                         language => { root.dock-action("language"); }
                         save-session => { root.dock-action("session"); }
                     }
                 }
+            }
+            // The bar grows under its global actions to name the hovered one
+            BarHint {
+                x: parent.width - 12px;
+                y: parent.height - 1px;
+                text: root.prefs.show-dock ? root.bar-hint : "";
+                key: root.bar-hint-key;
             }
         }
 
@@ -303,45 +298,39 @@ export component AppWindow inherits Window {
             background: Theme.chrome;
             clip: false;
 
-            // Header: as tall as the top bar
-            Rectangle {
-                y: 0px;
-                height: Theme.bar;
-                clip: true;
-                // The mark keeps its place open or collapsed; the name fades and is cut by the narrowing edge
-                Image {
-                    x: (Theme.sidebar-closed - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: 28px;
-                    height: 14px;
-                    source: Assets.mark;
-                    image-fit: contain;
-                }
-                Text {
-                    x: 50px;
-                    y: (parent.height - self.height) / 2;
-                    overflow: clip;
-                    text: "Halation";
-                    color: Theme.text.transparentize(root.rail-open ? 0 : 1);
-                    animate color { duration: Motion.fade; easing: Curve.ease; }
-                    accessible-role: none;
-                    font-size: Theme.font-title;
-                    font-weight: 600;
-                }
-                TouchArea {
-                    width: parent.width;
-                    mouse-cursor: pointer;
-                    clicked => { root.navigate(0); }
-                }
-            }
-
             // The hover and selection pills behind the rows
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
                 has-selection: root.page == 0 || root.page == 3;
                 bar: true;
+                select-fill: Theme.raised-flat;
+                hover-fill: Theme.raised-flat;
+                raised-select: true;
+                raised-hover: true;
                 y: 0px;
                 height: parent.height;
+            }
+
+            // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
+            // laid like the others but a plain button: no pill, no transition (Java, 2026-10-22)
+            HorizontalLayout {
+                // Centred on the top bar's title
+                y: 0px;
+                height: Theme.bar;
+                padding-top: 2px;
+                padding-bottom: 2px;
+                padding-left: 8px;
+                padding-right: 9px;
+                SidebarItem {
+                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
+                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
+                    label: "Collapse";
+                    tip: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
+                    key: "Ctrl+B";
+                    open: root.rail-open;
+                    plain: true;
+                    activated => { root.rail-open = !root.rail-open; }
+                }
             }
 
             VerticalLayout {
@@ -378,20 +367,10 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Foot: the sidebar's toggle, in the same place open or collapsed, and Settings, after a group's gap; in
-                // the same layout so every row matches
+                // Foot: Settings, after a group's gap, in the same layout so its row matches
                 SidebarGroup {
                     label: "";
                     open: root.rail-open;
-                }
-                SidebarItem {
-                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
-                    label: "Collapse";
-                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
-                    open: root.rail-open;
-                    activated => { root.rail-open = !root.rail-open; }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                 }
                 SidebarItem {
                     icon: "settings";
