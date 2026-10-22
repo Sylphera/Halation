@@ -126,6 +126,13 @@ width following the hovered button's name (and shortcut key cap) (`BarHint`).
 Settings tabs (Java, 2026-10-22): every tab has the same width, 96 px, less when the row is short of room (down to
 72 px, what "Processing" needs) so the search keeps 120 px.
 
+Wordmark halation (Java, 2026-10-22, tuned in the glow lab, https://claude.ai/artifact/2pxYnaB54ZMsxXYaACU7t3): the
+light of the letters bleeds warm into the page: a wide haze, a halation (radius 30, strength 55 %, spread 1, 40 % cut
+from the letters, `#ffd4bd`), a white bloom (radius 6, 45 %, `#fff6ea`) and a 10 % fringe; the letters at 94 %
+(`Theme.wordmark`). Drawn once by `tools/render-wordmark-glow.js` into `assets/halation-wordmark-glow.png`, shown
+beneath the wordmark: no blur runs on Home. The image is 1120 x 588 at 1x (about 2.6 MB decoded); at 1x the glow,
+being a blur, loses nothing visible on HiDPI screens.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

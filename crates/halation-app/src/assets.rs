@@ -91,6 +91,7 @@ pub fn required() -> Vec<String> {
     let mut files: Vec<String> = [
         "halation-mark.png",
         "halation-wordmark.svg",
+        "halation-wordmark-glow.png",
         "drop-outline.svg",
         "drape-still.jpg",
         "drape-loop.mp4",
@@ -136,6 +137,7 @@ pub fn apply(ui: &AppWindow, dir: &Path) {
     let load = |file: &str| Image::load_from_path(&dir.join(file)).unwrap_or_default();
     assets.set_mark(load("halation-mark.png"));
     assets.set_wordmark(load("halation-wordmark.svg"));
+    assets.set_wordmark_glow(load("halation-wordmark-glow.png"));
     assets.set_drop_outline(load("drop-outline.svg"));
     // Generated, not a file: a standard static grain
     assets.set_grain(Image::from_rgba8(crate::backdrop::grain_tile()));

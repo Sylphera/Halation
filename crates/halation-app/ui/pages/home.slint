@@ -105,6 +105,16 @@ export component HomePage inherits Rectangle {
     property <length> hero-top: max(24px, root.height / 2 - 240px);
     property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
 
+    // The wordmark's halation glow (docs/features/material.md), a prepared image: no blur runs on Home
+    Image {
+        x: (parent.width - 600px) / 2 - 260px;
+        y: root.hero-top - 260px;
+        width: 1120px;
+        height: 588px;
+        source: Assets.wordmark-glow;
+        image-fit: fill;
+        accessible-role: none;
+    }
     // The name alone, no mark (Java, 2026-10-22): Bodoni Moda 600, tracked 0.20 em, as outlines; 88 px ("bastante
     // más grande" than the 60 px first chosen)
     Image {
@@ -113,7 +123,7 @@ export component HomePage inherits Rectangle {
         width: 600px;
         height: 68.2px;
         source: Assets.wordmark;
-        colorize: Theme.text;
+        colorize: Theme.wordmark;
         image-fit: contain;
         accessible-role: image;
         accessible-label: "Halation";
