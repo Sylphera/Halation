@@ -30,6 +30,38 @@ export global Theme {
     // The Workspace's panels over the Drape: the canvas at 86%, so the Drape shows faintly through them
     out property <color> panel: #101011dc;
 
+    // Material (docs/features/material.md, direction A, "Relief"): light from above. Each level is a two-stop fill
+    // falling off downwards and a 1 px edge brighter at the top (the sheen); raised levels stand on a 1 px dark contact
+    // edge. Gradients and solid fills only, no blur.
+    out property <brush> raised-fill: @linear-gradient(180deg, #313134 0%, #222225 100%);
+    out property <brush> raised-fill-press: @linear-gradient(180deg, #262629 0%, #1d1d20 100%);
+    out property <brush> raised-edge: @linear-gradient(180deg, #ffffff33 0%, #ffffff14 45%, #ffffff0d 100%);
+    // A raised fill's average, for flat shapes that must match it (the pills' neck)
+    out property <color> raised-flat: #2a2a2d;
+    // Recessed: fields, tracks, the switch off; dark at the top edge, catching light at the bottom
+    out property <brush> well-fill: @linear-gradient(180deg, #060607 0%, #0c0c0d 100%);
+    out property <brush> well-edge: @linear-gradient(180deg, #000000b0 0%, #ffffff0a 35%, #ffffff14 100%);
+    // Panels; `glass` over the Drape lets it show faintly through
+    out property <brush> bubble-fill: @linear-gradient(180deg, #18181a 0%, #0f0f10 100%);
+    out property <brush> bubble-glass: @linear-gradient(180deg, #19191be6 0%, #0f0f10d9 100%);
+    out property <brush> bubble-edge: @linear-gradient(180deg, #ffffff29 0%, #ffffff12 35%, #ffffff0d 100%);
+    // Menus and tooltips: one step above raised
+    out property <brush> popover-fill: @linear-gradient(180deg, #2b2b2e 0%, #1f1f22 100%);
+    out property <brush> popover-edge: @linear-gradient(180deg, #ffffff30 0%, #ffffff17 100%);
+    // The accent as a raised piece (the switch on)
+    out property <brush> accent-fill: @linear-gradient(180deg, #b9beee 0%, #9095c9 100%);
+    out property <brush> accent-edge: @linear-gradient(180deg, #ffffff70 0%, #ffffff14 45%, #00000026 100%);
+    // The one white button of a page
+    out property <brush> primary-fill: @linear-gradient(180deg, #ffffff 0%, #e4e4df 100%);
+    out property <brush> primary-fill-press: @linear-gradient(180deg, #d6d6d1 0%, #b5b5af 100%);
+    // The switch's knob, off and on
+    out property <brush> knob-light: @linear-gradient(180deg, #ffffff 0%, #d9d9d4 100%);
+    out property <brush> knob-dark: @linear-gradient(180deg, #232326 0%, #0b0b0c 100%);
+    // The 1 px dark edge a raised piece stands on
+    out property <color> contact: #000000b3;
+    // Rows inside a panel or a section
+    out property <color> separator: #ffffff0b;
+
     // Frame metrics
     out property <length> sidebar-open: 224px;
     out property <length> sidebar-closed: 52px;
@@ -51,4 +83,7 @@ export global Theme {
     out property <length> font-body: 12.5px;
     out property <length> font-small: 12px;
     out property <length> font-caption: 11px;
+    // Group labels: small tracked capitals
+    out property <length> font-label: 10.5px;
+    out property <length> label-tracking: 0.9px;
 }

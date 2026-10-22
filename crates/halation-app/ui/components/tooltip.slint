@@ -19,10 +19,12 @@ export component Tooltip inherits Rectangle {
     width: tip.preferred-width + 20px;
     height: 26px;
     border-radius: Theme.radius-overlay;
-    background: Theme.control.transparentize(root.visible-now ? 0 : 1);
+    // A popover piece of the material; its gradients fade by an animated alpha (a brush does not animate)
+    property <float> hidden-by: root.visible-now ? 0 : 1;
+    animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
+    background: Theme.popover-fill.transparentize(root.hidden-by);
     border-width: 1px;
-    border-color: Theme.line-strong.transparentize(root.visible-now ? 0 : 1);
-    animate background, border-color { duration: Motion.fade; easing: Curve.ease; }
+    border-color: Theme.popover-edge.transparentize(root.hidden-by);
 
     function update() {
         if (!root.show) {

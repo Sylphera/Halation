@@ -16,6 +16,10 @@ export component PillList inherits Rectangle {
     in property <bool> has-selection: true;
     // An accent bar beside the selected row (the sidebar)
     in property <bool> bar: false;
+    // The pills as raised pieces of the material (docs/features/material.md): a falling fill, a lit top edge and a dark
+    // contact edge under them; `select-fill` and `hover-fill` then only colour the neck, so they take `raised-flat`
+    in property <bool> raised-select: false;
+    in property <bool> raised-hover: false;
 
     property <length> hover-at;
     property <length> hover-size;
@@ -91,13 +95,25 @@ export component PillList inherits Rectangle {
     animate hover-start { duration: root.hover-snap ? 0ms : root.hover-forward ? root.hover-lead * 2 : root.hover-lead; easing: spring(0); }
     animate hover-end { duration: root.hover-snap ? 0ms : root.hover-forward ? root.hover-lead : root.hover-lead * 2; easing: spring(0); }
 
+    property <bool> select-shown: root.select-on && root.has-selection;
+    if root.raised-select : Rectangle {
+        x: selection.x;
+        y: selection.y + 1px;
+        width: selection.width;
+        height: selection.height;
+        border-radius: root.radius;
+        background: root.select-shown ? Theme.contact : Theme.contact.transparentize(1);
+    }
     selection := Rectangle {
         x: root.horizontal ? root.select-start : root.inset-left;
         y: root.horizontal ? 0px : root.select-start;
         width: root.horizontal ? max(0px, root.select-end - root.select-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.select-end - root.select-start);
         border-radius: root.radius;
-        background: root.select-on && root.has-selection ? root.select-fill : root.select-fill.transparentize(1);
+        background: !root.raised-select ? (root.select-shown ? root.select-fill : root.select-fill.transparentize(1))
+            : root.select-shown ? Theme.raised-fill : Theme.raised-fill.transparentize(1);
+        border-width: root.raised-select ? 1px : 0px;
+        border-color: root.select-shown ? Theme.raised-edge : Theme.raised-edge.transparentize(1);
     }
     // The accent bar beside the selected row (vertical lists with `bar`), stretching with the pill
     if root.bar && !root.horizontal : Rectangle {
@@ -181,12 +197,22 @@ export component PillList inherits Rectangle {
         Close {}
     }
 
+    if root.raised-hover : Rectangle {
+        x: hover-pill.x;
+        y: hover-pill.y + 1px;
+        width: hover-pill.width;
+        height: hover-pill.height;
+        border-radius: root.radius;
+        background: Theme.contact.transparentize(root.hover-alpha);
+    }
     hover-pill := Rectangle {
         x: root.horizontal ? root.hover-start : root.inset-left;
         y: root.horizontal ? 0px : root.hover-start;
         width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
         border-radius: root.radius;
-        background: root.hover-colour.transparentize(root.hover-alpha);
+        background: root.raised-hover ? Theme.raised-fill.transparentize(root.hover-alpha) : root.hover-colour.transparentize(root.hover-alpha);
+        border-width: root.raised-hover ? 1px : 0px;
+        border-color: Theme.raised-edge.transparentize(root.hover-alpha);
     }
 }

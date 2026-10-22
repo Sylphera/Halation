@@ -32,7 +32,7 @@ exists, not that it was verified; verification is a test, a measurement or Java'
 | [backgrounds.md](features/backgrounds.md) | Partial (Drape) |
 | [process-menu.md](features/process-menu.md) | Planned |
 | [motion.md](features/motion.md) | Implemented, pending visual review |
-| [material.md](features/material.md) | Proposal, pending Java's choice |
+| [material.md](features/material.md) | Implemented (direction A), pending visual review; type pending |
 | [converter.md](features/converter.md), [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
 
 `python tools/check-docs.py` checks that every link here resolves and every spec has its `Status:` line.

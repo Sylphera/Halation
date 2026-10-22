@@ -1,6 +1,6 @@
 # Material and type (Slint beta)
 
-Status: **proposal, pending Java's choice** (Java, 2026-10-22: "en el original, el material se ve más maduro …
+Status: **direction A implemented, pending Java's visual review; type pending Java's choice** (Java, 2026-10-22: "en el original, el material se ve más maduro …
 ahora todo es demasiado plano y le hace perder seriedad"; "busca referencias de material en otras apps"; a more
 mature typeface, Hermes Agent as inspiration). Annex of [SLINT_VISUAL_SYSTEM.md](../SLINT_VISUAL_SYSTEM.md); colours
 stay those of `ui/theme.slint`. Mockup: `material/propuesta-material-tipografia.png` in the project files (rendered
@@ -53,16 +53,17 @@ Separators inside panels: white 4 % instead of `#1f1f21`. Hover and press veils 
 - **B · Tonal** (Linear / Resolve): flat fills at the §3 luminances, no borders, only the raised top sheen (white
   10 %). Quieter, more "tool"; less depth.
 
-Recommendation: **A**. It is what Java pointed at in the original (the raised `×2` thumb, the icon tile) and B is
-close to the current flatness.
+Chosen by Java (2026-10-22): **A**.
 
 ## 5. Type
 
 - **Display face** for page titles and Settings section titles only (and a future tool header). The wordmark,
   the mark and the tagline stay. Candidates, all SIL OFL 1.1 (redistributable inside a GPL app, as Inter is):
   Gloock, DM Serif Display, Instrument Serif, Bodoni Moda, Fraunces, Newsreader, Young Serif. Hermes Agent's own
-  face is not identified, so it is a mood reference only. Recommendation: **Gloock** (heaviest contrast of the set,
-  closest to Hermes' weight; one static file, about 100 KB).
+  face is not identified, so it is a mood reference only. Not decided (Java, 2026-10-22: "yo aun no decidí"); Java
+  also wants a new face for the HALATION wordmark. The choice is made in an interactive type lab (Artifact
+  https://claude.ai/artifact/N7KdAds8p63QE4EXNdsZ1s: 27 wordmark faces with weight, tracking, width and case, title and
+  interface faces, over a live Home and Settings).
 - **Interface face:** Inter stays (Geist, IBM Plex Sans and Instrument Sans were compared; none changes the feel
   enough to justify a swap).
 - **Contrast:** group labels as small tracked caps (10.5 px, 600, +0.09 em, tertiary text), as in Hermes and Resolve;
@@ -70,11 +71,17 @@ close to the current flatness.
 
 ## 6. How it is drawn in Slint, and its cost
 
-- A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and `border-color` at low alpha;
-  the sheen is a 1 px `Rectangle` inside its top edge, inset by the radius; the contact edge is a same-shape
-  `Rectangle` 1 px lower, behind it. Components: one `Surface` component in `components/surface.slint` with a
-  `level` property, used by `pills.slint`, `controls.slint`, `button.slint`, `rail-item.slint`, `home.slint`,
-  `settings.slint`, `top-dock.slint`, `tooltip.slint`.
+- A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is
+  also a gradient, brighter at the top: that is the sheen, curved with the corners. The contact edge is a same-shape
+  `Rectangle` 1 px lower, behind it (not under glass panels, where it would show through). Hover and press are a
+  veil over the fill, since a gradient brush does not animate; fades go through the brushes' alpha, never `opacity`.
+  `components/surface.slint` (`Surface`, `Level`) is used by `button.slint`, `controls.slint` (switch, select and its
+  menu, fields, search, segmented), `home.slint` (strip, drop zone and its icon tile, recent files) and `settings.slint`
+  (save choice cards); `pills.slint` draws its selection (sidebar, Settings categories, segmented thumb) and Home's
+  hover pill the same way (`raised-select`, `raised-hover`); `tooltip.slint` is a popover. Group titles are small
+  tracked capitals. Tokens: `theme.slint`, "Material".
+- The headless `--screenshot` (software renderer) draws a gradient fill without its rounded corners, so its snapshots
+  show square corners on gradient pieces; the Skia window draws them rounded. Review on the real window.
 - Cost: two to three extra solid rectangles and one gradient per surface; Skia draws these as plain fills. No blur,
   no `drop-shadow-blur` on anything that stays on screen, so Home's 15 Hz redraw does not grow measurably. The only
   blurred shadow is the open popover.

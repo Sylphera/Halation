@@ -4,6 +4,7 @@ import { ToolIcon } from "../icons.slint";
 import { ToolItem, RecentItem } from "../models.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
 
 // One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
 component StripItem inherits FocusScope {
@@ -139,11 +140,12 @@ export component HomePage inherits Rectangle {
         y: root.hero-top + 202px;
         width: min(strip.preferred-width, parent.width - 24px);
         height: 62px;
-        border-radius: Theme.radius;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.line;
-        // The hover pill, gliding along the strip behind the tools
+        // A panel over the Drape; the tool under the pointer rises as a raised piece
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
         strip-pills := PillList {
             x: 5px;
             y: 5px;
@@ -151,7 +153,8 @@ export component HomePage inherits Rectangle {
             height: parent.height - 10px;
             horizontal: true;
             has-selection: false;
-            hover-fill: Theme.hover-fill;
+            hover-fill: Theme.raised-flat;
+            raised-hover: true;
             radius: Theme.radius;
         }
         strip := HorizontalLayout {
@@ -175,11 +178,20 @@ export component HomePage inherits Rectangle {
         y: root.drop-top;
         width: min(640px, parent.width - 48px);
         height: 150px;
-        border-radius: Theme.radius;
-        border-width: 1px;
-        border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.line-strong;
-        background: drop-area.has-drag ? #1d1e27e6 : (drop-touch.has-hover ? #19191be0 : Theme.panel);
-        animate background, border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+            animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+        }
+        Rectangle {
+            border-radius: Theme.radius;
+            border-width: 1px;
+            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.accent.transparentize(1);
+            animate border-color { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
+        }
         // Grows a little under a dragged file, sinks a little on press
         // (nothing scales with reduced motion, when the press scale is 100 %)
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
@@ -193,10 +205,10 @@ export component HomePage inherits Rectangle {
             y: 23px;
             width: 48px;
             height: 48px;
-            border-radius: Theme.radius;
-            background: Theme.control;
-            border-width: 1px;
-            border-color: Theme.line-strong;
+            Surface {
+                level: Level.raised;
+                radius: Theme.radius;
+            }
             ToolIcon {
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
@@ -260,18 +272,19 @@ export component HomePage inherits Rectangle {
         y: root.drop-top + 165px;
         width: min(593px, parent.width - 48px);
         height: 55px;
-        border-radius: Theme.radius;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.line;
+        Surface {
+            level: Level.bubble;
+            glass: true;
+            radius: Theme.radius;
+        }
         Text {
             x: 21px;
             y: (parent.height - self.height) / 2;
             text: "RECENT FILES";
             color: Theme.subtle;
-            font-size: 11px;
+            font-size: Theme.font-label;
             font-weight: 600;
-            letter-spacing: 1.32px;
+            letter-spacing: Theme.label-tracking;
         }
         if root.recent.length == 0 : Text {
             x: 130px;

@@ -2,6 +2,7 @@ import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "pills.slint";
+import { Surface, Level } from "surface.slint";
 
 // Switch: 34 x 20, lavender when on
 export component Toggle inherits FocusScope {
@@ -39,13 +40,26 @@ export component Toggle inherits FocusScope {
         }
     }
 
+    // A recessed track; on, the accent rises in it as a raised piece
+    Surface {
+        level: Level.well;
+        radius: 10px;
+        opacity: root.enabled ? 1 : 0.45;
+        veil: touch.has-hover && !root.checked ? Theme.hover-fill : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+    }
+    property <float> off: root.checked ? 0 : 1;
+    animate off { duration: Motion.fade; easing: Curve.ease; }
+    Surface {
+        level: Level.accent;
+        radius: 10px;
+        clear: root.off;
+        opacity: root.enabled ? 1 : 0.45;
+    }
     Rectangle {
         border-radius: 10px;
-        background: root.checked ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.text;
-        opacity: root.enabled ? 1 : 0.45;
-        animate background { duration: Motion.fade; easing: Curve.ease; }
     }
     Rectangle {
         x: root.checked ? parent.width - 17px : 3px;
@@ -53,9 +67,10 @@ export component Toggle inherits FocusScope {
         width: 14px;
         height: 14px;
         border-radius: 7px;
-        background: root.checked ? Theme.chrome : Theme.text;
+        background: root.checked ? Theme.knob-dark : Theme.knob-light;
+        border-width: 1px;
+        border-color: root.checked ? Theme.raised-edge : Theme.contact;
         animate x { duration: Motion.glide; easing: spring(0); }
-        animate background { duration: Motion.fade; easing: Curve.ease; }
     }
     touch := TouchArea {
         enabled: root.enabled;
@@ -125,12 +140,15 @@ export component Select inherits FocusScope {
         }
     }
 
+    Surface {
+        level: Level.raised;
+        veil: touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+    }
     Rectangle {
         border-radius: Theme.radius-control;
-        background: touch.has-hover ? Theme.control-hover : Theme.control;
-        border-width: root.keyboard-focus ? 2px : 1px;
-        border-color: root.keyboard-focus ? Theme.accent : (touch.has-hover ? Theme.line-hover : Theme.line-strong);
-        animate background, border-color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
     }
     Text {
         x: 10px;
@@ -163,17 +181,15 @@ export component Select inherits FocusScope {
         x: 0px;
         y: root.height + 4px;
         width: root.width;
-        Rectangle {
-            border-radius: Theme.radius-overlay;
-            background: Theme.control;
-            border-width: 1px;
-            border-color: Theme.line-strong;
+        Surface {
+            level: Level.popover;
+            radius: Theme.radius-overlay;
             VerticalLayout {
                 padding: 4px;
                 for option[index] in root.options : Rectangle {
                     height: 28px;
                     border-radius: Theme.radius-control;
-                    background: option-touch.has-hover ? Theme.control-active : Theme.control-active.transparentize(1);
+                    background: option-touch.has-hover ? Theme.hover-fill : Theme.hover-fill.transparentize(1);
                     animate background { duration: Motion.hover(option-touch.has-hover); easing: Curve.ease; }
                     Text {
                         x: 8px;
@@ -202,11 +218,17 @@ export component Field inherits Rectangle {
     callback committed(string);
 
     height: 32px;
-    border-radius: Theme.radius-control;
-    background: field-hover.has-hover && !input.has-focus ? Theme.control-hover : Theme.control;
-    border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : (field-hover.has-hover ? Theme.line-hover : Theme.line-strong);
-    animate background, border-color { duration: Motion.hover(field-hover.has-hover); easing: Curve.ease; }
+    // Recessed; the focus ring on top
+    Surface {
+        level: Level.well;
+        veil: field-hover.has-hover && !input.has-focus ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(field-hover.has-hover); easing: Curve.ease; }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: input.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
 
     // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
     field-hover := TouchArea {
@@ -289,13 +311,15 @@ export component Group inherits VerticalLayout {
     in property <string> title;
     spacing: 0px;
     padding-bottom: 28px;
+    // Small tracked capitals, quieter than the cells
     Text {
-        text: root.title;
-        color: Theme.text;
-        font-size: Theme.font-title;
+        text: root.title.to-uppercase();
+        color: Theme.subtle;
+        font-size: Theme.font-label;
         font-weight: 600;
+        letter-spacing: Theme.label-tracking;
     }
-    Rectangle { height: 8px; }
+    Rectangle { height: 10px; }
     @children
 }
 
@@ -312,7 +336,7 @@ export component Cell inherits Rectangle {
     Rectangle {
         y: 0px;
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     body := HorizontalLayout {
         padding-top: 8px;
@@ -355,7 +379,7 @@ export component Wide inherits VerticalLayout {
     padding-bottom: 10px;
     Rectangle {
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     @children
 }
@@ -369,11 +393,17 @@ export component SearchField inherits Rectangle {
     callback accepted(string);
     width: 240px;
     height: 28px;
-    border-radius: Theme.radius-control;
-    background: search-hover.has-hover && !input.has-focus ? Theme.control-hover : Theme.control;
-    border-width: input.has-focus ? 2px : 1px;
-    border-color: input.has-focus ? Theme.accent : (search-hover.has-hover ? Theme.line-hover : Theme.line-strong);
-    animate background, border-color { duration: Motion.hover(search-hover.has-hover); easing: Curve.ease; }
+    // Recessed; the focus ring on top
+    Surface {
+        level: Level.well;
+        veil: search-hover.has-hover && !input.has-focus ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+        animate veil { duration: Motion.hover(search-hover.has-hover); easing: Curve.ease; }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: input.has-focus ? 2px : 0px;
+        border-color: Theme.accent;
+    }
     // Around the input, for its hover only: a parent TouchArea sees the pointer and passes the clicks on to the input
     search-hover := TouchArea {
         mouse-cursor: MouseCursor.text;
@@ -443,11 +473,14 @@ export component Segmented inherits FocusScope {
         }
     }
 
+    // A recessed track; the chosen option is a raised thumb
+    Surface {
+        level: Level.well;
+    }
     Rectangle {
         border-radius: Theme.radius-control;
-        background: Theme.control;
-        border-width: root.keyboard-focus ? 2px : 1px;
-        border-color: root.keyboard-focus ? Theme.accent : Theme.line-strong;
+        border-width: root.keyboard-focus ? 2px : 0px;
+        border-color: Theme.accent;
     }
     pills := PillList {
         x: 3px;
@@ -456,7 +489,8 @@ export component Segmented inherits FocusScope {
         height: parent.height - 6px;
         horizontal: true;
         hover-fill: Theme.hover-fill;
-        select-fill: Theme.control-active;
+        select-fill: Theme.raised-flat;
+        raised-select: true;
         radius: Theme.radius-control - 3px;
     }
     row := HorizontalLayout {

@@ -340,6 +340,8 @@ export component AppWindow inherits Window {
                 // No sidebar row stands for a tool's page: no selection pill there
                 has-selection: root.page == 0 || root.page == 3;
                 bar: true;
+                select-fill: Theme.raised-flat;
+                raised-select: true;
                 y: 0px;
                 height: parent.height;
             }

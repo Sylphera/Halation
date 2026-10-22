@@ -5,6 +5,7 @@ import { AppButton } from "../components/button.slint";
 import { Toggle, Select, Segmented, Field, Help, Tag, Group, Cell, Pair, Wide } from "../components/controls.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
+import { Surface, Level } from "../components/surface.slint";
 import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
 
 // One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
@@ -93,7 +94,7 @@ component ToolCell inherits Rectangle {
     Rectangle {
         y: 0px;
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     HorizontalLayout {
         padding-top: 10px;
@@ -159,7 +160,7 @@ component ListRow inherits Rectangle {
     Rectangle {
         y: 0px;
         height: 1px;
-        background: Theme.line;
+        background: Theme.separator;
     }
     HorizontalLayout {
         spacing: 12px;
@@ -222,7 +223,10 @@ export component SettingsPage inherits Rectangle {
         width: root.list-width;
         x: 0px;
         // The hover and selection pills behind the categories
-        category-pills := PillList {}
+        category-pills := PillList {
+            select-fill: Theme.raised-flat;
+            raised-select: true;
+        }
         VerticalLayout {
             padding: 8px;
             padding-right: 9px;
@@ -420,11 +424,18 @@ export component SettingsPage inherits Rectangle {
                                 { title: "Halation Folder", text: "Save exports automatically in Halation Folder." }
                             ] : Rectangle {
                                 height: 68px;
-                                border-radius: Theme.radius-control;
-                                background: root.prefs.save-mode == index ? Theme.control-active : (choice-touch.has-hover ? Theme.control-hover : Theme.control);
-                                border-width: 1px;
-                                border-color: root.prefs.save-mode == index ? Theme.accent : (choice-touch.has-hover ? Theme.line-hover : Theme.line-strong);
-                                animate background, border-color { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                // Raised cards; the chosen one carries an accent edge
+                                Surface {
+                                    level: Level.raised;
+                                    veil: choice-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+                                    animate veil { duration: Motion.hover(choice-touch.has-hover); easing: Curve.ease; }
+                                }
+                                Rectangle {
+                                    border-radius: Theme.radius-control;
+                                    border-width: 1px;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.accent.transparentize(1);
+                                    animate border-color { duration: Motion.fade; easing: Curve.ease; }
+                                }
                                 // Large surfaces sink only a little
                                 // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
                                 transform-scale-x: choice-touch.pressed && Motion.press-scale < 100% ? 99% : 100%;
@@ -440,8 +451,9 @@ export component SettingsPage inherits Rectangle {
                                     width: 14px;
                                     height: 14px;
                                     border-radius: 7px;
+                                    background: root.prefs.save-mode == index ? transparent : Theme.well-fill;
                                     border-width: root.prefs.save-mode == index ? 4px : 1px;
-                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.line-strong;
+                                    border-color: root.prefs.save-mode == index ? Theme.accent : Theme.well-edge;
                                 }
                                 VerticalLayout {
                                     x: 36px;
@@ -663,7 +675,9 @@ export component SettingsPage inherits Rectangle {
                                 Rectangle {
                                     height: 4px;
                                     border-radius: 2px;
-                                    background: Theme.control-active;
+                                    background: Theme.well-fill;
+                                    border-width: 1px;
+                                    border-color: Theme.well-edge;
                                 }
                             }
                             Text {
