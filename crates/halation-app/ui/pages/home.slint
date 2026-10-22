@@ -69,8 +69,8 @@ export component WorkspacePage inherits Rectangle {
     property <int> job-rows: min(3, max(1, root.jobs.length));
 
     VerticalLayout {
-        x: max(32px, (root.width - 1200px) / 2);
-        width: root.width - 2 * self.x;
+        x: 32px;
+        width: root.width - 64px;
         padding-top: 24px;
         padding-bottom: 20px;
         spacing: 24px;

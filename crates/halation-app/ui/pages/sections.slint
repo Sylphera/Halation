@@ -32,9 +32,9 @@ export component SectionsView inherits Rectangle {
     HorizontalLayout {
         spacing: 0px;
 
-        // The sections list: 240 px, a 1 px line on its right
+        // The sections list: a quarter of the width, 240 to 360 px, a 1 px line on its right
         VerticalLayout {
-            width: 240px;
+            width: clamp(root.width / 4, 240px, 360px);
             spacing: 8px;
             padding: 8px;
 
@@ -195,7 +195,10 @@ export component SectionsView inherits Rectangle {
             if root.selected-id == "" : VerticalLayout {
                 alignment: center;
                 spacing: 8px;
-                ToolIcon { name: "library"; tint: Theme.muted; }
+                HorizontalLayout {
+                    alignment: center;
+                    ToolIcon { name: "library"; tint: Theme.muted; }
+                }
                 Text {
                     text: "Pick a section";
                     color: Theme.text;
