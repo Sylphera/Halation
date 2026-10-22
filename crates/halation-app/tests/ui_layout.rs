@@ -214,22 +214,18 @@ fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     assert!(!ui.get_rail_open(), "Ctrl+B closes it again");
     // Collapsed, the tools stay reachable by their names
     assert!(ElementHandle::find_by_accessible_label(&ui, "Downloader").count() >= 1);
-    // The header (mark and name) is the toggle; there is no separate Collapse row
-    assert_eq!(
-        ElementHandle::find_by_accessible_label(&ui, "Collapse").count(),
-        0
-    );
-    let header = |label: &str| {
+    // The Collapse row, in the header, toggles it too
+    let toggle = |label: &str| {
         ElementHandle::find_by_accessible_label(&ui, label)
             .next()
-            .expect("the header toggles the sidebar")
+            .expect("the Collapse row toggles the sidebar")
     };
-    header("Expand the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    toggle("Expand the sidebar (Ctrl+B)").invoke_accessible_default_action();
     slint::platform::update_timers_and_animations();
-    assert!(ui.get_rail_open(), "the header opens it");
-    header("Collapse the sidebar (Ctrl+B)").invoke_accessible_default_action();
+    assert!(ui.get_rail_open(), "the Collapse row opens it");
+    toggle("Collapse").invoke_accessible_default_action();
     slint::platform::update_timers_and_animations();
-    assert!(!ui.get_rail_open(), "the header closes it");
+    assert!(!ui.get_rail_open(), "the Collapse row closes it");
 }
 
 #[test]

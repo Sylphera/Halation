@@ -305,7 +305,7 @@ export component AppWindow inherits Window {
             background: Theme.chrome;
             clip: false;
 
-            // Header, as tall as the top bar: the mark and the name are the sidebar's toggle (Java, 2026-10-22), a row
+            // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
             // like the others, so it takes the same hover pill
             HorizontalLayout {
                 y: 0px;
@@ -313,10 +313,10 @@ export component AppWindow inherits Window {
                 padding-left: 8px;
                 padding-right: 9px;
                 SidebarItem {
-                    brand: true;
-                    mark: Assets.mark;
-                    label: "Halation";
-                    tip: root.rail-open ? "Collapse the sidebar (Ctrl+B)" : "Expand the sidebar (Ctrl+B)";
+                    icon: root.rail-open ? "panel-left-close" : "panel-left-open";
+                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
+                    label: "Collapse";
+                    tip: root.rail-open ? "Collapse" : "Expand the sidebar (Ctrl+B)";
                     open: root.rail-open;
                     activated => { root.rail-open = !root.rail-open; }
                     hovered(on, at, size) => { rail-pills.hover(on, at, size); }
