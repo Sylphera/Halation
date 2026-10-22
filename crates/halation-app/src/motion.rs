@@ -14,9 +14,9 @@ pub struct Tokens {
     pub hover_out: Duration,
     /// Back from pressed, on release
     pub release: Duration,
-    /// The hover pill, the selection's leading edge and the switch's knob (a spring's natural period; it settles in about 1.5 times this)
+    /// The leading edge of a pill, and the switch's knob (a spring's natural period; it settles in about 1.5 times this)
     pub glide: Duration,
-    /// The selection's trailing edge: it stretches towards the new row, then closes up on it
+    /// The trailing edge of a pill: it stretches towards the new row, then closes up on it
     pub trail: Duration,
     /// Tooltips and the sidebar's labels
     pub fade: Duration,
@@ -29,12 +29,12 @@ pub struct Tokens {
 }
 
 const NORMAL: Tokens = Tokens {
-    hover_in: Duration::from_millis(70),
-    hover_out: Duration::from_millis(160),
-    release: Duration::from_millis(120),
-    glide: Duration::from_millis(160),
-    trail: Duration::from_millis(240),
-    fade: Duration::from_millis(120),
+    hover_in: Duration::from_millis(40),
+    hover_out: Duration::from_millis(90),
+    release: Duration::from_millis(70),
+    glide: Duration::from_millis(55),
+    trail: Duration::from_millis(110),
+    fade: Duration::from_millis(80),
     panel: Duration::from_millis(120),
     tip_wait: Duration::from_millis(400),
     press_scale: 97.0,

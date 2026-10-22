@@ -31,7 +31,6 @@ pub enum DiagnosticScene {
     Empty,
     Home,
     Cycle,
-    Frames,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,7 +48,7 @@ impl fmt::Display for ProfileError {
             Self::UnknownArgument(arg) => write!(f, "unknown argument: {arg}"),
             Self::InvalidDiagnosticScene(scene) => write!(
                 f,
-                "invalid diagnostic scene '{scene}'; expected empty, home, cycle or frames"
+                "invalid diagnostic scene '{scene}'; expected empty, home, or cycle"
             ),
             Self::MissingValue(arg) => write!(f, "missing value after {arg}"),
             Self::EmptyPath => write!(f, "profile root cannot be empty"),
@@ -131,7 +130,6 @@ fn parse_diagnostic_scene(value: &str) -> Result<DiagnosticScene, ProfileError> 
         "empty" => Ok(DiagnosticScene::Empty),
         "home" => Ok(DiagnosticScene::Home),
         "cycle" => Ok(DiagnosticScene::Cycle),
-        "frames" => Ok(DiagnosticScene::Frames),
         _ => Err(ProfileError::InvalidDiagnosticScene(value.to_owned())),
     }
 }

@@ -303,17 +303,40 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
         moving > first + 1.0 && moving < second - 1.0,
         "glides: {first} -> {moving} -> {second}"
     );
-    // It keeps its size on the way: a sweep over several rows does not smear it
-    let moving_height = pill_height(&ui, "PillList::hover-pill");
-    assert!(
-        (moving_height - rest).abs() < 1.0,
-        "no stretch: {rest} -> {moving_height}"
-    );
+    // The leading edge is ahead of the trailing one: the pill stretches on its way and closes up on arrival
+    let stretched = pill_height(&ui, "PillList::hover-pill");
+    assert!(stretched > rest + 4.0, "stretches: {rest} -> {stretched}");
     advance(1000);
     let pill = pill_y(&ui, "PillList::hover-pill");
     assert!(
         (pill - second).abs() < 1.0,
         "lands on the new row: {pill} vs {second}"
+    );
+    let landed = pill_height(&ui, "PillList::hover-pill");
+    assert!((landed - rest).abs() < 1.0, "closes up: {landed} vs {rest}");
+}
+
+#[test]
+fn a_sweep_over_several_rows_keeps_the_hover_pill_moving() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    point_at(&ui, "Downloader");
+    advance(1000);
+    // Across one row and on to the next before the pill arrives
+    point_at(&ui, "Converter");
+    advance(1);
+    advance(16);
+    let before = pill_y(&ui, "PillList::hover-pill");
+    point_at(&ui, "Vocal Remover");
+    advance(1);
+    let after = pill_y(&ui, "PillList::hover-pill");
+    // The retarget keeps its speed: no stop at the row it passed
+    assert!(
+        after - before > 1.0,
+        "keeps moving through a retarget: {before} -> {after}"
     );
 }
 
@@ -339,20 +362,14 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     );
     ui.set_page(3);
     // The row learns it is active on the next frame; the pill sets off from there
-    let rest = pill_height(&ui, "PillList::selection");
     advance(1);
     advance(32);
     assert!(
         pill() > home + 1.0 && pill() < settings - 1.0,
         "glides to Settings"
     );
-    // The leading edge is ahead of the trailing one: it stretches on its way and closes up on arrival
-    let stretched = pill_height(&ui, "PillList::selection");
-    assert!(stretched > rest + 4.0, "stretches: {rest} -> {stretched}");
     advance(1000);
     assert!((pill() - settings).abs() < 1.0, "lands on Settings");
-    let landed = pill_height(&ui, "PillList::selection");
-    assert!((landed - rest).abs() < 1.0, "closes up: {landed} vs {rest}");
 
     // Reduced motion: the end state on the next frame, for both pills
     let tokens = halation_app::motion::tokens(true);
