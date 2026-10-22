@@ -13,6 +13,8 @@ use std::{
 };
 
 const PHASE: Duration = Duration::from_secs(6);
+/// Time for the window to open and maximize before measuring
+const SETTLE: Duration = Duration::from_millis(1500);
 const TOGGLE: Duration = Duration::from_millis(450);
 /// Frames further apart than this are separate bursts, not a dropped frame inside one
 const BURST_GAP: Duration = Duration::from_millis(100);
@@ -78,14 +80,13 @@ fn report(name: &str, mut phase: Phase, log: &dyn Fn(&str)) {
     ));
 }
 
-/// Starts the measurement; `log` writes a line to the beta's log
-pub fn start(weak: &Weak<AppWindow>, log: Rc<dyn Fn(&str)>) -> Option<Rc<slint::Timer>> {
-    let ui = weak.upgrade()?;
-    let recorder = Rc::new(RefCell::new(Recorder::default()));
+fn install(weak: &Weak<AppWindow>, recorder: &Rc<RefCell<Recorder>>) -> bool {
+    let Some(ui) = weak.upgrade() else {
+        return false;
+    };
     let notify = recorder.clone();
     let notifier_ui = weak.clone();
-    let installed = ui
-        .window()
+    ui.window()
         .set_rendering_notifier(move |state, _| {
             let now = Instant::now();
             let mut r = notify.borrow_mut();
@@ -111,18 +112,18 @@ pub fn start(weak: &Weak<AppWindow>, log: Rc<dyn Fn(&str)>) -> Option<Rc<slint::
                 _ => {}
             }
         })
-        .is_ok();
-    if !installed {
-        log("frames: this renderer gives no rendering notifications");
-        return None;
-    }
-    log(
-        "frames: measuring Home at rest, Home with the sidebar moving, Settings with the sidebar moving",
-    );
+        .is_ok()
+}
 
+/// Starts the measurement once the window exists and is maximized (its renderer is made inside the event loop, so a
+/// notifier set earlier is never called); `log` writes a line to the beta's log
+pub fn start(weak: &Weak<AppWindow>, log: Rc<dyn Fn(&str)>) -> Option<Rc<slint::Timer>> {
+    let recorder = Rc::new(RefCell::new(Recorder::default()));
     let timer = Rc::new(slint::Timer::default());
+    let stop = Rc::downgrade(&timer);
     let weak = weak.clone();
-    let started = Instant::now();
+    let launched = Instant::now();
+    let mut started: Option<Instant> = None;
     let mut done = 0;
     let mut last_toggle = Instant::now();
     timer.start(
@@ -132,7 +133,22 @@ pub fn start(weak: &Weak<AppWindow>, log: Rc<dyn Fn(&str)>) -> Option<Rc<slint::
             let Some(ui) = weak.upgrade() else {
                 return;
             };
-            let phase = (started.elapsed().as_millis() / PHASE.as_millis()) as usize;
+            let Some(start) = started else {
+                if launched.elapsed() < SETTLE {
+                    return;
+                }
+                if !install(&weak, &recorder) {
+                    log("frames: this renderer gives no rendering notifications");
+                    if let Some(timer) = stop.upgrade() {
+                        timer.stop();
+                    }
+                    return;
+                }
+                log("frames: measuring Home at rest, Home with the sidebar moving, Settings with the sidebar moving");
+                started = Some(Instant::now());
+                return;
+            };
+            let phase = (start.elapsed().as_millis() / PHASE.as_millis()) as usize;
             if phase > done {
                 let finished = std::mem::take(&mut recorder.borrow_mut().phase);
                 report(
