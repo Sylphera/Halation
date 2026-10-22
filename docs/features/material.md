@@ -99,6 +99,11 @@ actions. Settings' search (36 px tall, as the tabs' track) and Restore defaults 
 row, at its right ("así se ve todo más lleno"); short of room the search narrows to 120 px and Restore defaults keeps
 only its icon.
 
+Sixth Preview (Java, 2026-10-22): the search takes all the width left on the tabs' row (at least 120 px). The top
+bar's icon buttons (Activity, shortcuts, folder, language, session, the notice's ✕) are 32 px with 17 px icons, 6 px
+apart and 12 px from the edge, and hovered or pressed they are raised pieces of the material, as the sidebar's rows
+are, instead of a flat tint.
+
 ## 6. How it is drawn in Slint, and its cost
 
 - A level is a `Rectangle` with a `@linear-gradient(180deg, top, bottom)` background and a 1 px border whose brush is

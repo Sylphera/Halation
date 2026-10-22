@@ -2,8 +2,10 @@ import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
 import { Motion, Curve } from "../motion.slint";
 import { Tooltip } from "tooltip.slint";
+import { Surface, Level } from "surface.slint";
 
-// A 28 px icon button of the top bar, with a tooltip below it
+// A 32 px icon button of the top bar, with a tooltip below it. Hovered or pressed it is a raised piece of the material,
+// as the sidebar's rows are (Java, 2026-10-22)
 export component BarButton inherits FocusScope {
     // The focus ring shows for keyboard focus only, not after a click
     property <bool> keyboard-focus: false;
@@ -16,8 +18,8 @@ export component BarButton inherits FocusScope {
     in property <string> icon;
     in property <string> label;
     callback activated;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
     accessible-label: label;
@@ -30,10 +32,15 @@ export component BarButton inherits FocusScope {
             reject
         }
     }
+    property <float> rest: touch.has-hover || touch.pressed ? 0 : 1;
+    animate rest { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+    Surface {
+        level: Level.raised;
+        pressed: touch.pressed;
+        clear: root.rest;
+    }
     Rectangle {
         border-radius: Theme.radius-control;
-        background: touch.pressed ? Theme.control-active : (touch.has-hover ? Theme.control-hover : Theme.control-hover.transparentize(1));
-        animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
         border-width: root.keyboard-focus ? 2px : 0px;
         border-color: Theme.accent;
     }
@@ -48,7 +55,7 @@ export component BarButton inherits FocusScope {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             name: root.icon;
-            size: 16px;
+            size: 17px;
             tint: touch.has-hover ? Theme.text : Theme.muted;
             animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
@@ -89,7 +96,7 @@ export component TopActions inherits HorizontalLayout {
     callback language();
     callback save-session();
 
-    spacing: 2px;
+    spacing: 6px;
     alignment: end;
 
     BarButton { icon: "keyboard"; label: "Keyboard shortcuts (?)"; activated => { root.shortcuts(); } }
