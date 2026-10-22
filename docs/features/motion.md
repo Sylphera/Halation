@@ -84,7 +84,7 @@ Cambian juntos el fondo, el tinte del icono y el color del texto.
 | Filas de la sidebar | Píldora de hover compartida (abajo); icono y nombre de `muted` a `text` |
 | Lista de categorías de Settings | La misma píldora compartida |
 | Botones de la barra superior | Fondo `transparent` → `control-hover`; icono `muted` → `text` |
-| Elementos de la barra de herramientas de Home | Fondo → `hover-fill`; icono y nombre → `text` |
+| Barra de herramientas de Home | Píldora de hover compartida, horizontal (abajo); icono y nombre → `text` |
 | `AppButton` (normal, quiet, primary) | Fondo a su tono de hover; primary aclara su relleno |
 | `Select`, `Field`, `SearchField` | Borde `line-strong` → `line-strong` aclarado; fondo → `control-hover` |
 | Opciones de un `Select` abierto | Fondo → `control-active` |
@@ -92,8 +92,10 @@ Cambian juntos el fondo, el tinte del icono y el color del texto.
 | Zona de soltar de Home | Fondo y borde como hoy, con `hover-in`/`hover-out` |
 | `Toggle` | Pista un tono más clara |
 
-**Píldora de hover compartida** (sidebar y lista de categorías): un único `Rectangle` sin hijos por lista, detrás de las
-filas. Al entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
+**Píldora de hover compartida** (sidebar, lista de categorías y barra de herramientas de Home; Java, 2026-10-22: «la
+píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un único `Rectangle` sin hijos por lista,
+detrás de las filas, que sigue al puntero sin clic. En la barra de Home se desliza en `x` y toma el ancho del elemento
+(el ancho se fija al instante; solo se anima `x`). Al entrar el puntero en la lista aparece en la fila (su color pasa de transparente a `control-hover` en
 `hover-in`, sin deslizarse desde ningún sitio); al pasar a otra fila se desliza en `y` con `glide`, heredando la
 velocidad si el puntero sigue moviéndose; al salir de la lista se desvanece en `hover-out`. Sobre la fila activa se
 queda debajo de la píldora de selección. Mismo coste que un hover por fila (un rectángulo, nivel 1–2) y da continuidad
@@ -110,6 +112,12 @@ opciones de Settings. La zona de soltar baja solo a 99 %.
 La fila activa de la sidebar y la categoría activa de Settings se marcan con una **píldora de selección** (un
 `Rectangle` sin hijos por lista) que se desliza en `y` con `glide` a la nueva fila. La navegación cambia en el primer
 frame; la píldora llega después.
+
+**Control segmentado** (`Segmented`, componente nuevo; Java, 2026-10-22: en las herramientas y en Settings la píldora
+hace lo mismo con clic): una fila de opciones dentro de una cápsula, con una píldora de selección que se desliza en `x`
+con `glide` a la opción pulsada y toma su ancho al instante. Las opciones sin seleccionar tienen hover de color. En
+Settings sustituye a las elecciones de 2–4 opciones (modo de guardado y similares); las herramientas lo usarán para
+sus pestañas y filtros cuando se porten.
 
 ### 4.4 Tooltips
 
