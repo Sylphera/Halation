@@ -77,6 +77,10 @@ export component AppWindow inherits Window {
     in-out property <int> library-mode: 0;
     // The sidebar open with labels; closed it shows icons only (planning/active/ui-redesign.md §6)
     in-out property <bool> rail-open: false;
+    // Home's tool strip: where the pointer is (window x) and whether it is over the strip, for the dock's light
+    // (headless snapshots set them; in the real window only Home's items report them)
+    in-out property <length> home-pointer-x: 0px;
+    in-out property <bool> home-pointer-on: false;
     // Settings category to open at (headless snapshots)
     in property <int> settings-jump: -1;
     // Settings category shown (the top bar's search changes it)
@@ -214,6 +218,9 @@ export component AppWindow inherits Window {
                 tools: root.active-tools;
                 recent: root.recent;
                 library-loaded: root.library-loaded;
+                // Two-way: the headless snapshots place the pointer they cannot move (like `settings-jump`)
+                pointer-x <=> root.home-pointer-x;
+                pointer-on <=> root.home-pointer-on;
                 tool-activated(id) => { root.tool-activated(id); }
                 choose-reference => { root.choose-reference(); }
                 file-dropped(data) => { root.file-dropped(data); }

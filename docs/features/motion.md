@@ -72,6 +72,7 @@ Rust no puede contener un `easing`; `spring(0)` se escribe en cada sitio porque 
 | `trail` | 110 ms | `spring(0)` | Borde trasero de las píldoras |
 | `fade` | 80 ms | `ease-out` | Tooltips, etiquetas de la sidebar |
 | `panel` | 120 ms | `ease-out` | Ancho de la sidebar |
+| `dock-light` | 320 ms | `ease-out` | Luz del dock de Home, al entrar y salir |
 | `tip-wait` | 400 ms | `Timer` | Espera antes de mostrar un tooltip |
 | `press-scale` | 97 % | — | Escala al pulsar |
 
@@ -95,13 +96,17 @@ Cambian juntos el fondo, el tinte del icono y el color del texto.
 | `Select`, `Field`, `SearchField` | Borde `line-strong` → `line-strong` aclarado; fondo → `control-hover` |
 | Opciones de un `Select` abierto | Fondo → `control-active` |
 | Tarjetas de modo de guardado y celdas de Settings | Fondo → `control-hover` |
-| Zona de soltar de Home | Luz radial blanca al 8 % que sigue al puntero (160 px; 420 px al arrastrar), borde a `line-hover` e icono 2 px arriba, con `hover-in`/`hover-out` |
+| Zona de soltar de Home | Plana: ni el relleno ni el borde cambian con el puntero (Java, 2026-10-23) |
 | `Toggle` | Pista un tono más clara |
 
-**Luz de la zona de soltar** (Java, 2026-10-22, aprobada): un degradado radial blanco al 8 % de 160 px sigue al
-puntero dentro de la zona; al arrastrar un archivo crece a 420 px, el borde pasa a `line-hover` y el icono sube 2 px.
-El centro es un color con alfa animado en `hover-in`/`hover-out` (nunca `opacity`: Skia compondría una capa); se apaga
-al salir o al soltar.
+**Luz del dock de Home** (Java, 2026-10-23: replicar la luz del dock de la app Tauri; se miró su CSS como
+referencia, sin tomar código): una banda blanca suave de 90 px sigue al puntero a lo largo de la barra de
+herramientas, con un degradado radial al 8 % que se apaga al 72 % de su radio; el borde de la barra recibe la misma
+luz en un anillo de 80 px al 42 %, apagado al 70 %. El centro es un color con alfa animado —nunca `opacity`— y
+aparece y se va en `dock-light` (320 ms, `ease-out`), la transición del original. Se apaga al salir de la barra; el
+resaltado de la herramienta bajo el puntero sigue siendo la píldora compartida. La zona de soltar de Home ya no
+lleva luz: es una tarjeta plana como las demás, y solo el arrastre o el foco de teclado encienden su borde de acento
+(estado, no decoración).
 
 **Píldora de hover compartida** (sidebar, lista de categorías y barra de herramientas de Home; Java, 2026-10-22: «la
 píldora del dock se mueve sin que le des clic y se desplaza fluidamente»): un único `Rectangle` sin hijos por lista,

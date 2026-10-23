@@ -24,6 +24,8 @@ pub struct Tokens {
     pub panel: Duration,
     /// Hover time before a tooltip shows (a timer, not an animation: it paints nothing while it waits)
     pub tip_wait: Duration,
+    /// The dock's pointer light appearing and leaving (the original's 320 ms `--spring`)
+    pub dock_light: Duration,
     /// Scale of a pressed control, in percent
     pub press_scale: f32,
 }
@@ -37,6 +39,7 @@ const NORMAL: Tokens = Tokens {
     fade: Duration::from_millis(80),
     panel: Duration::from_millis(120),
     tip_wait: Duration::from_millis(400),
+    dock_light: Duration::from_millis(320),
     press_scale: 97.0,
 };
 
@@ -51,6 +54,7 @@ pub fn tokens(reduced_motion: bool) -> Tokens {
             trail: Duration::ZERO,
             fade: Duration::ZERO,
             panel: Duration::ZERO,
+            dock_light: Duration::ZERO,
             press_scale: 100.0,
             ..NORMAL
         }

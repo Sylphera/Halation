@@ -1,4 +1,4 @@
-//! `--screenshot <page> <width>x<height> <out.png>`: one headless snapshot of a page, for visual review without
+﻿//! `--screenshot <page> <width>x<height> <out.png>`: one headless snapshot of a page, for visual review without
 //! opening a window or touching the desktop. Diagnostic builds only (`diag-screenshot`); the shipping build has none
 //! of this code. It renders with Slint's software renderer into memory, so it approximates the layout of the real
 //! Skia window (text and edges differ); each run says so. The page is set by property, no input is simulated.
@@ -192,10 +192,14 @@ fn profile_tools(out_dir: &Path, page: &str) -> PathBuf {
 }
 
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
-    // home, home-open (sidebar open), settings, settings-<0..7> (a section)
+    // home, home-open (sidebar open), settings, settings-<0..7> (a section), home-pointer (a pointer over the strip's
+    // left half, for the dock's light), home-hover (a pointer at rest over the drop zone)
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
+        "home-pointer" => (0, 0, -2),
+        // A real pointer over the drop zone's middle: it must stay flat under it
+        "home-hover" => (0, 6, -1),
         "settings" => (3, 0, -1),
         "converter" => (4, 0, -1),
         "converter-open" => (4, 2, -1),
@@ -209,7 +213,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio or converter-video"
+                    "unknown page '{other}'; expected home, home-open, home-pointer, home-hover, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio or converter-video"
                 )
                 .into());
             }
@@ -328,6 +332,25 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.set_settings_jump(-1);
         ui.set_settings_jump(section);
         pump(&queue, Duration::from_millis(300));
+    }
+    if mode == 6 {
+        // A real pointer resting over the drop zone's middle (the built-in hover pipeline, no glow must answer it)
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                position: slint::LogicalPosition::new(spec.width as f32 * 0.5, 680.0),
+            });
+        pump(&queue, Duration::from_millis(100));
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                position: slint::LogicalPosition::new(spec.width as f32 * 0.5, 680.0),
+            });
+        pump(&queue, Duration::from_millis(600));
+    }
+    if section == -2 {
+        // A pointer resting over the tool strip's right half: the dock's light follows it (headless, no mouse to move)
+        ui.set_home_pointer_on(true);
+        ui.set_home_pointer_x(spec.width as f32 * 0.6);
+        pump(&queue, Duration::from_millis(400));
     }
 
     let (w, h) = (spec.width as usize, spec.height as usize);

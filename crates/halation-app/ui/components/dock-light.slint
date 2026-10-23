@@ -1,0 +1,35 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// The dock's pointer light, from the original Home's tool strip: a soft white band that follows the pointer along the
+// dock, plus the same light catching the dock's edge near it. It is a gradient, never a blur or a shadow. `at` is the
+// pointer's position along the dock, in this component's coordinates; `on` is true while the pointer is over the dock.
+// The light fades by its colours' alpha, not by `opacity` (no layer; docs/features/motion.md §2).
+export component DockLight inherits Rectangle {
+    in property <length> at: root.width / 2;
+    in property <bool> on: false;
+    in property <length> radius: Theme.radius;
+    // 90 px, the original's `radial-gradient(90px circle …)`
+    in property <length> reach: 90px;
+    // 80 px for the edge ring, as the original's `::after` mask
+    in property <length> edge-reach: 80px;
+    property <float> shown: root.on ? 1 : 0;
+    animate shown { duration: Motion.dock-light; easing: Curve.ease; }
+    // `--glow-dock: rgba(255,255,255,.08)` and `--glow-dock-edge: rgba(255,255,255,.42)`
+    property <color> fill: Theme.text.transparentize(1 - 0.08 * root.shown);
+    property <color> edge: Theme.text.transparentize(1 - 0.42 * root.shown);
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: root.radius;
+        background: @radial-gradient(circle root.reach at root.at root.height / 2, root.fill 0%, transparent 72%);
+    }
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: root.radius;
+        border-width: 1px;
+        border-color: @radial-gradient(circle root.edge-reach at root.at root.height / 2, root.edge 0%, transparent 70%);
+    }
+}

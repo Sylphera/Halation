@@ -13,6 +13,8 @@ export global Motion {
     in-out property <duration> panel: 120ms;
     // A Timer, not an animation delay: a delay repaints every frame while it waits
     in-out property <duration> tip-wait: 400ms;
+    // The dock's pointer light: the original's `--spring` (320 ms) fade in and out
+    in-out property <duration> dock-light: 320ms;
     in-out property <percent> press-scale: 97%;
 
     // Fast in, soft out

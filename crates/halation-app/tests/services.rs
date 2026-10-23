@@ -411,6 +411,8 @@ fn reduced_motion_resolves_deterministically_to_zero_duration() {
     assert!(normal.hover_in < normal.hover_out, "fast in, soft out");
     assert!(normal.glide < normal.trail, "a moving pill stretches");
     assert!(normal.press_scale < 100.0);
+    // The dock's light keeps the original strip's 320 ms reveal (docs/features/motion.md §4.4), longer than the rest
+    assert_eq!(normal.dock_light, Duration::from_millis(320));
     for d in [
         reduced.hover_in,
         reduced.hover_out,
@@ -419,6 +421,7 @@ fn reduced_motion_resolves_deterministically_to_zero_duration() {
         reduced.trail,
         reduced.fade,
         reduced.panel,
+        reduced.dock_light,
     ] {
         assert_eq!(d, Duration::ZERO);
     }

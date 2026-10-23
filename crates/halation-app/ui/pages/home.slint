@@ -4,6 +4,7 @@ import { ToolIcon } from "../icons.slint";
 import { ToolItem, RecentItem } from "../models.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
+import { DockLight } from "../components/dock-light.slint";
 import { Surface, Level } from "../components/surface.slint";
 
 // One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
@@ -20,6 +21,8 @@ component StripItem inherits FocusScope {
     in property <string> label;
     callback activated;
     callback hovered(bool, length, length);
+    // The pointer's x in window coordinates and whether it is over this item: the dock's light follows it
+    callback pointed(length, bool);
     changed x => {
         if (touch.has-hover) {
             root.hovered(true, root.absolute-position.x, root.width);
@@ -83,8 +86,14 @@ component StripItem inherits FocusScope {
             root.focus();
             root.activated();
         }
+        moved => {
+            if (self.has-hover) {
+                root.pointed(root.absolute-position.x + self.mouse-x, true);
+            }
+        }
         changed has-hover => {
             root.hovered(self.has-hover, root.absolute-position.x, root.width);
+            root.pointed(root.absolute-position.x + self.mouse-x, self.has-hover);
         }
     }
 }
@@ -104,6 +113,10 @@ export component HomePage inherits Rectangle {
     // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
     property <length> hero-top: max(24px, root.height / 2 - 240px);
     property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
+    // Where the pointer is along the tool strip (window x) and whether it is over it: the strip's light follows it.
+    // In-out so the headless snapshots can place a pointer they cannot move (like `jump-to` in Settings).
+    in-out property <length> pointer-x: 0px;
+    in-out property <bool> pointer-on: false;
 
     // The wordmark's halation glow (docs/features/material.md), a prepared image: no blur runs on Home
     Image {
@@ -149,6 +162,15 @@ export component HomePage inherits Rectangle {
             glass: true;
             radius: Theme.radius;
         }
+        // The dock's light follows the pointer along the whole strip, under the tools, as in the original
+        DockLight {
+            width: parent.width;
+            height: parent.height;
+            radius: Theme.radius;
+            // Window x turned into the strip's own coordinates; the items' absolute x already carries its padding
+            at: root.pointer-x - strip.absolute-position.x;
+            on: root.pointer-on;
+        }
         strip-pills := PillList {
             x: 5px;
             y: 5px;
@@ -171,6 +193,10 @@ export component HomePage inherits Rectangle {
                 label: tool.name;
                 activated => { root.tool-activated(tool.id); }
                 hovered(on, at, size) => { strip-pills.hover(on, at, size); }
+                pointed(at, on) => {
+                    root.pointer-x = at;
+                    root.pointer-on = on;
+                }
             }
         }
     }
@@ -182,37 +208,20 @@ export component HomePage inherits Rectangle {
         // Taller and wider, recent files lower (Java, 2026-10-22)
         width: min(780px, parent.width - 48px);
         height: 196px;
-        // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
+        // A flat panel over the Drape, like the other cards: the fill and the line never light up under the pointer.
+        // Under a dragged file or keyboard focus it keeps an accent edge (state, not decoration).
         Surface {
             level: Level.bubble;
             glass: true;
             radius: Theme.radius;
-            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
-            animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
-        }
-        // The pointer light of the original Home (Java, 2026-10-22): a soft white circle under the pointer, brighter
-        // while a file is over the zone. It is a gradient, not a blur: no shadow is rendered, and the light only
-        // exists while the drop zone is hovered.
-        Rectangle {
-            property <length> glow-radius: drop-area.has-drag ? 420px : 160px;
-            property <length> glow-x: drop-touch.has-hover ? drop-touch.mouse-x : self.width / 2;
-            property <length> glow-y: drop-touch.has-hover ? drop-touch.mouse-y : self.height / 2;
-            // The light fades by its own colour alpha, not by `opacity`: an opacity animation makes Skia compose the
-            // rectangle offscreen on every frame (tests/services.rs enforces the rule).
-            property <color> glow-centre: drop-touch.has-hover || drop-area.has-drag
-                ? Theme.text.transparentize(92%)
-                : Theme.text.transparentize(100%);
-            animate glow-centre { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
-            border-radius: Theme.radius;
-            background: @radial-gradient(circle glow-radius at glow-x glow-y,
-                glow-centre 0%,
-                Theme.text.transparentize(100%) 72%);
+            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : Theme.hover-fill.transparentize(1);
+            animate veil { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
         }
         Rectangle {
             border-radius: Theme.radius;
             border-width: 1px;
-            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : drop-touch.has-hover ? Theme.line-hover : Theme.accent.transparentize(1);
-            animate border-color { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            border-color: drop-area.has-drag || drop-focus.has-focus ? Theme.accent : Theme.accent.transparentize(1);
+            animate border-color { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
         }
         // Grows a little under a dragged file, sinks a little on press
         // (nothing scales with reduced motion, when the press scale is 100 %)
@@ -224,11 +233,9 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            // The tile rises 2 px under the pointer, as in the original Home
-            y: drop-touch.has-hover || drop-area.has-drag ? 46px : 48px;
+            y: 48px;
             width: 48px;
             height: 48px;
-            animate y { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
             Surface {
                 level: Level.raised;
                 radius: Theme.radius;

@@ -1438,6 +1438,7 @@ fn apply_motion(ui: &AppWindow, tokens: motion::Tokens) {
     global.set_fade(ms(tokens.fade));
     global.set_panel(ms(tokens.panel));
     global.set_tip_wait(ms(tokens.tip_wait));
+    global.set_dock_light(ms(tokens.dock_light));
     global.set_press_scale(tokens.press_scale);
 }
 

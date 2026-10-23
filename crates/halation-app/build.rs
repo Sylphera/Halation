@@ -16,6 +16,7 @@ fn main() {
     }
 
     copy_assets();
+    embed_windows_icon();
 
     let sha = git_output(&["rev-parse", "--short=12", "HEAD"])
         .filter(|sha| !sha.is_empty())
@@ -34,6 +35,34 @@ fn main() {
         .with_debug_info(debug_info);
     slint_build::compile_with_config("ui/app.slint", config)
         .expect("the Slint UI must compile; fix the reported .slint diagnostics");
+}
+
+/// The window and taskbar icon (the mark on #111111, `tools/render-brand.js`) is also a resource of the executable:
+/// Explorer and the taskbar read it before the window exists, and it is the icon of a shortcut or a pinned app.
+fn embed_windows_icon() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    let icon = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap_or_default())
+        .join("../../assets/halation-app-icon.ico");
+    if !icon.is_file() {
+        println!(
+            "cargo:warning=assets/halation-app-icon.ico is missing; run node tools/render-brand.js"
+        );
+        return;
+    }
+    println!("cargo:rerun-if-changed={}", icon.display());
+    let script = PathBuf::from(std::env::var_os("OUT_DIR").unwrap_or_default()).join("halation.rc");
+    // Forward slashes: rc.exe reads `\t` in a quoted path as an escape (and this tree lives under `\trrax`)
+    let source = format!(
+        "1 ICON \"{}\"\n",
+        icon.display().to_string().replace('\\', "/")
+    );
+    std::fs::write(&script, source).expect("the icon resource script must be written");
+    // Only the app binary carries the icon; test and benchmark executables do not need it.
+    embed_resource::compile_for(&script, ["halation-slint"], embed_resource::NONE)
+        .manifest_optional()
+        .expect("the icon resource must compile (rc.exe comes with the Windows SDK)");
 }
 
 /// Development builds run from `target/<profile>`: put a copy of the workspace's `assets/` next to the executable there,
