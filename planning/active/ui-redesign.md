@@ -6,6 +6,9 @@ Annex of [docs/SLINT_SPEC.md](../../docs/SLINT_SPEC.md); it supersedes the *layo
 top-right dock, panels with radius 20 and a translucent glass fill) once approved. Identity (Inter, the mark, the
 Drape, lavender accent, near-black ground) does not change. Static mockup: Artifact published with this spec (https://claude.ai/artifact/VaQf6JbL7m9DGtNa9xv2hX).
 
+**Status update (2026-10-23):** implemented in `slint/native` and approved by Java. Converter is the canonical
+tool-page template (Java, 2026-10-23), superseding the Vocal Remover reference in §9 for future tool pages.
+
 ## 1. Problem and guiding criterion
 
 Guiding criterion (Java): the application must feel like **a real tool interface**. Every decision below is judged
