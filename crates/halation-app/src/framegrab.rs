@@ -41,7 +41,8 @@ const PLAYER_MAX: (u32, u32) = (1280, 720);
 /// Thumbnails in the queue.
 const THUMB_WIDTH: u32 = 160;
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ResultEntry {
     path: PathBuf,
     n: u64,
@@ -66,7 +67,7 @@ enum Done {
         picked: bool,
         info: VideoInfo,
         key: String,
-        restore: Option<Session>,
+        restore: Option<Box<Session>>,
     },
     ProbeFailed {
         generation: u64,
@@ -81,6 +82,7 @@ enum Done {
     Preview {
         generation: u64,
         requested: u64,
+        backend: Option<framegrab::DecodeBackend>,
     },
     PreviewFailed {
         generation: u64,
@@ -161,6 +163,7 @@ struct State {
     capture_total: usize,
     sharp_job: Option<String>,
     last_key_shown: Option<u64>,
+    decoder_backend: Option<framegrab::DecodeBackend>,
     pending_restore: Option<Session>,
     location: ExportLocation,
     location_writable: bool,
@@ -215,6 +218,7 @@ impl FrameCapture {
         };
         let mut state = State {
             ffmpeg,
+            results: read_results(&profile.root().join("frame-capture-results.json")),
             layout: Layout::from_id(&session.layout).unwrap_or_default(),
             crops: session.crops.clone(),
             destination: Destination::from_id(&session.destination).unwrap_or_default(),
@@ -307,6 +311,13 @@ impl FrameCapture {
         ui.on_frame_task_finished(move || controller.task_finished());
 
         self.refresh();
+    }
+
+    /// Last backend that produced a complete preview, exposed for the later presentation/status UI.
+    // Intentionally public for the follow-up UI binding; no Slint property belongs to this backend-only unit.
+    #[allow(dead_code)]
+    pub fn decoder_backend(&self) -> Option<framegrab::DecodeBackend> {
+        self.state.borrow().decoder_backend
     }
 
     /* ===== opening ===== */
@@ -443,6 +454,7 @@ impl FrameCapture {
             state.thumb_requests.clear();
             state.sharp_note.clear();
             state.last_key_shown = None;
+            state.decoder_backend = None;
             state.analysis_job = None;
             state.preview_job = None;
             state.capture_job = None;
@@ -472,7 +484,7 @@ impl FrameCapture {
                         picked,
                         info,
                         key,
-                        restore,
+                        restore: restore.map(Box::new),
                     },
                     Err(error) => Done::ProbeFailed { generation, error },
                 };
@@ -634,6 +646,7 @@ impl FrameCapture {
         }) else {
             return;
         };
+        self.state.borrow_mut().decoder_backend = None;
         if let Some(id) = self.state.borrow_mut().preview_job.take() {
             self.engine.cancel(&id);
         }
@@ -644,8 +657,12 @@ impl FrameCapture {
         let cache = self.cache.clone();
         let raw = self.workspace.join(format!("preview-{generation}.rgba"));
         let raw_task = raw.clone();
-        let from = n.saturating_sub(framegrab::WINDOW_RADIUS);
-        let count = (framegrab::WINDOW_RADIUS * 2 + 1).min(info.frames.saturating_sub(from)) as u32;
+        let (from, count) = framegrab::preview_window(
+            &info,
+            n,
+            framegrab::PREVIEW_WIDTH,
+            framegrab::PREVIEW_BATCH_BYTES,
+        );
         let title = self.strings.get("job_preview").to_owned();
         let mut spec = JobSpec::new("frame-capture", &title, Lane::Light);
         spec.group = Some("frame-preview".into());
@@ -653,7 +670,7 @@ impl FrameCapture {
         spec.cost = 4.0;
         spec.detail = format!("{}", n + 1);
         let id = self.engine.submit_task(spec, move |context| {
-            let result = framegrab::decode_window(
+            let result = framegrab::decode_window_report(
                 framegrab::DecodeSource {
                     context: &context,
                     ffmpeg: &ffmpeg.ffmpeg,
@@ -670,7 +687,7 @@ impl FrameCapture {
                 return Ok(());
             }
             match result {
-                Ok(frames) => {
+                Ok((frames, backend)) => {
                     {
                         let mut cache = cache
                             .lock()
@@ -685,6 +702,7 @@ impl FrameCapture {
                         .push(Done::Preview {
                             generation,
                             requested: n,
+                            backend: Some(backend),
                         });
                 }
                 Err(error) => {
@@ -715,6 +733,7 @@ impl FrameCapture {
         }) else {
             return;
         };
+        self.state.borrow_mut().decoder_backend = None;
         if let Some(id) = self.state.borrow_mut().preview_job.take() {
             self.engine.cancel(&id);
         }
@@ -759,6 +778,7 @@ impl FrameCapture {
                         .push(Done::Preview {
                             generation,
                             requested: n,
+                            backend: None,
                         });
                 }
                 Err(error) => {
@@ -1511,6 +1531,15 @@ impl FrameCapture {
         let Some(path) = path else {
             return;
         };
+        if !path.is_file() {
+            self.state
+                .borrow_mut()
+                .results
+                .retain(|entry| entry.path != path);
+            self.persist_results();
+            self.refresh();
+            return;
+        }
         let mut command = std::process::Command::new("explorer");
         if path.is_file() {
             command.arg("/select,").arg(&path);
@@ -1922,11 +1951,15 @@ impl FrameCapture {
             Done::Preview {
                 generation,
                 requested,
+                backend,
             } => {
                 if generation != self.preview_generation.load(Ordering::Acquire) {
                     return;
                 }
                 self.state.borrow_mut().preview_job = None;
+                if backend.is_some() {
+                    self.state.borrow_mut().decoder_backend = backend;
+                }
                 let cached = {
                     let cache = self
                         .cache
@@ -2022,6 +2055,7 @@ impl FrameCapture {
                     }
                     state.results.truncate(framegrab::RESULT_KEEP);
                 }
+                self.persist_results();
                 self.save_location();
                 let message = if cancelled {
                     self.strings.get("cancelled").to_owned()
@@ -2505,6 +2539,15 @@ impl FrameCapture {
         }
     }
 
+    fn persist_results(&self) {
+        let results = self.state.borrow().results.clone();
+        let path = self.profile.root().join("frame-capture-results.json");
+        if let Err(error) = write_results(&path, &results) {
+            self.state.borrow_mut().message =
+                self.strings.fill("session_failed", &[("error", error)]);
+        }
+    }
+
     fn save_location(&self) {
         let (location, writable, previous) = {
             let state = self.state.borrow();
@@ -2565,6 +2608,29 @@ fn read_location(path: &Path) -> (ExportLocation, bool) {
         }
         Err(_) => (ExportLocation::default(), false),
     }
+}
+
+fn read_results(path: &Path) -> Vec<ResultEntry> {
+    let Ok(bytes) = std::fs::read(path) else {
+        return Vec::new();
+    };
+    let Ok(mut results) = serde_json::from_slice::<Vec<ResultEntry>>(&bytes) else {
+        return Vec::new();
+    };
+    let original_len = results.len();
+    results.retain(|result| result.path.is_file());
+    results.truncate(framegrab::RESULT_KEEP);
+    if results.len() != original_len
+        && let Ok(pruned) = serde_json::to_vec_pretty(&results)
+    {
+        let _ = atomic_file::write_atomic(path, &pruned);
+    }
+    results
+}
+
+fn write_results(path: &Path, results: &[ResultEntry]) -> Result<(), String> {
+    let bytes = serde_json::to_vec_pretty(results).map_err(|error| error.to_string())?;
+    atomic_file::write_atomic(path, &bytes).map_err(|error| error.to_string())
 }
 
 /// The Halation folder, the Library and the linked Library folders: the only places a video may be read from without
@@ -2817,6 +2883,11 @@ mod tests {
         wait(&controller, "the first preview", || {
             controller.state.borrow().preview_image.is_some()
         });
+        assert_eq!(
+            controller.decoder_backend(),
+            Some(framegrab::DecodeBackend::Ffmpeg),
+            "unsupported lossless H.264 profile uses the explicit FFmpeg fallback"
+        );
         assert!(ui.get_frame_has_preview());
         wait(&controller, "the keyframe strip", || {
             let state = controller.state.borrow();
@@ -2930,6 +3001,16 @@ mod tests {
             assert!(path.is_file(), "{} exists", path.display());
             assert_eq!(png_size(&path), (180, 180), "native square crop");
         }
+        let restart = FrameCapture::new(ui.as_weak(), profile.clone(), JobEngine::new(|| {}));
+        assert_eq!(restart.state.borrow().results.len(), 2);
+        assert_eq!(restart.state.borrow().results[0].n, 17);
+        restart.install(|| None);
+        assert_eq!(restart.results_model.row_count(), 2);
+        fs::remove_file(frames.join("synthetic - frame 18.png")).unwrap();
+        assert_eq!(
+            read_results(&profile.root().join("frame-capture-results.json")).len(),
+            1
+        );
 
         // The session keeps the video, frame, layout, crop, destination and queue.
         controller.set_destination("image");
@@ -2949,6 +3030,7 @@ mod tests {
             Some(&controller.state.borrow().crops["1:1"])
         );
         controller.shutdown();
+        restart.shutdown();
     }
 
     #[test]
@@ -3035,6 +3117,74 @@ mod tests {
         assert!(
             !ui.get_frame_message().contains("stale worker result"),
             "an outdated worker result must be ignored"
+        );
+        controller.shutdown();
+    }
+
+    #[test]
+    fn controller_surfaces_audio_sink_failure_before_silent_picture_playback() {
+        i_slint_backend_testing::init_no_event_loop();
+        let ui = AppWindow::new().unwrap();
+        ui.show().unwrap();
+        let dir = TestDir::new();
+        let profile = Profile::at(dir.path().join("profile"));
+        profile.ensure().unwrap();
+        let controller = controller(&ui, &profile);
+        let picture = Picture {
+            width: 16,
+            height: 16,
+            fps: 30.0,
+        };
+        let player = Player::start_media(
+            Path::new("not-used"),
+            Path::new("not-used"),
+            0.0,
+            true,
+            Some(picture),
+            1.0,
+            Box::new(|| Err("test: no audio device".into())),
+        );
+        controller.state.borrow_mut().video = Some(VideoInfo {
+            width: 16,
+            height: 16,
+            rotation_degrees: 0,
+            pixel_format: "yuv420p".into(),
+            color_space: "bt709".into(),
+            fps_num: 30,
+            fps_den: 1,
+            start_time: 0.0,
+            variable_frame_rate: false,
+            frames: 30,
+            duration: 1.0,
+            has_audio: true,
+        });
+        controller.state.borrow_mut().audio = Audio {
+            player: Some(player),
+            position: 0.0,
+            picture: Some(picture),
+        };
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while controller
+            .state
+            .borrow()
+            .audio
+            .player
+            .as_ref()
+            .is_some_and(|player| !player.finished())
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        controller.tick();
+        assert!(controller.state.borrow().audio.player.is_none());
+        assert!(!ui.get_frame_playing());
+        assert!(controller.state.borrow().preview_image.is_none());
+        assert!(
+            controller
+                .state
+                .borrow()
+                .message
+                .contains("test: no audio device")
         );
         controller.shutdown();
     }

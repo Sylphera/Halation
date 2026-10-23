@@ -250,58 +250,72 @@ a new visual approval.
 
 ### Frame Capture
 
-**Status: `parcial`.** Native page and controller implemented on `slint/tools-all` (2026-10-23), pending Java's visual
-review. The viewer, exact-frame capture, keyframe strip, playback, sharpness search, layouts/crop, queue,
-Library/Image destinations and session are real. Back/Send and the result Crop/Cutout/Send actions are absent because
-the native app has no tool-origin/request or image-tool plumbing yet; the page says so instead of showing dead buttons.
+**Status: `parcial`.** The native viewer/controller is implemented on `slint/tools-all` (2026-10-23), pending Java's
+visual review. Backend quality work on `slint/frame-quality` adds in-process Media Foundation decode with FFmpeg
+fallback, 8K-bounded transient batches, immediate audio-device failure, persistent last-12 capture history and
+synthetic performance diagnostics. Back/Send and result Crop/Cutout/Send remain absent because the native app has no
+tool-origin/request or image-tool plumbing yet; UI remains unchanged in this unit.
 
 - **Spec:** [frame-capture.md](features/frame-capture.md).
-- **Native evidence:** `crates/halation-core/src/framegrab.rs` (probe, authorization, content key, window and exact
-  decode, native PNG, keyframe index/strip, Laplacian sharpness, byte-bounded cache, queue, naming, session types);
-  `crates/halation-app/src/framegrab.rs` (controller, jobs, playback, destinations, session);
+- **Native evidence:** `crates/halation-core/src/framegrab.rs` (probe, authorization, content key, bounded window and
+  exact decode, native PNG, keyframe index/strip, Laplacian sharpness, byte-bounded cache, queue, naming, session types);
+  new `crates/halation-core/src/frame_decoder.rs` (Media Foundation Source Reader, NV12 color conversion, timestamp
+  indexing, hardware-MFT enumeration and cancellation); `crates/halation-core/src/playback.rs` (audio readiness/error
+  gate); `crates/halation-app/src/framegrab.rs` (controller, jobs, playback, destinations, result persistence/API);
   `ui/pages/framegrab.slint` and `ui/components/media.slint` (shared transport/scrubber); `locales/en.json` and
   `src/strings.rs` (every visible string); `ui/models.slint`, `ui/app.slint`, `src/app.rs`, `src/navigation.rs` and
-  `src/catalog.rs`. Tests: 11 in `crates/halation-core/src/framegrab.rs` (three use real generated FFmpeg video), two
-  controller tests on a generated video in `crates/halation-app/src/framegrab.rs`, the locale-catalog test, the page-bounds test in
-  `tests/ui_layout.rs` and the catalog test in `tests/services.rs`.
+  `src/catalog.rs`. Tests: 13 in `crates/halation-core/src/framegrab.rs` (generated FFmpeg/MF synthetic media plus a
+  release performance diagnostic), three controller tests on generated media in `crates/halation-app/src/framegrab.rs`,
+  the locale-catalog test, the page-bounds test in `tests/ui_layout.rs` and the catalog test in `tests/services.rs`.
 - **Tauri origin:** `main:app/dist/framegrab.js`, `framegrab.html`, `framegrab.css`;
   `main:app/src-tauri/src/framegrab.rs` (content key, authorization, picker) and the shared `frameAt`/keyframe
   services in `main:app/dist/services.js`. These were read for behaviour only; no Tauri markup, CSS, canvas or
-  JavaScript was copied. Mediabunny is not used: FFmpeg/ffprobe are the native decoder.
-- **Components:** FFmpeg (140 MB), located in the profile and installable on demand from the page.
+  JavaScript was copied. Mediabunny is not used; Windows preview uses Media Foundation, with FFmpeg/ffprobe as the
+  exact/fallback path.
+- **Components:** FFmpeg (140 MB), located in the profile and installable on demand from the page. The in-process path
+  uses the Windows Media Foundation system APIs already exposed by the existing `windows` dependency; no new third-
+  party decoder library or bundled codec was added.
 - **Implemented:** picker and drop with the Library/root authorization check and MP4/M4V/MOV/WebM/MKV filters; rational
-  fps probe and exact frame count; FNV content key; ±12-frame preview windows decoded by one FFmpeg process and a
-  400 MB byte-bounded cache; keyframe index from packet flags and a 1920 px strip of at most 300 thumbnails; scrub,
+  fps probe and exact frame count; FNV content key; a Windows Media Foundation in-process preview decoder (H.264
+  hardware transforms requested; falls back when unsupported, VFR/rotation/HDR/non-420); FFmpeg remains the exact
+  fallback/capture decoder; byte-bounded 96 MiB cache and 48 MiB preview batches, single full-resolution frame cap
+  160 MiB; keyframe index from packet flags and a 1920 px strip of at most 300 thumbnails; scrub,
   step, Home/End, Space, M and S shortcuts; playback through the native `Player` (picture capped at 1280 × 720 and
   30 fps, stops on a manual frame change); ±12-frame Laplacian search on a 360 px copy; five layouts with the largest
   exact-ratio crop, pointer drag and 1 %/10 % arrow moves, one crop per layout; queue of 8 in time order with
   thumbnails, selection, remove, select all/none and clear; native-resolution PNG capture with the crop, atomic
-  publication and `{stem} - frame {n+1}.png` names; last 12 results with Show in folder; progress, cancel, FFmpeg
-  install and a JSON session (video, frame, sound, layout, crops, destination, queue).
+  publication and `{stem} - frame {n+1}.png` names; last 12 results with Show in folder, persisted in
+  `frame-capture-results.json` and pruned when PNGs disappear; progress, cancel, FFmpeg install and a JSON session
+  (video, frame, sound, layout, crops, destination, queue).
 - **Destinations:** Library writes to `Library\Frames`; Image resolves through the global save policy with base
   `Exports\Frames`, asking for a folder when no location has been chosen. Captures never replace the source video.
 - **Layout contract:** Frame Capture's queue and inspector use Converter's 220 px and 280 px widths; row heights and
   panel headers follow its 60 px rows / 36 px headers. Responsive breakpoints keep at least 400 px for the canvas
   (620 px queue-only, 680 px inspector-only, 900 px for both); panels give way below those widths.
-- **Limits:** Back/Send and result Crop/Cutout/Send are not connected; results offer Show in folder only. These actions
-  require future integration with tool-origin and image-tool services, which do not yet exist; no fake action is
-  presented. There is no in-process decoder, so interactive stepping uses one FFmpeg process per ±12-frame window,
-  never one per frame. Fast scrubs show the nearest keyframe; slow movement follows exact frames using the decoded
-  window/cache. A 160 ms quiet interval while still dragging settles the exact frame, and release settles immediately.
-  The one-shot debounce is cancelled/restarted on movement, with generation checks rejecting stale jobs and no polling.
-  Without an audio device the picture plays silently and the error is reported when playback ends. Results and decoded
-  pictures are not persisted.
-- **Verified 2026-10-23:** `cargo test --workspace` passed 151 tests, including the generated-video controller test
-  (probe, preview, strip, real playback clock, stop-on-step, Home/End, queue order and selection, square crop, two
-  native 180 × 180 PNGs, session), the session/stale-generation test, the 4K test (preview 1920 × 1080, capture
-  3840 × 2160) and the NTSC test (24000/1001, 24 frames, last frame 23). `cargo fmt --check`,
-  `cargo clippy --workspace --all-targets -- -D warnings`, `python tools/check-docs.py` and `git diff --check` passed.
+- **Limits/performance evidence:** Back/Send and result Crop/Cutout/Send are not connected; results offer Show in folder
+  only. A hardware-flagged system H.264 MFT enumerates as `Microsoft H264 Video Decoder MFT`; enumeration does not
+  prove that a stream actually used GPU decode. Release synthetic H.264 High `testsrc2` (30 frames, 60fps, measured
+  six-frame 1920-wide batches) on i5-12400F/RX 6650 XT measured Media Foundation 30.7/17.3/9.7 fps at 1080p/4K/8K;
+  plain FFmpeg CLI measured 51.8/27.4/11.0 fps. Working-set deltas: MF 134.8/221.8/720.2 MiB; FFmpeg child peak
+  180.7/405.7/1369.9 MiB. The six-frame 8K batch took 616.5 ms; instrumentation attributed 184 ms to Source Reader
+  `ReadSample` and 152 ms to CPU NV12→RGBA conversion, with remaining time in setup/seek and other pipeline work.
+  Neither 8K path reaches 60fps, and active per-stream GPU utilization was not attributed. Not an all-codec
+  guarantee. Audio readiness/failure is tested with an injected sink; no physical WASAPI listening test. Rotation, VFR,
+  HDR/BT.2020 and non-8-bit/non-4:2:0 sources stay on FFmpeg. Back/Send and result tools need future integration; fast
+  scrub and visual review remain as stated above.
+- **Verified backend quality tests:** generated baseline-profile H.264 exercises Media Foundation exact indices, 8-bit
+  color comparison against FFmpeg, native PNG output, rational 24000/1001 frame indices, rotation-metadata dimensions
+  and cancellation; lossless/high-profile MKV controller fixtures verify explicit FFmpeg fallback. Controller test
+  recreates the controller after two captures, sees the result rows again, then proves missing-PNG pruning. Cache
+  budget tests cover 1080p/4K/8K and reject multi-frame 8K native batches before decode. The release synthetic profile
+  command is `cargo test --release -p halation-core synthetic_decode_performance_diagnostic_1080p_4k_8k_at_60fps -- --nocapture --test-threads=1`.
 - **Acceptance against §8:** points 1, 4, 5, 6, 7 and the cache/shutdown part of 9 are covered by tests; point 2 is
   implemented with generation guards and the stale-result test, but the pointer drag itself is not automated; point 3
   is covered for the clock and stop-on-step, not with sound heard on a device; point 8 is partial (Library/Image real,
   Back/Send absent); point 10 is met by construction (decode and file work stay in jobs, only indices and prepared
-  images cross to the event loop) and was not measured in this pass; point 11 is not applicable as written because
-  there is no in-process decoder to fall back from — FFmpeg is the only decoder and always extracts exact frames.
+  images cross to the event loop) and throughput/RSS were measured, though 8K60 was not met; point 11 has an in-process
+  decoder and exact FFmpeg fallback, with backend identity available to the controller, but a visible fallback indicator
+  remains for the subsequent UI task.
 - **Still unverified here:** Java's visual review in the native window; the WASAPI path heard on a real device; the
   manual Image save dialog; picker and drag/drop interaction; cancellation cleanup asserted separately; timings on a
   real 4K source (the 4K test checks correctness, not speed).

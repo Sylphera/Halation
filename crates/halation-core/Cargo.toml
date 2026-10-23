@@ -20,6 +20,7 @@ zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
 # WASAPI for the Converter's audio preview; the same version the app already uses for Media Foundation
 windows = { version = "=0.62.2", features = [
     "Win32_Media_Audio",
+    "Win32_Media_MediaFoundation",
     "Win32_System_Com",
     "Win32_System_Com_StructuredStorage",
     "Win32_System_Variant",

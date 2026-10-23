@@ -22,8 +22,14 @@ use std::{
 
 /// Preview frames are never wider than this (the page scales them down further).
 pub const PREVIEW_WIDTH: u32 = 1920;
-/// Decoded preview frames kept around the playhead, in bytes (the Tauri viewer uses 400 MB).
-pub const CACHE_BYTES: usize = 400 * 1024 * 1024;
+/// Decoded preview frames kept around the playhead, in bytes.
+/// Preview-cache ceiling. This is deliberately below the former 400 MiB web-view budget: RGBA at 8K is
+/// 126.6 MiB per frame, so a fixed four-hundred-megabyte budget is not a safe working-set target.
+pub const CACHE_BYTES: usize = 96 * 1024 * 1024;
+/// The controller reserves at most half the LRU budget for a transient preview batch.
+pub const PREVIEW_BATCH_BYTES: usize = CACHE_BYTES / 2;
+/// Full-resolution still capture may hold one 8K RGBA image and encoder working data.
+const CAPTURE_FRAME_MAX_BYTES: usize = 160 * 1024 * 1024;
 /// Queue cap (`QMAX` in the Tauri viewer).
 pub const QUEUE_MAX: usize = 8;
 /// Sharpest-frame search radius and the width it analyses.
@@ -48,8 +54,16 @@ const SAMPLE_BYTES: u64 = 64 * 1024;
 pub struct VideoInfo {
     pub width: u32,
     pub height: u32,
+    /// Display-matrix rotation in clockwise degrees, normalized to a quarter turn.
+    pub rotation_degrees: u16,
+    pub pixel_format: String,
+    pub color_space: String,
     pub fps_num: u32,
     pub fps_den: u32,
+    /// Presentation timestamp origin (seconds) reported by the container.
+    pub start_time: f64,
+    /// If stream-rate metadata disagrees, timestamps cannot be mapped to indices using one rational rate.
+    pub variable_frame_rate: bool,
     pub frames: u64,
     pub duration: f64,
     pub has_audio: bool,
@@ -131,7 +145,7 @@ pub fn probe(ffprobe: &Path, input: &Path) -> Result<VideoInfo, String> {
             "-v",
             "error",
             "-show_entries",
-            "stream=codec_type,width,height,r_frame_rate,avg_frame_rate,nb_frames,duration:format=duration",
+            "stream=codec_type,width,height,r_frame_rate,avg_frame_rate,nb_frames,duration,start_time,pix_fmt,color_space:stream_side_data=rotation:stream_tags=rotate:format=duration",
             "-of",
             "json",
         ],
@@ -144,21 +158,45 @@ pub fn probe(ffprobe: &Path, input: &Path) -> Result<VideoInfo, String> {
         .iter()
         .find(|s| s["codec_type"].as_str() == Some("video"))
         .ok_or("This file has no video track")?;
-    let width = number(video, "width") as u32;
-    let height = number(video, "height") as u32;
+    let mut width = number(video, "width") as u32;
+    let mut height = number(video, "height") as u32;
     if width == 0 || height == 0 {
         return Err("This video's size could not be read".into());
     }
-    let (fps_num, fps_den) = rate(
-        video["r_frame_rate"]
-            .as_str()
-            .or_else(|| video["avg_frame_rate"].as_str())
-            .unwrap_or(""),
-    )
-    .ok_or("This video's frame rate could not be read")?;
+    let nominal_rate = video["r_frame_rate"].as_str().and_then(rate);
+    let average_rate = video["avg_frame_rate"].as_str().and_then(rate);
+    let variable_frame_rate = nominal_rate
+        .zip(average_rate)
+        .is_some_and(|(nominal, average)| {
+            u64::from(nominal.0) * u64::from(average.1)
+                != u64::from(average.0) * u64::from(nominal.1)
+        });
+    let (fps_num, fps_den) = nominal_rate
+        .or(average_rate)
+        .ok_or("This video's frame rate could not be read")?;
     let has_audio = streams
         .iter()
         .any(|s| s["codec_type"].as_str() == Some("audio"));
+    let start_time = video["start_time"]
+        .as_str()
+        .and_then(|value| value.parse::<f64>().ok())
+        .filter(|value| value.is_finite())
+        .unwrap_or(0.0);
+    let rotation = video["side_data_list"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find_map(|side| side["rotation"].as_f64())
+        .or_else(|| {
+            video["tags"]["rotate"]
+                .as_str()
+                .and_then(|v| v.parse().ok())
+        })
+        .unwrap_or(0.0);
+    let rotation_degrees = ((rotation / 90.0).round() as i32 * 90).rem_euclid(360) as u16;
+    if matches!(rotation_degrees, 90 | 270) {
+        std::mem::swap(&mut width, &mut height);
+    }
     let mut frames = number(video, "nb_frames");
     if frames == 0 {
         frames = count_packets(ffprobe, input)?;
@@ -187,8 +225,16 @@ pub fn probe(ffprobe: &Path, input: &Path) -> Result<VideoInfo, String> {
     Ok(VideoInfo {
         width,
         height,
+        rotation_degrees,
+        pixel_format: video["pix_fmt"].as_str().unwrap_or("unknown").to_owned(),
+        color_space: video["color_space"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_owned(),
         fps_num,
         fps_den,
+        start_time,
+        variable_frame_rate,
         frames,
         duration,
         has_audio,
@@ -486,6 +532,24 @@ pub fn fit_size(width: u32, height: u32, max_width: u32) -> (u32, u32) {
     (fitted_width, fitted_height)
 }
 
+/// Select a preview decode window that contains `center` while keeping the temporary RGBA batch under `budget`.
+/// The old fixed 25-frame window could allocate hundreds of MiB at common 1080p preview sizes.
+pub fn preview_window(info: &VideoInfo, center: u64, max_width: u32, budget: usize) -> (u64, u32) {
+    let center = center.min(info.last());
+    let (width, height) = fit_size(info.width, info.height, max_width);
+    let per_frame = (width as usize)
+        .saturating_mul(height as usize)
+        .saturating_mul(4)
+        .max(1);
+    let allowed = (budget / per_frame)
+        .max(1)
+        .min((WINDOW_RADIUS * 2 + 1) as usize);
+    let left = ((allowed - 1) / 2).min(center as usize) as u64;
+    let from = center - left;
+    let count = (allowed as u64).min(info.frames.saturating_sub(from)) as u32;
+    (from, count)
+}
+
 /// The seek used before `-i`: a quarter frame before `n`, as the Tauri viewer does, so `-frames:v 1` lands on it.
 pub fn seek_seconds(info: &VideoInfo, n: u64) -> f64 {
     if n == 0 || info.fps_num == 0 {
@@ -505,6 +569,21 @@ pub struct DecodeSource<'a> {
     pub info: &'a VideoInfo,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecodeBackend {
+    MediaFoundation,
+    Ffmpeg,
+}
+
+impl DecodeBackend {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::MediaFoundation => "Media Foundation",
+            Self::Ffmpeg => "FFmpeg fallback",
+        }
+    }
+}
+
 /// Decodes `count` frames from `from` at a preview width (`max_width == 0` keeps the native size), writing the raw
 /// RGBA stream to `raw`. One FFmpeg process serves the whole window; the process belongs to the job, so cancelling
 /// kills it. The temporary file is removed before returning.
@@ -515,34 +594,99 @@ pub fn decode_window(
     max_width: u32,
     raw: &Path,
 ) -> Result<Vec<RawFrame>, String> {
+    decode_window_report(source, from, count, max_width, raw).map(|(frames, _)| frames)
+}
+
+/// Like [`decode_window`], and reports which decoder produced the complete result so a controller can surface fallback.
+pub fn decode_window_report(
+    source: DecodeSource<'_>,
+    from: u64,
+    count: u32,
+    max_width: u32,
+    raw: &Path,
+) -> Result<(Vec<RawFrame>, DecodeBackend), String> {
     let info = source.info;
+    validate_source_frame_budget(info)?;
     let count = count.min(info.frames.saturating_sub(from) as u32);
     if count == 0 {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), DecodeBackend::Ffmpeg));
     }
     let (width, height) = if max_width == 0 {
         (info.width, info.height)
     } else {
         fit_size(info.width, info.height, max_width)
     };
+    let frame_bytes = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or("Decoded frame size overflow")?;
+    let batch_budget = if max_width == 0 {
+        CAPTURE_FRAME_MAX_BYTES
+    } else {
+        PREVIEW_BATCH_BYTES
+    };
+    if frame_bytes.saturating_mul(count as usize) > batch_budget {
+        return Err(format!(
+            "Requested decode window exceeds the {} MiB temporary-memory limit",
+            batch_budget / (1024 * 1024)
+        ));
+    }
+    #[cfg(windows)]
+    {
+        if source.context.check_cancelled().is_err() {
+            return Err("Cancelled".into());
+        }
+        if mf_compatible(info) {
+            let decoded = crate::frame_decoder::decode_window(
+                source.input,
+                info,
+                from,
+                count,
+                max_width,
+                &|| source.context.check_cancelled().is_err(),
+            );
+            if let Ok(frames) = decoded
+                && frames.len() == count as usize
+                && frames
+                    .iter()
+                    .enumerate()
+                    .all(|(i, frame)| frame.index == from + i as u64)
+            {
+                return Ok((frames, DecodeBackend::MediaFoundation));
+            }
+        }
+        if source.context.check_cancelled().is_err() {
+            return Err("Cancelled".into());
+        }
+    }
     let scale = (max_width > 0 && (width != info.width || height != info.height))
         .then(|| format!("scale={width}:{height}:flags=bilinear"));
     run_decode(&source, from, count, scale.as_deref(), raw)?;
-    let bytes = fs::read(raw).map_err(|e| e.to_string())?;
-    let _ = fs::remove_file(raw);
     let size = width as usize * height as usize * 4;
     if size == 0 {
-        return Ok(Vec::new());
+        let _ = fs::remove_file(raw);
+        return Ok((Vec::new(), DecodeBackend::Ffmpeg));
     }
-    let frames = bytes.len() / size;
-    Ok((0..frames.min(count as usize))
-        .map(|i| RawFrame {
-            index: from + i as u64,
-            width,
-            height,
-            rgba: bytes[i * size..(i + 1) * size].to_vec(),
-        })
-        .collect())
+    let result = (|| {
+        let mut file = fs::File::open(raw).map_err(|e| e.to_string())?;
+        let mut frames = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            let mut rgba = vec![0; size];
+            match file.read_exact(&mut rgba) {
+                Ok(()) => frames.push(RawFrame {
+                    index: from + u64::from(i),
+                    width,
+                    height,
+                    rgba,
+                }),
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        Ok(frames)
+    })();
+    let _ = fs::remove_file(raw);
+    result.map(|frames| (frames, DecodeBackend::Ffmpeg))
 }
 
 /// One exact preview frame; the last frame falls back to `n - 1` when the seek lands past the end.
@@ -573,12 +717,27 @@ pub fn capture_png(
     output: &Path,
     raw: &Path,
 ) -> Result<(u32, u32), String> {
+    validate_source_frame_budget(source.info)?;
     let n = n.min(source.info.last());
     let mut result = capture_once(&source, n, crop, output, raw)?;
     if result.is_none() && n > 0 {
         result = capture_once(&source, n - 1, crop, output, raw)?;
     }
     result.ok_or_else(|| format!("Frame {} could not be decoded", n + 1))
+}
+
+fn validate_source_frame_budget(info: &VideoInfo) -> Result<(), String> {
+    let bytes = (info.width as usize)
+        .checked_mul(info.height as usize)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .ok_or("Source frame size overflow")?;
+    if bytes > CAPTURE_FRAME_MAX_BYTES {
+        return Err(format!(
+            "Source frame exceeds the {} MiB native-frame memory limit",
+            CAPTURE_FRAME_MAX_BYTES / (1024 * 1024)
+        ));
+    }
+    Ok(())
 }
 
 fn capture_once(
@@ -590,16 +749,56 @@ fn capture_once(
 ) -> Result<Option<(u32, u32)>, String> {
     let info = source.info;
     let pixel = pixel_crop(info, crop);
+    #[cfg(windows)]
+    {
+        if source.context.check_cancelled().is_err() {
+            return Err("Cancelled".into());
+        }
+        if mf_compatible(info)
+            && let Ok(mut frames) =
+                crate::frame_decoder::decode_window(source.input, info, n, 1, 0, &|| {
+                    source.context.check_cancelled().is_err()
+                })
+            && let Some(frame) = frames.pop().filter(|frame| frame.index == n)
+        {
+            let full = image::RgbaImage::from_raw(frame.width, frame.height, frame.rgba)
+                .ok_or("The decoded frame has an unexpected size")?;
+            let cropped = if pixel.is_full(info) {
+                full
+            } else {
+                let cropped =
+                    image::imageops::crop_imm(&full, pixel.x, pixel.y, pixel.w, pixel.h).to_image();
+                drop(full);
+                cropped
+            };
+            let mut png = Vec::new();
+            cropped
+                .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+                .map_err(|e| format!("Could not encode the PNG: {e}"))?;
+            atomic_file::write_atomic(output, &png).map_err(|e| e.to_string())?;
+            return Ok(Some((pixel.w, pixel.h)));
+        }
+        if source.context.check_cancelled().is_err() {
+            return Err("Cancelled".into());
+        }
+    }
     let filter = (!pixel.is_full(info))
         .then(|| format!("crop={}:{}:{}:{}", pixel.w, pixel.h, pixel.x, pixel.y));
     run_decode(source, n, 1, filter.as_deref(), raw)?;
-    let bytes = fs::read(raw).map_err(|e| e.to_string())?;
-    let _ = fs::remove_file(raw);
     let size = pixel.w as usize * pixel.h as usize * 4;
-    if size == 0 || bytes.len() < size {
+    if size == 0 {
+        let _ = fs::remove_file(raw);
         return Ok(None);
     }
-    let image = image::RgbaImage::from_raw(pixel.w, pixel.h, bytes[..size].to_vec())
+    let mut bytes = vec![0; size];
+    let decoded = fs::File::open(raw)
+        .and_then(|mut file| file.read_exact(&mut bytes))
+        .is_ok();
+    let _ = fs::remove_file(raw);
+    if !decoded {
+        return Ok(None);
+    }
+    let image = image::RgbaImage::from_raw(pixel.w, pixel.h, bytes)
         .ok_or("The decoded frame has an unexpected size")?;
     let mut png = Vec::new();
     image
@@ -607,6 +806,13 @@ fn capture_once(
         .map_err(|e| format!("Could not encode the PNG: {e}"))?;
     atomic_file::write_atomic(output, &png).map_err(|e| e.to_string())?;
     Ok(Some((pixel.w, pixel.h)))
+}
+
+fn mf_compatible(info: &VideoInfo) -> bool {
+    info.rotation_degrees == 0
+        && !info.variable_frame_rate
+        && matches!(info.pixel_format.as_str(), "yuv420p" | "yuvj420p")
+        && !info.color_space.to_ascii_lowercase().contains("2020")
 }
 
 fn run_decode(
@@ -1134,8 +1340,13 @@ mod tests {
         VideoInfo {
             width,
             height,
+            rotation_degrees: 0,
+            pixel_format: "yuv420p".into(),
+            color_space: "bt709".into(),
             fps_num: 30,
             fps_den: 1,
+            start_time: 0.0,
+            variable_frame_rate: false,
             frames: 300,
             duration: 10.0,
             has_audio: false,
@@ -1276,6 +1487,37 @@ mod tests {
         assert_eq!(fit_size(1919, 1079, 1920), (1919, 1079));
     }
 
+    #[test]
+    fn preview_window_bounds_transient_rgba_and_contains_requested_frame() {
+        let budget = PREVIEW_BATCH_BYTES;
+        for (width, height) in [(1920, 1080), (3840, 2160), (7680, 4320)] {
+            let info = info(width, height);
+            for center in [0, 150, 299] {
+                let (from, count) = preview_window(&info, center, PREVIEW_WIDTH, budget);
+                let (pw, ph) = fit_size(width, height, PREVIEW_WIDTH);
+                let bytes = count as usize * pw as usize * ph as usize * 4;
+                assert!(bytes <= budget, "{width}x{height}: {bytes} > {budget}");
+                assert!(from <= center && center < from + u64::from(count));
+            }
+        }
+        let ffmpeg = ffmpeg();
+        let oversized = with_context(move |context| {
+            decode_window(
+                DecodeSource {
+                    context: &context,
+                    ffmpeg: &ffmpeg.ffmpeg,
+                    input: Path::new("not-opened-on-budget-rejection.mp4"),
+                    info: &info(7680, 4320),
+                },
+                0,
+                2,
+                0,
+                Path::new("unused.rgba"),
+            )
+        });
+        assert!(oversized.unwrap_err().contains("160 MiB"));
+    }
+
     /* ===== synthetic FFmpeg integration ===== */
 
     fn temp(tag: &str) -> PathBuf {
@@ -1398,6 +1640,140 @@ mod tests {
         assert_eq!((info.fps_num, info.fps_den), (10, 1));
         assert_eq!(info.frames, 25);
         assert!((info.duration - 2.5).abs() < 0.05);
+
+        #[cfg(windows)]
+        {
+            let mp4 = dir.join("mf-fixture.mp4");
+            let status = std::process::Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-i",
+                    video.to_string_lossy().as_ref(),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-crf",
+                    "18",
+                    "-profile:v",
+                    "baseline",
+                    "-pix_fmt",
+                    "yuv420p",
+                    mp4.to_string_lossy().as_ref(),
+                ])
+                .status()
+                .expect("FFmpeg should encode the baseline-profile synthetic MF fixture");
+            assert!(
+                status.success(),
+                "the synthetic MP4 fixture should be created"
+            );
+            let rotated = dir.join("mf-rotated.mp4");
+            let rotation_status = std::process::Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-display_rotation:0",
+                    "90",
+                    "-i",
+                    mp4.to_string_lossy().as_ref(),
+                    "-c",
+                    "copy",
+                    rotated.to_string_lossy().as_ref(),
+                ])
+                .status()
+                .expect("FFmpeg should write the synthetic rotation metadata");
+            assert!(rotation_status.success());
+            let rotated_info = probe(&ffmpeg.ffprobe, &rotated).unwrap();
+            assert!(matches!(rotated_info.rotation_degrees, 90 | 270));
+            assert_eq!((rotated_info.width, rotated_info.height), (180, 320));
+            let in_process = crate::frame_decoder::decode_window(&mp4, &info, 10, 3, 0, &|| false)
+                .expect("Windows Media Foundation decodes the synthetic H.264 fixture in-process");
+            assert_eq!(
+                in_process
+                    .iter()
+                    .map(|frame| frame.index)
+                    .collect::<Vec<_>>(),
+                [10, 11, 12]
+            );
+            assert_eq!((in_process[0].width, in_process[0].height), (320, 180));
+            assert_eq!(
+                crate::frame_decoder::decode_window(&mp4, &info, 10, 1, 0, &|| true).unwrap_err(),
+                "Cancelled"
+            );
+            let captured_png = dir.join("mf-native-capture.png");
+            let capture_raw = dir.join("mf-capture.rgba");
+            let captured_size = with_context({
+                let path = mp4.clone();
+                let output = captured_png.clone();
+                let raw = capture_raw.clone();
+                let info = info.clone();
+                let ffmpeg = ffmpeg.clone();
+                move |context| {
+                    capture_png(
+                        DecodeSource {
+                            context: &context,
+                            ffmpeg: &ffmpeg.ffmpeg,
+                            input: &path,
+                            info: &info,
+                        },
+                        10,
+                        Crop::FULL,
+                        &output,
+                        &raw,
+                    )
+                }
+            })
+            .unwrap();
+            assert_eq!(captured_size, (320, 180));
+            assert_eq!(
+                image::open(captured_png).unwrap().to_rgba8().into_raw(),
+                in_process[0].rgba
+            );
+            let baseline_raw = dir.join("mf-baseline.rgba");
+            with_context({
+                let path = mp4.clone();
+                let raw = baseline_raw.clone();
+                let info = info.clone();
+                let ffmpeg = ffmpeg.clone();
+                move |context| {
+                    run_decode(
+                        &DecodeSource {
+                            context: &context,
+                            ffmpeg: &ffmpeg.ffmpeg,
+                            input: &path,
+                            info: &info,
+                        },
+                        10,
+                        3,
+                        None,
+                        &raw,
+                    )
+                }
+            })
+            .unwrap();
+            let baseline = fs::read(&baseline_raw).unwrap();
+            let frame_bytes = 320 * 180 * 4;
+            for (i, frame) in in_process.iter().enumerate() {
+                let difference = frame
+                    .rgba
+                    .iter()
+                    .zip(&baseline[i * frame_bytes..(i + 1) * frame_bytes])
+                    .map(|(a, b)| a.abs_diff(*b) as u64)
+                    .sum::<u64>() as f64
+                    / frame_bytes as f64;
+                assert!(
+                    difference < 16.0,
+                    "MF/FFmpeg mean RGBA difference {difference:.2}"
+                );
+            }
+        }
 
         let raw = dir.join("window.rgba");
         let frames = with_context({
@@ -1540,6 +1916,7 @@ mod tests {
         let ffmpeg = ffmpeg();
         let info = probe(&ffmpeg.ffprobe, &video).unwrap();
         assert_eq!((info.fps_num, info.fps_den), (24_000, 1001));
+        assert!(!info.variable_frame_rate);
         assert_eq!(info.frames, 24);
         assert!((info.time(23) - 23.0 * 1001.0 / 24_000.0).abs() < 1e-9);
         let raw = dir.join("last.rgba");
@@ -1564,6 +1941,46 @@ mod tests {
         })
         .unwrap();
         assert_eq!(frame.index, 23);
+        #[cfg(windows)]
+        {
+            let mp4 = dir.join("ntsc-mf.mp4");
+            let status = std::process::Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-i",
+                    video.to_string_lossy().as_ref(),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-crf",
+                    "18",
+                    "-profile:v",
+                    "baseline",
+                    "-r",
+                    "24000/1001",
+                    "-pix_fmt",
+                    "yuv420p",
+                    mp4.to_string_lossy().as_ref(),
+                ])
+                .status()
+                .expect("FFmpeg should encode the rational-rate MF fixture");
+            assert!(status.success());
+            let mf_info = probe(&ffmpeg.ffprobe, &mp4).unwrap();
+            assert_eq!((mf_info.fps_num, mf_info.fps_den), (24_000, 1001));
+            assert!(!mf_info.variable_frame_rate);
+            let mf_frames =
+                crate::frame_decoder::decode_window(&mp4, &mf_info, 20, 4, 160, &|| false)
+                    .expect("MF timestamp-to-index mapping supports NTSC rational timing");
+            assert_eq!(
+                mf_frames.iter().map(|f| f.index).collect::<Vec<_>>(),
+                [20, 21, 22, 23]
+            );
+        }
         fs::remove_dir_all(dir).unwrap();
     }
 
@@ -1656,6 +2073,219 @@ mod tests {
         let decoded = image::open(&png).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (3840, 2160));
         assert!(!raw.exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[allow(unsafe_code)]
+    fn synthetic_decode_performance_diagnostic_1080p_4k_8k_at_60fps() {
+        use std::{
+            process::{Command, Stdio},
+            sync::Arc,
+            time::Instant,
+        };
+        use windows_sys::Win32::{
+            Foundation::HANDLE,
+            System::{
+                ProcessStatus::{K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS},
+                Threading::{
+                    GetCurrentProcessId, OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
+                },
+            },
+        };
+
+        fn process_peak_ws(pid: u32) -> usize {
+            // SAFETY: query-only process handle and initialized PROCESS_MEMORY_COUNTERS.
+            unsafe {
+                let process = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid);
+                assert!(!process.is_null(), "open diagnostic process {pid}");
+                let mut counters = PROCESS_MEMORY_COUNTERS {
+                    cb: std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+                    ..Default::default()
+                };
+                let ok = K32GetProcessMemoryInfo(process, &mut counters, counters.cb);
+                windows_sys::Win32::Foundation::CloseHandle(process);
+                assert_ne!(ok, 0, "read diagnostic working set for process {pid}");
+                counters.PeakWorkingSetSize
+            }
+        }
+
+        fn peak_ws_from_handle(process: HANDLE) -> usize {
+            // SAFETY: caller owns a valid query-only process handle.
+            unsafe {
+                let mut counters = PROCESS_MEMORY_COUNTERS {
+                    cb: std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+                    ..Default::default()
+                };
+                let ok = K32GetProcessMemoryInfo(process, &mut counters, counters.cb);
+                assert_ne!(ok, 0, "read diagnostic peak working set");
+                counters.PeakWorkingSetSize
+            }
+        }
+
+        fn measure_current_peak<T>(body: impl FnOnce() -> T) -> (T, usize) {
+            let pid = unsafe { GetCurrentProcessId() };
+            let baseline = process_peak_ws(pid);
+            let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let peak = Arc::new(std::sync::atomic::AtomicUsize::new(baseline));
+            let stop_thread = stop.clone();
+            let peak_thread = peak.clone();
+            let sampler = std::thread::spawn(move || {
+                while !stop_thread.load(Ordering::Acquire) {
+                    let current = process_peak_ws(pid);
+                    peak_thread.fetch_max(current, Ordering::AcqRel);
+                    std::thread::sleep(Duration::from_millis(2));
+                }
+            });
+            let value = body();
+            stop.store(true, Ordering::Release);
+            sampler.join().unwrap();
+            (value, peak.load(Ordering::Acquire).saturating_sub(baseline))
+        }
+
+        let dir = temp("decode-perf");
+        let ffmpeg = ffmpeg();
+        let measured_frames = 6_u32;
+        println!(
+            "FRAME_PERF hardware_h264_mfts={:?}",
+            crate::frame_decoder::hardware_h264_transform_names()
+        );
+        for (width, height, name) in [
+            (1920_u32, 1080_u32, "1080p"),
+            (3840, 2160, "4k"),
+            (7680, 4320, "8k"),
+        ] {
+            let input = dir.join(format!("{name}-60.mp4"));
+            let source = format!("testsrc2=size={width}x{height}:rate=60:duration=0.5");
+            let status = Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    &source,
+                    "-frames:v",
+                    "30",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-crf",
+                    "30",
+                    "-profile:v",
+                    "high",
+                    "-pix_fmt",
+                    "yuv420p",
+                    input.to_string_lossy().as_ref(),
+                ])
+                .status()
+                .expect("FFmpeg should generate the synthetic 60 fps diagnostic source");
+            assert!(status.success(), "synthetic {name} fixture encoding failed");
+            let info = probe(&ffmpeg.ffprobe, &input).unwrap();
+            assert_eq!((info.width, info.height), (width, height));
+            assert_eq!(info.frames, 30, "the {name} file really has 30 frames");
+
+            let (mf_result, mf_peak) = measure_current_peak(|| {
+                let start = Instant::now();
+                let result = crate::frame_decoder::decode_window(
+                    &input,
+                    &info,
+                    0,
+                    measured_frames,
+                    PREVIEW_WIDTH,
+                    &|| false,
+                );
+                let stages = crate::frame_decoder::take_last_stage_times();
+                (result, start.elapsed(), stages)
+            });
+            let (mf, mf_time, mf_stages) = mf_result;
+            let mf_rate = mf
+                .as_ref()
+                .ok()
+                .map(|frames| frames.len() as f64 / mf_time.as_secs_f64());
+            let mf_error = mf.as_ref().err().cloned();
+            drop(mf);
+
+            let raw = dir.join(format!("{name}-baseline.rgba"));
+            let scale = format!(
+                "scale={}:{}:flags=bilinear",
+                fit_size(width, height, PREVIEW_WIDTH).0,
+                fit_size(width, height, PREVIEW_WIDTH).1
+            );
+            let started = Instant::now();
+            let mut child = Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-i",
+                    input.to_string_lossy().as_ref(),
+                    "-map",
+                    "0:v:0",
+                    "-an",
+                    "-sn",
+                    "-dn",
+                    "-frames:v",
+                    &measured_frames.to_string(),
+                    "-vf",
+                    &scale,
+                    "-fps_mode",
+                    "passthrough",
+                    "-pix_fmt",
+                    "rgba",
+                    "-f",
+                    "rawvideo",
+                    raw.to_string_lossy().as_ref(),
+                ])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("the FFmpeg CLI baseline should start");
+            let child_pid = child.id();
+            let child_process =
+                unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, child_pid) };
+            assert!(
+                !child_process.is_null(),
+                "open FFmpeg child for peak-RSS measurement"
+            );
+            let baseline_time = {
+                let status = child.wait().expect("the FFmpeg baseline should finish");
+                assert!(status.success(), "the FFmpeg baseline should decode {name}");
+                started.elapsed()
+            };
+            let baseline_peak = peak_ws_from_handle(child_process);
+            unsafe { windows_sys::Win32::Foundation::CloseHandle(child_process) };
+            let baseline_rate = f64::from(measured_frames) / baseline_time.as_secs_f64();
+            let baseline_bytes = fs::metadata(&raw).unwrap().len();
+            assert_eq!(
+                baseline_bytes,
+                u64::from(measured_frames)
+                    * u64::from(fit_size(width, height, PREVIEW_WIDTH).0)
+                    * u64::from(fit_size(width, height, PREVIEW_WIDTH).1)
+                    * 4
+            );
+            println!(
+                "FRAME_PERF {name} src={width}x{height}@60 mf_fps={} mf_ms={:.1} mf_ws_delta_mib={:.1} mf_read_ms={:.1} mf_lock_ms={:.1} mf_convert_ms={:.1} mf_error={:?} ffmpeg_fps={baseline_rate:.1} ffmpeg_ms={:.1} ffmpeg_peak_ws_mib={:.1}",
+                mf_rate.map_or_else(|| "n/a".into(), |fps| format!("{fps:.1}")),
+                mf_time.as_secs_f64() * 1000.0,
+                mf_peak as f64 / (1024.0 * 1024.0),
+                mf_stages.map_or(0.0, |stages| stages.0.as_secs_f64() * 1000.0),
+                mf_stages.map_or(0.0, |stages| stages.1.as_secs_f64() * 1000.0),
+                mf_stages.map_or(0.0, |stages| stages.2.as_secs_f64() * 1000.0),
+                mf_error,
+                baseline_time.as_secs_f64() * 1000.0,
+                baseline_peak as f64 / (1024.0 * 1024.0),
+            );
+            let _ = fs::remove_file(raw);
+        }
         fs::remove_dir_all(dir).unwrap();
     }
 }

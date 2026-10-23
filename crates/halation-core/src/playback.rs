@@ -8,7 +8,7 @@ use std::{
     path::Path,
     process::{Child, Command, Stdio},
     sync::{
-        Arc, Mutex, MutexGuard,
+        Arc, Condvar, Mutex, MutexGuard,
         atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
@@ -601,6 +601,8 @@ struct Shared {
     /// Seconds after `from` where playback ended, once every thread has
     end: Mutex<Option<f64>>,
     error: Mutex<Option<String>>,
+    audio_ready: Mutex<Option<Result<(), String>>>,
+    audio_ready_cv: Condvar,
     decoders: Mutex<Vec<Arc<Mutex<Option<Child>>>>>,
     frames: Mutex<Frames>,
 }
@@ -631,6 +633,35 @@ impl Shared {
         if self.running.fetch_sub(1, Ordering::AcqRel) == 1 {
             let at = self.clock();
             *hold(&self.end) = Some(at);
+        }
+    }
+
+    fn signal_audio_ready(&self, result: Result<(), String>) {
+        let mut ready = hold(&self.audio_ready);
+        if ready.is_none() {
+            if let Err(error) = &result {
+                hold(&self.error).get_or_insert_with(|| error.clone());
+                self.stop.store(true, Ordering::Release);
+            }
+            *ready = Some(result);
+            self.audio_ready_cv.notify_all();
+        }
+    }
+
+    fn wait_audio_ready(&self) -> Result<(), String> {
+        let mut ready = hold(&self.audio_ready);
+        loop {
+            if let Some(result) = ready.as_ref() {
+                return result.clone();
+            }
+            if self.stop.load(Ordering::Acquire) {
+                return Err("Cancelled".into());
+            }
+            let waited = self
+                .audio_ready_cv
+                .wait_timeout(ready, Duration::from_millis(20))
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            ready = waited.0;
         }
     }
 }
@@ -669,6 +700,8 @@ impl Player {
             wall: Mutex::new(None),
             end: Mutex::new((threads == 0).then_some(0.0)),
             error: Mutex::new(None),
+            audio_ready: Mutex::new((!audio).then_some(Ok(()))),
+            audio_ready_cv: Condvar::new(),
             decoders: Mutex::new(Vec::new()),
             frames: Mutex::new(Frames::default()),
         });
@@ -681,6 +714,9 @@ impl Player {
                     thread_shared.exited(result);
                 });
             if let Err(error) = spawned {
+                if name == "preview-sound" {
+                    shared.signal_audio_ready(Err(error.to_string()));
+                }
                 shared.exited(Err(error.to_string()));
             }
         };
@@ -690,6 +726,7 @@ impl Player {
                 "preview-sound",
                 Box::new(move |shared| {
                     let result = play(shared, &ffmpeg, &input, from, output);
+                    shared.signal_audio_ready(result.as_ref().map(|_| ()).map_err(Clone::clone));
                     shared.audio_running.store(false, Ordering::Release);
                     result
                 }),
@@ -699,7 +736,10 @@ impl Player {
             let (ffmpeg, input) = (ffmpeg.to_owned(), input.to_owned());
             spawn(
                 "preview-picture",
-                Box::new(move |shared| show(shared, &ffmpeg, &input, from, picture)),
+                Box::new(move |shared| {
+                    shared.wait_audio_ready()?;
+                    show(shared, &ffmpeg, &input, from, picture)
+                }),
             );
         }
         Self { shared, from }
@@ -779,6 +819,7 @@ fn play(
     if shared.stop.load(Ordering::Acquire) {
         return Ok(());
     }
+    shared.signal_audio_ready(Ok(()));
     shared.rate.store(rate, Ordering::Release);
     // About 21 ms per read at 48 kHz; partial frames carry over to the next read.
     let mut bytes = vec![0_u8; 8 * 1024];
@@ -921,5 +962,35 @@ mod tests {
         output.drain(&stop, &played).unwrap();
         assert!(started.elapsed() >= Duration::from_millis(290));
         assert_eq!(played.load(Ordering::Acquire), 300);
+    }
+
+    #[test]
+    fn failed_audio_output_gates_picture_and_surfaces_error_immediately() {
+        let player = Player::start_media(
+            Path::new("missing-ffmpeg"),
+            Path::new("unused-video"),
+            0.0,
+            true,
+            Some(Picture {
+                width: 16,
+                height: 16,
+                fps: 30.0,
+            }),
+            1.0,
+            Box::new(|| Err("test: no audio device".into())),
+        );
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while !player.finished() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert!(
+            player.finished(),
+            "both finite workers stop after the failed sink"
+        );
+        assert_eq!(player.error().as_deref(), Some("test: no audio device"));
+        assert!(
+            player.take_frame().is_none(),
+            "no silent picture playback was published"
+        );
     }
 }

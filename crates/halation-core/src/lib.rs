@@ -12,6 +12,7 @@ pub mod convert;
 pub mod destinations;
 pub mod engine;
 pub mod folders;
+pub mod frame_decoder;
 pub mod framegrab;
 pub mod jobs;
 pub mod library;
