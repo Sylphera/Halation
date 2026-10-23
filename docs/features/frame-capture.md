@@ -238,8 +238,8 @@ evidence is in [TOOLS_STATUS.md](../TOOLS_STATUS.md#frame-capture).
   diagnostic. Controller tests verify generated-video session behavior, restart-persistent results and missing-PNG
   pruning, plus scrub settle/release and stale generations. Existing 4K coverage proves a
   1920 × 1080 preview and a 3840 × 2160 capture; the NTSC test proves 24000/1001 with 24 frames and last frame 23.
-  A synthetic 1920×1080 black-letterbox/red-field test exposed and now guards Media Foundation's 16-scanline NV12
-  plane alignment against the FFmpeg raw-video reference; FFmpeg playback is a separate path and was not changed.
+  A synthetic 1920×1080 black-letterbox/red-field test exposes and guards Media Foundation's 16-scanline NV12
+  plane alignment against both the FFmpeg still reference and `Player`'s FFmpeg picture path; playback code was not changed.
   UI mapping follows [ui-redesign.md §9](../../planning/active/ui-redesign.md#9-screens) and the Draft
   [tools-ui.md §Frame Capture](../../planning/active/tools-ui.md#frame-capture): counted top-bar Capture/adjacent Cancel,
   Queue, preview canvas, 40 px dock, Capture inspector (layout/crop/destination), Output results tab, direct-open Image,

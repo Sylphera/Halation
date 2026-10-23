@@ -1332,7 +1332,10 @@ impl Session {
 mod tests {
     use super::*;
     use crate::components::Ffmpeg;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::{
+        sync::atomic::{AtomicU64, Ordering},
+        time::Instant,
+    };
 
     static TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -1860,12 +1863,53 @@ mod tests {
                     );
                 }
             }
+            // The moving preview uses FFmpeg's raw-RGBA path, not the still Media Foundation decoder. Check the
+            // same fixture through that player path so the regression distinguishes a still-only NV12 artifact.
+            let picture = crate::playback::Picture::fit(1920, 1080, 10.0, 1920, 1080).unwrap();
+            let player = crate::playback::Player::start_media(
+                &ffmpeg.ffmpeg,
+                &letterbox,
+                0.0,
+                false,
+                Some(picture),
+                0.8,
+                Box::new(|| Err("audio output is not used in this picture-only fixture".into())),
+            );
+            let deadline = Instant::now() + Duration::from_secs(20);
+            let played_frame = loop {
+                if let Some(frame) = player.take_frame() {
+                    break frame;
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "FFmpeg player should produce the fixture frame"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            player.stop();
+            for y in (0..24_u32).chain(1056..1080) {
+                for x in 0..frame.width {
+                    let offset = (y as usize * frame.width as usize + x as usize) * 4;
+                    assert!(
+                        played_frame[offset] <= 12
+                            && played_frame[offset + 1] <= 12
+                            && played_frame[offset + 2] <= 12,
+                        "playing preview letterbox pixel ({x},{y}) should stay black"
+                    );
+                }
+            }
             let center = (540_usize * frame.width as usize + 960) * 4;
             assert!(
                 frame.rgba[center] > 200
                     && frame.rgba[center + 1] < 30
                     && frame.rgba[center + 2] < 30,
                 "synthetic red picture field should survive the letterbox decode"
+            );
+            assert!(
+                played_frame[center] > 200
+                    && played_frame[center + 1] < 30
+                    && played_frame[center + 2] < 30,
+                "synthetic red picture field should survive the playing preview"
             );
         }
 
