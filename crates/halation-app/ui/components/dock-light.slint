@@ -1,0 +1,30 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// Local, horizontal pointer light. No blur, layer, timer, or animation at rest. The item hover pill remains separate.
+export component DockLight inherits Rectangle {
+    in property <length> at: root.width / 2;
+    in property <bool> on: false;
+    in property <length> radius: Theme.radius;
+    property <float> shown: root.on ? 1 : 0;
+    animate shown { duration: Motion.hover(root.on); easing: Curve.ease; }
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        border-radius: root.radius;
+        background: @radial-gradient(circle 90px at root.at root.height / 2,
+            Theme.text.transparentize(1 - 0.08 * root.shown) 0%, transparent 72%);
+    }
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        border-radius: root.radius;
+        border-width: 1px;
+        border-color: @radial-gradient(circle 80px at root.at root.height / 2,
+            Theme.text.transparentize(1 - 0.42 * root.shown) 0%, transparent 70%);
+    }
+}

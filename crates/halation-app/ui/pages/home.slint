@@ -5,6 +5,7 @@ import { ToolItem, RecentItem } from "../models.slint";
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
 import { Surface, Level } from "../components/surface.slint";
+import { DockLight } from "../components/dock-light.slint";
 
 // One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
 component StripItem inherits FocusScope {
@@ -51,6 +52,10 @@ component StripItem inherits FocusScope {
     }
     Rectangle {
         // Sinks at once on press, back on release
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
         // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
         transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
         transform-scale-y: self.transform-scale-x;
@@ -138,7 +143,7 @@ export component HomePage inherits Rectangle {
     }
 
     // Tool strip
-    Rectangle {
+    dock := Rectangle {
         x: (parent.width - self.width) / 2;
         y: root.hero-top + 138px;
         width: min(strip.preferred-width, parent.width - 24px);
@@ -149,28 +154,49 @@ export component HomePage inherits Rectangle {
             glass: true;
             radius: Theme.radius;
         }
-        strip-pills := PillList {
-            x: 5px;
-            y: 5px;
-            width: parent.width - 10px;
-            height: parent.height - 10px;
-            horizontal: true;
-            has-selection: false;
-            hover-fill: Theme.raised-flat;
-            raised-hover: true;
-            radius: Theme.radius;
-        }
-        strip := HorizontalLayout {
-            padding-left: 5px;
-            padding-right: 5px;
-            padding-top: 5px;
-            padding-bottom: 5px;
-            spacing: 0px;
-            for tool in root.tools : StripItem {
-                icon: tool.icon;
-                label: tool.name;
-                activated => { root.tool-activated(tool.id); }
-                hovered(on, at, size) => { strip-pills.hover(on, at, size); }
+        // A parent TouchArea observes the complete dock, including its padding, and forwards input to the items.
+        // The light uses these local coordinates directly: no window/strip padding conversion or item-exit flicker.
+        dock-touch := TouchArea {
+            x: 0px;
+            y: 0px;
+            width: dock.width;
+            height: dock.height;
+            DockLight {
+                x: 0px;
+                y: 0px;
+                width: dock.width;
+                height: dock.height;
+                at: dock-touch.mouse-x;
+                on: dock-touch.has-hover;
+                radius: Theme.radius;
+            }
+            strip-pills := PillList {
+                x: 5px;
+                y: 5px;
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+                horizontal: true;
+                has-selection: false;
+                hover-fill: Theme.raised-flat;
+                raised-hover: true;
+                radius: Theme.radius;
+            }
+            strip := HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                width: dock.width;
+                height: dock.height;
+                padding-left: 5px;
+                padding-right: 5px;
+                padding-top: 5px;
+                padding-bottom: 5px;
+                spacing: 0px;
+                for tool in root.tools : StripItem {
+                    icon: tool.icon;
+                    label: tool.name;
+                    activated => { root.tool-activated(tool.id); }
+                    hovered(on, at, size) => { strip-pills.hover(on, at, size); }
+                }
             }
         }
     }
@@ -182,31 +208,11 @@ export component HomePage inherits Rectangle {
         // Taller and wider, recent files lower (Java, 2026-10-22)
         width: min(780px, parent.width - 48px);
         height: 196px;
-        // A panel over the Drape; under a dragged file or keyboard focus, an accent edge and a faint accent veil
+        // Border-only feedback. Neither hovering nor dragging paints light or a veil over the interior.
         Surface {
             level: Level.bubble;
             glass: true;
             radius: Theme.radius;
-            veil: drop-area.has-drag ? Theme.accent.transparentize(88%) : drop-touch.has-hover ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
-            animate veil { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
-        }
-        // The pointer light of the original Home (Java, 2026-10-22): a soft white circle under the pointer, brighter
-        // while a file is over the zone. It is a gradient, not a blur: no shadow is rendered, and the light only
-        // exists while the drop zone is hovered.
-        Rectangle {
-            property <length> glow-radius: drop-area.has-drag ? 420px : 160px;
-            property <length> glow-x: drop-touch.has-hover ? drop-touch.mouse-x : self.width / 2;
-            property <length> glow-y: drop-touch.has-hover ? drop-touch.mouse-y : self.height / 2;
-            // The light fades by its own colour alpha, not by `opacity`: an opacity animation makes Skia compose the
-            // rectangle offscreen on every frame (tests/services.rs enforces the rule).
-            property <color> glow-centre: drop-touch.has-hover || drop-area.has-drag
-                ? Theme.text.transparentize(92%)
-                : Theme.text.transparentize(100%);
-            animate glow-centre { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
-            border-radius: Theme.radius;
-            background: @radial-gradient(circle glow-radius at glow-x glow-y,
-                glow-centre 0%,
-                Theme.text.transparentize(100%) 72%);
         }
         Rectangle {
             border-radius: Theme.radius;
@@ -224,11 +230,11 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            // The tile rises 2 px under the pointer, as in the original Home
-            y: drop-touch.has-hover || drop-area.has-drag ? 46px : 48px;
+            // Hover changes the outer border only; keep the interior, including the icon, unchanged.
+            y: drop-area.has-drag ? 46px : 48px;
             width: 48px;
             height: 48px;
-            animate y { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            animate y { duration: Motion.hover(drop-area.has-drag); easing: Curve.ease; }
             Surface {
                 level: Level.raised;
                 radius: Theme.radius;

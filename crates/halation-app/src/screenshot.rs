@@ -196,6 +196,9 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
+        "motion-home" => (0, 6, -1),
+        "motion-settings" => (3, 7, -1),
+        "motion-sidebar" => (0, 8, -1),
         "settings" => (3, 0, -1),
         "converter" => (4, 0, -1),
         "converter-open" => (4, 2, -1),
@@ -209,12 +212,15 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio or converter-video"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, motion-home, motion-settings or motion-sidebar"
                 )
                 .into());
             }
         },
     };
+    if (6..=8).contains(&mode) && (spec.width != 1440 || spec.height != 900) {
+        return Err("motion sequences use 1440x900 fixed pointer fixtures".into());
+    }
     // Absolute, like a real profile: FFmpeg runs in its own folder
     let out_dir = std::path::absolute(
         spec.out
@@ -330,8 +336,70 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         pump(&queue, Duration::from_millis(300));
     }
 
+    if (6..=8).contains(&mode) {
+        // Real headless pointer events; never set UI hover properties and never touch the desktop. Capture departure,
+        // detachment, rest, reversal, and exit, not just an attractive final frame. Times are wall-clock approximations.
+        // Hold the same decoded Drape frame in every capture: otherwise the ambient movie changes the pixels we
+        // compare for hover-only changes. This changes the diagnostic render only, not the production player.
+        let backdrop = ui.get_backdrop();
+        let capture = |name: &str| -> Result<(), Box<dyn std::error::Error>> {
+            ui.set_backdrop(backdrop.clone());
+            let mut pixels = vec![Rgb8Pixel::new(0, 0, 0); (spec.width * spec.height) as usize];
+            window.request_redraw();
+            window.draw_if_needed(|renderer| {
+                renderer.render(&mut pixels, spec.width as usize);
+            });
+            let stem = spec.out.file_stem().unwrap_or_default().to_string_lossy();
+            write_png(
+                &spec.out.with_file_name(format!("{stem}-{name}.png")),
+                spec.width,
+                spec.height,
+                &pixels,
+            )?;
+            Ok(())
+        };
+        let point = |x, y| {
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                    position: slint::LogicalPosition::new(x, y),
+                })
+        };
+        capture("idle")?;
+        let (first, second) = match mode {
+            6 => ((500.0, 390.0), (860.0, 390.0)),
+            7 => ((195.0, 78.0), (300.0, 78.0)),
+            _ => ((30.0, 82.0), (30.0, 166.0)),
+        };
+        point(first.0, first.1);
+        pump(&queue, Duration::from_millis(400));
+        capture("entered")?;
+        point(second.0, second.1);
+        for (name, wait) in [
+            ("move-016", 16),
+            ("move-048", 32),
+            ("move-096", 48),
+            ("move-160", 64),
+            ("settled", 300),
+        ] {
+            pump(&queue, Duration::from_millis(wait));
+            capture(name)?;
+        }
+        point(first.0, first.1);
+        pump(&queue, Duration::from_millis(32));
+        capture("reverse-032")?;
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerExited);
+        pump(&queue, Duration::from_millis(400));
+        capture("exit")?;
+        if mode == 6 {
+            point(746.0, 680.0);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-hover")?;
+        }
+    }
     let (w, h) = (spec.width as usize, spec.height as usize);
     let mut buffer = vec![Rgb8Pixel::new(0, 0, 0); w * h];
+    window.request_redraw();
     let drawn = window.draw_if_needed(|renderer| {
         renderer.render(&mut buffer, w);
     });

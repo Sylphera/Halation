@@ -60,7 +60,9 @@ export component PillList inherits Rectangle {
             root.hover-idle = false;
             leave.running = false;
             root.hover-forward = at - root.origin >= root.hover-at;
-            root.hover-from = root.hover-snap ? at - root.origin : root.hover-at;
+            // A rapid sweep can retarget before detachment: keep its connection to the selection until the physical
+            // union breaks, rather than replacing the origin with an intermediate target it never reached.
+            root.hover-from = root.hover-snap ? at - root.origin : root.connection-live ? root.select-at : root.hover-at;
             root.hover-at = at - root.origin;
             root.hover-size = size;
             root.hover-on = true;
@@ -108,7 +110,7 @@ export component PillList inherits Rectangle {
         width: selection.width;
         height: selection.height;
         border-radius: root.radius;
-        background: root.select-shown ? Theme.contact : Theme.contact.transparentize(1);
+        background: root.select-shown ? Theme.contact.transparentize(1 - root.edge-reveal) : Theme.contact.transparentize(1);
     }
     selection := Rectangle {
         x: root.horizontal ? root.select-start : root.inset-left;
@@ -116,10 +118,10 @@ export component PillList inherits Rectangle {
         width: root.horizontal ? max(0px, root.select-end - root.select-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.select-end - root.select-start);
         border-radius: root.radius;
-        background: !root.raised-select ? (root.select-shown ? root.select-fill : root.select-fill.transparentize(1))
+        background: root.united ? transparent : !root.raised-select ? (root.select-shown ? root.select-fill : root.select-fill.transparentize(1))
             : root.select-shown ? Theme.raised-fill : Theme.raised-fill.transparentize(1);
         border-width: root.raised-select ? 1px : 0px;
-        border-color: root.select-shown ? Theme.raised-edge : Theme.raised-edge.transparentize(1);
+        border-color: root.select-shown ? Theme.raised-edge.transparentize(1 - root.edge-reveal) : Theme.raised-edge.transparentize(1);
     }
     // The accent bar beside the selected row (vertical lists with `bar`), stretching with the pill
     if root.bar && !root.horizontal : Rectangle {
@@ -140,27 +142,34 @@ export component PillList inherits Rectangle {
     // Neck reach: pills further apart than this never join
     property <length> reach: 18px;
     property <bool> hover-moving: abs(root.hover-start - root.hover-at) > 0.5px || abs(root.hover-end - root.hover-at - root.hover-size) > 0.5px;
+    property <bool> select-moving: abs(root.select-start - root.select-at) > 0.5px || abs(root.select-end - root.select-at - root.select-size) > 0.5px;
     // 1 while the hover pill moves, back to 0 once it rests
-    property <float> join: root.hover-moving ? 1 : 0;
+    property <float> join: Motion.glide > 0ms && (root.hover-moving || root.select-moving) ? 1 : 0;
     animate join { duration: Motion.fade; easing: Curve.ease; }
     // Only a pill that leaves the selected row or heads for it joins it: passing from one row to another beside the
     // selection draws no neck between them (Java, 2026-10-22)
     property <bool> touches-selection: abs(root.hover-at - root.select-at) < 0.5px || abs(root.hover-from - root.select-at) < 0.5px;
+    // Unlike `united`, this survives the old row's exit event before the next row's enter event in the same sweep.
+    property <bool> connection-live: root.join > 0.02 && root.overlap > -root.reach && root.touches-selection;
     property <bool> fusing: root.hover-on && root.select-on && root.has-selection && root.touches-selection;
     // 0 apart, 1 joined into one surface
-    property <float> closeness: !root.fusing ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
+    property <float> closeness: !root.fusing || Motion.glide <= 0ms ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
+    // One silhouette, not two stroked rectangles and a patch between them. Borders and contact shadows return only
+    // after the neck has broken. Appearance is animated, suppression is immediate (no internal seam on departure).
+    property <bool> united: root.closeness > 0.02 && (root.join > 0.02 || root.hover-moving || root.select-moving);
+    property <float> recovered-edge: root.united ? 0 : 1;
+    animate recovered-edge { duration: root.united ? 0ms : Motion.fade; easing: Curve.ease; }
+    property <float> edge-reveal: root.united ? 0 : root.recovered-edge;
+    // A sidebar separator must not draw a cut through the moving union. Its resting geometry stays unchanged.
+    public pure function fusion-covers(window-y: length) -> bool {
+        return !root.horizontal && root.united
+            && window-y >= root.absolute-position.y + root.union-a
+            && window-y <= root.absolute-position.y + root.union-b;
+    }
     property <color> hover-colour: root.select-fill.mix(root.hover-fill, root.closeness);
     property <float> hover-alpha: root.hover-on ? 0 : 1;
     animate hover-alpha { duration: Motion.hover(root.hover-on); easing: Curve.ease; }
 
-    // The neck's ends (along the list) and sides (across it), in the list's own coordinates
-    property <bool> hover-first: root.hover-start < root.select-start;
-    property <length> neck-a: (root.hover-first ? root.hover-end : root.select-end) - root.radius * root.closeness - 1px;
-    property <length> neck-b: (root.hover-first ? root.select-start : root.hover-start) + root.radius * root.closeness + 1px;
-    property <length> cross-0: (root.horizontal ? 0px : root.inset-left) + root.radius * (1 - root.closeness);
-    property <length> cross-1: (root.horizontal ? root.height : root.width - root.inset-right) - root.radius * (1 - root.closeness);
-    // How far each side bows in at the middle; a cubic with both controls at `bow / 0.75` reaches it
-    property <length> bow: (root.cross-1 - root.cross-0) / 2 * (1 - root.closeness) * 0.85 / 0.75;
     // Main and cross coordinates to path numbers
     pure function px(main: length, across: length) -> float {
         (root.horizontal ? main : across) / 1px
@@ -169,7 +178,21 @@ export component PillList inherits Rectangle {
         (root.horizontal ? across : main) / 1px
     }
 
-    if root.overlap <= 0px && root.closeness > 0.02 : Path {
+    // Along-axis extent and rounded ends of the union. A cubic waist pinches as the pieces pull apart; overlapping
+    // pieces have no waist. One closed, opaque fill avoids alpha accumulation and all internal rounded edges.
+    property <length> union-a: min(root.select-start, root.hover-start);
+    property <length> union-b: max(root.select-end, root.hover-end);
+    property <length> union-cross-a: root.horizontal ? 0px : root.inset-left;
+    property <length> union-cross-b: root.horizontal ? root.height : root.width - root.inset-right;
+    property <length> union-radius: min(root.radius, (root.union-cross-b - root.union-cross-a) / 2, (root.union-b - root.union-a) / 2);
+    // Circular quarter-arc approximation. Putting both control points on the corner makes a superellipse that reads
+    // square during stretching, even with the same nominal radius as the resting Rectangle.
+    property <length> corner-inset: root.union-radius * 0.44771525;
+    property <length> waist-at: (min(root.select-end, root.hover-end) + max(root.select-start, root.hover-start)) / 2;
+    property <length> shoulder-a: max(root.union-a + root.union-radius, min(root.waist-at, min(root.select-end, root.hover-end) - root.union-radius));
+    property <length> shoulder-b: min(root.union-b - root.union-radius, max(root.waist-at, max(root.select-start, root.hover-start) + root.union-radius));
+    property <length> pinch: root.overlap >= 0px ? 0px : (root.union-cross-b - root.union-cross-a) / 2 * (1 - root.closeness);
+    if root.united : united-shape := Path {
         x: 0px;
         y: 0px;
         width: root.width;
@@ -178,30 +201,56 @@ export component PillList inherits Rectangle {
         viewbox-y: 0;
         viewbox-width: root.width / 1px;
         viewbox-height: root.height / 1px;
-        fill: root.hover-colour.transparentize(root.hover-alpha);
+        fill: root.raised-select || root.raised-hover ? Theme.raised-flat : root.select-fill;
         MoveTo {
-            x: root.px(root.neck-a, root.cross-0);
-            y: root.py(root.neck-a, root.cross-0);
+            x: root.px(root.union-a + root.union-radius, root.union-cross-a);
+            y: root.py(root.union-a + root.union-radius, root.union-cross-a);
+        }
+        LineTo { x: root.px(root.shoulder-a, root.union-cross-a); y: root.py(root.shoulder-a, root.union-cross-a); }
+        CubicTo {
+            control-1-x: root.px(root.waist-at, root.union-cross-a); control-1-y: root.py(root.waist-at, root.union-cross-a);
+            control-2-x: root.px(root.waist-at, root.union-cross-a + root.pinch); control-2-y: root.py(root.waist-at, root.union-cross-a + root.pinch);
+            x: root.px(root.waist-at, root.union-cross-a + root.pinch); y: root.py(root.waist-at, root.union-cross-a + root.pinch);
         }
         CubicTo {
-            control-1-x: root.px(root.neck-a, root.cross-0 + root.bow);
-            control-1-y: root.py(root.neck-a, root.cross-0 + root.bow);
-            control-2-x: root.px(root.neck-b, root.cross-0 + root.bow);
-            control-2-y: root.py(root.neck-b, root.cross-0 + root.bow);
-            x: root.px(root.neck-b, root.cross-0);
-            y: root.py(root.neck-b, root.cross-0);
+            control-1-x: root.px(root.waist-at, root.union-cross-a + root.pinch); control-1-y: root.py(root.waist-at, root.union-cross-a + root.pinch);
+            control-2-x: root.px(root.waist-at, root.union-cross-a); control-2-y: root.py(root.waist-at, root.union-cross-a);
+            x: root.px(root.shoulder-b, root.union-cross-a); y: root.py(root.shoulder-b, root.union-cross-a);
         }
-        LineTo {
-            x: root.px(root.neck-b, root.cross-1);
-            y: root.py(root.neck-b, root.cross-1);
+        LineTo { x: root.px(root.union-b - root.union-radius, root.union-cross-a); y: root.py(root.union-b - root.union-radius, root.union-cross-a); }
+        CubicTo {
+            control-1-x: root.px(root.union-b - root.corner-inset, root.union-cross-a); control-1-y: root.py(root.union-b - root.corner-inset, root.union-cross-a);
+            control-2-x: root.px(root.union-b, root.union-cross-a + root.corner-inset); control-2-y: root.py(root.union-b, root.union-cross-a + root.corner-inset);
+            x: root.px(root.union-b, root.union-cross-a + root.union-radius); y: root.py(root.union-b, root.union-cross-a + root.union-radius);
+        }
+        LineTo { x: root.px(root.union-b, root.union-cross-b - root.union-radius); y: root.py(root.union-b, root.union-cross-b - root.union-radius); }
+        CubicTo {
+            control-1-x: root.px(root.union-b, root.union-cross-b - root.corner-inset); control-1-y: root.py(root.union-b, root.union-cross-b - root.corner-inset);
+            control-2-x: root.px(root.union-b - root.corner-inset, root.union-cross-b); control-2-y: root.py(root.union-b - root.corner-inset, root.union-cross-b);
+            x: root.px(root.union-b - root.union-radius, root.union-cross-b); y: root.py(root.union-b - root.union-radius, root.union-cross-b);
+        }
+        LineTo { x: root.px(root.shoulder-b, root.union-cross-b); y: root.py(root.shoulder-b, root.union-cross-b); }
+        CubicTo {
+            control-1-x: root.px(root.waist-at, root.union-cross-b); control-1-y: root.py(root.waist-at, root.union-cross-b);
+            control-2-x: root.px(root.waist-at, root.union-cross-b - root.pinch); control-2-y: root.py(root.waist-at, root.union-cross-b - root.pinch);
+            x: root.px(root.waist-at, root.union-cross-b - root.pinch); y: root.py(root.waist-at, root.union-cross-b - root.pinch);
         }
         CubicTo {
-            control-1-x: root.px(root.neck-b, root.cross-1 - root.bow);
-            control-1-y: root.py(root.neck-b, root.cross-1 - root.bow);
-            control-2-x: root.px(root.neck-a, root.cross-1 - root.bow);
-            control-2-y: root.py(root.neck-a, root.cross-1 - root.bow);
-            x: root.px(root.neck-a, root.cross-1);
-            y: root.py(root.neck-a, root.cross-1);
+            control-1-x: root.px(root.waist-at, root.union-cross-b - root.pinch); control-1-y: root.py(root.waist-at, root.union-cross-b - root.pinch);
+            control-2-x: root.px(root.waist-at, root.union-cross-b); control-2-y: root.py(root.waist-at, root.union-cross-b);
+            x: root.px(root.shoulder-a, root.union-cross-b); y: root.py(root.shoulder-a, root.union-cross-b);
+        }
+        LineTo { x: root.px(root.union-a + root.union-radius, root.union-cross-b); y: root.py(root.union-a + root.union-radius, root.union-cross-b); }
+        CubicTo {
+            control-1-x: root.px(root.union-a + root.corner-inset, root.union-cross-b); control-1-y: root.py(root.union-a + root.corner-inset, root.union-cross-b);
+            control-2-x: root.px(root.union-a, root.union-cross-b - root.corner-inset); control-2-y: root.py(root.union-a, root.union-cross-b - root.corner-inset);
+            x: root.px(root.union-a, root.union-cross-b - root.union-radius); y: root.py(root.union-a, root.union-cross-b - root.union-radius);
+        }
+        LineTo { x: root.px(root.union-a, root.union-cross-a + root.union-radius); y: root.py(root.union-a, root.union-cross-a + root.union-radius); }
+        CubicTo {
+            control-1-x: root.px(root.union-a, root.union-cross-a + root.corner-inset); control-1-y: root.py(root.union-a, root.union-cross-a + root.corner-inset);
+            control-2-x: root.px(root.union-a + root.corner-inset, root.union-cross-a); control-2-y: root.py(root.union-a + root.corner-inset, root.union-cross-a);
+            x: root.px(root.union-a + root.union-radius, root.union-cross-a); y: root.py(root.union-a + root.union-radius, root.union-cross-a);
         }
         Close {}
     }
@@ -217,7 +266,7 @@ export component PillList inherits Rectangle {
         width: hover-pill.width;
         height: hover-pill.height;
         border-radius: root.radius;
-        background: Theme.contact.transparentize(root.edge-clear);
+        background: Theme.contact.transparentize(1 - (1 - root.edge-clear) * root.edge-reveal);
     }
     hover-pill := Rectangle {
         x: root.horizontal ? root.hover-start : root.inset-left;
@@ -225,8 +274,8 @@ export component PillList inherits Rectangle {
         width: root.horizontal ? max(0px, root.hover-end - root.hover-start) : parent.width - root.inset-left - root.inset-right;
         height: root.horizontal ? parent.height : max(0px, root.hover-end - root.hover-start);
         border-radius: root.radius;
-        background: root.raised-hover ? Theme.raised-fill.transparentize(root.hover-clear) : root.hover-colour.transparentize(root.hover-alpha);
+        background: root.united ? transparent : root.raised-hover ? Theme.raised-fill.transparentize(root.hover-clear) : root.hover-colour.transparentize(root.hover-alpha);
         border-width: root.raised-hover || root.raised-select ? 1px : 0px;
-        border-color: Theme.raised-edge.transparentize(root.edge-clear);
+        border-color: Theme.raised-edge.transparentize(1 - (1 - root.edge-clear) * root.edge-reveal);
     }
 }

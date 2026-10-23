@@ -1,6 +1,27 @@
 # Movimiento nativo (Slint)
 
 Status: Implemented and approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca).
+The 2026-10-23 hover corrections below are implemented, pending native-window visual review; the earlier approval
+does not cover them. Resting layout, spacing and material remain unchanged.
+
+### Hover corrections (2026-10-23, supersede the drop-zone light and two-piece neck descriptions below)
+
+- **Drop zone:** identical interior before/during hover. Only the outer border responds; dragging/focus use the accent
+  edge, without a veil or radial light. Existing press/drag scale and drag icon movement stay, not hover icon movement.
+- **Home tool dock:** a horizontal pointer light (90 px / 8% fill and 80 px / 42% edge, fading out at 72% / 70% of the
+  radii). A parent TouchArea observes the complete strip, including padding, without taking clicks from its tools.
+  Coordinates are local to the dock, with no extra inset or per-item exit flicker. Reveal/exit use native
+  `Motion.hover` tokens (instant with reduced motion); pointer position follows directly. No idle animation is added.
+- **Fusion:** a transient union, never a redesign of resting cards/tabs. During departure/arrival the two fills are
+  replaced by one closed opaque silhouette with a pinching waist (18 px reach), not a neck patched between two bordered
+  rectangles. Borders/contact shadows are suppressed while joined and recover in `Motion.fade` after detachment.
+  Overlap cannot accumulate alpha or retain internal rounded edges. The same `PillList` serves horizontal tabs,
+  segmented controls and vertical sidebar rows; selection motion participates too. Reversal retargets existing native
+  springs; reduced motion skips transient fusion. No blur, layer, per-pixel work, or custom animation clock.
+- **Evidence:** `ui_layout.rs` exercises departure, arrival, rest, reduced motion, dock alignment at all supported sizes,
+  and tool clicks through the parent hover observer. `--screenshot motion-home|motion-settings|motion-sidebar 1440x900
+  <out.png>` writes intermediate frames alongside the final image using real headless pointer events. Wall-clock capture
+  times are approximate, and software-renderer images do not replace native Skia visual approval.
 Código: `motion.rs`, `ui/motion.slint`, `ui/components/{pills,tooltip}.slint`; tests en `tests/services.rs` (reglas de
 coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimiento reducido).
 

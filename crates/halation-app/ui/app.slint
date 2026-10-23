@@ -434,6 +434,7 @@ export component AppWindow inherits Window {
                     if index == 0 || tool.group != root.active-tools[index - 1].group : SidebarGroup {
                         label: root.group-name(tool.group);
                         open: root.rail-open;
+                        covered-by-fusion: rail-pills.fusion-covers(self.absolute-position.y + self.height / 2);
                     }
                     SidebarItem {
                         icon: tool.icon;
@@ -450,6 +451,7 @@ export component AppWindow inherits Window {
                 SidebarGroup {
                     label: "";
                     open: root.rail-open;
+                    covered-by-fusion: rail-pills.fusion-covers(self.absolute-position.y + self.height / 2);
                 }
                 SidebarItem {
                     icon: "settings";
