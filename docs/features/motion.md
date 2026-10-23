@@ -2,8 +2,8 @@
 
 Status: Implemented and approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca).
 The contour, dock and restored local drop light at `cd79425` were approved by Java on 2026-10-23. The subsequent
-material-intensity handoff below is implemented, pending native-window review. Resting layout, spacing and material
-remain unchanged.
+material-intensity handoff at `5ee05c3` was also approved by Java on 2026-10-23, with explicit authorization to merge
+into `slint/native`. Resting layout, spacing and material remain unchanged.
 
 ### Hover corrections (2026-10-23, supersede the drop-zone light and two-piece neck descriptions below)
 
@@ -22,7 +22,7 @@ remain unchanged.
   Only internal piece borders/contact shadows are suppressed while the shared perimeter is drawn.
   On detachment, material intensity blends from the full shared surface to the softer resting hover in `Motion.fade`
   (80 ms), rather than jumping from 100% to 45%. This changes neither the approved contour nor resting appearance;
-  reduced motion remains immediate. This follow-up is pending native-window review.
+  reduced motion remains immediate. This follow-up was approved by Java at `5ee05c3` on 2026-10-23.
   Overlap cannot accumulate alpha or retain internal rounded edges. The same `PillList` serves horizontal tabs,
   segmented controls and vertical sidebar rows; selection motion participates too. Reversal retargets existing native
   springs; reduced motion skips transient fusion. No blur, layer, per-pixel work, or custom animation clock.
