@@ -2,6 +2,8 @@
 
 Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
 
+UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+
 The Downloader turns a link into a media file: preview first, choose video/audio/cover, then download. Public
 metadata may come from Spotify or Apple Music; the audio always comes from YouTube or another yt-dlp source, never
 from Spotify. This spec records the behaviour verified in the Tauri app so the native app can reproduce it without

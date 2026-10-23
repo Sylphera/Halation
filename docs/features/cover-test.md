@@ -2,6 +2,8 @@
 
 Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
 
+UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+
 Herramienta para ver una portada o miniatura propia dentro de YouTube, Spotify y SoundCloud, rodeada de contenido
 real de cada plataforma, antes de publicarla. Plan de Java del 2026-09-27 (prompt 7 + perfil de artista + banner y
 rendimiento), del 2026-09-30 (bienvenida con un solo dato) y su revisión del 2026-09-30 (página del artista en cada

@@ -2,6 +2,8 @@
 
 Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
 
+UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+
 Java, 2026-10-13. Rehacer la parte de filtros/looks de Grade: looks que modifican varias dimensiones de la imagen a la
 vez (tono, color por zonas, saturación selectiva, fade, grano…), una biblioteca propia y curada, intensidad que mezcla
 el tratamiento completo, ajustes sobre un look aplicado, My Looks como variantes guardadas y Favorites. Sin perder el

@@ -1,12 +1,14 @@
 # Tools status — native line
 
-Status: FASE 0 inventory (2026-10-23). The ten media tools are catalog entries only: no native page, controller or
-connected engine exists for any of them, and none is available in the beta.
+Status: FASE 0 inventory and shared UI contract (2026-10-23). On the current `slint/native` line, Converter has a
+native page and engine path and is approved; the other nine media tools are catalog entries only, with no native page,
+controller or connected engine, and none is available in the beta.
 
 This document says what each of the ten media tools has in the native app today, which spec owns its behaviour and
 where the Tauri app on `main` implements it. It is an inventory, not a promise: a tool is not "ported" because it
 appears in a list or because its name compiles into the catalog. The Tauri app is the behaviour reference; its
-interface is not a template (see the clean-room rule in [AGENTS.md](../AGENTS.md)).
+interface is not a template (see the clean-room rule in [AGENTS.md](../AGENTS.md)). The native visual template is
+Converter, under the shared contract below.
 
 ## How to read the status
 
@@ -17,32 +19,59 @@ interface is not a template (see the clean-room rule in [AGENTS.md](../AGENTS.md
 | `parcial` | At least one real path works end to end in the native app (input, processing, output), even if incomplete. |
 | `completa` | The spec is implemented in the native app and its acceptance criteria are verified. Visible changes still need Java's visual OK. |
 
-All ten tools are **`UI falsa`**. The catalog is honest about it: the activation notice says the tool is not available
-in the beta and that the processing engines are not connected (`crates/halation-app/src/catalog.rs:148-157`).
+Nine tools are **`UI falsa`**; Converter is **`parcial`** and is the template. The catalog is honest about the nine:
+the activation notice says the tool is not available in the beta and that the processing engines are not connected
+(`crates/halation-app/src/catalog.rs:148-157`). Converter's native page and approval are recorded in
+[converter.md](features/converter.md).
+
+## Visual contract (all ten tools)
+
+Java, 2026-10-23: finish all ten media tools for visual review, with one interface, not ten. Every native tool page
+uses the approved Linear/Figma redesign already merged in `slint/native`: the same components, tokens, surfaces,
+typography and native motion. **Converter is the canonical page template**; no tool gets its own visual language.
+Where the redesign's §9 names Vocal Remover as the reference tool, this instruction supersedes it for the template.
+
+- **Frame and components.** Use the shell (sidebar and top bar) and the tool frame of the
+  [approved redesign](../planning/active/ui-redesign.md): left panel 220 px, canvas, inspector 280 px and docked bar
+  40 px when the tool needs those regions; one primary action in the top bar. Reuse the shared Slint components and
+  the Converter page's spacing, control sizes, row heights, empty states and primary-action placement.
+- **Material and type.** Use the current native material and type in [material.md](features/material.md); use the
+  colours and state tokens in [themes.md](features/themes.md). No page-local palette, font, radius, shadow, border or
+  spacing scale.
+- **Motion.** Use the current native contract in [motion.md](features/motion.md): native Slint animation only, no idle
+  animation, and 0 ms with reduced motion. [MOTION.md](MOTION.md) documents the Tauri/GSAP app; it is not the
+  native reference.
+- **Template.** [converter.md](features/converter.md) is the reference page: same frame, controls, state treatment and
+  primary-action placement. A tool may add only the controls its function requires, built from the shared components.
+- **State and work.** UI state lives in Rust services, never in a page instance; heavy work runs off the UI thread.
+  This is already the native rule and applies to every tool page.
+- **Review gate.** A page is "implemented, pending visual review" until Java approves it in the real native window.
+  Converter is already approved; the other nine must reach the same bar, and all ten are reviewed. No page is complete
+  because it compiles or because its tests pass.
 
 ## Native baseline
 
-The native app has a catalog of eleven entries: the ten media tools plus Library (`catalog.rs:20-142`). Every media
-tool is declared `available: false`; Library is the only available entry. The rail, Home strip and Settings > Tools
-all render that catalog (`ui/app.slint:312-324`, `ui/pages/home.slint:127-131`,
-`ui/pages/settings.slint:497-523`). Activating anything other than Library only sets a notice; it does not navigate
-or create a page (`crates/halation-app/src/app.rs:544-562`). The native navigation has four pages — Home, Library,
-Jobs, Settings — and none is a tool page (`crates/halation-app/src/navigation.rs:2-10`). Tests lock the current
-truth: Downloader is unavailable and produces the notice (`crates/halation-app/tests/services.rs:365-366`), while the
-rail still lists its name (`crates/halation-app/tests/ui_layout.rs:202-203`).
+On the current `slint/native` line, the catalog has eleven entries: the ten media tools plus Library
+(`slint/native:crates/halation-app/src/catalog.rs:20-142`). Converter is available and opens its page
+(`catalog.rs:33-40`, `navigation.rs:2-35`, `ui/app.slint:222`); the nine other media tools are declared
+`available: false`, and Library is also available. The rail, Home strip and Settings > Tools all render that catalog.
+Activating an unavailable tool only sets a notice; it does not navigate or create a page. The audit base predates the
+native Converter; the rows below follow the current `slint/native` line because that is where the tool work lands.
+Tests lock the unavailable nine: Downloader produces the notice (`crates/halation-app/tests/services.rs:365-366`),
+while the rail still lists its name (`crates/halation-app/tests/ui_layout.rs:202-203`).
 
-The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs:159-175`), but the native
-beta cannot install any of them; the comment above the list says so. There is no native engine status, install flow,
-per-tool settings, job submission from a tool, preview, export or session state for these tools. The core queue,
-process and engine contract exist without connected engines ([jobs.md](features/jobs.md)), and the global destination
-rules exist without an export using them ([save-location.md](features/save-location.md)).
+The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs:159-175`). Converter has
+an FFmpeg installation path and submits real jobs; the other nine cannot install a component or submit work. There is
+no engine status, per-tool settings, preview, export or session state for those nine. The core queue, process and
+engine contract exist ([jobs.md](features/jobs.md)); the global destination rules are used by Converter
+([save-location.md](features/save-location.md)).
 
 ## Summary
 
 | Tool | Native id | Tauri id | Status | Spec |
 | --- | --- | --- | --- | --- |
 | Downloader | `downloader` | `downloader` | `UI falsa` | [downloader.md](features/downloader.md) (new) |
-| Converter | `converter` | `convert` | `UI falsa` | [converter.md](features/converter.md) |
+| Converter | `converter` | `convert` | `parcial` (native page approved; Send to and sessions remain) | [converter.md](features/converter.md) |
 | Vocal Remover | `vocal-remover` | `stems` | `UI falsa` | [vocal-remover.md](features/vocal-remover.md) |
 | Audio Visualizer | `audio-visualizer` | `visualizer` | `UI falsa` | [audio-visualizer.md](features/audio-visualizer.md) (new) |
 | Grade | `grade` | `grade` | `UI falsa` | [grade-looks.md](features/grade-looks.md) |
@@ -51,6 +80,9 @@ rules exist without an export using them ([save-location.md](features/save-locat
 | Upscale | `upscale` | `upscale` | `UI falsa` | [upscale.md](features/upscale.md) (new) |
 | AI Interpolate | `ai-interpolate` | `interp` | `UI falsa` | [framerate.md](features/framerate.md) |
 | Frame Capture | `frame-capture` | `framegrab` | `UI falsa` | [frame-capture.md](features/frame-capture.md) (new) |
+
+Converter is the only tool with a native page; it is the reference implementation for the other nine under the
+[visual contract](#visual-contract-all-ten-tools).
 
 The Tauri registry that defines these ids, their components, accepted content and stage is
 `main:app/dist/modules.js:22-31`. The native ids differ in seven places and must be mapped when importing behaviour:
@@ -78,10 +110,13 @@ page, preview, queue or download path exists.
 
 ### Converter
 
-**Status: `UI falsa`.** Catalog entry only; the full spec already exists and the Tauri implementation is the
-reference. No native page or conversion engine.
+**Status: `parcial`.** The native Converter page is implemented and approved by Java on `slint/native` (2026-10-22):
+tool frame, plans, jobs, FFmpeg installation, audio and video preview. Send to and sessions remain. It is the
+canonical template for the other tool pages.
 
 - **Spec:** [converter.md](features/converter.md).
+- **Native evidence:** `slint/native:crates/halation-app/src/converter.rs` (controller and jobs),
+  `ui/pages/converter.slint` (page), `catalog.rs:33-40` (available) and `navigation.rs:2-35` (page).
 - **Tauri origin:** `main:app/dist/convert.js`, `convert.html`, `convert.css`; backend
   `main:app/src-tauri/src/convert.rs` (probe, planning, image/PDF paths) and `encode.rs` (FFmpeg plans), component
   install in `tools.rs`.
@@ -89,8 +124,8 @@ reference. No native page or conversion engine.
   registry, with images usable without FFmpeg (`modules.js:23`).
 - **Reference behaviour:** content-based detection, curated input → output table, copy-before-re-encode, fixed
   defaults per format, batch groups, document/PDF v2 paths, `.part` files and cancellation.
-- **Gaps:** all of it in native: detection, plan, image encoders, FFmpeg/Pandoc/LibreOffice/PDFium orchestration,
-  previews, batch UI and sessions.
+- **Gaps:** Send to, sessions and the document/PDF v2 paths; the media conversion, preview and FFmpeg install are
+  native. Documents remain out of scope for this pass.
 
 ### Vocal Remover
 
@@ -205,15 +240,17 @@ reference. No native page or conversion engine.
 
 ## Cross-cutting gaps
 
-1. **No tool page or controller.** Only Home, Library, Jobs and Settings exist as pages; a tool page needs a
-   navigation entry and a Rust service, not UI state in a Slint page instance.
-2. **No engine lifecycle.** Components are a static list; nothing installs, locates, validates or reports an engine.
-3. **No job submission from tools.** The core queue exists, but no tool submits work, reports progress, cancels or
-   records an output.
-4. **No save/export integration.** The destination policy is specified but unused; every tool still needs to call it
-   and to record exports in the Library/session.
-5. **No visual contract.** These specs fix behaviour, not layout. Any native page will be a new clean-room design
-   and "implemented, pending visual review" until Java approves it in the native window.
+1. **Tool pages and controllers.** Converter has a page and a Rust controller; the other nine need both, with UI state
+   in Rust services, not in a Slint page instance.
+2. **Engine lifecycle.** Converter installs and locates FFmpeg; the other nine have a static component list and no
+   install, validation or engine status.
+3. **Job submission.** Converter submits media and component jobs; the other nine do not submit work, report progress,
+   cancel or record an output.
+4. **Save/export integration.** Converter uses the destination policy; the other nine still need to call it and record
+   exports in the Library/session.
+5. **Visual implementation.** The shared contract is fixed above, but the nine pages are not built. Each one must use
+   Converter's template and is "implemented, pending visual review" until Java approves it in the native window; a
+   page with a tool-specific style is not done.
 6. **Licences stay with the component.** yt-dlp is Unlicense, FFmpeg is GPL-3.0, upscayl-ncnn and the
    Upscayl-published models are AGPL-3.0, SPAN's runner is AGPL-3.0 (its models keep the upstream licences), and the
    "Sharp" model is CC BY-NC-SA 4.0 (results non-commercial). If Halation ever mirrors a build instead of downloading
@@ -222,8 +259,12 @@ reference. No native page or conversion engine.
 
 ## Sources
 
-- Native: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`; `crates/halation-app/ui/app.slint`,
-  `ui/pages/home.slint`, `ui/pages/settings.slint`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`.
+- Native on `slint/native`: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`;
+  `crates/halation-app/ui/app.slint`, `ui/pages/converter.slint`, `ui/pages/home.slint`,
+  `ui/pages/settings.slint`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`.
+- Design: [planning/active/ui-redesign.md](../planning/active/ui-redesign.md),
+  [features/material.md](features/material.md), [features/themes.md](features/themes.md),
+  [features/motion.md](features/motion.md). `docs/MOTION.md` is the Tauri document.
 - Tauri on `main`: `app/dist/modules.js`, the ten tool pages and modules, `app/src-tauri/src/{tools,download,convert,
   encode,stems,interp,framegrab,cutout,presets}.rs`.
 - Existing specs linked above; new specs written in this change for Downloader, Audio Visualizer, Upscale and Frame

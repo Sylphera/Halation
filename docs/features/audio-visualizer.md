@@ -2,6 +2,8 @@
 
 Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
 
+UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+
 The Audio Visualizer renders a square cover and an audio track into a video: a background built from the cover, the
 cover itself, optional text and logo, bass-reactive motion, vignette/grain/fades, and an export as one MP4 or as
 separate layers for editing. This spec records the verified Tauri schema, defaults, presets and export rules so the

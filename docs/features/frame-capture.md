@@ -2,6 +2,8 @@
 
 Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
 
+UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+
 Frame Capture opens a video, shows an exact frame, and exports one or more frames as full-size PNGs, optionally cut
 to a layout. It is a viewer first: timeline, keyframe strip, frame stepping, playback with sound and a sharpest-frame
 finder. This spec records the behaviour verified in the Tauri app so the native app can reproduce it without copying

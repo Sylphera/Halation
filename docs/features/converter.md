@@ -1,6 +1,12 @@
 # Converter — Especificación v1 y v2
 
-Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
+Status: Partial — native media Converter implemented and approved by Java in the native window on `slint/native`
+(2026-10-22): tool frame, plans, jobs, FFmpeg installation, audio and video preview. Send to and sessions remain.
+Implemented in the Tauri app on `main`.
+
+Native layout follows the approved tool frame, not the historical Tauri layout below; documents remain out of scope.
+
+UI contract: this page is the canonical template for the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools); the other nine pages copy its frame, components, tokens, surfaces, typography and motion. No tool-specific visual style.
 
 Save/export destinations now follow [the global save & export policy](save-location.md). This supersedes the tool-specific destination preferences and first-export folder prompt described below; processing and format behavior is unchanged.
 
@@ -10,7 +16,7 @@ audio, vídeo e imagen con FFmpeg (ya es componente de Halation) y librerías Ru
 `encoder.js`, `THIRD_PARTY.md`, `LICENSE` 1.1. Propuesta sin código. **[C]** comprobado (código, documentación
 oficial o fuente citada) · **[I]** inferido.
 
-Prioridad: aparcada detrás de Vocal Remover.
+Native priority: Java selected the full media Converter as the first tool (2026-10-22), ahead of Vocal Remover.
 
 ---
 
