@@ -1248,8 +1248,8 @@ pub fn capture_name(input: &Path, n: u64) -> String {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Destination {
-    #[default]
     Library,
+    #[default]
     Image,
 }
 
@@ -1309,7 +1309,7 @@ impl Default for Session {
             muted: false,
             layout: Layout::Widescreen.id().into(),
             crops: BTreeMap::new(),
-            destination: Destination::Library.id().into(),
+            destination: Destination::Image.id().into(),
             queue: Vec::new(),
         }
     }

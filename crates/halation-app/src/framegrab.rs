@@ -150,6 +150,7 @@ struct State {
     sharp_note: String,
     left_open: bool,
     inspector_open: bool,
+    inspector_tab: i32,
     scrubbing: bool,
     last_scrub: Option<(Instant, u64)>,
     keys: Vec<u64>,
@@ -282,6 +283,8 @@ impl FrameCapture {
         let controller = self.clone();
         ui.on_frame_action(move |action| controller.action(action.as_str()));
         let controller = self.clone();
+        ui.on_frame_inspector_tab_selected(move |tab| controller.set_inspector_tab(tab));
+        let controller = self.clone();
         ui.on_frame_select(move |index| controller.select_row(index));
         let controller = self.clone();
         ui.on_frame_toggle(move |index| controller.toggle_row(index));
@@ -299,8 +302,6 @@ impl FrameCapture {
         ui.on_frame_crop_set(move |x, y| controller.crop_set(f64::from(x), f64::from(y)));
         let controller = self.clone();
         ui.on_frame_crop_move(move |dx, dy| controller.crop_move(f64::from(dx), f64::from(dy)));
-        let controller = self.clone();
-        ui.on_frame_seek(move |fraction| controller.seek(f64::from(fraction)));
         let controller = self.clone();
         ui.on_frame_volume_changed(move |value| controller.set_volume(value));
         let controller = self.clone();
@@ -326,7 +327,10 @@ impl FrameCapture {
         let first = !self.state.borrow().opened;
         self.state.borrow_mut().opened = true;
         if first && let Some(ui) = self.weak.upgrade() {
-            self.state.borrow_mut().left_open = ui.window().size().width >= 1180;
+            let wide = ui.window().size().width >= 1180;
+            let mut state = self.state.borrow_mut();
+            state.left_open = true;
+            state.inspector_open = wide;
         }
         let (has_video, n) = {
             let state = self.state.borrow();
@@ -928,17 +932,41 @@ impl FrameCapture {
             "toggle-queue" => {
                 let mut state = self.state.borrow_mut();
                 state.left_open = !state.left_open;
+                if state.left_open
+                    && self
+                        .weak
+                        .upgrade()
+                        .is_some_and(|ui| ui.window().size().width < 1180)
+                {
+                    state.inspector_open = false;
+                }
                 drop(state);
                 self.refresh();
             }
             "toggle-inspector" => {
                 let mut state = self.state.borrow_mut();
                 state.inspector_open = !state.inspector_open;
+                if state.inspector_open
+                    && self
+                        .weak
+                        .upgrade()
+                        .is_some_and(|ui| ui.window().size().width < 1180)
+                {
+                    state.left_open = false;
+                }
                 drop(state);
                 self.refresh();
             }
             _ => {}
         }
+    }
+
+    fn set_inspector_tab(self: &Rc<Self>, tab: i32) {
+        if !(0..=1).contains(&tab) || self.state.borrow().inspector_tab == tab {
+            return;
+        }
+        self.state.borrow_mut().inspector_tab = tab;
+        self.refresh();
     }
 
     fn step(self: &Rc<Self>, delta: i64) {
@@ -1095,18 +1123,6 @@ impl FrameCapture {
         }
         let n = self.state.borrow().n;
         self.show_exact(n);
-    }
-
-    fn seek(self: &Rc<Self>, fraction: f64) {
-        self.stop_playback();
-        let n = {
-            let state = self.state.borrow();
-            let Some(info) = &state.video else {
-                return;
-            };
-            info.frame_at(fraction.clamp(0.0, 1.0) * info.duration.max(0.0))
-        };
-        self.go_to(n);
     }
 
     fn crop_for(&self, state: &State) -> Crop {
@@ -2209,7 +2225,24 @@ impl FrameCapture {
         ui.set_frame_message(state.message.as_str().into());
         ui.set_frame_left_open(state.left_open);
         ui.set_frame_inspector_open(state.inspector_open);
+        ui.set_frame_inspector_tab(state.inspector_tab);
         ui.set_frame_selected_count(state.queue.selected().len() as i32);
+        ui.set_frame_action_label(
+            strings
+                .fill(
+                    "capture_action",
+                    &[("n", state.queue.selected().len().to_string())],
+                )
+                .into(),
+        );
+        ui.set_frame_queue_count_label(
+            strings
+                .fill(
+                    "queue_count_label",
+                    &[("n", state.queue.items().len().to_string())],
+                )
+                .into(),
+        );
         ui.set_frame_can_capture(
             info.is_some()
                 && state.ffmpeg.is_some()
@@ -2865,12 +2898,47 @@ mod tests {
         i_slint_backend_testing::init_no_event_loop();
         let ui = AppWindow::new().unwrap();
         ui.show().unwrap();
+        ui.window().set_size(slint::PhysicalSize::new(960, 600));
         let dir = TestDir::new();
         let profile = Profile::at(dir.path().join("profile"));
         profile.ensure().unwrap();
         let video = make_video(dir.path(), 10, 25);
         let controller = controller(&ui, &profile);
+        assert_eq!(controller.state.borrow().destination, Destination::Image);
+        assert_eq!(controller.state.borrow().volume, 0.8);
+        assert_eq!(controller.state.borrow().layout, Layout::Widescreen);
+        assert!(controller.state.borrow().sharp_job.is_none());
         controller.open();
+        assert!(controller.state.borrow().left_open);
+        assert!(!controller.state.borrow().inspector_open);
+        ui.set_page(5);
+        let control = slint::SharedString::from(slint::platform::Key::Control);
+        let alt = slint::SharedString::from(slint::platform::Key::Alt);
+        let toggle = |letter: &str| {
+            let key = slint::SharedString::from(letter);
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyPressed {
+                    text: control.clone(),
+                });
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyPressed { text: alt.clone() });
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyPressed { text: key.clone() });
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyReleased { text: key });
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyReleased { text: alt.clone() });
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::KeyReleased {
+                    text: control.clone(),
+                });
+        };
+        toggle("i");
+        assert!(!controller.state.borrow().left_open && controller.state.borrow().inspector_open);
+        assert!(!ui.get_frame_left_open() && ui.get_frame_inspector_open());
+        toggle("b");
+        assert!(controller.state.borrow().left_open && !controller.state.borrow().inspector_open);
+        assert!(ui.get_frame_left_open() && !ui.get_frame_inspector_open());
         controller.begin_open(video.clone(), true, None);
 
         wait(&controller, "the probe", || {
@@ -2878,6 +2946,10 @@ mod tests {
         });
         assert!(ui.get_frame_has_video());
         assert_eq!(ui.get_frame_frames(), 25);
+        ui.invoke_frame_inspector_tab_selected(1);
+        assert_eq!(ui.get_frame_inspector_tab(), 1);
+        ui.invoke_frame_inspector_tab_selected(0);
+        assert_eq!(ui.get_frame_inspector_tab(), 0);
         assert_eq!(controller.state.borrow().n, 0);
         assert_eq!(ui.get_frame_frame_label().as_str(), "Frame 1 of 25");
         wait(&controller, "the first preview", || {
@@ -2969,6 +3041,8 @@ mod tests {
         assert_eq!(controller.queue_model.row_data(0).unwrap().n, 3);
         assert_eq!(controller.queue_model.row_data(1).unwrap().n, 17);
         assert_eq!(ui.get_frame_selected_label().as_str(), "2 selected");
+        assert_eq!(ui.get_frame_queue_count_label().as_str(), "2 / 8");
+        assert_eq!(ui.get_frame_action_label().as_str(), "Capture 2");
         assert!(ui.get_frame_can_capture());
 
         // A crop per layout: the square crop is not full, moving it changes only that layout's crop.
@@ -2988,6 +3062,7 @@ mod tests {
         assert_eq!(controller.state.borrow().crops["1:1"], moved);
 
         // Capture decodes the native frame, applies the crop and writes a PNG, never the preview.
+        controller.set_destination("library");
         controller.capture();
         wait(&controller, "the capture", || {
             let state = controller.state.borrow();

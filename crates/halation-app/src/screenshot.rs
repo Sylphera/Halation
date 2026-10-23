@@ -8,13 +8,18 @@ use crate::app::Controller;
 use crate::folders::{Command, FolderStore};
 use crate::library::{LibraryEntry, write_index};
 use crate::profile::{LaunchOptions, Profile, ScreenshotSpec};
-use crate::ui::AppWindow;
+use crate::strings::Strings;
+use crate::ui::{AppWindow, FrameDestinationRow, FrameLayoutRow, FrameQueueRow, FrameResultRow};
+use halation_core::framegrab::Session;
 use slint::EventLoopError;
 use slint::platform::{
     EventLoopProxy, Platform, PlatformError, WindowAdapter,
     software_renderer::{MinimalSoftwareWindow, RepaintBufferType},
 };
-use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};
+use slint::{
+    ComponentHandle, Image, ModelRc, PhysicalSize, Rgb8Pixel, Rgba8Pixel, SharedPixelBuffer,
+    VecModel,
+};
 use std::{
     collections::VecDeque,
     fs,
@@ -192,7 +197,7 @@ fn profile_tools(out_dir: &Path, page: &str) -> PathBuf {
 }
 
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
-    // home, home-open (sidebar open), settings, settings-<0..7> (a section)
+    // home, home-open (sidebar open), settings, settings-<0..7>, framegrab and Frame Capture synthetic states
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
@@ -205,6 +210,12 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         "converter-ready" => (4, 3, -1),
         "converter-audio" => (4, 4, -1),
         "converter-video" => (4, 5, -1),
+        "framegrab" => (5, 0, -1),
+        "framegrab-ready" => (5, 1, -1),
+        "framegrab-output" => (5, 2, -1),
+        "framegrab-loading" => (5, 10, -1),
+        "framegrab-error" => (5, 11, -1),
+        "framegrab-crop" => (5, 12, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -212,7 +223,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, motion-home, motion-settings or motion-sidebar"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, framegrab, framegrab-ready, framegrab-output, framegrab-loading, framegrab-error, framegrab-crop, motion-home, motion-settings or motion-sidebar"
                 )
                 .into());
             }
@@ -248,11 +259,17 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             size: slint::LogicalSize::new(spec.width as f32, spec.height as f32),
         });
 
+    // Every capture begins from a known synthetic profile, regardless of an earlier screenshot run.
+    fs::write(
+        profile.root().join("frame-capture.json"),
+        serde_json::to_vec(&Session::default())?,
+    )?;
+    fs::write(profile.root().join("frame-capture-results.json"), b"[]")?;
     let controller = Controller::new(ui.as_weak(), profile, LaunchOptions::default())?;
     controller.install(false);
 
     ui.invoke_navigate(page);
-    if mode == 2 {
+    if spec.page == "converter-open" {
         ui.set_rail_open(true);
     }
     pump(&queue, Duration::from_millis(800));
@@ -326,6 +343,171 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.invoke_converter_seek(0.4);
         pump(&queue, Duration::from_millis(2000));
     }
+    if [1, 2, 10, 11, 12].contains(&mode) {
+        // Deterministic, synthetic loaded workspace for layout review; no video decoder or real media is used.
+        let (width, height) = (480_u32, 270_u32);
+        let pixels: Vec<_> = (0..height)
+            .flat_map(|y| {
+                (0..width).map(move |x| {
+                    let band = ((x / 40 + y / 30) % 2) as u8;
+                    [
+                        (x * 180 / width) as u8,
+                        (y * 180 / height) as u8,
+                        42 + band * 48,
+                        255,
+                    ]
+                })
+            })
+            .flatten()
+            .collect();
+        let image = Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+            &pixels, width, height,
+        ));
+        let strings = Strings::frame_capture();
+        ui.set_frame_has_video(true);
+        ui.set_frame_needs_ffmpeg(false);
+        ui.set_frame_has_preview(mode != 10);
+        ui.set_frame_preview(image.clone());
+        ui.set_frame_has_strip(mode != 10);
+        ui.set_frame_strip(image.clone());
+        ui.set_frame_video_width(1920);
+        ui.set_frame_video_height(1080);
+        ui.set_frame_frames(240);
+        ui.set_frame_current(39);
+        ui.set_frame_frame_label(
+            strings
+                .fill("frame_of", &[("n", "40".into()), ("total", "240".into())])
+                .into(),
+        );
+        ui.set_frame_time(
+            strings
+                .fill(
+                    "time_of",
+                    &[("time", "00:01.63".into()), ("duration", "00:10.00".into())],
+                )
+                .into(),
+        );
+        ui.set_frame_clock("00:01.63 / 00:10.00".into());
+        ui.set_frame_position(39.0 / 239.0);
+        ui.set_frame_queue(ModelRc::new(VecModel::from(vec![
+            FrameQueueRow {
+                index: 0,
+                n: 39,
+                label: strings.fill("frame_short", &[("n", "40".into())]).into(),
+                time: "00:01.63".into(),
+                selected: true,
+                thumb: image.clone(),
+            },
+            FrameQueueRow {
+                index: 1,
+                n: 127,
+                label: strings.fill("frame_short", &[("n", "128".into())]).into(),
+                time: "00:05.29".into(),
+                selected: true,
+                thumb: image.clone(),
+            },
+        ])));
+        ui.set_frame_queue_count_label(
+            strings
+                .fill("queue_count_label", &[("n", "2".into())])
+                .into(),
+        );
+        ui.set_frame_action_label(strings.fill("capture_action", &[("n", "2".into())]).into());
+        ui.set_frame_inspector_tab(if mode == 2 { 1 } else { 0 });
+        if mode == 2 && spec.width < 1180 {
+            // At compact widths the queue and inspector switch so each can have a usable canvas beside it.
+            ui.set_frame_left_open(false);
+            ui.set_frame_inspector_open(true);
+        }
+        ui.set_frame_selected_count(2);
+        ui.set_frame_selected_label(strings.fill("selected_count", &[("n", "2".into())]).into());
+        ui.set_frame_can_capture(mode != 10);
+        ui.set_frame_busy(mode == 10);
+        ui.set_frame_message(if mode == 11 {
+            strings
+                .fill(
+                    "frame_failed",
+                    &[
+                        ("n", "40".into()),
+                        ("error", strings.get("synthetic_decode_error").to_owned()),
+                    ],
+                )
+                .into()
+        } else {
+            Default::default()
+        });
+        if mode == 10 {
+            ui.set_frame_progress(0.5);
+            ui.set_frame_progress_label(strings.get("analysing").into());
+        }
+        if mode == 12 {
+            ui.set_frame_layouts(ModelRc::new(VecModel::from(vec![
+                FrameLayoutRow {
+                    id: "16:9".into(),
+                    label: strings.get("layout_16_9").into(),
+                    detail: strings.get("layout_16_9_detail").into(),
+                    selected: false,
+                },
+                FrameLayoutRow {
+                    id: "9:16".into(),
+                    label: strings.get("layout_9_16").into(),
+                    detail: strings.get("layout_9_16_detail").into(),
+                    selected: false,
+                },
+                FrameLayoutRow {
+                    id: "1:1".into(),
+                    label: strings.get("layout_1_1").into(),
+                    detail: strings.get("layout_1_1_detail").into(),
+                    selected: true,
+                },
+                FrameLayoutRow {
+                    id: "4:5".into(),
+                    label: strings.get("layout_4_5").into(),
+                    detail: strings.get("layout_4_5_detail").into(),
+                    selected: false,
+                },
+                FrameLayoutRow {
+                    id: "original".into(),
+                    label: strings.get("layout_original_label").into(),
+                    detail: strings.get("layout_original").into(),
+                    selected: false,
+                },
+            ])));
+            ui.set_frame_crop_visible(true);
+            ui.set_frame_crop_x(0.21875);
+            ui.set_frame_crop_y(0.0);
+            ui.set_frame_crop_w(0.5625);
+            ui.set_frame_crop_h(1.0);
+        }
+        ui.set_frame_destinations(ModelRc::new(VecModel::from(vec![
+            FrameDestinationRow {
+                id: "library".into(),
+                label: strings.get("destination_library").into(),
+                detail: strings.get("library_detail").into(),
+                selected: false,
+            },
+            FrameDestinationRow {
+                id: "image".into(),
+                label: strings.get("destination_image").into(),
+                detail: strings.get("image_detail").into(),
+                selected: true,
+            },
+        ])));
+        ui.set_frame_results(ModelRc::new(VecModel::from(vec![FrameResultRow {
+            index: 0,
+            name: strings.get("synthetic_result_name").into(),
+            detail: strings
+                .fill(
+                    "result_detail",
+                    &[
+                        ("time", "00:05.29".into()),
+                        ("size", "1920\u{00d7}1080".into()),
+                    ],
+                )
+                .into(),
+            path: "synthetic/sample - frame 128.png".into(),
+        }])));
+    }
     if section >= 0 {
         // After the page has laid out, so the section tops are known
         ui.set_settings_jump(section);
@@ -334,6 +516,13 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.set_settings_jump(-1);
         ui.set_settings_jump(section);
         pump(&queue, Duration::from_millis(300));
+    }
+
+    if page == 5 {
+        // A stable panel arrangement for the synthetic review fixture: both at 1440, queue-first at 960.
+        let compact = spec.width < 1180;
+        ui.set_frame_left_open(mode != 2 || !compact);
+        ui.set_frame_inspector_open(!compact || mode == 2);
     }
 
     if (6..=8).contains(&mode) {

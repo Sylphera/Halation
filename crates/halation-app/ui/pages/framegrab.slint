@@ -4,15 +4,19 @@ import {
     FrameQueueRow, FrameLayoutRow, FrameDestinationRow, FrameResultRow, FrameStrings,
 } from "../models.slint";
 import { AppButton } from "../components/button.slint";
+import { Segmented } from "../components/controls.slint";
 import { ToolIcon } from "../icons.slint";
 import { RoundButton, Scrubber, Transport } from "../components/media.slint";
 import { Motion, Curve } from "../motion.slint";
 
-// Frame Capture: the Converter's frame (queue / canvas / inspector), with the video, timeline and crop. Rust owns
-// every decoded frame, the queue, the session and the files; this page only presents them.
+// Frame Capture follows the Figma tool frame: queue, canvas, dock and a tabbed inspector. Rust owns every decoded
+// frame, the queue, the session and the files; this page only presents them.
 export component FrameCapturePage inherits Rectangle {
     in property <FrameStrings> strings;
     in property <[FrameQueueRow]> queue;
+    in property <string> queue-count-label;
+    in property <string> action-label;
+    in property <int> inspector-tab: 0;
     in property <[FrameLayoutRow]> layouts;
     in property <[FrameDestinationRow]> destinations;
     in property <[FrameResultRow]> results;
@@ -49,6 +53,7 @@ export component FrameCapturePage inherits Rectangle {
     in property <bool> left-open: true;
     in property <bool> inspector-open: true;
     callback action(string);
+    callback inspector-tab-selected(int);
     callback select(int);
     callback toggle(int);
     callback remove(int);
@@ -58,16 +63,15 @@ export component FrameCapturePage inherits Rectangle {
     callback scrub-end(float);
     callback crop-set(float, float);
     callback crop-move(float, float);
-    callback seek(float);
     callback volume-changed(float);
     callback file-dropped(data-transfer);
     callback reveal(int);
 
     background: Theme.canvas-deep;
-    // The transport needs about 400 px. Below that the canvas would not fit, so the side panels give way: the
-    // inspector stays until the page is narrower than canvas + inspector, and the queue needs canvas + both panels.
-    property <length> queue-width: root.left-open && root.width >= (root.inspector-open ? 900px : 620px) ? 220px : 0px;
-    property <length> inspector-width: root.inspector-open && root.width >= (root.left-open ? 900px : 680px) ? 280px : 0px;
+    // Preserve at least 400 px of canvas: show both panels when they fit, then queue-only, then inspector-only.
+    property <length> queue-width: root.left-open && root.width >= 620px ? 220px : 0px;
+    property <length> inspector-width: root.inspector-open && root.width >= 680px
+        && (!root.left-open || root.width >= 900px) ? 280px : 0px;
     animate queue-width, inspector-width { duration: Motion.panel; easing: Curve.ease; }
 
     init => { keys.focus(); }
@@ -77,6 +81,12 @@ export component FrameCapturePage inherits Rectangle {
         width: parent.width;
         height: parent.height;
         key-pressed(event) => {
+            if event.modifiers.control && event.modifiers.alt && (event.text == "b" || event.text == "B") {
+                root.action("toggle-queue"); return accept;
+            }
+            if event.modifiers.control && event.modifiers.alt && (event.text == "i" || event.text == "I") {
+                root.action("toggle-inspector"); return accept;
+            }
             if (event.text == Key.Space) { root.action("play"); return accept; }
             if (event.text == Key.LeftArrow) { root.action(event.modifiers.shift ? "second-back" : "prev"); return accept; }
             if (event.text == Key.RightArrow) { root.action(event.modifiers.shift ? "second-forward" : "next"); return accept; }
@@ -102,13 +112,13 @@ export component FrameCapturePage inherits Rectangle {
             Rectangle {
                 height: 36px;
                 Text { x: 16px; height: parent.height; text: root.strings.queue; color: Theme.text; font-weight: 600; vertical-alignment: center; }
-                Text { x: parent.width - 58px; width: 44px; height: parent.height; text: root.strings.queue_count; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
+                Text { x: parent.width - 58px; width: 44px; height: parent.height; text: root.queue-count-label; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
                 Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
             }
             if root.queue.length == 0 : VerticalLayout {
-                padding: 14px; spacing: 6px; alignment: start;
-                Text { text: root.strings.queue_empty; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
-                Text { text: root.strings.keys_hint; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                padding: 12px; spacing: 8px; alignment: start;
+                Text { text: root.strings.queue_empty; color: Theme.text; font-size: Theme.font-body; wrap: word-wrap; }
+                Text { text: root.has-video ? root.strings.add_frame : root.strings.empty_title; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
             }
             ListView {
                 for row in root.queue : FocusScope {
@@ -203,8 +213,39 @@ export component FrameCapturePage inherits Rectangle {
             x: 0px; y: 0px; width: parent.width; height: parent.height;
             padding: 0px; spacing: 0px;
 
+            Rectangle {
+                height: 36px;
+                HorizontalLayout {
+                    padding-left: 12px; padding-right: 12px; spacing: 8px;
+                    Text { horizontal-stretch: 1; text: root.has-video ? root.frame-label : root.strings.title; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
+                    AppButton {
+                        text: root.has-video ? root.strings.open : root.strings.browse;
+                        small: true; enabled: !root.busy && !root.needs-ffmpeg;
+                        clicked => { root.action("open"); }
+                    }
+                    AppButton {
+                        text: root.queue-width > 0px ? root.strings.hide_queue : root.strings.show_queue;
+                        small: true; quiet: true;
+                        clicked => { root.action("toggle-queue"); }
+                    }
+                    AppButton {
+                        text: root.inspector-width > 0px ? root.strings.hide_inspector : root.strings.show_inspector;
+                        small: true; quiet: true;
+                        clicked => { root.action("toggle-inspector"); }
+                    }
+                }
+                Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
+            }
             preview := Rectangle {
-                horizontal-stretch: 1; vertical-stretch: 1;
+                horizontal-stretch: 1;
+                height: max(
+                    parent.height - 36px - (root.has-video ? 64px : 0px)
+                        - (root.has-video ? 40px : 0px)
+                        - (root.has-video && root.progress-label == "" ? 20px : 0px)
+                        - (root.message != "" ? 56px : 0px)
+                        - (root.progress-label != "" ? 28px : 0px),
+                    120px
+                );
                 clip: true;
                 background: Theme.canvas-deep;
                 property <float> scale: min(
@@ -222,6 +263,18 @@ export component FrameCapturePage inherits Rectangle {
                 if root.has-preview : Image {
                     x: preview.ox; y: preview.oy; width: preview.dw; height: preview.dh;
                     source: root.preview; image-fit: contain;
+                }
+                if !root.has-video : VerticalLayout {
+                    x: 20px; y: (parent.height - 150px) / 2; width: parent.width - 40px; height: 150px;
+                    spacing: 8px; alignment: center;
+                    ToolIcon { x: (parent.width - self.width) / 2; size: 36px; name: "framegrab"; tint: Theme.muted; }
+                    Text { text: root.strings.empty_title; color: Theme.text; font-size: Theme.font-heading; horizontal-alignment: center; }
+                    Text { text: root.strings.empty_hint; color: Theme.subtle; font-size: Theme.font-body; wrap: word-wrap; horizontal-alignment: center; }
+                    HorizontalLayout {
+                        alignment: center; spacing: 8px;
+                        AppButton { text: root.strings.browse; enabled: !root.busy && !root.needs-ffmpeg; clicked => { root.action("open"); } }
+                        if root.needs-ffmpeg : AppButton { text: root.strings.install; enabled: !root.installing && !root.busy; clicked => { root.action("install"); } }
+                    }
                 }
                 if root.has-video && !root.has-preview : Rectangle {
                     x: 24px; y: 24px; width: parent.width - 48px; height: parent.height - 48px;
@@ -288,8 +341,8 @@ export component FrameCapturePage inherits Rectangle {
             }
 
             // Timeline: the keyframe strip, queued ticks and the playhead. Dragging scrubs; releasing settles exactly.
-            timeline := FocusScope {
-                height: 76px;
+            if root.has-video : timeline := FocusScope {
+                height: 64px;
                 accessible-role: slider;
                 accessible-label: root.strings.timeline;
                 accessible-value: root.frame-label;
@@ -302,7 +355,7 @@ export component FrameCapturePage inherits Rectangle {
                 }
                 property <bool> holding: false;
                 Rectangle {
-                    x: 8px; y: 8px; width: parent.width - 16px; height: 36px;
+                    x: 8px; y: 4px; width: parent.width - 16px; height: 36px;
                     border-radius: 4px; background: Theme.chrome; border-width: 1px; border-color: Theme.line;
                     clip: true;
                     if root.has-strip : Image {
@@ -322,8 +375,8 @@ export component FrameCapturePage inherits Rectangle {
                         y: 0px; width: 2px; height: parent.height; background: Theme.text;
                     }
                 }
-                Text { x: 10px; y: 50px; height: 18px; text: root.frame-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; }
-                Text { x: parent.width - 190px; width: 180px; y: 50px; height: 18px; text: root.time; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
+                Text { x: 10px; y: 44px; height: 18px; text: root.frame-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; }
+                Text { x: parent.width - 190px; width: 180px; y: 44px; height: 18px; text: root.time; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
                 touch := TouchArea {
                     mouse-cursor: pointer;
                     property <float> fraction: clamp(self.mouse-x / max(self.width, 1px), 0, 1);
@@ -343,19 +396,6 @@ export component FrameCapturePage inherits Rectangle {
                 }
             }
 
-            Rectangle {
-                height: 36px;
-                Transport {
-                    x: 8px; y: 0px; width: parent.width - 16px;
-                    track: true;
-                    playing: root.playing; clock: root.clock; position: root.position; volume: root.volume;
-                    back-name: root.strings.back_one; forward-name: root.strings.forward_one;
-                    action(name) => { root.action(name); }
-                    seek(fraction) => { root.seek(fraction); }
-                    volume-changed(value) => { root.volume-changed(value); }
-                }
-            }
-
             if root.message != "" : Rectangle {
                 height: 56px; background: Theme.chrome;
                 Text { x: 12px; y: 6px; width: parent.width - 24px; height: 44px; text: root.message; color: Theme.muted; wrap: word-wrap; overflow: elide; }
@@ -365,36 +405,29 @@ export component FrameCapturePage inherits Rectangle {
                 Text { x: 12px; width: parent.width - 24px; height: 24px; text: root.progress-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
                 Rectangle { x: 0px; y: parent.height - 3px; width: parent.width * root.progress; height: 3px; background: Theme.accent; }
             }
+            if root.has-video && root.progress-label == "" : Rectangle {
+                height: 20px;
+                Text { x: 12px; width: parent.width - 24px; height: 20px; text: root.strings.keys_hint; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
+            }
 
-            Rectangle {
-                height: 64px; background: Theme.chrome;
+            if root.has-video : Rectangle {
+                height: 40px; background: Theme.chrome;
                 Rectangle { x: 0px; y: 0px; height: 1px; width: parent.width; background: Theme.line; }
                 HorizontalLayout {
-                    padding-left: 16px; padding-right: 16px; spacing: 8px;
-                    Text {
+                    padding-left: 8px; padding-right: 8px; spacing: 6px;
+                    Transport {
                         horizontal-stretch: 1;
-                        text: root.has-video ? root.strings.keys_hint : root.strings.summary;
-                        color: Theme.subtle; vertical-alignment: center; overflow: elide;
+                        height: 36px;
+                        playing: root.playing; clock: root.clock; position: root.position; volume: root.volume;
+                        back-name: root.strings.back_one; forward-name: root.strings.forward_one;
+                        action(name) => { root.action(name); }
+                        volume-changed(value) => { root.volume-changed(value); }
                     }
-                    if root.has-video : AppButton { text: root.strings.sharpest_button; quiet: true; small: true; clicked => { root.action("sharp"); } }
-                    if root.has-video : AppButton { text: root.strings.add_frame; quiet: true; small: true; clicked => { root.action("add"); } }
+                    AppButton { text: root.strings.sharpest_button; quiet: true; small: true; clicked => { root.action("sharp"); } }
+                    AppButton { text: root.strings.add_frame; quiet: true; small: true; clicked => { root.action("add"); } }
                 }
             }
 
-            if !root.has-video : VerticalLayout {
-                padding: 24px; spacing: 14px; alignment: center;
-                Rectangle {
-                    height: 56px;
-                    ToolIcon { x: (parent.width - self.width) / 2; size: 40px; name: "framegrab"; tint: Theme.muted; }
-                }
-                Text { text: root.strings.empty_title; color: Theme.text; font-size: Theme.font-heading; horizontal-alignment: center; overflow: elide; }
-                Text { text: root.strings.empty_hint; color: Theme.subtle; wrap: word-wrap; horizontal-alignment: center; }
-                HorizontalLayout {
-                    alignment: center; spacing: 8px;
-                    AppButton { text: root.strings.browse; enabled: !root.busy; clicked => { root.action("open"); } }
-                }
-                if root.needs-ffmpeg : Text { text: root.strings.needs_ffmpeg_hint; color: Theme.warning; font-size: Theme.font-caption; horizontal-alignment: center; wrap: word-wrap; }
-            }
             DropArea {
                 can-drop(event) => { root.busy ? DragAction.none : DragAction.copy }
                 dropped(event) => { root.file-dropped(event.data); event.proposed-action }
@@ -409,18 +442,23 @@ export component FrameCapturePage inherits Rectangle {
         width: root.inspector-width; height: parent.height;
         background: Theme.chrome;
         accessible-role: groupbox;
-        accessible-label: root.strings.capture;
+        accessible-label: root.strings.inspector;
         Rectangle { x: 0px; y: 0px; width: 1px; height: parent.height; background: Theme.line; }
         VerticalLayout {
             x: 0px; y: 0px; width: parent.width; height: parent.height;
             spacing: 0px;
             Rectangle {
                 height: 36px;
-                Text { x: 14px; height: parent.height; text: root.strings.capture; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                Segmented {
+                    x: 8px; y: 2px; width: parent.width - 16px; height: 32px;
+                    options: [root.strings.inspector_capture, root.strings.output];
+                    current: root.inspector-tab;
+                    label: root.strings.inspector_tabs;
+                    chosen(index) => { root.inspector-tab-selected(index); }
+                }
                 Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
             }
-            // The inspector's body scrolls: at 960x600 the layouts, destinations, actions and results do not fit. The
-            // header above stays put.
+            // The inspector's 36 px tab row stays fixed; its selected pane scrolls independently.
             flick := Flickable {
                 vertical-stretch: 1;
                 content-width: self.width;
@@ -428,136 +466,120 @@ export component FrameCapturePage inherits Rectangle {
                 pane := VerticalLayout {
                     x: 0px; y: 0px; width: root.inspector-width - 1px; height: self.preferred-height;
                     spacing: 0px;
-            if root.needs-ffmpeg : Rectangle {
-                height: 92px;
+            if root.inspector-tab == 0 && root.needs-ffmpeg : Rectangle {
+                height: 76px;
                 VerticalLayout {
                     padding: 12px; spacing: 6px;
                     Text { text: root.strings.needs_ffmpeg; color: Theme.muted; wrap: word-wrap; }
                     AppButton { text: root.strings.install; small: true; enabled: !root.installing && !root.busy; clicked => { root.action("install"); } }
-                    Text { text: root.strings.install_note; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                    if root.installing : Text { text: root.progress-label; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; overflow: elide; }
                 }
             }
-            Rectangle {
-                height: 26px;
-                Text { x: 14px; height: parent.height; text: root.strings.layout; color: Theme.text; font-weight: 600; vertical-alignment: center; }
-            }
-            for row in root.layouts : FocusScope {
-                height: 34px;
-                focus-on-tab-navigation: true;
-                accessible-role: button;
-                accessible-label: root.strings.layout + ": " + row.label;
-                accessible-action-default => { root.layout(row.id); }
-                key-pressed(event) => {
-                    if (event.text == Key.Return || event.text == Key.Space) { root.layout(row.id); accept } else { reject }
-                }
-                Rectangle { background: row.selected ? Theme.control-active : layout-touch.has-hover ? Theme.control-hover : transparent; }
-                Rectangle {
-                    x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
-                    background: row.selected ? Theme.accent : transparent;
-                    border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
-                }
-                Text { x: 32px; y: 0px; width: 76px; height: parent.height; text: row.label; color: Theme.text; font-size: Theme.font-body; vertical-alignment: center; overflow: elide; }
-                Text { x: 108px; y: 0px; width: parent.width - 118px; height: parent.height; text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
-                layout-touch := TouchArea { clicked => { root.layout(row.id); } }
-            }
-            Rectangle {
-                height: 26px;
-                Rectangle { y: 0px; width: parent.width; height: 1px; background: Theme.line; }
-                Text { x: 14px; height: parent.height; text: root.strings.destination; color: Theme.text; font-weight: 600; vertical-alignment: center; }
-            }
-            for row in root.destinations : FocusScope {
-                height: 40px;
-                focus-on-tab-navigation: true;
-                accessible-role: button;
-                accessible-label: root.strings.destination + ": " + row.label;
-                accessible-action-default => { root.destination(row.id); }
-                key-pressed(event) => {
-                    if (event.text == Key.Return || event.text == Key.Space) { root.destination(row.id); accept } else { reject }
-                }
-                Rectangle { background: row.selected ? Theme.control-active : destination-touch.has-hover ? Theme.control-hover : transparent; }
-                Rectangle {
-                    x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
-                    background: row.selected ? Theme.accent : transparent;
-                    border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
-                }
-                VerticalLayout {
-                    x: 32px; y: 0px; width: parent.width - 42px; height: parent.height;
-                    padding-top: 4px; padding-bottom: 4px; spacing: 1px;
-                    Text { text: row.label; color: Theme.text; font-size: Theme.font-body; overflow: elide; }
-                    Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
-                }
-                destination-touch := TouchArea { clicked => { root.destination(row.id); } }
-            }
-            Text {
-                x: 14px; width: parent.width - 28px; height: 34px;
-                text: root.strings.back_send_note; color: Theme.subtle; font-size: Theme.font-caption;
+            if root.inspector-tab == 0 && !root.has-video && !root.needs-ffmpeg : Text {
+                x: 14px; width: parent.width - 28px; height: 44px;
+                text: root.strings.choose_video; color: Theme.subtle; font-size: Theme.font-caption;
                 vertical-alignment: center; wrap: word-wrap;
             }
-            Rectangle {
-                height: 40px;
-                VerticalLayout {
-                    padding-left: 12px; padding-right: 12px; spacing: 2px; alignment: center;
-                    AppButton {
-                        text: root.can-capture ? root.strings.capture : root.strings.capture_none;
-                        primary: true; small: true;
-                        enabled: root.can-capture && !root.busy;
-                        clicked => { root.action("capture"); }
+            if root.inspector-tab == 0 && root.has-video : VerticalLayout {
+                Rectangle {
+                    height: 26px;
+                    Text { x: 14px; height: parent.height; text: root.strings.layout; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                }
+                for row in root.layouts : FocusScope {
+                    height: 40px;
+                    focus-on-tab-navigation: true;
+                    accessible-role: button;
+                    accessible-label: root.strings.layout + ": " + row.label;
+                    accessible-action-default => { root.layout(row.id); }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == Key.Space) { root.layout(row.id); accept } else { reject }
                     }
+                    Rectangle { background: row.selected ? Theme.control-active : layout-touch.has-hover ? Theme.control-hover : transparent; }
+                    Rectangle {
+                        x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
+                        background: row.selected ? Theme.accent : transparent;
+                        border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
+                    }
+                    VerticalLayout {
+                        x: 32px; y: 0px; width: parent.width - 42px; height: parent.height;
+                        padding-top: 4px; padding-bottom: 4px; spacing: 1px;
+                        Text { text: row.label; color: Theme.text; font-size: Theme.font-body; overflow: elide; }
+                        Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                    }
+                    layout-touch := TouchArea { clicked => { root.layout(row.id); } }
+                }
+                if root.crop-visible : Text {
+                    x: 14px; width: parent.width - 28px; height: 42px;
+                    text: root.strings.crop_hint; color: Theme.subtle; font-size: Theme.font-caption;
+                    vertical-alignment: center; wrap: word-wrap;
+                }
+                Rectangle {
+                    height: 26px;
+                    Rectangle { y: 0px; width: parent.width; height: 1px; background: Theme.line; }
+                    Text { x: 14px; height: parent.height; text: root.strings.destination; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                }
+                for row in root.destinations : FocusScope {
+                    height: 40px;
+                    focus-on-tab-navigation: true;
+                    accessible-role: button;
+                    accessible-label: root.strings.destination + ": " + row.label;
+                    accessible-action-default => { root.destination(row.id); }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == Key.Space) { root.destination(row.id); accept } else { reject }
+                    }
+                    Rectangle { background: row.selected ? Theme.control-active : destination-touch.has-hover ? Theme.control-hover : transparent; }
+                    Rectangle {
+                        x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
+                        background: row.selected ? Theme.accent : transparent;
+                        border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
+                    }
+                    VerticalLayout {
+                        x: 32px; y: 0px; width: parent.width - 42px; height: parent.height;
+                        padding-top: 4px; padding-bottom: 4px; spacing: 1px;
+                        Text { text: row.label; color: Theme.text; font-size: Theme.font-body; overflow: elide; }
+                        Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                    }
+                    destination-touch := TouchArea { clicked => { root.destination(row.id); } }
+                }
+                if root.selected-count == 0 : Text {
+                    x: 14px; width: parent.width - 28px; height: 28px;
+                    text: root.strings.capture_none; color: Theme.subtle; font-size: Theme.font-caption;
+                    vertical-alignment: center; wrap: word-wrap;
                 }
             }
-            Text {
-                x: 14px; width: parent.width - 28px; height: 30px;
-                text: root.strings.crop_hint; color: Theme.subtle; font-size: Theme.font-caption;
-                vertical-alignment: center; wrap: word-wrap;
-            }
-            Text {
-                x: 14px; width: parent.width - 28px; height: 26px;
-                text: root.strings.sound_note; color: Theme.subtle; font-size: Theme.font-caption;
-                vertical-alignment: center; wrap: word-wrap; overflow: elide;
-            }
-            if root.busy : HorizontalLayout {
-                height: 30px; padding-left: 12px; padding-right: 12px; spacing: 8px;
-                AppButton { text: root.strings.cancel; small: true; quiet: true; clicked => { root.action("cancel"); } }
-                Text { text: root.progress-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
-            }
-            Rectangle {
-                height: 26px;
-                Rectangle { y: 0px; width: parent.width; height: 1px; background: Theme.line; }
-                Text { x: 14px; height: parent.height; text: root.strings.results; color: Theme.text; font-weight: 600; vertical-alignment: center; }
-                Text { x: parent.width - 54px; width: 40px; height: parent.height; text: root.strings.results_note_title; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
-            }
-            if root.results.length == 0 : Text {
-                x: 14px; width: parent.width - 28px; height: 34px;
-                text: root.strings.results_empty; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center;
-            }
-            // At most `RESULT_KEEP` (12) rows: a plain list inside the scrolling body, not a nested scrolling list.
-            for row in root.results : FocusScope {
-                height: 48px;
-                focus-on-tab-navigation: true;
-                accessible-role: button;
-                accessible-label: row.name + ", " + row.detail;
-                accessible-action-default => { root.reveal(row.index); }
-                key-pressed(event) => {
-                    if (event.text == Key.Return || event.text == Key.Space) { root.reveal(row.index); accept } else { reject }
+            if root.inspector-tab == 1 : VerticalLayout {
+                Rectangle {
+                    height: 26px;
+                    Text { x: 14px; height: parent.height; text: root.strings.results; color: Theme.text; font-weight: 600; vertical-alignment: center; }
                 }
-                Rectangle { background: result-touch.has-hover ? Theme.control-hover : transparent; }
-                VerticalLayout {
-                    x: 14px; y: 0px; width: parent.width - 100px; height: parent.height;
-                    padding-top: 6px; padding-bottom: 6px; spacing: 1px;
-                    Text { text: row.name; color: Theme.text; font-size: Theme.font-caption; overflow: elide; }
-                    Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                if root.results.length == 0 : Text {
+                    x: 14px; width: parent.width - 28px; height: 34px;
+                    text: root.strings.results_empty; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center;
                 }
-                AppButton {
-                    x: parent.width - 92px; y: 10px; width: 80px;
-                    text: root.strings.reveal; small: true; quiet: true;
-                    clicked => { root.reveal(row.index); }
+                // At most 12 result rows; this pane scrolls with the inspector.
+                for row in root.results : FocusScope {
+                    height: 48px;
+                    focus-on-tab-navigation: true;
+                    accessible-role: button;
+                    accessible-label: row.name + ", " + row.detail;
+                    accessible-action-default => { root.reveal(row.index); }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == Key.Space) { root.reveal(row.index); accept } else { reject }
+                    }
+                    Rectangle { background: result-touch.has-hover ? Theme.control-hover : transparent; }
+                    VerticalLayout {
+                        x: 14px; y: 0px; width: parent.width - 100px; height: parent.height;
+                        padding-top: 6px; padding-bottom: 6px; spacing: 1px;
+                        Text { text: row.name; color: Theme.text; font-size: Theme.font-caption; overflow: elide; }
+                        Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                    }
+                    AppButton {
+                        x: parent.width - 92px; y: 10px; width: 80px;
+                        text: root.strings.reveal; small: true; quiet: true;
+                        clicked => { root.reveal(row.index); }
+                    }
+                    result-touch := TouchArea { clicked => { root.reveal(row.index); } }
                 }
-                result-touch := TouchArea { clicked => { root.reveal(row.index); } }
-            }
-            Text {
-                x: 14px; width: parent.width - 28px; height: 32px;
-                text: root.strings.results_note; color: Theme.subtle; font-size: Theme.font-caption;
-                vertical-alignment: center; wrap: word-wrap; overflow: elide;
             }
                 }
             }

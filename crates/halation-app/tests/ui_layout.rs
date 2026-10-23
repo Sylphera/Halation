@@ -262,7 +262,14 @@ fn frame_strings() -> FrameStrings {
     FrameStrings {
         title: "Frame Capture".into(),
         queue: "Queue".into(),
-        capture: "Capture".into(),
+        inspector: "Frame Capture inspector".into(),
+        inspector_tabs: "Frame Capture inspector tabs".into(),
+        inspector_capture: "Capture".into(),
+        output: "Output".into(),
+        show_queue: "Show queue".into(),
+        hide_queue: "Hide queue".into(),
+        show_inspector: "Show inspector".into(),
+        hide_inspector: "Hide inspector".into(),
         timeline: "Timeline".into(),
         crop: "Crop".into(),
         ..Default::default()
@@ -385,9 +392,9 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                     let sheet_x = if rail { 224.0 } else { 62.0 };
                     let sheet_width = width - sheet_x - 8.0;
                     // The side panels give way when the canvas could not hold the transport.
-                    let queue_shown = left && sheet_width >= if inspector { 900.0 } else { 620.0 };
+                    let queue_shown = left && sheet_width >= 620.0;
                     let inspector_shown =
-                        inspector && sheet_width >= if left { 900.0 } else { 680.0 };
+                        inspector && sheet_width >= 680.0 && (!left || sheet_width >= 900.0);
                     let canvas = panel("Frame Capture", AccessibleRole::Groupbox);
                     let canvas_x = canvas.absolute_position().x;
                     assert!(
@@ -397,7 +404,7 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                     );
                     let canvas_right = canvas_x + canvas.size().width;
                     if inspector_shown {
-                        let output = panel("Capture", AccessibleRole::Groupbox);
+                        let output = panel("Frame Capture inspector", AccessibleRole::Groupbox);
                         assert!(
                             (output.absolute_position().x - canvas_right).abs() < 1.0,
                             "the inspector follows the canvas at {width}x{height}, rail={rail}"

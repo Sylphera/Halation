@@ -122,6 +122,9 @@ export component AppWindow inherits Window {
 
     // Frame Capture (page 5). Rust owns every decoded frame, the queue, the session and the files.
     in property <[FrameQueueRow]> frame-queue;
+    in property <string> frame-queue-count-label;
+    in property <string> frame-action-label;
+    in property <int> frame-inspector-tab: 0;
     in property <[FrameLayoutRow]> frame-layouts;
     in property <[FrameDestinationRow]> frame-destinations;
     in property <[FrameResultRow]> frame-results;
@@ -159,6 +162,7 @@ export component AppWindow inherits Window {
     in property <bool> frame-left-open: false;
     in property <bool> frame-inspector-open: true;
     callback frame-action(string);
+    callback frame-inspector-tab-selected(int);
     callback frame-select(int);
     callback frame-toggle(int);
     callback frame-remove(int);
@@ -168,7 +172,6 @@ export component AppWindow inherits Window {
     callback frame-scrub-end(float);
     callback frame-crop-set(float, float);
     callback frame-crop-move(float, float);
-    callback frame-seek(float);
     callback frame-volume-changed(float);
     callback frame-dropped(data-transfer);
     callback frame-reveal(int);
@@ -227,6 +230,10 @@ export component AppWindow inherits Window {
             if (root.page == 4 && event.modifiers.control && event.modifiers.alt) {
                 if (event.text == "b" || event.text == "B") { root.converter-action("toggle-files"); return accept; }
                 if (event.text == "i" || event.text == "I") { root.converter-action("toggle-output"); return accept; }
+            }
+            if (root.page == 5 && event.modifiers.control && event.modifiers.alt) {
+                if (event.text == "b" || event.text == "B") { root.frame-action("toggle-queue"); return accept; }
+                if (event.text == "i" || event.text == "I") { root.frame-action("toggle-inspector"); return accept; }
             }
             if (event.modifiers.control && (event.text == "b" || event.text == "B")) {
                 root.rail-open = !root.rail-open;
@@ -300,7 +307,8 @@ export component AppWindow inherits Window {
             if root.page == 5 : FrameCapturePage {
                 width: parent.width; height: parent.height;
                 strings: root.frame-strings;
-                queue: root.frame-queue; layouts: root.frame-layouts;
+                queue: root.frame-queue; queue-count-label: root.frame-queue-count-label; action-label: root.frame-action-label;
+                inspector-tab: root.frame-inspector-tab; layouts: root.frame-layouts;
                 destinations: root.frame-destinations; results: root.frame-results;
                 preview: root.frame-preview; strip: root.frame-strip;
                 has-preview: root.frame-has-preview; has-strip: root.frame-has-strip;
@@ -319,6 +327,7 @@ export component AppWindow inherits Window {
                 selected-count: root.frame-selected-count; can-capture: root.frame-can-capture;
                 left-open: root.frame-left-open; inspector-open: root.frame-inspector-open;
                 action(name) => { root.frame-action(name); }
+                inspector-tab-selected(tab) => { root.frame-inspector-tab-selected(tab); }
                 select(index) => { root.frame-select(index); }
                 toggle(index) => { root.frame-toggle(index); }
                 remove(index) => { root.frame-remove(index); }
@@ -328,7 +337,6 @@ export component AppWindow inherits Window {
                 scrub-end(fraction) => { root.frame-scrub-end(fraction); }
                 crop-set(x, y) => { root.frame-crop-set(x, y); }
                 crop-move(dx, dy) => { root.frame-crop-move(dx, dy); }
-                seek(fraction) => { root.frame-seek(fraction); }
                 volume-changed(value) => { root.frame-volume-changed(value); }
                 file-dropped(data) => { root.frame-dropped(data); }
                 reveal(index) => { root.frame-reveal(index); }
@@ -425,6 +433,26 @@ export component AppWindow inherits Window {
                     }
                 }
 
+                if root.page == 5 : VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        AppButton {
+                            text: root.frame-action-label;
+                            small: true;
+                            primary: true;
+                            enabled: root.frame-can-capture && !root.frame-busy;
+                            clicked => { root.frame-action("capture"); }
+                        }
+                        if root.frame-busy : AppButton {
+                            text: root.frame-strings.cancel;
+                            small: true;
+                            quiet: true;
+                            clicked => { root.frame-action("cancel"); }
+                        }
+                    }
+                }
                 if root.page == 4 : VerticalLayout {
                     alignment: center;
                     horizontal-stretch: 0;
@@ -438,7 +466,7 @@ export component AppWindow inherits Window {
                 }
                 if root.prefs.show-dock : VerticalLayout {
                     alignment: center;
-                    horizontal-stretch: root.page == 4 ? 0 : 1;
+                    horizontal-stretch: root.page == 4 || root.page == 5 ? 0 : 1;
                     TopActions {
                         hinted(text, key) => {
                             root.bar-hint = text;

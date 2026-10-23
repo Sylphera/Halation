@@ -1,16 +1,17 @@
 # Tools status — native line
 
 Status: FASE 1, tool 1 of 9 — Frame Capture implemented natively on `slint/tools-all` (2026-10-23), pending Java's
-visual review. Converter remains `parcial` and is the template. Frame Capture is `parcial`: the viewer, timeline,
+visual review. Converter and Frame Capture are `parcial`; Frame Capture UI follows the Figma tool frame in §9.
+The viewer, timeline,
 playback, sharpness, layouts/crop, queue, Library/Image capture and session work; Back/Send and the result
-Crop/Cutout/Send actions have no native plumbing and are shown as unavailable. The other eight media tools are still
+Crop/Cutout/Send actions have no native plumbing and are not presented as controls. The other eight media tools are still
 catalog entries only, with no native page, controller or connected engine, and none is available in the beta.
 
 This document says what each of the ten media tools has in the native app today, which spec owns its behaviour and
 where the Tauri app on `main` implements it. It is an inventory, not a promise: a tool is not "ported" because it
 appears in a list or because its name compiles into the catalog. The Tauri app is the behaviour reference; its
-interface is not a template (see the clean-room rule in [AGENTS.md](../AGENTS.md)). The native visual template is
-Converter, under the shared contract below.
+interface is not a template (see the clean-room rule in [AGENTS.md](../AGENTS.md)). The native visual authority is
+the approved tool frame in §9 of [ui-redesign.md](../planning/active/ui-redesign.md), referenced by the Vocal Remover mockup.
 
 ## How to read the status
 
@@ -21,7 +22,7 @@ Converter, under the shared contract below.
 | `parcial` | At least one real path works end to end in the native app (input, processing, output), even if incomplete. |
 | `completa` | The spec is implemented in the native app and its acceptance criteria are verified. Visible changes still need Java's visual OK. |
 
-Eight tools are **`UI falsa`**; Converter and Frame Capture are **`parcial`**, and Converter is the template. The
+Eight tools are **`UI falsa`**; Converter and Frame Capture are **`parcial`**. The
 catalog is honest about the eight: the activation notice says the tool is not available in the beta and that the
 processing engines are not connected (`crates/halation-app/src/catalog.rs`). Converter's native page and the approval
 recorded upstream are in [converter.md](features/converter.md); Frame Capture's native page and its evidence are in
@@ -30,22 +31,21 @@ recorded upstream are in [converter.md](features/converter.md); Frame Capture's 
 ## Visual contract (all ten tools)
 
 Java, 2026-10-23: finish all ten media tools for visual review, with one interface, not ten. Every native tool page
-uses the approved Linear/Figma redesign already merged in `slint/native`: the same components, tokens, surfaces,
-typography and native motion. **Converter is the canonical page template**; no tool gets its own visual language.
-Where the redesign's §9 names Vocal Remover as the reference tool, this instruction supersedes it for the template.
+uses the approved Linear/Figma redesign in [ui-redesign.md §9](../planning/active/ui-redesign.md#9-screens): the same
+frame, components, tokens, surfaces, typography and native motion, with the Vocal Remover mockup as the reference.
+This §9 frame is the layout authority; Converter is not a substitute composition template.
 
-- **Frame and components.** Use the shell (sidebar and top bar) and the tool frame of the
-  [approved redesign](../planning/active/ui-redesign.md): left panel 220 px, canvas, inspector 280 px and docked bar
-  40 px when the tool needs those regions; one primary action in the top bar. Reuse the shared Slint components and
-  the Converter page's spacing, control sizes, row heights, empty states and primary-action placement.
+- **Frame and components.** Use the shell (sidebar and top bar) and §9 tool frame: left panel 220 px, flexible canvas,
+  inspector 280 px with tabs, docked bar 40 px and one primary action in the top bar. Reuse shared Slint components;
+  do not substitute Converter's page composition for the Figma/Vocal Remover frame.
 - **Material and type.** Use the current native material and type in [material.md](features/material.md); use the
   colours and state tokens in [themes.md](features/themes.md). No page-local palette, font, radius, shadow, border or
   spacing scale.
 - **Motion.** Use the current native contract in [motion.md](features/motion.md): native Slint animation only, no idle
   animation, and 0 ms with reduced motion. [MOTION.md](MOTION.md) documents the Tauri/GSAP app; it is not the
   native reference.
-- **Template.** [converter.md](features/converter.md) is the reference page: same frame, controls, state treatment and
-  primary-action placement. A tool may add only the controls its function requires, built from the shared components.
+- **Reference.** The Vocal Remover mockup in §9 of [ui-redesign.md](../planning/active/ui-redesign.md#9-screens) is the
+  Figma tool-frame reference. A tool may add only the controls its function requires, built from shared components.
 - **State and work.** UI state lives in Rust services, never in a page instance; heavy work runs off the UI thread.
   This is already the native rule and applies to every tool page.
 - **Review gate.** A page is "implemented, pending visual review" until Java approves it in the real native window.
@@ -80,10 +80,10 @@ Frame Capture ([save-location.md](features/save-location.md)).
 | Background Remover | `background-remover` | `removebg` | `UI falsa` | [remove-background.md](features/remove-background.md) |
 | Upscale | `upscale` | `upscale` | `UI falsa` | [upscale.md](features/upscale.md) (new) |
 | AI Interpolate | `ai-interpolate` | `interp` | `UI falsa` | [framerate.md](features/framerate.md) |
-| Frame Capture | `frame-capture` | `framegrab` | `parcial` (native page implemented, pending visual review; Back/Send and result actions remain) | [frame-capture.md](features/frame-capture.md) (new) |
+| Frame Capture | `frame-capture` | `framegrab` | `parcial` (native page implemented, pending visual review; Back/Send and result actions are global integration gaps) | [frame-capture.md](features/frame-capture.md) |
 
-Converter and Frame Capture have native pages; Converter remains the reference implementation for the other eight under
-the [visual contract](#visual-contract-all-ten-tools).
+Converter and Frame Capture have native pages. Future tool pages follow the §9 Figma frame and the per-tool mappings
+in [tools-ui.md](../planning/active/tools-ui.md); Converter's composition does not replace that authority.
 
 The Tauri registry that defines these ids, their components, accepted content and stage is
 `main:app/dist/modules.js:22-31`. The native ids differ in seven places and must be mapped when importing behaviour:
@@ -251,12 +251,18 @@ a new visual approval.
 ### Frame Capture
 
 **Status: `parcial`.** The native viewer/controller is implemented on `slint/tools-all` (2026-10-23), pending Java's
-visual review. Backend quality work on `slint/frame-quality` adds in-process Media Foundation decode with FFmpeg
+visual review; UI polish is in `slint/frame-ui`. Backend quality work on `slint/frame-quality` adds in-process Media Foundation decode with FFmpeg
 fallback, 8K-bounded transient batches, immediate audio-device failure, persistent last-12 capture history and
-synthetic performance diagnostics. Back/Send and result Crop/Cutout/Send remain absent because the native app has no
-tool-origin/request or image-tool plumbing yet; UI remains unchanged in this unit.
+synthetic performance diagnostics. This UI unit applies `ui-redesign.md` §9 and `tools-ui.md`'s Frame Capture mapping:
+top-bar `Capture n` / adjacent `Cancel`, queue pane, flexible canvas, docked transport/actions, and Capture/Output
+inspector tabs. It also improves the empty/open state, preview sizing and inspector legibility. The only behavior change
+is the documented direct-open destination default (Image); no decoder or pipeline was changed. Offscreen evidence
+covers empty, loading, error, synthetic queue, crop-overlay and output-result states at 1440x900 and 960x600. Back/Send and result Crop/Cutout/Send remain global
+integration gaps; this page does not simulate them.
 
 - **Spec:** [frame-capture.md](features/frame-capture.md).
+- **UI mapping:** [tools-ui.md §Frame Capture](../planning/active/tools-ui.md#frame-capture), imported unchanged from
+  `slint/native` commit `9e5c53f`; it is Draft. Layout authority is the user-directed [ui-redesign.md §9](../planning/active/ui-redesign.md#9-screens), not the Converter composition.
 - **Native evidence:** `crates/halation-core/src/framegrab.rs` (probe, authorization, content key, bounded window and
   exact decode, native PNG, keyframe index/strip, Laplacian sharpness, byte-bounded cache, queue, naming, session types);
   new `crates/halation-core/src/frame_decoder.rs` (Media Foundation Source Reader, NV12 color conversion, timestamp
@@ -284,15 +290,14 @@ tool-origin/request or image-tool plumbing yet; UI remains unchanged in this uni
   30 fps, stops on a manual frame change); ±12-frame Laplacian search on a 360 px copy; five layouts with the largest
   exact-ratio crop, pointer drag and 1 %/10 % arrow moves, one crop per layout; queue of 8 in time order with
   thumbnails, selection, remove, select all/none and clear; native-resolution PNG capture with the crop, atomic
-  publication and `{stem} - frame {n+1}.png` names; last 12 results with Show in folder, persisted in
+  publication and `{stem} - frame {n+1}.png` names; last 12 results with Open folder, persisted in
   `frame-capture-results.json` and pruned when PNGs disappear; progress, cancel, FFmpeg install and a JSON session
   (video, frame, sound, layout, crops, destination, queue).
 - **Destinations:** Library writes to `Library\Frames`; Image resolves through the global save policy with base
   `Exports\Frames`, asking for a folder when no location has been chosen. Captures never replace the source video.
-- **Layout contract:** Frame Capture's queue and inspector use Converter's 220 px and 280 px widths; row heights and
-  panel headers follow its 60 px rows / 36 px headers. Responsive breakpoints keep at least 400 px for the canvas
-  (620 px queue-only, 680 px inspector-only, 900 px for both); panels give way below those widths.
-- **Limits/performance evidence:** Back/Send and result Crop/Cutout/Send are not connected; results offer Show in folder
+- **Layout contract:** §9's 220 px queue, flexible canvas, 280 px tabbed inspector, 40 px dock and top-bar primary action.
+  Narrow widths collapse the queue/inspector in turn, preserving a usable canvas; observed at 960x600 and 1440x900.
+- **Limits/performance evidence:** Back/Send and result Crop/Cutout/Send are not connected; results offer Open folder
   only. A hardware-flagged system H.264 MFT enumerates as `Microsoft H264 Video Decoder MFT`; enumeration does not
   prove that a stream actually used GPU decode. Release synthetic H.264 High `testsrc2` (30 frames, 60fps, measured
   six-frame 1920-wide batches) on i5-12400F/RX 6650 XT measured Media Foundation 30.7/17.3/9.7 fps at 1080p/4K/8K;
@@ -330,8 +335,8 @@ tool-origin/request or image-tool plumbing yet; UI remains unchanged in this uni
    work, report progress, cancel or record an output.
 4. **Save/export integration.** Converter and Frame Capture use the destination policy; the other eight still need to
    call it and record exports in the Library/session.
-5. **Visual implementation.** The shared contract is fixed above, but eight pages are not built. Each one must use
-   Converter's template and is "implemented, pending visual review" until Java approves it in the native window; a
+ 5. **Visual implementation.** The shared §9 Figma tool frame is the authority; eight pages are not built. Each one
+    applies that frame and is "implemented, pending visual review" until Java approves it in the native window; a
    page with a tool-specific style is not done. Frame Capture is built and waits for that review.
 6. **Licences stay with the component.** yt-dlp is Unlicense, FFmpeg is GPL-3.0, upscayl-ncnn and the
    Upscayl-published models are AGPL-3.0, SPAN's runner is AGPL-3.0 (its models keep the upstream licences), and the
@@ -343,11 +348,14 @@ tool-origin/request or image-tool plumbing yet; UI remains unchanged in this uni
 
 - Native on this branch: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`,
   `framegrab.rs`, `strings.rs`; `crates/halation-app/ui/app.slint`, `ui/pages/converter.slint`,
-  `ui/pages/framegrab.slint`, `ui/components/media.slint`, `ui/pages/home.slint`, `ui/pages/settings.slint`;
+  `ui/pages/framegrab.slint`, `ui/components/media.slint`, `ui/components/controls.slint` (`Segmented`),
+  `ui/pages/home.slint`, `ui/pages/settings.slint`;
   `crates/halation-app/locales/en.json`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`;
   `crates/halation-core/src/{convert,components,playback,framegrab}.rs` and
   `crates/halation-core/tests/{converter,playback}.rs`; `crates/halation-core/examples/verify_converter.rs`.
-- Design: [planning/active/ui-redesign.md](../planning/active/ui-redesign.md),
+- Design: [planning/active/ui-redesign.md](../planning/active/ui-redesign.md) §9 and
+  [planning/active/tools-ui.md](../planning/active/tools-ui.md) §Frame Capture (copied unchanged from `slint/native`
+  commit `9e5c53f`; Draft),
   [features/material.md](features/material.md), [features/themes.md](features/themes.md),
   [features/motion.md](features/motion.md). `docs/MOTION.md` is the Tauri document.
 - Tauri on `main`: `app/dist/modules.js`, the ten tool pages and modules, `app/src-tauri/src/{tools,download,convert,

@@ -65,6 +65,16 @@ impl Strings {
             queue_empty: self.get("queue_empty").into(),
             queue_full: self.get("queue_full").into(),
             queue_count: self.get("queue_count").into(),
+            queue_count_label: self.get("queue_count_label").into(),
+            inspector_capture: self.get("inspector_capture").into(),
+            inspector: self.get("inspector").into(),
+            capture_action: self.get("capture_action").into(),
+            inspector_tabs: self.get("inspector_tabs").into(),
+            choose_video: self.get("choose_video").into(),
+            show_queue: self.get("show_queue").into(),
+            hide_queue: self.get("hide_queue").into(),
+            show_inspector: self.get("show_inspector").into(),
+            hide_inspector: self.get("hide_inspector").into(),
             add_frame: self.get("add_frame").into(),
             sharpest_button: self.get("sharpest_button").into(),
             clear: self.get("clear").into(),
@@ -76,6 +86,7 @@ impl Strings {
             layout: self.get("layout").into(),
             destination: self.get("destination").into(),
             results: self.get("results").into(),
+            output: self.get("output").into(),
             results_empty: self.get("results_empty").into(),
             reveal: self.get("reveal").into(),
             crop_hint: self.get("crop_hint").into(),
@@ -151,6 +162,16 @@ mod tests {
         "queue_empty",
         "queue_full",
         "queue_count",
+        "queue_count_label",
+        "inspector_capture",
+        "inspector",
+        "capture_action",
+        "inspector_tabs",
+        "choose_video",
+        "show_queue",
+        "hide_queue",
+        "show_inspector",
+        "hide_inspector",
         "add_frame",
         "sharpest_button",
         "clear",
@@ -166,6 +187,7 @@ mod tests {
         "layout",
         "destination",
         "results",
+        "output",
         "results_empty",
         "reveal",
         "crop_hint",
@@ -186,6 +208,8 @@ mod tests {
         "captured_one",
         "capture_failed",
         "open_failed",
+        "synthetic_decode_error",
+        "synthetic_result_name",
         "not_authorized",
         "missing_video",
         "frame_failed",
@@ -249,6 +273,14 @@ mod tests {
             assert!(strings.contains(key), "{key} is missing from en.json");
             assert!(!strings.get(key).is_empty(), "{key} is empty in en.json");
         }
+        assert_eq!(
+            strings.fill("queue_count_label", &[("n", "3".into())]),
+            "3 / 8"
+        );
+        assert_eq!(
+            strings.fill("capture_action", &[("n", "3".into())]),
+            "Capture 3"
+        );
         assert_eq!(
             strings.fill("frame_of", &[("n", "42".into()), ("total", "300".into())]),
             "Frame 42 of 300"

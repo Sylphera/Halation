@@ -15,7 +15,7 @@ being changed and why is in [planning/](../planning/STATUS.md); measurements are
 | Jobs, processes, engines | [features/jobs.md](features/jobs.md) | `crates/halation-core/src/` (`queue`, `process`, `engine`) |
 | Library and sections | [features/library.md](features/library.md) | `crates/halation-app/src/library.rs`, `halation-core` `sections` |
 | Settings | [features/settings.md](features/settings.md), [features/save-location.md](features/save-location.md) | `crates/halation-app/src/settings.rs`, `ui/pages/settings.slint` |
-| A media tool (Converter is the template) | its spec in [features/](features/), [TOOLS_STATUS.md](TOOLS_STATUS.md) and its [shared UI contract](TOOLS_STATUS.md#visual-contract-all-ten-tools); the Tauri app on `main` is the behaviour reference | |
+| A media tool (Figma tool frame) | its spec in [features/](features/), [TOOLS_STATUS.md](TOOLS_STATUS.md) and its [shared UI contract](TOOLS_STATUS.md#visual-contract-all-ten-tools); the mapping in [tools-ui.md](../planning/active/tools-ui.md); the Tauri app on `main` is the behaviour reference | |
 | Assets beside the executable | [SLINT_VISUAL_SYSTEM.md](SLINT_VISUAL_SYSTEM.md#assets-beside-the-executable) | `assets/`, `crates/halation-app/src/assets.rs` |
 
 ## Specs by feature

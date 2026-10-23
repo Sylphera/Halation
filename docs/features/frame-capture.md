@@ -1,13 +1,17 @@
 # Frame Capture — Specification
 
-Status: Partial. The native UI was implemented on `slint/tools-all` (2026-10-23), pending Java's visual review; the
+Status: Partial. Native UI implemented on `slint/tools-all` (2026-10-23), with UI polish on `slint/frame-ui`; pending Java's visual review. The `slint/frame-quality` backend work remains as recorded below.
 `slint/frame-quality` backend adds in-process decode, early audio errors, persistent results and measured resource
 bounds. Its 8K60 performance target was not met on the reference PC. The viewer, timeline, playback, sharpness,
 layouts/crop, queue, Library/Image capture and session work. Back/Send and the result
-Crop/Cutout/Send actions remain unavailable because the native app has no tool-origin or image-tool plumbing; they are
-shown as unavailable, not as dead controls. See §11 for the implementation record and the stated limits.
+  Crop/Cutout/Send actions remain unavailable because the native app has no tool-origin or image-tool plumbing. They
+  are not presented as controls; this global integration gap does not block Frame Capture's workspace UI.
 
-UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
+UI contract: the native page follows [ui-redesign.md §9](../../planning/active/ui-redesign.md#9-screens): Queue at left,
+flexible canvas, a tabbed inspector at right, and one primary action in the top bar, following the Vocal Remover Figma
+mockup. Use shared Slint components and current material, theme and motion rules; Converter is not the composition
+authority for this page. The per-tool mapping is [tools-ui.md §Frame Capture](../../planning/active/tools-ui.md#frame-capture)
+(Draft, imported unchanged from `slint/native` commit `9e5c53f`). No tool-specific visual style.
 
 Frame Capture opens a video, shows an exact frame, and exports one or more frames as full-size PNGs, optionally cut
 to a layout. It is a viewer first: timeline, keyframe strip, frame stepping, playback with sound and a sharpest-frame
@@ -208,14 +212,15 @@ evidence is in [TOOLS_STATUS.md](../TOOLS_STATUS.md#frame-capture).
   and arrow keys (1 %, Shift 10 %). Captures apply the crop at native resolution.
 - **Queue and capture.** Eight frames in time order, select/remove/all/none/clear, PNG only,
   `{stem} - frame {n+1}.png`. Library writes `Library\Frames`; Image goes through the global save policy (base
-  `Exports\Frames`, asking when no location is remembered). The result list keeps the last 12 with Show in folder.
+  `Exports\Frames`, asking when no location is remembered). The result list keeps the last 12 with Open folder.
 - **Session/results.** `profile/frame-capture.json` stores the video reference, picked flag, frame, volume/mute, layout,
   crops, destination and queue. `profile/frame-capture-results.json` atomically stores the newest 12 result paths and
   display metadata; startup prunes missing PNGs and never removes a PNG. Results survive controller/app recreation.
   Decoded pictures are not persisted. Leaving the page stops playback, clears the cache and workspace and flushes the
   session.
 - **Not implemented.** Back/Send need a native tool-origin/request channel that does not exist; the result
-  Crop/Cutout/Send actions need those image tools. The page shows a note instead of dead controls.
+  Crop/Cutout/Send actions need those image tools. These remain global integration gaps and are not simulated or shown
+  as inactive UI controls.
 - **Known limitations.** On the i5-12400F / RX 6650 XT (4 GiB), the release synthetic H.264 preview diagnostic did not
   meet 60 fps: Media Foundation produced 30.7 fps at 1080p, 17.3 fps at 4K and 9.7 fps at 8K; the FFmpeg software CLI
   baseline produced 51.8, 27.4 and 11.0 fps respectively. Media Foundation's working-set increase was lower
@@ -226,13 +231,22 @@ evidence is in [TOOLS_STATUS.md](../TOOLS_STATUS.md#frame-capture).
   overhead. At 8K the full batch took 616.5 ms and added 720 MiB to the app process working set. These short
   `testsrc2`, 30-frame synthetic clips are not a guarantee for
   every codec or long GOP. Fast drags still show keyframes until a 160 ms pause or release; visual review pending.
-  Back/Send and result Crop/Cutout/Send require future integration with tool-origin and image-tool
-  services; these dependencies are absent, so their controls remain unavailable rather than simulated.
+  Back/Send and result Crop/Cutout/Send require future integration with tool-origin and image-tool services. They are
+  global integration gaps and are not simulated or presented as inactive controls.
 - **Evidence.** Core tests include generated FFmpeg windows/captures, Media Foundation frame-index/color/crop/
   cancellation/rational-rate/rotation checks on Windows, bounded preview/capture budgets and the release 1080p/4K/8K
   diagnostic. Controller tests verify generated-video session behavior, restart-persistent results and missing-PNG
   pruning, plus scrub settle/release and stale generations. Existing 4K coverage proves a
   1920 × 1080 preview and a 3840 × 2160 capture; the NTSC test proves 24000/1001 with 24 frames and last frame 23.
+  UI mapping follows [ui-redesign.md §9](../../planning/active/ui-redesign.md#9-screens) and the Draft
+  [tools-ui.md §Frame Capture](../../planning/active/tools-ui.md#frame-capture): counted top-bar Capture/adjacent Cancel,
+  Queue, preview canvas, 40 px dock, Capture inspector (layout/crop/destination), Output results tab, direct-open Image,
+  16:9 and 0.8 volume defaults. Offscreen UI captures at 1440x900 and 960x600 cover `framegrab` (empty),
+   `framegrab-ready` (synthetic loaded/queue/Capture tab), `framegrab-output` (Results tab), `framegrab-crop`
+   (square crop overlay), `framegrab-loading` and `framegrab-error`. Inspected captures show queue | canvas | inspector
+   at 1440 and the queue/inspector switch at 960.
+  The loaded fixture is synthetic and does not represent a real decoded video. Software-renderer captures approximate,
+  not replace, native Skia review.
   Audio failure is covered by an injected sink failure (not a physical device). The target machine enumerated the
   hardware H.264 MFT but the active per-stream hardware route was not identified. Visual review remains pending.
 - **Still unverified.** Visual review in the native window; a real WASAPI device; the manual Image dialog;
