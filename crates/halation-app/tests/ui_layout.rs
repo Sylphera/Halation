@@ -2,8 +2,11 @@
 //! sizes every named control stays inside the window. This proves geometry only, not visual quality.
 
 use halation_app::catalog::TOOLS;
-use halation_app::ui::{AppWindow, ConvertRow, FormatRow, JobRow, RecentItem, ToolItem};
-use i_slint_backend_testing::{ElementHandle, ElementQuery};
+use halation_app::ui::{
+    AppWindow, ConvertRow, FormatRow, FrameDestinationRow, FrameLayoutRow, FrameQueueRow,
+    FrameResultRow, FrameStrings, JobRow, RecentItem, ToolItem,
+};
+use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery};
 use slint::{
     ComponentHandle, LogicalSize, ModelRc, SharedString, VecModel,
     platform::{Key, WindowEvent},
@@ -122,7 +125,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
     }]))));
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        for page in [0, 3, 4] {
+        for page in [0, 3, 4, 5] {
             ui.set_page(page);
             slint::platform::update_timers_and_animations();
             // Settings' pane scrolls under the top bar and the category title, which end 100 px down
@@ -251,6 +254,187 @@ fn converter_with_files_formats_and_progress_fits_both_sidebar_states() {
                     && p.y + player.size().height <= c.y + canvas.size().height + 0.5,
                 "audio player leaves the canvas at {width}x{height}, files={files}"
             );
+        }
+    }
+}
+
+fn frame_strings() -> FrameStrings {
+    FrameStrings {
+        title: "Frame Capture".into(),
+        queue: "Queue".into(),
+        capture: "Capture".into(),
+        timeline: "Timeline".into(),
+        crop: "Crop".into(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    ui.set_page(5);
+    ui.set_frame_strings(frame_strings());
+    ui.set_frame_has_video(true);
+    ui.set_frame_has_preview(true);
+    ui.set_frame_has_strip(true);
+    ui.set_frame_video_width(1920);
+    ui.set_frame_video_height(1080);
+    ui.set_frame_frames(300);
+    ui.set_frame_current(150);
+    ui.set_frame_frame_label("Frame 151 of 300".into());
+    ui.set_frame_time("0:05.00 of 0:10.00".into());
+    ui.set_frame_clock("0:05.00 / 0:10.00".into());
+    ui.set_frame_sharp_note("Sharpest frame near here: frame 149".into());
+    ui.set_frame_selected_label("2 selected".into());
+    ui.set_frame_crop_visible(true);
+    ui.set_frame_crop_x(0.1);
+    ui.set_frame_crop_y(0.1);
+    ui.set_frame_crop_w(0.5);
+    ui.set_frame_crop_h(0.5);
+    ui.set_frame_can_capture(true);
+    ui.set_frame_needs_ffmpeg(false);
+    ui.set_frame_busy(true);
+    ui.set_frame_message(
+        "A deliberately long status line that has to wrap inside the canvas instead of leaving it."
+            .into(),
+    );
+    ui.set_frame_progress(0.5);
+    ui.set_frame_progress_label("Capturing 4 of 8 frames".into());
+    ui.set_frame_queue(ModelRc::new(VecModel::from(
+        (0..8)
+            .map(|index| FrameQueueRow {
+                index,
+                n: index * 37,
+                label: format!("Frame {}", index + 1).into(),
+                time: "0:00.00".into(),
+                selected: index % 2 == 0,
+                thumb: Default::default(),
+            })
+            .collect::<Vec<_>>(),
+    )));
+    ui.set_frame_layouts(ModelRc::new(VecModel::from(
+        [
+            ("16:9", "16:9", "Widescreen"),
+            ("9:16", "9:16", "Portrait"),
+            ("1:1", "1:1", "Square"),
+            ("4:5", "4:5", "Portrait feed"),
+            ("original", "Original", "Whole frame"),
+        ]
+        .into_iter()
+        .map(|(id, label, detail)| FrameLayoutRow {
+            id: id.into(),
+            label: label.into(),
+            detail: format!("A deliberately long detail for {detail} that must elide").into(),
+            selected: id == "16:9",
+        })
+        .collect::<Vec<_>>(),
+    )));
+    ui.set_frame_destinations(ModelRc::new(VecModel::from(
+        [
+            ("library", "Library", "Saved with the Library"),
+            ("image", "Image", "Saved where images go"),
+        ]
+        .into_iter()
+        .map(|(id, label, detail)| FrameDestinationRow {
+            id: id.into(),
+            label: label.into(),
+            detail: detail.into(),
+            selected: id == "library",
+        })
+        .collect::<Vec<_>>(),
+    )));
+    ui.set_frame_results(ModelRc::new(VecModel::from(
+        (0..12)
+            .map(|index| FrameResultRow {
+                index,
+                name: format!("Synthetic video - frame {}.png", index + 1).into(),
+                detail: "Frame 2 · 0:00.10 · 180 × 180".into(),
+                path: format!("Z:/not-real/result-{index}.png").into(),
+            })
+            .collect::<Vec<_>>(),
+    )));
+    let panel = |label: &str, role| {
+        ElementHandle::find_by_accessible_label(&ui, label)
+            .find(|e| e.accessible_role() == Some(role))
+            .unwrap_or_else(|| panic!("{label} panel is present"))
+    };
+    for (width, height) in SIZES {
+        resize(&ui, width, height);
+        for rail in [false, true] {
+            ui.set_rail_open(rail);
+            for left in [false, true] {
+                ui.set_frame_left_open(left);
+                for inspector in [false, true] {
+                    ui.set_frame_inspector_open(inspector);
+                    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(
+                        1000,
+                    ));
+                    slint::platform::update_timers_and_animations();
+                    // The inspector and the queue scroll below their headers (80 px down), like Settings' pane:
+                    // controls that start below that are only checked sideways.
+                    let stray = outside_above(&ui, width, height, 80.0);
+                    assert!(
+                        stray.is_empty(),
+                        "Frame Capture at {width}x{height}, rail={rail}, queue={left}, \
+                         inspector={inspector}: {stray:?}"
+                    );
+                    // The sheet starts after the rail and its inset; the inspector ends at the window's inset.
+                    let sheet_x = if rail { 224.0 } else { 62.0 };
+                    let sheet_width = width - sheet_x - 8.0;
+                    // The side panels give way when the canvas could not hold the transport.
+                    let queue_shown = left && sheet_width >= if inspector { 900.0 } else { 620.0 };
+                    let inspector_shown =
+                        inspector && sheet_width >= if left { 900.0 } else { 680.0 };
+                    let canvas = panel("Frame Capture", AccessibleRole::Groupbox);
+                    let canvas_x = canvas.absolute_position().x;
+                    assert!(
+                        (canvas_x - sheet_x - if queue_shown { 220.0 } else { 0.0 }).abs() < 1.0,
+                        "canvas starts after the queue at {width}x{height}, rail={rail}, queue={left}: actual {canvas_x}, expected {}",
+                        sheet_x + if queue_shown { 220.0 } else { 0.0 }
+                    );
+                    let canvas_right = canvas_x + canvas.size().width;
+                    if inspector_shown {
+                        let output = panel("Capture", AccessibleRole::Groupbox);
+                        assert!(
+                            (output.absolute_position().x - canvas_right).abs() < 1.0,
+                            "the inspector follows the canvas at {width}x{height}, rail={rail}"
+                        );
+                        assert!(
+                            (output.absolute_position().x + output.size().width - (width - 8.0))
+                                .abs()
+                                < 1.0,
+                            "the inspector is anchored right at {width}x{height}, rail={rail}"
+                        );
+                    } else {
+                        assert!(
+                            (canvas_right - (width - 8.0)).abs() < 1.0,
+                            "the canvas takes the inspector's place at {width}x{height}"
+                        );
+                    }
+                    if queue_shown {
+                        let queue = panel("Queue", AccessibleRole::Groupbox);
+                        assert!(
+                            (queue.absolute_position().x - sheet_x).abs() < 1.0,
+                            "the queue is anchored left at {width}x{height}, rail={rail}"
+                        );
+                        assert!((queue.size().width - 220.0).abs() < 1.0);
+                    }
+                    // The crop frame stays inside the canvas while it is visible.
+                    let crop = panel("Crop", AccessibleRole::Slider);
+                    let (c, f) = (crop.absolute_position(), crop.size());
+                    assert!(
+                        c.x >= canvas_x - 0.5
+                            && c.y >= canvas.absolute_position().y - 0.5
+                            && c.x + f.width <= canvas_right + 0.5
+                            && c.y + f.height
+                                <= canvas.absolute_position().y + canvas.size().height + 0.5,
+                        "the crop frame leaves the canvas at {width}x{height}, rail={rail}, queue={left}"
+                    );
+                }
+            }
         }
     }
 }

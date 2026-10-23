@@ -82,6 +82,7 @@ pub(crate) struct Controller {
     services: Rc<RefCell<Services>>,
     diagnostic_timer: RefCell<Option<Rc<slint::Timer>>>,
     converter: Rc<crate::converter::Converter>,
+    framegrab: Rc<crate::framegrab::FrameCapture>,
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -169,6 +170,7 @@ impl Controller {
     pub(crate) fn shutdown(&self) {
         self.converter.cancel_probe();
         self.converter.suspend_preview();
+        self.framegrab.shutdown();
         self.services.borrow().jobs.shutdown();
     }
 
@@ -200,9 +202,15 @@ impl Controller {
         ));
         let converter =
             crate::converter::Converter::new(weak.clone(), profile.clone(), jobs.engine().clone());
+        let framegrab = crate::framegrab::FrameCapture::new(
+            weak.clone(),
+            profile.clone(),
+            jobs.engine().clone(),
+        );
         Ok(Self {
             weak,
             converter,
+            framegrab,
             diagnostic_timer: RefCell::new(None),
             services: Rc::new(RefCell::new(Services {
                 profile,
@@ -249,6 +257,9 @@ impl Controller {
                 Some(services.settings.current().save_mode)
             }
         });
+        let frame_settings = self.services.clone();
+        self.framegrab
+            .install(move || Some(frame_settings.borrow().settings.current().save_mode));
         let (tone, hue) = theme_of(self.services.borrow().settings.current());
         apply_theme(&ui, &theme::colours(tone, hue));
         let assets = crate::assets::locate();
@@ -313,6 +324,7 @@ impl Controller {
             let weak = self.weak.clone();
             let services = self.services.clone();
             let converter = self.converter.clone();
+            let framegrab = self.framegrab.clone();
             ui.on_navigate(move |page| {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -327,6 +339,11 @@ impl Controller {
                     } else {
                         ui.set_page(page.index());
                         converter.open();
+                    }
+                    if page != Page::FrameCapture {
+                        framegrab.suspend();
+                    } else {
+                        framegrab.open();
                     }
                     if page == Page::Settings {
                         measure_storage(&s.profile, &weak);
@@ -606,6 +623,7 @@ impl Controller {
             let weak = self.weak.clone();
             let services = self.services.clone();
             let converter = self.converter.clone();
+            let framegrab = self.framegrab.clone();
             ui.on_tool_activated(move |id| {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -617,6 +635,11 @@ impl Controller {
                         s.notice.clear();
                         ui.set_page(Page::Converter.index());
                         converter.open();
+                    } else if tool.id == "frame-capture" {
+                        s.nav.select(Page::FrameCapture);
+                        s.notice.clear();
+                        ui.set_page(Page::FrameCapture.index());
+                        framegrab.open();
                     } else if tool.id == "library" {
                         if let Some(page) = Page::from_index(1) {
                             s.nav.select(page);
@@ -675,6 +698,7 @@ impl Controller {
             let weak = self.weak.clone();
             let services = self.services.clone();
             let converter = self.converter.clone();
+            let framegrab = self.framegrab.clone();
             ui.on_jobs_changed(move || {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -683,6 +707,7 @@ impl Controller {
                 update_jobs_model(&ui, &s.jobs.jobs(), &s.jobs_model);
                 ui.set_jobs_capability(SharedString::from(s.jobs.capability()));
                 drop(s);
+                framegrab.jobs_changed();
                 if let Some(notice) = converter.jobs_changed() {
                     let mut s = services.borrow_mut();
                     s.notice = notice;

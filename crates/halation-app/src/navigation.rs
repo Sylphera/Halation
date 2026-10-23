@@ -5,15 +5,17 @@ pub enum Page {
     Jobs,
     Settings,
     Converter,
+    FrameCapture,
 }
 
 impl Page {
-    pub const ALL: [Page; 5] = [
+    pub const ALL: [Page; 6] = [
         Page::Home,
         Page::Library,
         Page::Jobs,
         Page::Settings,
         Page::Converter,
+        Page::FrameCapture,
     ];
 
     pub fn index(self) -> i32 {
@@ -23,6 +25,7 @@ impl Page {
             Self::Jobs => 2,
             Self::Settings => 3,
             Self::Converter => 4,
+            Self::FrameCapture => 5,
         }
     }
 
@@ -33,6 +36,7 @@ impl Page {
             2 => Some(Self::Jobs),
             3 => Some(Self::Settings),
             4 => Some(Self::Converter),
+            5 => Some(Self::FrameCapture),
             _ => None,
         }
     }

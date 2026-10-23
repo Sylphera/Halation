@@ -124,9 +124,9 @@ pub const TOOLS: [ToolSpec; 11] = [
         summary: "Uses FFmpeg",
         group: 4,
         beta: true,
-        missing: "FFmpeg",
-        available: false,
-        reason: ENGINE_OFF,
+        missing: "",
+        available: true,
+        reason: "Video frame capture (available in this beta).",
     },
     ToolSpec {
         id: "library",

@@ -1,6 +1,9 @@
 # Frame Capture — Specification
 
-Status: Planned — not ported to the native app; implemented in the Tauri app on `main`.
+Status: Implemented natively on `slint/tools-all` (2026-10-23), pending Java's visual review. The viewer, timeline,
+playback, sharpness, layouts/crop, queue, Library/Image capture and session work. Back/Send and the result
+Crop/Cutout/Send actions remain unavailable because the native app has no tool-origin or image-tool plumbing; they are
+shown as unavailable, not as dead controls. See §11 for the implementation record and the stated limits.
 
 UI contract: the native page follows the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools): the approved Linear/Figma redesign, the same components, tokens, surfaces, typography and native motion, with Converter as the template. No tool-specific visual style.
 
@@ -165,6 +168,8 @@ sound: { volume: 0.8, muted: false }
 
 ## 10. Open questions
 
+These three were resolved by the native implementation; see §11.
+
 1. Which in-process decoder the native app uses for scrubbing (the Tauri page uses Mediabunny, a JavaScript
    library); the choice must be validated on long videos and odd codecs before the page is built.
 2. Whether the native player can reuse the existing video preview service or needs its own audio clock; the
@@ -172,10 +177,55 @@ sound: { volume: 0.8, muted: false }
 3. Whether the workspace cache key stays FNV-1a + three samples or moves to a stronger hash; the visible behaviour
    (same video copied elsewhere reuses its cache) must stay.
 
+## 11. Native implementation (2026-10-23)
+
+Status: implemented on `slint/tools-all`, pending Java's visual review. The full evidence and the per-point acceptance
+review are in [TOOLS_STATUS.md](../TOOLS_STATUS.md#frame-capture).
+
+- **Decoder.** FFmpeg/ffprobe are external programs, located in the profile and installable from the page. Stepping
+  decodes a ±12-frame window in one FFmpeg process at up to 1920 px; release/rest settles on the exact frame.
+  Captures decode one frame at the source size. The keyframe index reads packet flags without decoding, and the strip
+  decodes keyframes only. There is no in-process decoder: interactive stepping does not spawn one process per frame,
+  but the viewer is FFmpeg-backed rather than the Tauri Mediabunny path.
+- **Timeline and cache.** Fast movement shows the nearest keyframe; slow movement follows exact frames. A 160 ms quiet
+  interval while the pointer remains held settles on the exact current frame, and release settles exactly at once.
+  The one-shot debounce is restarted on movement (no polling); decoded windows and preview cache are reused, with
+  request generations dropping stale work. The cache is bounded at 400 MB and drops the farthest frame first.
+- **Playback.** Reuses `halation_core::playback::Player::start_media` (shared-mode WASAPI; picture at most 1280 × 720
+  and 30 fps). A manual frame change stops it. Without an audio device the picture plays silently and the error is
+  reported when playback ends; playback is never simulated.
+- **Layouts and crop.** Five layouts, the largest exact-ratio crop, one crop per layout for the session, pointer drag
+  and arrow keys (1 %, Shift 10 %). Captures apply the crop at native resolution.
+- **Queue and capture.** Eight frames in time order, select/remove/all/none/clear, PNG only,
+  `{stem} - frame {n+1}.png`. Library writes `Library\Frames`; Image goes through the global save policy (base
+  `Exports\Frames`, asking when no location is remembered). The result list keeps the last 12 with Show in folder.
+- **Session.** `profile/frame-capture.json` stores the video reference, picked flag, frame, volume/mute, layout,
+  crops, destination and queue. Decoded pictures and results are not stored. Leaving the page stops playback, clears
+  the cache and workspace and flushes the session.
+- **Not implemented.** Back/Send need a native tool-origin/request channel that does not exist; the result
+  Crop/Cutout/Send actions need those image tools. The page shows a note instead of dead controls.
+- **Known limitations.** No in-process decoder; uninterrupted fast drags show keyframes until a 160 ms pause or
+  release, while slow movement follows exact frames through the FFmpeg window/cache; a missing audio device is
+  reported at the end of the silent picture; results are not persisted; visual
+  review pending. Back/Send and result Crop/Cutout/Send require future integration with tool-origin and image-tool
+  services; these dependencies are absent, so their controls remain unavailable rather than simulated.
+- **Evidence.** Eleven core tests (three use generated FFmpeg video), two controller tests (generated video; session,
+  scrub settle/release and stale generations), the page-bounds test and the catalog test. The 4K test proves a
+  1920 × 1080 preview and a
+  3840 × 2160 capture from the same source; the NTSC test proves 24000/1001 with 24 frames and last frame 23.
+  `cargo test --workspace` passed 151 tests; `cargo fmt --check`, strict Clippy, `python tools/check-docs.py` and
+  `git diff --check` passed.
+- **Still unverified.** Visual review in the native window; a real WASAPI device; the manual Image dialog;
+  picker/drag-and-drop interaction; pointer-drag automation; 4K timings (correctness is tested, speed is not).
+
 ## Sources
 
+- Native: `crates/halation-core/src/framegrab.rs`, `crates/halation-app/src/framegrab.rs`,
+  `crates/halation-app/ui/pages/framegrab.slint`, `crates/halation-app/ui/components/media.slint`,
+  `crates/halation-app/src/strings.rs`, `crates/halation-app/locales/en.json`,
+  `crates/halation-app/tests/ui_layout.rs`, `crates/halation-app/tests/services.rs`.
 - Tauri: `main:app/dist/framegrab.js`, `framegrab.html`, `framegrab.css`; `main:app/src-tauri/src/framegrab.rs`;
-  `main:app/dist/services.js` (`frameAt`, keyframe index, preview frames).
+  `main:app/dist/services.js` (`frameAt`, keyframe index, preview frames). Behaviour only; no visual source copied.
 - Verified lines: `framegrab.js:18-31,61-65,499-539,607-670,729-760,798-834,879-935,1250-1264`;
   `framegrab.rs:23-24,28-60,97-108`.
 - Shared rules: [save-location.md](save-location.md), [library.md](library.md),

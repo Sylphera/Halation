@@ -12,6 +12,9 @@ import { SettingsPage } from "pages/settings.slint";
 import { ConverterPage } from "pages/converter.slint";
 import { ConvertRow, FormatRow } from "models.slint";
 export { ConvertRow, FormatRow } from "models.slint";
+import { FrameCapturePage } from "pages/framegrab.slint";
+import { FrameQueueRow, FrameLayoutRow, FrameDestinationRow, FrameResultRow, FrameStrings } from "models.slint";
+export { FrameQueueRow, FrameLayoutRow, FrameDestinationRow, FrameResultRow, FrameStrings } from "models.slint";
 import { AppButton } from "components/button.slint";
 import { SidebarItem, SidebarGroup, PillList } from "components/rail-item.slint";
 import { TopActions, ActivityButton, BarButton, BarHint } from "components/top-dock.slint";
@@ -116,6 +119,61 @@ export component AppWindow inherits Window {
     in-out property <bool> export-choice-visible: false;
     in property <bool> ffmpeg-ready: false;
     in property <bool> ffmpeg-installing: false;
+
+    // Frame Capture (page 5). Rust owns every decoded frame, the queue, the session and the files.
+    in property <[FrameQueueRow]> frame-queue;
+    in property <[FrameLayoutRow]> frame-layouts;
+    in property <[FrameDestinationRow]> frame-destinations;
+    in property <[FrameResultRow]> frame-results;
+    in property <FrameStrings> frame-strings;
+    in property <image> frame-preview;
+    in property <image> frame-strip;
+    in property <bool> frame-has-preview: false;
+    in property <bool> frame-has-strip: false;
+    in property <bool> frame-has-video: false;
+    in property <bool> frame-needs-ffmpeg: true;
+    in property <bool> frame-installing: false;
+    in property <bool> frame-busy: false;
+    in property <string> frame-message;
+    in property <float> frame-progress: 0;
+    in property <string> frame-progress-label;
+    in property <bool> frame-playing: false;
+    in property <float> frame-position: 0;
+    in property <float> frame-volume: 0.8;
+    in property <int> frame-current: 0;
+    in property <int> frame-frames: 0;
+    in property <int> frame-video-width: 0;
+    in property <int> frame-video-height: 0;
+    in property <string> frame-frame-label;
+    in property <string> frame-clock;
+    in property <string> frame-time;
+    in property <string> frame-sharp-note;
+    in property <string> frame-selected-label;
+    in property <float> frame-crop-x: 0;
+    in property <float> frame-crop-y: 0;
+    in property <float> frame-crop-w: 1;
+    in property <float> frame-crop-h: 1;
+    in property <bool> frame-crop-visible: false;
+    in property <int> frame-selected-count: 0;
+    in property <bool> frame-can-capture: false;
+    in property <bool> frame-left-open: false;
+    in property <bool> frame-inspector-open: true;
+    callback frame-action(string);
+    callback frame-select(int);
+    callback frame-toggle(int);
+    callback frame-remove(int);
+    callback frame-layout(string);
+    callback frame-destination(string);
+    callback frame-scrub(float, bool);
+    callback frame-scrub-end(float);
+    callback frame-crop-set(float, float);
+    callback frame-crop-move(float, float);
+    callback frame-seek(float);
+    callback frame-volume-changed(float);
+    callback frame-dropped(data-transfer);
+    callback frame-reveal(int);
+    // Internal async notification; the UI does not trigger it.
+    callback frame-task-finished();
 
     callback navigate(int);
     callback choose-reference();
@@ -239,6 +297,42 @@ export component AppWindow inherits Window {
                 target(id) => { root.converter-target(id); }
                 file-dropped(data) => { root.converter-dropped(data); }
             }
+            if root.page == 5 : FrameCapturePage {
+                width: parent.width; height: parent.height;
+                strings: root.frame-strings;
+                queue: root.frame-queue; layouts: root.frame-layouts;
+                destinations: root.frame-destinations; results: root.frame-results;
+                preview: root.frame-preview; strip: root.frame-strip;
+                has-preview: root.frame-has-preview; has-strip: root.frame-has-strip;
+                has-video: root.frame-has-video; busy: root.frame-busy;
+                needs-ffmpeg: root.frame-needs-ffmpeg; installing: root.frame-installing;
+                message: root.frame-message; progress: root.frame-progress;
+                progress-label: root.frame-progress-label;
+                playing: root.frame-playing; position: root.frame-position; volume: root.frame-volume;
+                frame: root.frame-current; frames: root.frame-frames;
+                video-width: root.frame-video-width; video-height: root.frame-video-height;
+                frame-label: root.frame-frame-label; clock: root.frame-clock; time: root.frame-time;
+                sharp-note: root.frame-sharp-note; selected-label: root.frame-selected-label;
+                crop-x: root.frame-crop-x; crop-y: root.frame-crop-y;
+                crop-w: root.frame-crop-w; crop-h: root.frame-crop-h;
+                crop-visible: root.frame-crop-visible;
+                selected-count: root.frame-selected-count; can-capture: root.frame-can-capture;
+                left-open: root.frame-left-open; inspector-open: root.frame-inspector-open;
+                action(name) => { root.frame-action(name); }
+                select(index) => { root.frame-select(index); }
+                toggle(index) => { root.frame-toggle(index); }
+                remove(index) => { root.frame-remove(index); }
+                layout(id) => { root.frame-layout(id); }
+                destination(id) => { root.frame-destination(id); }
+                scrub(fraction, fast) => { root.frame-scrub(fraction, fast); }
+                scrub-end(fraction) => { root.frame-scrub-end(fraction); }
+                crop-set(x, y) => { root.frame-crop-set(x, y); }
+                crop-move(dx, dy) => { root.frame-crop-move(dx, dy); }
+                seek(fraction) => { root.frame-seek(fraction); }
+                volume-changed(value) => { root.frame-volume-changed(value); }
+                file-dropped(data) => { root.frame-dropped(data); }
+                reveal(index) => { root.frame-reveal(index); }
+            }
             if root.page == 3 : SettingsPage {
                 width: parent.width;
                 height: parent.height;
@@ -284,7 +378,7 @@ export component AppWindow inherits Window {
                     horizontal-stretch: 0;
                     spacing: 6px;
                     Text {
-                        text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : root.page == 4 ? "Converter" : "";
+                        text: root.page == 0 ? "Home" : root.page == 3 ? "Settings" : root.page == 4 ? "Converter" : root.page == 5 ? root.frame-strings.title : "";
                         color: Theme.text;
                         font-family: Theme.display;
                         font-size: Theme.font-bar-title;
@@ -378,7 +472,7 @@ export component AppWindow inherits Window {
             // The hover and selection pills behind the rows
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
-                has-selection: root.page == 0 || root.page == 3 || root.page == 4;
+                has-selection: root.page == 0 || root.page == 3 || root.page == 4 || root.page == 5;
                 bar: true;
                 select-fill: Theme.raised-flat;
                 hover-fill: Theme.raised-flat;
@@ -440,7 +534,7 @@ export component AppWindow inherits Window {
                         icon: tool.icon;
                         label: tool.name;
                         open: root.rail-open;
-                        active: root.page == 4 && tool.id == "converter";
+                        active: (root.page == 4 && tool.id == "converter") || (root.page == 5 && tool.id == "frame-capture");
                         activated => { root.tool-activated(tool.id); }
                         hovered(on, at, size) => { rail-pills.hover(on, at, size); }
                         selected(at, size, snap) => { rail-pills.select(at, size, snap); }

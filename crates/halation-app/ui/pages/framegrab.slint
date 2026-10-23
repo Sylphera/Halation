@@ -1,0 +1,566 @@
+import { ListView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import {
+    FrameQueueRow, FrameLayoutRow, FrameDestinationRow, FrameResultRow, FrameStrings,
+} from "../models.slint";
+import { AppButton } from "../components/button.slint";
+import { ToolIcon } from "../icons.slint";
+import { RoundButton, Scrubber, Transport } from "../components/media.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// Frame Capture: the Converter's frame (queue / canvas / inspector), with the video, timeline and crop. Rust owns
+// every decoded frame, the queue, the session and the files; this page only presents them.
+export component FrameCapturePage inherits Rectangle {
+    in property <FrameStrings> strings;
+    in property <[FrameQueueRow]> queue;
+    in property <[FrameLayoutRow]> layouts;
+    in property <[FrameDestinationRow]> destinations;
+    in property <[FrameResultRow]> results;
+    in property <image> preview;
+    in property <image> strip;
+    in property <bool> has-preview: false;
+    in property <bool> has-strip: false;
+    in property <bool> has-video: false;
+    in property <bool> busy: false;
+    in property <bool> needs-ffmpeg: true;
+    in property <bool> installing: false;
+    in property <string> message;
+    in property <string> progress-label;
+    in property <float> progress: 0;
+    in property <bool> playing: false;
+    in property <float> position: 0;
+    in property <float> volume: 0.8;
+    in property <int> frame: 0;
+    in property <int> frames: 0;
+    in property <int> video-width: 0;
+    in property <int> video-height: 0;
+    in property <string> frame-label;
+    in property <string> clock;
+    in property <string> time;
+    in property <string> sharp-note;
+    in property <string> selected-label;
+    in property <float> crop-x: 0;
+    in property <float> crop-y: 0;
+    in property <float> crop-w: 1;
+    in property <float> crop-h: 1;
+    in property <bool> crop-visible: false;
+    in property <int> selected-count: 0;
+    in property <bool> can-capture: false;
+    in property <bool> left-open: true;
+    in property <bool> inspector-open: true;
+    callback action(string);
+    callback select(int);
+    callback toggle(int);
+    callback remove(int);
+    callback layout(string);
+    callback destination(string);
+    callback scrub(float, bool);
+    callback scrub-end(float);
+    callback crop-set(float, float);
+    callback crop-move(float, float);
+    callback seek(float);
+    callback volume-changed(float);
+    callback file-dropped(data-transfer);
+    callback reveal(int);
+
+    background: Theme.canvas-deep;
+    // The transport needs about 400 px. Below that the canvas would not fit, so the side panels give way: the
+    // inspector stays until the page is narrower than canvas + inspector, and the queue needs canvas + both panels.
+    property <length> queue-width: root.left-open && root.width >= (root.inspector-open ? 900px : 620px) ? 220px : 0px;
+    property <length> inspector-width: root.inspector-open && root.width >= (root.left-open ? 900px : 680px) ? 280px : 0px;
+    animate queue-width, inspector-width { duration: Motion.panel; easing: Curve.ease; }
+
+    init => { keys.focus(); }
+
+    // Page-wide shortcuts. A focused control may consume its own keys first (the crop frame consumes its arrows).
+    keys := FocusScope {
+        width: parent.width;
+        height: parent.height;
+        key-pressed(event) => {
+            if (event.text == Key.Space) { root.action("play"); return accept; }
+            if (event.text == Key.LeftArrow) { root.action(event.modifiers.shift ? "second-back" : "prev"); return accept; }
+            if (event.text == Key.RightArrow) { root.action(event.modifiers.shift ? "second-forward" : "next"); return accept; }
+            if (event.text == Key.Home) { root.action("home"); return accept; }
+            if (event.text == Key.End) { root.action("end"); return accept; }
+            if (event.text == "m" || event.text == "M") { root.action("add"); return accept; }
+            if (event.text == "s" || event.text == "S") { root.action("sharp"); return accept; }
+            reject
+        }
+    }
+
+    /* ===== queue ===== */
+
+    if root.queue-width > 0px : Rectangle {
+        x: 0px; y: 0px; width: root.queue-width; height: parent.height;
+        background: Theme.chrome;
+        accessible-role: groupbox;
+        accessible-label: root.strings.queue;
+        Rectangle { x: parent.width - 1px; width: 1px; height: parent.height; background: Theme.line; }
+        VerticalLayout {
+            x: 0px; y: 0px; width: parent.width; height: parent.height;
+            spacing: 0px;
+            Rectangle {
+                height: 36px;
+                Text { x: 16px; height: parent.height; text: root.strings.queue; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                Text { x: parent.width - 58px; width: 44px; height: parent.height; text: root.strings.queue_count; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
+                Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
+            }
+            if root.queue.length == 0 : VerticalLayout {
+                padding: 14px; spacing: 6px; alignment: start;
+                Text { text: root.strings.queue_empty; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                Text { text: root.strings.keys_hint; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+            }
+            ListView {
+                for row in root.queue : FocusScope {
+                    height: 60px;
+                    focus-on-tab-navigation: true;
+                    accessible-role: button;
+                    accessible-label: row.label + ", " + row.time;
+                    accessible-action-default => { root.select(row.index); }
+                    key-pressed(event) => {
+                        if (event.text == Key.Return || event.text == Key.Space) { root.select(row.index); accept } else { reject }
+                    }
+                    Rectangle { background: row.selected ? Theme.control-active : row-touch.has-hover ? Theme.control-hover : transparent; }
+                    Rectangle {
+                        x: 10px; y: 10px; width: 64px; height: 40px;
+                        border-radius: 4px; background: Theme.well; border-width: 1px; border-color: Theme.line;
+                        clip: true;
+                        Image { width: parent.width; height: parent.height; source: row.thumb; image-fit: cover; }
+                    }
+                    VerticalLayout {
+                        x: 82px; y: 0px; width: parent.width - 122px; height: parent.height;
+                        padding-top: 9px; padding-bottom: 9px; spacing: 2px;
+                        Text { text: row.label; color: Theme.text; font-size: Theme.font-body; overflow: elide; }
+                        Text { text: row.time; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                    }
+                    // Selection: a drawn circle, not a text glyph
+                    Rectangle {
+                        x: parent.width - 68px; y: (parent.height - 22px) / 2; width: 22px; height: 22px;
+                        border-radius: 11px;
+                        background: row.selected ? Theme.accent : transparent;
+                        border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
+                        accessible-role: checkbox;
+                        accessible-label: (row.selected ? root.strings.deselect : root.strings.select) + " " + row.label;
+                        accessible-checked: row.selected;
+                        accessible-action-default => { root.toggle(row.index); }
+                        if row.selected : Path {
+                            x: 6px; y: 6px; width: 10px; height: 10px;
+                            viewbox-width: 10; viewbox-height: 10;
+                            commands: "M1 5 L4 8 L9 2";
+                            stroke: Theme.chrome; stroke-width: 2px; fill: transparent;
+                        }
+                        toggle-touch := TouchArea { mouse-cursor: pointer; clicked => { root.toggle(row.index); } }
+                    }
+                    // Remove, shown on hover or when selected
+                    if row-touch.has-hover || row.selected : Rectangle {
+                        x: parent.width - 38px; y: (parent.height - 22px) / 2; width: 22px; height: 22px;
+                        border-radius: 11px;
+                        background: close-touch.pressed ? Theme.press-fill : close-touch.has-hover ? Theme.hover-fill : transparent;
+                        accessible-role: button;
+                        accessible-label: root.strings.remove + " " + row.label;
+                        accessible-action-default => { root.remove(row.index); }
+                        Path {
+                            x: 6px; y: 6px; width: 10px; height: 10px;
+                            viewbox-width: 10; viewbox-height: 10;
+                            commands: "M1 1 L9 9 M9 1 L1 9"; stroke: Theme.muted; stroke-width: 1.5px; fill: transparent;
+                        }
+                        close-touch := TouchArea { mouse-cursor: pointer; clicked => { root.remove(row.index); } }
+                    }
+                    row-touch := TouchArea { clicked => { root.select(row.index); } }
+                }
+            }
+            Rectangle {
+                height: 84px;
+                Rectangle { x: 0px; y: 0px; width: parent.width; height: 1px; background: Theme.line; }
+                VerticalLayout {
+                    padding: 8px; spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        AppButton { text: root.strings.add_frame; small: true; enabled: root.has-video; clicked => { root.action("add"); } }
+                        AppButton { text: root.strings.clear; small: true; quiet: true; enabled: root.queue.length > 0; clicked => { root.action("clear"); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        AppButton { text: root.strings.all; small: true; quiet: true; enabled: root.queue.length > 0; clicked => { root.action("all"); } }
+                        AppButton { text: root.strings.none; small: true; quiet: true; enabled: root.queue.length > 0; clicked => { root.action("none"); } }
+                        Rectangle { horizontal-stretch: 1; }
+                        Text { text: root.selected-label; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center; }
+                    }
+                }
+            }
+        }
+    }
+
+    /* ===== canvas ===== */
+
+    Rectangle {
+        x: root.queue-width; y: 0px;
+        width: parent.width - root.queue-width - root.inspector-width;
+        height: parent.height;
+        accessible-role: groupbox;
+        accessible-label: root.strings.title;
+        VerticalLayout {
+            x: 0px; y: 0px; width: parent.width; height: parent.height;
+            padding: 0px; spacing: 0px;
+
+            preview := Rectangle {
+                horizontal-stretch: 1; vertical-stretch: 1;
+                clip: true;
+                background: Theme.canvas-deep;
+                property <float> scale: min(
+                    ((self.width - 48px) / 1px) / max(root.video-width, 1),
+                    ((self.height - 48px) / 1px) / max(root.video-height, 1)
+                );
+                property <length> dw: root.video-width * self.scale * 1px;
+                property <length> dh: root.video-height * self.scale * 1px;
+                property <length> ox: 24px + ((self.width - 48px) - self.dw) / 2;
+                property <length> oy: 24px + ((self.height - 48px) - self.dh) / 2;
+                property <bool> dragging: false;
+                property <float> grab-x: 0;
+                property <float> grab-y: 0;
+
+                if root.has-preview : Image {
+                    x: preview.ox; y: preview.oy; width: preview.dw; height: preview.dh;
+                    source: root.preview; image-fit: contain;
+                }
+                if root.has-video && !root.has-preview : Rectangle {
+                    x: 24px; y: 24px; width: parent.width - 48px; height: parent.height - 48px;
+                    border-radius: Theme.radius; background: Theme.chrome;
+                    Text {
+                        width: parent.width; height: parent.height;
+                        text: root.strings.reading; color: Theme.subtle;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                }
+                if root.crop-visible && root.has-preview : Rectangle {
+                    x: preview.ox + root.crop-x * preview.dw;
+                    y: preview.oy + root.crop-y * preview.dh;
+                    width: root.crop-w * preview.dw;
+                    height: root.crop-h * preview.dh;
+                    border-width: 2px; border-color: Theme.accent;
+                    background: Theme.accent.transparentize(94%);
+                    accessible-role: slider;
+                    accessible-label: root.strings.crop;
+                }
+                // Dragging the crop frame. The pointer stays in page coordinates; the target is a fraction of the video.
+                crop-touch := TouchArea {
+                    enabled: root.crop-visible && root.has-preview;
+                    mouse-cursor: pointer;
+                    property <float> fx: ((self.mouse-x - preview.ox) / 1px) / max(preview.dw / 1px, 1);
+                    property <float> fy: ((self.mouse-y - preview.oy) / 1px) / max(preview.dh / 1px, 1);
+                    pointer-event(event) => {
+                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                            if (self.fx >= root.crop-x && self.fx <= root.crop-x + root.crop-w
+                                && self.fy >= root.crop-y && self.fy <= root.crop-y + root.crop-h) {
+                                crop-scope.focus();
+                                preview.dragging = true;
+                                preview.grab-x = self.fx - root.crop-x;
+                                preview.grab-y = self.fy - root.crop-y;
+                            }
+                        }
+                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up) {
+                            preview.dragging = false;
+                        }
+                        if (event.kind == PointerEventKind.cancel) { preview.dragging = false; }
+                    }
+                    moved => {
+                        if (preview.dragging) {
+                            root.crop-set(self.fx - preview.grab-x, self.fy - preview.grab-y);
+                        }
+                    }
+                }
+                crop-scope := FocusScope {
+                    x: 0px; y: 0px; width: parent.width; height: parent.height;
+                    key-pressed(event) => {
+                        if (!root.crop-visible) { reject }
+                        else if (event.text == Key.LeftArrow) { root.crop-move(event.modifiers.shift ? -0.1 : -0.01, 0); accept }
+                        else if (event.text == Key.RightArrow) { root.crop-move(event.modifiers.shift ? 0.1 : 0.01, 0); accept }
+                        else if (event.text == Key.UpArrow) { root.crop-move(0, event.modifiers.shift ? -0.1 : -0.01); accept }
+                        else if (event.text == Key.DownArrow) { root.crop-move(0, event.modifiers.shift ? 0.1 : 0.01); accept }
+                        else { reject }
+                    }
+                }
+                if root.has-video : Text {
+                    x: 24px; y: parent.height - 20px; height: 16px;
+                    text: root.sharp-note; color: Theme.accent; font-size: Theme.font-caption;
+                    vertical-alignment: center; overflow: elide;
+                }
+            }
+
+            // Timeline: the keyframe strip, queued ticks and the playhead. Dragging scrubs; releasing settles exactly.
+            timeline := FocusScope {
+                height: 76px;
+                accessible-role: slider;
+                accessible-label: root.strings.timeline;
+                accessible-value: root.frame-label;
+                key-pressed(event) => {
+                    if (event.text == Key.LeftArrow) { root.action(event.modifiers.shift ? "second-back" : "prev"); return accept; }
+                    if (event.text == Key.RightArrow) { root.action(event.modifiers.shift ? "second-forward" : "next"); return accept; }
+                    if (event.text == Key.Home) { root.action("home"); return accept; }
+                    if (event.text == Key.End) { root.action("end"); return accept; }
+                    reject
+                }
+                property <bool> holding: false;
+                Rectangle {
+                    x: 8px; y: 8px; width: parent.width - 16px; height: 36px;
+                    border-radius: 4px; background: Theme.chrome; border-width: 1px; border-color: Theme.line;
+                    clip: true;
+                    if root.has-strip : Image {
+                        width: parent.width; height: parent.height; source: root.strip; image-fit: fill; opacity: 0.9;
+                    }
+                    if !root.has-strip && root.has-video : Text {
+                        width: parent.width; height: parent.height; text: root.strings.timeline;
+                        color: Theme.subtle; font-size: Theme.font-caption;
+                        horizontal-alignment: center; vertical-alignment: center;
+                    }
+                    for row in root.queue : Rectangle {
+                        x: (parent.width - 4px) * row.n / max(root.frames - 1, 1);
+                        y: 0px; width: 2px; height: 6px; background: Theme.warning;
+                    }
+                    Rectangle {
+                        x: (parent.width - 2px) * root.frame / max(root.frames - 1, 1);
+                        y: 0px; width: 2px; height: parent.height; background: Theme.text;
+                    }
+                }
+                Text { x: 10px; y: 50px; height: 18px; text: root.frame-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; }
+                Text { x: parent.width - 190px; width: 180px; y: 50px; height: 18px; text: root.time; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; }
+                touch := TouchArea {
+                    mouse-cursor: pointer;
+                    property <float> fraction: clamp(self.mouse-x / max(self.width, 1px), 0, 1);
+                    pointer-event(event) => {
+                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                            timeline.focus();
+                            timeline.holding = true;
+                            root.scrub(self.fraction, true);
+                        }
+                        if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up && timeline.holding) {
+                            timeline.holding = false;
+                            root.scrub-end(self.fraction);
+                        }
+                        if (event.kind == PointerEventKind.cancel) { timeline.holding = false; }
+                    }
+                    moved => { if (timeline.holding) { root.scrub(self.fraction, true); } }
+                }
+            }
+
+            Rectangle {
+                height: 36px;
+                Transport {
+                    x: 8px; y: 0px; width: parent.width - 16px;
+                    track: true;
+                    playing: root.playing; clock: root.clock; position: root.position; volume: root.volume;
+                    back-name: root.strings.back_one; forward-name: root.strings.forward_one;
+                    action(name) => { root.action(name); }
+                    seek(fraction) => { root.seek(fraction); }
+                    volume-changed(value) => { root.volume-changed(value); }
+                }
+            }
+
+            if root.message != "" : Rectangle {
+                height: 56px; background: Theme.chrome;
+                Text { x: 12px; y: 6px; width: parent.width - 24px; height: 44px; text: root.message; color: Theme.muted; wrap: word-wrap; overflow: elide; }
+            }
+            if root.progress-label != "" : Rectangle {
+                height: 28px; background: Theme.chrome;
+                Text { x: 12px; width: parent.width - 24px; height: 24px; text: root.progress-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
+                Rectangle { x: 0px; y: parent.height - 3px; width: parent.width * root.progress; height: 3px; background: Theme.accent; }
+            }
+
+            Rectangle {
+                height: 64px; background: Theme.chrome;
+                Rectangle { x: 0px; y: 0px; height: 1px; width: parent.width; background: Theme.line; }
+                HorizontalLayout {
+                    padding-left: 16px; padding-right: 16px; spacing: 8px;
+                    Text {
+                        horizontal-stretch: 1;
+                        text: root.has-video ? root.strings.keys_hint : root.strings.summary;
+                        color: Theme.subtle; vertical-alignment: center; overflow: elide;
+                    }
+                    if root.has-video : AppButton { text: root.strings.sharpest_button; quiet: true; small: true; clicked => { root.action("sharp"); } }
+                    if root.has-video : AppButton { text: root.strings.add_frame; quiet: true; small: true; clicked => { root.action("add"); } }
+                }
+            }
+
+            if !root.has-video : VerticalLayout {
+                padding: 24px; spacing: 14px; alignment: center;
+                Rectangle {
+                    height: 56px;
+                    ToolIcon { x: (parent.width - self.width) / 2; size: 40px; name: "framegrab"; tint: Theme.muted; }
+                }
+                Text { text: root.strings.empty_title; color: Theme.text; font-size: Theme.font-heading; horizontal-alignment: center; overflow: elide; }
+                Text { text: root.strings.empty_hint; color: Theme.subtle; wrap: word-wrap; horizontal-alignment: center; }
+                HorizontalLayout {
+                    alignment: center; spacing: 8px;
+                    AppButton { text: root.strings.browse; enabled: !root.busy; clicked => { root.action("open"); } }
+                }
+                if root.needs-ffmpeg : Text { text: root.strings.needs_ffmpeg_hint; color: Theme.warning; font-size: Theme.font-caption; horizontal-alignment: center; wrap: word-wrap; }
+            }
+            DropArea {
+                can-drop(event) => { root.busy ? DragAction.none : DragAction.copy }
+                dropped(event) => { root.file-dropped(event.data); event.proposed-action }
+            }
+        }
+    }
+
+    /* ===== inspector ===== */
+
+    if root.inspector-width > 0px : Rectangle {
+        x: parent.width - root.inspector-width; y: 0px;
+        width: root.inspector-width; height: parent.height;
+        background: Theme.chrome;
+        accessible-role: groupbox;
+        accessible-label: root.strings.capture;
+        Rectangle { x: 0px; y: 0px; width: 1px; height: parent.height; background: Theme.line; }
+        VerticalLayout {
+            x: 0px; y: 0px; width: parent.width; height: parent.height;
+            spacing: 0px;
+            Rectangle {
+                height: 36px;
+                Text { x: 14px; height: parent.height; text: root.strings.capture; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
+            }
+            // The inspector's body scrolls: at 960x600 the layouts, destinations, actions and results do not fit. The
+            // header above stays put.
+            flick := Flickable {
+                vertical-stretch: 1;
+                content-width: self.width;
+                content-height: max(self.height, pane.preferred-height);
+                pane := VerticalLayout {
+                    x: 0px; y: 0px; width: root.inspector-width - 1px; height: self.preferred-height;
+                    spacing: 0px;
+            if root.needs-ffmpeg : Rectangle {
+                height: 92px;
+                VerticalLayout {
+                    padding: 12px; spacing: 6px;
+                    Text { text: root.strings.needs_ffmpeg; color: Theme.muted; wrap: word-wrap; }
+                    AppButton { text: root.strings.install; small: true; enabled: !root.installing && !root.busy; clicked => { root.action("install"); } }
+                    Text { text: root.strings.install_note; color: Theme.subtle; font-size: Theme.font-caption; wrap: word-wrap; }
+                }
+            }
+            Rectangle {
+                height: 26px;
+                Text { x: 14px; height: parent.height; text: root.strings.layout; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+            }
+            for row in root.layouts : FocusScope {
+                height: 34px;
+                focus-on-tab-navigation: true;
+                accessible-role: button;
+                accessible-label: root.strings.layout + ": " + row.label;
+                accessible-action-default => { root.layout(row.id); }
+                key-pressed(event) => {
+                    if (event.text == Key.Return || event.text == Key.Space) { root.layout(row.id); accept } else { reject }
+                }
+                Rectangle { background: row.selected ? Theme.control-active : layout-touch.has-hover ? Theme.control-hover : transparent; }
+                Rectangle {
+                    x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
+                    background: row.selected ? Theme.accent : transparent;
+                    border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
+                }
+                Text { x: 32px; y: 0px; width: 76px; height: parent.height; text: row.label; color: Theme.text; font-size: Theme.font-body; vertical-alignment: center; overflow: elide; }
+                Text { x: 108px; y: 0px; width: parent.width - 118px; height: parent.height; text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
+                layout-touch := TouchArea { clicked => { root.layout(row.id); } }
+            }
+            Rectangle {
+                height: 26px;
+                Rectangle { y: 0px; width: parent.width; height: 1px; background: Theme.line; }
+                Text { x: 14px; height: parent.height; text: root.strings.destination; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+            }
+            for row in root.destinations : FocusScope {
+                height: 40px;
+                focus-on-tab-navigation: true;
+                accessible-role: button;
+                accessible-label: root.strings.destination + ": " + row.label;
+                accessible-action-default => { root.destination(row.id); }
+                key-pressed(event) => {
+                    if (event.text == Key.Return || event.text == Key.Space) { root.destination(row.id); accept } else { reject }
+                }
+                Rectangle { background: row.selected ? Theme.control-active : destination-touch.has-hover ? Theme.control-hover : transparent; }
+                Rectangle {
+                    x: 14px; y: (parent.height - 10px) / 2; width: 10px; height: 10px; border-radius: 5px;
+                    background: row.selected ? Theme.accent : transparent;
+                    border-width: 1px; border-color: row.selected ? Theme.accent : Theme.line-hover;
+                }
+                VerticalLayout {
+                    x: 32px; y: 0px; width: parent.width - 42px; height: parent.height;
+                    padding-top: 4px; padding-bottom: 4px; spacing: 1px;
+                    Text { text: row.label; color: Theme.text; font-size: Theme.font-body; overflow: elide; }
+                    Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                }
+                destination-touch := TouchArea { clicked => { root.destination(row.id); } }
+            }
+            Text {
+                x: 14px; width: parent.width - 28px; height: 34px;
+                text: root.strings.back_send_note; color: Theme.subtle; font-size: Theme.font-caption;
+                vertical-alignment: center; wrap: word-wrap;
+            }
+            Rectangle {
+                height: 40px;
+                VerticalLayout {
+                    padding-left: 12px; padding-right: 12px; spacing: 2px; alignment: center;
+                    AppButton {
+                        text: root.can-capture ? root.strings.capture : root.strings.capture_none;
+                        primary: true; small: true;
+                        enabled: root.can-capture && !root.busy;
+                        clicked => { root.action("capture"); }
+                    }
+                }
+            }
+            Text {
+                x: 14px; width: parent.width - 28px; height: 30px;
+                text: root.strings.crop_hint; color: Theme.subtle; font-size: Theme.font-caption;
+                vertical-alignment: center; wrap: word-wrap;
+            }
+            Text {
+                x: 14px; width: parent.width - 28px; height: 26px;
+                text: root.strings.sound_note; color: Theme.subtle; font-size: Theme.font-caption;
+                vertical-alignment: center; wrap: word-wrap; overflow: elide;
+            }
+            if root.busy : HorizontalLayout {
+                height: 30px; padding-left: 12px; padding-right: 12px; spacing: 8px;
+                AppButton { text: root.strings.cancel; small: true; quiet: true; clicked => { root.action("cancel"); } }
+                Text { text: root.progress-label; color: Theme.muted; font-size: Theme.font-caption; vertical-alignment: center; overflow: elide; }
+            }
+            Rectangle {
+                height: 26px;
+                Rectangle { y: 0px; width: parent.width; height: 1px; background: Theme.line; }
+                Text { x: 14px; height: parent.height; text: root.strings.results; color: Theme.text; font-weight: 600; vertical-alignment: center; }
+                Text { x: parent.width - 54px; width: 40px; height: parent.height; text: root.strings.results_note_title; color: Theme.subtle; font-size: Theme.font-caption; horizontal-alignment: right; vertical-alignment: center; overflow: elide; }
+            }
+            if root.results.length == 0 : Text {
+                x: 14px; width: parent.width - 28px; height: 34px;
+                text: root.strings.results_empty; color: Theme.subtle; font-size: Theme.font-caption; vertical-alignment: center;
+            }
+            // At most `RESULT_KEEP` (12) rows: a plain list inside the scrolling body, not a nested scrolling list.
+            for row in root.results : FocusScope {
+                height: 48px;
+                focus-on-tab-navigation: true;
+                accessible-role: button;
+                accessible-label: row.name + ", " + row.detail;
+                accessible-action-default => { root.reveal(row.index); }
+                key-pressed(event) => {
+                    if (event.text == Key.Return || event.text == Key.Space) { root.reveal(row.index); accept } else { reject }
+                }
+                Rectangle { background: result-touch.has-hover ? Theme.control-hover : transparent; }
+                VerticalLayout {
+                    x: 14px; y: 0px; width: parent.width - 100px; height: parent.height;
+                    padding-top: 6px; padding-bottom: 6px; spacing: 1px;
+                    Text { text: row.name; color: Theme.text; font-size: Theme.font-caption; overflow: elide; }
+                    Text { text: row.detail; color: Theme.subtle; font-size: Theme.font-caption; overflow: elide; }
+                }
+                AppButton {
+                    x: parent.width - 92px; y: 10px; width: 80px;
+                    text: root.strings.reveal; small: true; quiet: true;
+                    clicked => { root.reveal(row.index); }
+                }
+                result-touch := TouchArea { clicked => { root.reveal(row.index); } }
+            }
+            Text {
+                x: 14px; width: parent.width - 28px; height: 32px;
+                text: root.strings.results_note; color: Theme.subtle; font-size: Theme.font-caption;
+                vertical-alignment: center; wrap: word-wrap; overflow: elide;
+            }
+                }
+            }
+        }
+    }
+}

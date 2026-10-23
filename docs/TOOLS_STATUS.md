@@ -1,10 +1,10 @@
 # Tools status — native line
 
-Status: FASE 0 inventory and shared UI contract (2026-10-23); the native base was integrated and Converter re-checked
-on 2026-10-23. This branch (`slint/tools-all`) now carries `origin/slint/native` at `ac16162` (merge `222a9f5`),
-including the redesign, Converter and the motion/material/themes work. Converter has a native page and engine path; the
-other nine media tools are catalog entries only, with no native page, controller or connected engine, and none is
-available in the beta.
+Status: FASE 1, tool 1 of 9 — Frame Capture implemented natively on `slint/tools-all` (2026-10-23), pending Java's
+visual review. Converter remains `parcial` and is the template. Frame Capture is `parcial`: the viewer, timeline,
+playback, sharpness, layouts/crop, queue, Library/Image capture and session work; Back/Send and the result
+Crop/Cutout/Send actions have no native plumbing and are shown as unavailable. The other eight media tools are still
+catalog entries only, with no native page, controller or connected engine, and none is available in the beta.
 
 This document says what each of the ten media tools has in the native app today, which spec owns its behaviour and
 where the Tauri app on `main` implements it. It is an inventory, not a promise: a tool is not "ported" because it
@@ -21,11 +21,11 @@ Converter, under the shared contract below.
 | `parcial` | At least one real path works end to end in the native app (input, processing, output), even if incomplete. |
 | `completa` | The spec is implemented in the native app and its acceptance criteria are verified. Visible changes still need Java's visual OK. |
 
-Nine tools are **`UI falsa`**; Converter is **`parcial`** and is the template. The catalog is honest about the nine:
-the activation notice says the tool is not available in the beta and that the processing engines are not connected
-(`crates/halation-app/src/catalog.rs:148-157`). Converter's native page and the approval recorded upstream are in
-[converter.md](features/converter.md). The FASE 0 audit began before Converter existed; this branch now contains the
-native Converter, and the rows below describe that integrated code.
+Eight tools are **`UI falsa`**; Converter and Frame Capture are **`parcial`**, and Converter is the template. The
+catalog is honest about the eight: the activation notice says the tool is not available in the beta and that the
+processing engines are not connected (`crates/halation-app/src/catalog.rs`). Converter's native page and the approval
+recorded upstream are in [converter.md](features/converter.md); Frame Capture's native page and its evidence are in
+[frame-capture.md](features/frame-capture.md).
 
 ## Visual contract (all ten tools)
 
@@ -55,18 +55,17 @@ Where the redesign's §9 names Vocal Remover as the reference tool, this instruc
 ## Native baseline
 
 On this integrated line, the catalog has eleven entries: the ten media tools plus Library
-(`crates/halation-app/src/catalog.rs:20-142`). Converter is available and opens its page
-(`catalog.rs:33-40`, `navigation.rs:2-35`, `ui/app.slint:222`); the nine other media tools are declared
-`available: false`, and Library is also available. The rail, Home strip and Settings > Tools all render that catalog.
-Activating an unavailable tool only sets a notice; it does not navigate or create a page.
-Tests lock the unavailable nine: Downloader produces the notice (`crates/halation-app/tests/services.rs:366-367`),
-while the rail still lists its name (`crates/halation-app/tests/ui_layout.rs:284-285`).
+(`crates/halation-app/src/catalog.rs`). Converter, Frame Capture and Library are available and open their pages
+(`catalog.rs`, `navigation.rs`, `ui/app.slint`); the eight other media tools are declared `available: false`. The rail,
+Home strip and Settings > Tools all render that catalog. Activating an unavailable tool only sets a notice; it does not
+navigate or create a page. Tests lock the unavailable eight: Downloader produces the notice
+(`crates/halation-app/tests/services.rs`), while the rail still lists its name (`crates/halation-app/tests/ui_layout.rs`).
 
-The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs:161-175`). Converter has
-an FFmpeg installation path and submits real jobs; the other nine cannot install a component or submit work. There is
-no engine status, per-tool settings, preview, export or session state for those nine. The core queue, process and
-engine contract exist ([jobs.md](features/jobs.md)); the global destination rules are used by Converter
-([save-location.md](features/save-location.md)).
+The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs`). Converter and Frame
+Capture have an FFmpeg installation path and submit real jobs; the other eight cannot install a component or submit
+work. There is no engine status, per-tool settings, preview, export or session state for those eight. The core queue,
+process and engine contract exist ([jobs.md](features/jobs.md)); the global destination rules are used by Converter and
+Frame Capture ([save-location.md](features/save-location.md)).
 
 ## Summary
 
@@ -81,10 +80,10 @@ engine contract exist ([jobs.md](features/jobs.md)); the global destination rule
 | Background Remover | `background-remover` | `removebg` | `UI falsa` | [remove-background.md](features/remove-background.md) |
 | Upscale | `upscale` | `upscale` | `UI falsa` | [upscale.md](features/upscale.md) (new) |
 | AI Interpolate | `ai-interpolate` | `interp` | `UI falsa` | [framerate.md](features/framerate.md) |
-| Frame Capture | `frame-capture` | `framegrab` | `UI falsa` | [frame-capture.md](features/frame-capture.md) (new) |
+| Frame Capture | `frame-capture` | `framegrab` | `parcial` (native page implemented, pending visual review; Back/Send and result actions remain) | [frame-capture.md](features/frame-capture.md) (new) |
 
-Converter is the only tool with a native page; it is the reference implementation for the other nine under the
-[visual contract](#visual-contract-all-ten-tools).
+Converter and Frame Capture have native pages; Converter remains the reference implementation for the other eight under
+the [visual contract](#visual-contract-all-ten-tools).
 
 The Tauri registry that defines these ids, their components, accepted content and stage is
 `main:app/dist/modules.js:22-31`. The native ids differ in seven places and must be mapped when importing behaviour:
@@ -201,6 +200,14 @@ a new visual approval.
   a cached feed, a draggable position for the cover, and PNG export at the view's size.
 - **Gaps:** every platform template, profile/feed reading and cache, cover crop and positioning, export and native
   UI.
+- **Next-unit handoff (2026-10-23):** begin from [cover-test.md](features/cover-test.md) and use the Frame Capture
+  page/controller as the working pattern, not the Tauri DOM. Reuse the page frame and spacing,
+  `crates/halation-app/src/strings.rs` with `locales/en.json`, the controller job/inbox/generation structure (or the
+  simpler Converter controller where no jobs are needed), the destination policy and the session-file pattern;
+  `crates/halation-core/src/artist_profile.rs` already owns the profile and the cached platform feed. Cover Test has
+  no FFmpeg component and no tool-origin/request plumbing: it needs image previews at the platforms' real sizes, the
+  three local templates, cover positioning and PNG export. Back/Send stay unavailable until a native tool-origin
+  channel exists. It is a visible page, so it will also be "implemented, pending visual review".
 
 ### Background Remover
 
@@ -243,32 +250,75 @@ a new visual approval.
 
 ### Frame Capture
 
-**Status: `UI falsa`.** Catalog entry only; no viewer, timeline, decoder, queue or export.
+**Status: `parcial`.** Native page and controller implemented on `slint/tools-all` (2026-10-23), pending Java's visual
+review. The viewer, exact-frame capture, keyframe strip, playback, sharpness search, layouts/crop, queue,
+Library/Image destinations and session are real. Back/Send and the result Crop/Cutout/Send actions are absent because
+the native app has no tool-origin/request or image-tool plumbing yet; the page says so instead of showing dead buttons.
 
-- **Spec:** [frame-capture.md](features/frame-capture.md) (new; exact-frame, crop and destination behaviour is
-  recorded there).
-- **Tauri origin:** `main:app/dist/framegrab.js`, `framegrab.html`, `framegrab.css`; backend
-  `main:app/src-tauri/src/framegrab.rs` (content key, ranged reads, workspace cache, picker) and the shared
-  `frameAt`/keyframe services in `main:app/dist/services.js`.
-- **Components:** FFmpeg (140 MB).
-- **Reference behaviour:** exact-frame viewer with keyframe index and FFmpeg fallback, timeline scrub/step/play,
-  sharpest-frame search, layouts and draggable crop, queue of 8, PNG export to Back/Send/Library/Image.
-- **Gaps:** native decoder or FFmpeg frame service, keyframe index/cache, timeline widget, crop math, queue,
-  destinations and native UI.
+- **Spec:** [frame-capture.md](features/frame-capture.md).
+- **Native evidence:** `crates/halation-core/src/framegrab.rs` (probe, authorization, content key, window and exact
+  decode, native PNG, keyframe index/strip, Laplacian sharpness, byte-bounded cache, queue, naming, session types);
+  `crates/halation-app/src/framegrab.rs` (controller, jobs, playback, destinations, session);
+  `ui/pages/framegrab.slint` and `ui/components/media.slint` (shared transport/scrubber); `locales/en.json` and
+  `src/strings.rs` (every visible string); `ui/models.slint`, `ui/app.slint`, `src/app.rs`, `src/navigation.rs` and
+  `src/catalog.rs`. Tests: 11 in `crates/halation-core/src/framegrab.rs` (three use real generated FFmpeg video), two
+  controller tests on a generated video in `crates/halation-app/src/framegrab.rs`, the locale-catalog test, the page-bounds test in
+  `tests/ui_layout.rs` and the catalog test in `tests/services.rs`.
+- **Tauri origin:** `main:app/dist/framegrab.js`, `framegrab.html`, `framegrab.css`;
+  `main:app/src-tauri/src/framegrab.rs` (content key, authorization, picker) and the shared `frameAt`/keyframe
+  services in `main:app/dist/services.js`. These were read for behaviour only; no Tauri markup, CSS, canvas or
+  JavaScript was copied. Mediabunny is not used: FFmpeg/ffprobe are the native decoder.
+- **Components:** FFmpeg (140 MB), located in the profile and installable on demand from the page.
+- **Implemented:** picker and drop with the Library/root authorization check and MP4/M4V/MOV/WebM/MKV filters; rational
+  fps probe and exact frame count; FNV content key; ±12-frame preview windows decoded by one FFmpeg process and a
+  400 MB byte-bounded cache; keyframe index from packet flags and a 1920 px strip of at most 300 thumbnails; scrub,
+  step, Home/End, Space, M and S shortcuts; playback through the native `Player` (picture capped at 1280 × 720 and
+  30 fps, stops on a manual frame change); ±12-frame Laplacian search on a 360 px copy; five layouts with the largest
+  exact-ratio crop, pointer drag and 1 %/10 % arrow moves, one crop per layout; queue of 8 in time order with
+  thumbnails, selection, remove, select all/none and clear; native-resolution PNG capture with the crop, atomic
+  publication and `{stem} - frame {n+1}.png` names; last 12 results with Show in folder; progress, cancel, FFmpeg
+  install and a JSON session (video, frame, sound, layout, crops, destination, queue).
+- **Destinations:** Library writes to `Library\Frames`; Image resolves through the global save policy with base
+  `Exports\Frames`, asking for a folder when no location has been chosen. Captures never replace the source video.
+- **Layout contract:** Frame Capture's queue and inspector use Converter's 220 px and 280 px widths; row heights and
+  panel headers follow its 60 px rows / 36 px headers. Responsive breakpoints keep at least 400 px for the canvas
+  (620 px queue-only, 680 px inspector-only, 900 px for both); panels give way below those widths.
+- **Limits:** Back/Send and result Crop/Cutout/Send are not connected; results offer Show in folder only. These actions
+  require future integration with tool-origin and image-tool services, which do not yet exist; no fake action is
+  presented. There is no in-process decoder, so interactive stepping uses one FFmpeg process per ±12-frame window,
+  never one per frame. Fast scrubs show the nearest keyframe; slow movement follows exact frames using the decoded
+  window/cache. A 160 ms quiet interval while still dragging settles the exact frame, and release settles immediately.
+  The one-shot debounce is cancelled/restarted on movement, with generation checks rejecting stale jobs and no polling.
+  Without an audio device the picture plays silently and the error is reported when playback ends. Results and decoded
+  pictures are not persisted.
+- **Verified 2026-10-23:** `cargo test --workspace` passed 151 tests, including the generated-video controller test
+  (probe, preview, strip, real playback clock, stop-on-step, Home/End, queue order and selection, square crop, two
+  native 180 × 180 PNGs, session), the session/stale-generation test, the 4K test (preview 1920 × 1080, capture
+  3840 × 2160) and the NTSC test (24000/1001, 24 frames, last frame 23). `cargo fmt --check`,
+  `cargo clippy --workspace --all-targets -- -D warnings`, `python tools/check-docs.py` and `git diff --check` passed.
+- **Acceptance against §8:** points 1, 4, 5, 6, 7 and the cache/shutdown part of 9 are covered by tests; point 2 is
+  implemented with generation guards and the stale-result test, but the pointer drag itself is not automated; point 3
+  is covered for the clock and stop-on-step, not with sound heard on a device; point 8 is partial (Library/Image real,
+  Back/Send absent); point 10 is met by construction (decode and file work stay in jobs, only indices and prepared
+  images cross to the event loop) and was not measured in this pass; point 11 is not applicable as written because
+  there is no in-process decoder to fall back from — FFmpeg is the only decoder and always extracts exact frames.
+- **Still unverified here:** Java's visual review in the native window; the WASAPI path heard on a real device; the
+  manual Image save dialog; picker and drag/drop interaction; cancellation cleanup asserted separately; timings on a
+  real 4K source (the 4K test checks correctness, not speed).
 
 ## Cross-cutting gaps
 
-1. **Tool pages and controllers.** Converter has a page and a Rust controller; the other nine need both, with UI state
-   in Rust services, not in a Slint page instance.
-2. **Engine lifecycle.** Converter installs and locates FFmpeg; the other nine have a static component list and no
-   install, validation or engine status.
-3. **Job submission.** Converter submits media and component jobs; the other nine do not submit work, report progress,
-   cancel or record an output.
-4. **Save/export integration.** Converter uses the destination policy; the other nine still need to call it and record
-   exports in the Library/session.
-5. **Visual implementation.** The shared contract is fixed above, but the nine pages are not built. Each one must use
+1. **Tool pages and controllers.** Converter and Frame Capture have a page and a Rust controller; the other eight need
+   both, with UI state in Rust services, not in a Slint page instance.
+2. **Engine lifecycle.** Converter and Frame Capture install and locate FFmpeg; the other eight have a static component
+   list and no install, validation or engine status.
+3. **Job submission.** Converter and Frame Capture submit media and component jobs; the other eight do not submit
+   work, report progress, cancel or record an output.
+4. **Save/export integration.** Converter and Frame Capture use the destination policy; the other eight still need to
+   call it and record exports in the Library/session.
+5. **Visual implementation.** The shared contract is fixed above, but eight pages are not built. Each one must use
    Converter's template and is "implemented, pending visual review" until Java approves it in the native window; a
-   page with a tool-specific style is not done.
+   page with a tool-specific style is not done. Frame Capture is built and waits for that review.
 6. **Licences stay with the component.** yt-dlp is Unlicense, FFmpeg is GPL-3.0, upscayl-ncnn and the
    Upscayl-published models are AGPL-3.0, SPAN's runner is AGPL-3.0 (its models keep the upstream licences), and the
    "Sharp" model is CC BY-NC-SA 4.0 (results non-commercial). If Halation ever mirrors a build instead of downloading
@@ -277,11 +327,12 @@ a new visual approval.
 
 ## Sources
 
-- Native on this branch: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`;
-  `crates/halation-app/ui/app.slint`, `ui/pages/converter.slint`, `ui/pages/home.slint`,
-  `ui/pages/settings.slint`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`;
-  `crates/halation-core/src/{convert,components,playback}.rs` and `crates/halation-core/tests/{converter,playback}.rs`;
-  `crates/halation-core/examples/verify_converter.rs`.
+- Native on this branch: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`,
+  `framegrab.rs`, `strings.rs`; `crates/halation-app/ui/app.slint`, `ui/pages/converter.slint`,
+  `ui/pages/framegrab.slint`, `ui/components/media.slint`, `ui/pages/home.slint`, `ui/pages/settings.slint`;
+  `crates/halation-app/locales/en.json`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`;
+  `crates/halation-core/src/{convert,components,playback,framegrab}.rs` and
+  `crates/halation-core/tests/{converter,playback}.rs`; `crates/halation-core/examples/verify_converter.rs`.
 - Design: [planning/active/ui-redesign.md](../planning/active/ui-redesign.md),
   [features/material.md](features/material.md), [features/themes.md](features/themes.md),
   [features/motion.md](features/motion.md). `docs/MOTION.md` is the Tauri document.

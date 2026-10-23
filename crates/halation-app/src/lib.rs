@@ -8,12 +8,14 @@ pub mod assets;
 pub mod backdrop;
 pub mod catalog;
 mod converter;
+mod framegrab;
 pub mod library;
 pub mod motion;
 pub mod navigation;
 pub mod profile;
 #[cfg(feature = "diag-screenshot")]
 pub mod screenshot;
+mod strings;
 pub mod theme;
 
 pub mod ui {
