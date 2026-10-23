@@ -1,11 +1,13 @@
-# Asset provenance
+﻿# Asset provenance
 
-`halation-mark.png` is an unchanged copy of the existing pure Halation identity asset
-`docs/media/brand/halation-mark-source.png` (SHA-256 `79DADA76D9075E018641D90642D27E63D8DEEEEA02F6022DC5BFEEDC2F478AC4`).
-It is used only as the product mark. The static Home reference image is kept outside the source tree under ignored
+`halation-mark.png` is the Halation logo (Java, 2026-10-22): a hand-drawn vector stroke (one continuous line: an arch, a dip and a hooked rise),
+`docs/media/brand/source/halation-mark.svg`, rendered at 512 px by `tools/render-brand.js` (an identity asset, drawn for
+this project). `halation-app-icon.png` is the window and taskbar icon from the same script: the mark on a flat
+`#111111` rounded square. The static Home reference image is kept outside the source tree under ignored
 `.tools/ui-rebuild-native/home-reference/`; it is composition guidance only and is not embedded in the application.
 
-`halation-wordmark.svg` is the Halation wordmark as the original app renders it on Home (one path, identity asset).
+`halation-wordmark.svg` is the HALATION wordmark (one path, identity asset): Bodoni Moda (SIL OFL 1.1) at weight 600,
+drawn for this project. `halation-wordmark-glow.png` is its soft white bloom, rendered by `tools/render-wordmark-glow.js`.
 `drop-outline.svg` is the dashed outline of Home's drop zone, drawn for this crate.
 `fonts/Inter.ttf` is the Inter typeface (variable weight, Latin subset), SIL Open Font License 1.1, © The Inter
 Project Authors (https://github.com/rsms/inter); the original app uses the same typeface.

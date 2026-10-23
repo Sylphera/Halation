@@ -46,16 +46,22 @@ windows-sys = { version = "=0.61.2", features = [
 ] }
 
 [features]
-# Diagnostic renderer comparison only; the shipping beta uses winit + Skia.
+# The shipping beta: winit + Skia over desktop OpenGL (planning/decisions.md). Slint's default Skia path on
+# Windows is Direct3D 12, which measured ~122 MB private against ~50 MB for desktop OpenGL.
+default = ["skia-opengl"]
+skia-opengl = ["slint/renderer-skia-opengl"]
+# Diagnostic renderer comparison only.
 diag-femtovg = ["slint/renderer-femtovg"]
 diag-software = ["slint/renderer-software"]
 # Headless page snapshots (`--screenshot`) through the software renderer; never part of the shipping build.
 diag-screenshot = ["slint/renderer-software"]
-diag-skia-opengl = ["slint/renderer-skia-opengl"]
+diag-skia-opengl = ["skia-opengl"]
 diag-skia-vulkan = ["slint/renderer-skia-vulkan"]
 
 [build-dependencies]
 slint-build = { version = "=1.18.1", default-features = false, features = ["compat-1-18"] }
+# The Windows executable's icon and version resources (build.rs); it finds rc.exe in the Windows SDK
+embed-resource = "=3.0.11"
 
 [dev-dependencies]
 # Headless UI tests (layout bounds at small window sizes); test builds only, never part of the shipped binary.

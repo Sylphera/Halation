@@ -1,20 +1,33 @@
 import { Theme } from "../theme.slint";
 import { ToolIcon } from "../icons.slint";
+import { Motion, Curve } from "../motion.slint";
+import { Surface, Level } from "surface.slint";
 
-// The original's pill button: outlined, 13 px label, optional leading icon. `quiet` drops the outline.
+// Button of the anchored frame: a raised piece of the material, the control radius, optional leading icon. `quiet` drops the
+// fill and border; `primary` is the one white button of a page.
 export component AppButton inherits FocusScope {
+    // The focus ring shows for keyboard focus only, not after a click
+    property <bool> keyboard-focus: false;
+    focus-gained(reason) => {
+        self.keyboard-focus = reason == FocusReason.tab-navigation;
+    }
+    focus-lost => {
+        self.keyboard-focus = false;
+    }
     in property <string> text: "";
     in property <string> icon: "";
     in property <bool> quiet: false;
     in property <bool> small: false;
-    in property <duration> motion-duration: 160ms;
+    in property <bool> primary: false;
+    // The accessible name, when the button shows only its icon
+    in property <string> name: root.text;
     callback clicked;
 
     width: label.preferred-width + (root.icon != "" ? 23px : 0px) + (root.small ? 22px : 30px);
-    height: root.small ? 26px : 32px;
+    height: root.small ? 28px : 32px;
     focus-on-tab-navigation: true;
     accessible-role: button;
-    accessible-label: text;
+    accessible-label: root.name;
     accessible-action-default => {
         if (root.enabled) {
             clicked();
@@ -32,33 +45,62 @@ export component AppButton inherits FocusScope {
         }
     }
 
+    // Sinks at once on press, back on release (a matrix on the canvas: no layer, no layout)
     Rectangle {
-        width: parent.width;
-        height: parent.height;
-        border-radius: self.height / 2;
-        background: touch.pressed ? #ffffff1a : (touch.has-hover ? #ffffff0f : transparent);
-        border-width: root.has-focus ? 2px : (root.quiet ? 0px : 1px);
-        border-color: root.has-focus ? Theme.accent : Theme.line-strong;
-        opacity: root.enabled ? 1 : 0.45;
-        animate background { duration: touch.pressed ? 0ms : root.motion-duration; easing: ease-out; }
-    }
+        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
+        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
+        transform-scale-y: self.transform-scale-x;
+        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
 
-    HorizontalLayout {
-        padding-left: root.small ? 11px : 15px;
-        padding-right: root.small ? 11px : 15px;
-        spacing: 8px;
-        alignment: center;
-        if root.icon != "" : VerticalLayout {
-            alignment: center;
-            ToolIcon { name: root.icon; size: 15px; tint: root.quiet ? Theme.muted : Theme.text; }
+        // A raised piece; `quiet` is only a veil under the pointer, `primary` a white piece
+        if !root.quiet && !root.primary : Surface {
+            width: parent.width;
+            height: parent.height;
+            level: Level.raised;
+            pressed: touch.pressed;
+            veil: touch.has-hover && !touch.pressed ? Theme.hover-fill.transparentize(40%) : Theme.hover-fill.transparentize(1);
+            opacity: root.enabled ? 1 : 0.45;
+            animate veil { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
         }
-        label := Text {
-            text: root.text;
-            color: root.quiet ? Theme.muted : Theme.text;
-            font-size: root.quiet ? Theme.font-small : 13px;
-            font-weight: 500;
-            vertical-alignment: center;
-            opacity: root.enabled ? 1 : 0.6;
+        if root.primary : Surface {
+            width: parent.width;
+            height: parent.height;
+            level: Level.raised;
+            Rectangle {
+                border-radius: Theme.radius-control;
+                background: touch.pressed ? Theme.primary-fill-press : Theme.primary-fill;
+                opacity: root.enabled ? 1 : 0.45;
+            }
+        }
+        Rectangle {
+            width: parent.width;
+            height: parent.height;
+            border-radius: Theme.radius-control;
+            background: root.quiet ? (touch.pressed ? Theme.press-fill : (touch.has-hover ? Theme.hover-fill : Theme.hover-fill.transparentize(1))) : transparent;
+            border-width: root.keyboard-focus ? 2px : 0px;
+            border-color: Theme.accent;
+            animate background { duration: touch.pressed ? 0ms : Motion.hover(touch.has-hover); easing: Curve.ease; }
+        }
+
+        HorizontalLayout {
+            padding-left: root.small ? 11px : 15px;
+            padding-right: root.small ? 11px : 15px;
+            spacing: 8px;
+            alignment: center;
+            if root.icon != "" : VerticalLayout {
+                alignment: center;
+                ToolIcon { name: root.icon; size: 15px; tint: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text); }
+            }
+            label := Text {
+                text: root.text;
+                color: root.primary ? Theme.chrome : (root.quiet ? Theme.muted : Theme.text);
+                font-size: Theme.font-body;
+                font-weight: 500;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1 : 0.6;
+                // The button carries the name
+                accessible-role: none;
+            }
         }
     }
 

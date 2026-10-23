@@ -1,0 +1,126 @@
+import { Theme } from "../theme.slint";
+import { Motion, Curve } from "../motion.slint";
+
+// A tooltip: always there with transparent colours; after `Motion.tip-wait` of hover (at once with keyboard focus,
+// or when another tooltip was just showing) its colours fade in; it leaves without waiting. Colours, not `opacity`, so
+// no layer; a Timer for the wait, which paints nothing.
+export global TooltipState {
+    // Tooltips showing now
+    in-out property <int> showing: 0;
+    // A tooltip showed recently: the next one skips the wait (moving along a bar)
+    in-out property <bool> warm: false;
+}
+
+// The name and, when it has one, its shortcut as a key cap. A piece of the toolbar's colour with the material's lit
+// edge and contact edge (Java, 2026-10-22); it slides 4 px out from its target as it fades in.
+export component Tooltip inherits Rectangle {
+    in property <string> text;
+    // A shortcut, drawn as a key cap after the name
+    in property <string> key: "";
+    // The target is to the left: the tooltip slides in from it; otherwise it slides down from above
+    in property <bool> from-left: false;
+    in property <bool> show: false;
+    in property <bool> at-once: false;
+    property <bool> visible-now: false;
+    width: body.preferred-width;
+    height: 28px;
+    // Its colours fade by an animated alpha (a brush does not animate), with the slide
+    property <float> hidden-by: root.visible-now ? 0 : 1;
+    animate hidden-by { duration: Motion.fade; easing: Curve.ease; }
+    property <length> slide: root.visible-now ? 0px : -4px;
+    animate slide { duration: Motion.fade; easing: Curve.ease; }
+
+    function update() {
+        if (!root.show) {
+            wait.running = false;
+            root.visible-now = false;
+        } else if (root.at-once || TooltipState.warm) {
+            wait.running = false;
+            root.visible-now = true;
+        } else if (!root.visible-now) {
+            wait.running = true;
+        }
+    }
+    init => { root.update(); }
+    changed show => { root.update(); }
+    changed at-once => { root.update(); }
+    changed visible-now => {
+        if (root.visible-now) {
+            TooltipState.showing += 1;
+            TooltipState.warm = true;
+        } else {
+            TooltipState.showing -= 1;
+            cool.running = true;
+        }
+    }
+
+    wait := Timer {
+        interval: Motion.tip-wait;
+        running: false;
+        triggered => {
+            self.running = false;
+            root.visible-now = root.show;
+        }
+    }
+    // Leaving a tooltip keeps the bar warm for one wait, so the next tooltip along it shows at once
+    cool := Timer {
+        interval: Motion.tip-wait;
+        running: false;
+        triggered => {
+            self.running = false;
+            if (TooltipState.showing <= 0) {
+                TooltipState.warm = false;
+            }
+        }
+    }
+
+    card := Rectangle {
+        x: root.from-left ? root.slide : 0px;
+        y: root.from-left ? 0px : root.slide;
+        width: root.width;
+        height: root.height;
+        Rectangle {
+            y: 1px;
+            border-radius: Theme.radius-overlay;
+            background: Theme.contact.transparentize(root.hidden-by);
+        }
+        Rectangle {
+            border-radius: Theme.radius-overlay;
+            background: Theme.chrome.transparentize(root.hidden-by);
+            border-width: 1px;
+            border-color: Theme.popover-edge.transparentize(root.hidden-by);
+        }
+
+        body := HorizontalLayout {
+            padding-left: 12px;
+            padding-right: root.key != "" ? 5px : 12px;
+            spacing: 8px;
+            Text {
+                text: root.text;
+                color: Theme.text.transparentize(root.hidden-by);
+                font-size: Theme.font-small;
+                font-weight: 500;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+            if root.key != "" : VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: max(18px, key-text.preferred-width + 10px);
+                    height: 18px;
+                    border-radius: 5px;
+                    background: Theme.key-fill.transparentize(root.hidden-by);
+                    border-width: 1px;
+                    border-color: Theme.key-edge.transparentize(root.hidden-by);
+                    key-text := Text {
+                        text: root.key;
+                        color: Theme.muted.transparentize(root.hidden-by);
+                        font-size: 10.5px;
+                        font-weight: 600;
+                        accessible-role: none;
+                    }
+                }
+            }
+        }
+    }
+}

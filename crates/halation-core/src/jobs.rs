@@ -1,6 +1,6 @@
 //! The Jobs page's service: a thin view over the scheduler and process engine (`engine`).
-//! No tool engine is registered in this beta, so nothing can be submitted from the UI (`submit` says so);
-//! the page lists whatever the engine holds and lets the user cancel or clear it.
+//! Converter submits typed tasks through the engine. The legacy description-only request cannot start work;
+//! the service lists the engine's jobs and lets the UI cancel or clear them.
 
 use crate::{
     engine::JobEngine,
@@ -57,7 +57,8 @@ impl Default for JobsService {
 }
 
 impl JobsService {
-    pub const CAPABILITY: &'static str = "Engines disconnected — nothing can be queued or run.";
+    pub const CAPABILITY: &'static str =
+        "Use Converter to queue media jobs. Other engines are disconnected.";
 
     /// `changed` runs on worker threads whenever the job list or a job's progress changes.
     pub fn new(changed: impl Fn() + Send + Sync + 'static) -> Self {

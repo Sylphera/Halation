@@ -65,7 +65,7 @@ performance qualification or release.
 |---|---|---|
 | A — clean foundation | Start from the authorized `main` baseline; preserve the Tauri reference and shared harness; archive the specifically retired `qt/rebuild-shell-20261019` worktree and its Git history; create the standalone `slint/` crate; rework the single canonical spec; record exact pins and licences. | Implemented for this rebuild. The final Qt worktree snapshot and two-ref bundle are in private archive `20261020T113722-qt-final`; an earlier archive `20261019T201500-qt-retirement` also retains historical snapshots. Other historical Qt refs/worktrees remain outside this unit's deletion scope. Qt is not active in the Slint branch. No claim is made that every historical Qt root/ref was purged. Clean-room boundary excludes all prior Halation Rust implementation and tests; no old Rust source/test was consulted or used. |
 | B — native shell | Standalone Cargo app; one native resizable window; central navigation; Home/Library/Jobs/Settings; lazy active page with destroy-on-leave; useful empty/error states; typed Rust-to-Slint contract; responsive logical layout, keyboard operation, focus and accessible names. | Compiles and links in release: model-driven rail, static Home composition, 11-entry catalog, isolated Library/Settings/Jobs, lazy active page and keyboard/accessibility properties. Home and its icon/content groups declare cross-axis centering rather than relying on intrinsic child alignment. Native composition review remains pending. |
-| C — native motion | Deliberate native Slint animation only; immediate navigation; same-target changes do no extra navigation; reduced-motion preference; no idle timer, animation clock, particles or forced render policy. Evaluate a small representative shell motion/response slice. | Decorative control/rail transitions remain native 160 ms (0 ms reduced motion); pointer-down response uses an immediate native pressed state, and navigation remains immediate. No timer is present on ordinary launches. Native presentation timing and interaction feel remain unqualified. |
+| C — native motion | Deliberate native Slint animation only; immediate navigation; same-target changes do no extra navigation; reduced-motion preference; no idle timer, animation clock, particles or forced render policy. Evaluate a small representative shell motion/response slice. | Superseded by [features/motion.md](features/motion.md): hover-first native motion from the `Motion` tokens (0 ms reduced motion); pointer-down response is immediate, and navigation remains immediate. No timer is present on ordinary launches. Native presentation timing and interaction feel remain unqualified. |
 | D — useful services | Rust-owned isolated atomic Settings schema/reset with visible write errors; bounded asynchronous Library load/metadata/save, references/filter/missing/no-delete with committed-candidate publication only after success and corrupt-data fail-closed; typed Jobs model with explicit no-engine capability and no simulated execution; never touch Tauri data; synthetic test fixtures only. | Implemented at beta scope: reset preserves a backup and restores safely on failure; Library stages add/remove privately, publishes only after save and leaves the committed view/disk snapshot on error; reference-only data and Jobs submission rejected as disconnected. Engines, rich indexing and migration remain future work. |
 | E — technical validation | Release build; Slint compiler diagnostics; `cargo fmt --check`; strict `cargo clippy --all-targets -- -D warnings`; `cargo test`; lockfile/feature-tree audit; focused state tests; dependency/source-boundary check; repeat affected checks after fixes. | Response/composition changes pass fmt, strict Clippy, 24 service/model tests plus the focused stable-Recent-model test, and release build on Windows MSVC. The diagnostic runner parses and dry-runs; native scene samples have not yet been collected. Explicit winit + Skia selection remains the requested runtime selection; actual presented renderer, hardware pacing, native visual acceptance and memory comparison remain pending. |
 
@@ -205,12 +205,12 @@ functional reference only.
 
 ### Motion
 
-- Native Slint `animate` on a small representative slice (rail active state and control hover/press) is the allowed
-  motion. Navigation itself is immediate; page views are created/destroyed without a custom transition engine.
-- The duration comes from Settings through a Rust-computed value: 160 ms normally, 0 ms with reduced motion. Reduced
-  motion is deterministic and does not depend on a custom clock.
-- No spring semantics are invented beyond documented Slint behavior. No background animation runs in the beta. The
-  beta makes no FPS or hardware-pacing claim from headless tests.
+- The plan, tokens and cost rules are in [features/motion.md](features/motion.md) (Java, 2026-10-22). Native Slint
+  `animate` only: hover and press on every control, sliding hover and selection pills, tooltips after a Timer, the
+  sidebar's width, the switch. Navigation itself is immediate; page views are created/destroyed without a transition.
+- The tokens come from Settings through Rust (`motion.rs` → the `Motion` global); with reduced motion every duration is
+  0 ms. Slint's own `spring(0)` curve is used for the pills and the knob. No background animation at rest. The beta
+  makes no FPS or hardware-pacing claim from headless tests.
 
 ## Performance, validation and gates
 

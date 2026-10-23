@@ -81,6 +81,7 @@ pub(crate) struct Controller {
     weak: Weak<AppWindow>,
     services: Rc<RefCell<Services>>,
     diagnostic_timer: RefCell<Option<Rc<slint::Timer>>>,
+    converter: Rc<crate::converter::Converter>,
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -160,8 +161,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl Controller {
+    #[cfg(feature = "diag-screenshot")]
+    pub(crate) fn add_converter_files(&self, paths: Vec<PathBuf>) {
+        self.converter.add(paths);
+    }
     /// Closing the window: every job process still running stops with it.
     pub(crate) fn shutdown(&self) {
+        self.converter.cancel_probe();
+        self.converter.suspend_preview();
         self.services.borrow().jobs.shutdown();
     }
 
@@ -186,9 +193,16 @@ impl Controller {
             profile.links_path(),
         )));
 
-        let backdrop = Rc::new(BackdropPlayer::new(weak.clone(), &crate::assets::locate()));
+        let backdrop = Rc::new(BackdropPlayer::new(
+            weak.clone(),
+            &crate::assets::locate(),
+            theme_of(settings.current()).0,
+        ));
+        let converter =
+            crate::converter::Converter::new(weak.clone(), profile.clone(), jobs.engine().clone());
         Ok(Self {
             weak,
+            converter,
             diagnostic_timer: RefCell::new(None),
             services: Rc::new(RefCell::new(Services {
                 profile,
@@ -222,9 +236,23 @@ impl Controller {
         let Some(ui) = self.weak.upgrade() else {
             return;
         };
-        apply_theme(&ui);
+        let settings_services = self.services.clone();
+        let settings_weak = self.weak.clone();
+        self.converter.install(move || {
+            let services = settings_services.borrow();
+            if !services.settings.current().save_location_chosen {
+                if let Some(ui) = settings_weak.upgrade() {
+                    ui.set_export_choice_visible(true);
+                }
+                None
+            } else {
+                Some(services.settings.current().save_mode)
+            }
+        });
+        let (tone, hue) = theme_of(self.services.borrow().settings.current());
+        apply_theme(&ui, &theme::colours(tone, hue));
         let assets = crate::assets::locate();
-        crate::assets::apply(&ui, &assets);
+        crate::assets::apply(&ui, &assets, tone);
         // Home shows the loop's first frame until the decoder delivers
         ui.set_backdrop(ui.global::<crate::ui::Assets>().get_still());
         let missing = crate::assets::missing(&assets);
@@ -273,7 +301,6 @@ impl Controller {
                     .map(|meta| size_label(meta.len()))
                     .unwrap_or_default(),
             ));
-            ui.set_rail_open(services.settings.current().dock_mode == 2);
             ui.set_jobs(ModelRc::from(services.jobs_model.clone()));
             ui.set_recent(ModelRc::from(services.recent_model.clone()));
             ui.set_library_rows(ModelRc::from(services.library.model().clone()));
@@ -285,6 +312,7 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_navigate(move |page| {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -294,8 +322,15 @@ impl Controller {
                     && s.nav.select(page)
                 {
                     s.notice.clear();
+                    if page != Page::Converter {
+                        converter.suspend_preview();
+                    } else {
+                        ui.set_page(page.index());
+                        converter.open();
+                    }
                     if page == Page::Settings {
                         measure_storage(&s.profile, &weak);
+                        converter.open();
                     }
                 }
                 refresh(&ui, &s);
@@ -322,7 +357,6 @@ impl Controller {
                     Ok(()) => {
                         let current = s.settings.current();
                         match key.as_str() {
-                            "dock-mode" => ui.set_rail_open(current.dock_mode == 2),
                             "language" if current.language == 1 => {
                                 s.notice = "Saved. The beta is in English only for now.".to_owned();
                             }
@@ -338,7 +372,25 @@ impl Controller {
                         log_line(&s.profile, &format!("settings save failed: {error}"));
                     }
                 }
+                // The saved theme, which also ends a live accent preview
+                if matches!(key.as_str(), "theme" | "accent-hue") {
+                    retheme(&ui, &s);
+                }
                 refresh(&ui, &s);
+            });
+        }
+
+        {
+            let weak = self.weak.clone();
+            let services = self.services.clone();
+            ui.on_preview_accent(move |hue| {
+                let Some(ui) = weak.upgrade() else {
+                    return;
+                };
+                let s = services.borrow();
+                let (tone, _) = theme_of(s.settings.current());
+                let hue = u16::try_from(hue.rem_euclid(360)).unwrap_or(0);
+                apply_theme(&ui, &theme::colours(tone, Some(hue)));
             });
         }
 
@@ -368,11 +420,16 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_dock_action(move |action| {
                 let Some(ui) = weak.upgrade() else {
                     return;
                 };
                 let mut s = services.borrow_mut();
+                if action.as_str() == "install:FFmpeg" {
+                    converter.install_ffmpeg();
+                    return;
+                }
                 s.notice = match action.as_str() {
                     "folder" => open_folder(s.profile.root()),
                     "open:main" => open_folder(s.profile.root()),
@@ -383,7 +440,13 @@ impl Controller {
                             .parent()
                             .unwrap_or(s.profile.root()),
                     ),
-                    "activity" => format!("Activity: {}.", s.jobs.capability()),
+                    "activity" => {
+                        let jobs = s.jobs.jobs();
+                        let active = jobs.iter().filter(|j| !j.finished).count();
+                        let done = jobs.iter().filter(|j| j.finished && !j.failed).count();
+                        let failed = jobs.iter().filter(|j| j.failed).count();
+                        format!("Activity: {active} active · {done} finished · {failed} failed. Converter shows job details.")
+                    },
                     other => unavailable_notice(other).to_owned(),
                 };
                 refresh(&ui, &s);
@@ -534,6 +597,7 @@ impl Controller {
                         s.notice = format!("Could not reset settings: {error}");
                     }
                 }
+                retheme(&ui, &s);
                 refresh(&ui, &s);
             });
         }
@@ -541,13 +605,19 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_tool_activated(move |id| {
                 let Some(ui) = weak.upgrade() else {
                     return;
                 };
                 let mut s = services.borrow_mut();
                 if let Some(tool) = catalog::tool(id.as_str()) {
-                    if tool.id == "library" {
+                    if tool.id == "converter" {
+                        s.nav.select(Page::Converter);
+                        s.notice.clear();
+                        ui.set_page(Page::Converter.index());
+                        converter.open();
+                    } else if tool.id == "library" {
                         if let Some(page) = Page::from_index(1) {
                             s.nav.select(page);
                         }
@@ -604,6 +674,7 @@ impl Controller {
         {
             let weak = self.weak.clone();
             let services = self.services.clone();
+            let converter = self.converter.clone();
             ui.on_jobs_changed(move || {
                 let Some(ui) = weak.upgrade() else {
                     return;
@@ -611,6 +682,12 @@ impl Controller {
                 let s = services.borrow();
                 update_jobs_model(&ui, &s.jobs.jobs(), &s.jobs_model);
                 ui.set_jobs_capability(SharedString::from(s.jobs.capability()));
+                drop(s);
+                if let Some(notice) = converter.jobs_changed() {
+                    let mut s = services.borrow_mut();
+                    s.notice = notice;
+                    refresh(&ui, &s);
+                }
             });
         }
 
@@ -1002,9 +1079,7 @@ fn refresh(ui: &AppWindow, s: &Services) {
     );
     ui.set_page(s.nav.current().index());
     ui.set_reduced_motion(s.settings.current().reduced_motion);
-    ui.set_motion_duration(
-        motion::duration(s.settings.current().reduced_motion).as_millis() as i64,
-    );
+    apply_motion(ui, motion::tokens(s.settings.current().reduced_motion));
     let model = s.library.model();
     ui.set_library_total(model.len() as i32);
     ui.set_library_missing(model.missing_count() as i32);
@@ -1082,17 +1157,20 @@ fn start_diagnostic_cycle(weak: &Weak<AppWindow>) -> Rc<slint::Timer> {
     timer
 }
 
+/// Recent files Home lists (planning/active/ui-redesign.md §9)
+const RECENT_FILES: usize = 6;
+
 fn update_recent_model(
     library: &crate::library::LibraryModel,
     cache: &RefCell<Vec<(String, String)>>,
     model: &VecModel<RecentItem>,
 ) -> bool {
     let mut cached = cache.borrow_mut();
-    if library.recent_matches(&cached, 3) {
+    if library.recent_matches(&cached, RECENT_FILES) {
         return false;
     }
 
-    let entries = library.recent_entries(3);
+    let entries = library.recent_entries(RECENT_FILES);
     *cached = entries
         .iter()
         .map(|entry| (entry.id.clone(), entry.display_name.clone()))
@@ -1138,9 +1216,13 @@ fn tool_items(settings: &Settings) -> Vec<ToolItem> {
         .collect()
 }
 
-/// The tools turned on: the rail and Home show only these
+/// The tools turned on, the sidebar's and the Workspace's: the Library is not among them, the Workspace holds it
 fn active_tools(tools: &[ToolItem]) -> Vec<ToolItem> {
-    tools.iter().filter(|tool| tool.enabled).cloned().collect()
+    tools
+        .iter()
+        .filter(|tool| tool.enabled && tool.id != "library")
+        .cloned()
+        .collect()
 }
 
 fn prefs(settings: &Settings) -> Prefs {
@@ -1172,6 +1254,8 @@ fn prefs(settings: &Settings) -> Prefs {
         budget: choice(settings.budget),
         updates: choice(settings.updates),
         whats_new: settings.whats_new,
+        theme: choice(settings.theme),
+        accent_hue: i32::from(settings.accent_hue),
     }
 }
 
@@ -1218,9 +1302,9 @@ fn open_folder(path: &Path) -> String {
 fn unavailable_notice(action: &str) -> &'static str {
     match action {
         "install" | "update-engine" => "Components cannot be installed in this beta yet.",
-        "shortcuts" => "Keyboard shortcuts come with the tools.",
+        "shortcuts" => "Ctrl+B: sidebar · Converter: Ctrl+Alt+B for Files, Ctrl+Alt+I for Output.",
         "language" => "The beta is in English only for now.",
-        "session" => "There is no session to save until the tools are connected.",
+        "session" => "Session persistence is not connected in this beta yet.",
         "test-notification" => "Notifications are not connected in this beta yet.",
         "search-sites" => "Searching other sites is not connected in this beta yet.",
         "check-updates" | "changelog" => {
@@ -1263,7 +1347,7 @@ fn measure_storage(profile: &Profile, weak: &Weak<AppWindow>) {
 }
 
 /// Plays Home's backdrop loop (backdrop.rs): a 15 Hz timer asks the decoding thread for the next frame, which comes
-/// back to the window as an image; only the frame on screen is held decoded. The timer runs only while Home is shown
+/// back to the window as an image; two frames are kept and written in turn. The timer runs only while Home is shown
 /// with motion on and the window is not minimized; otherwise the frame on screen stays (the still frame with reduced
 /// motion, or when the loop cannot play).
 struct BackdropPlayer {
@@ -1274,18 +1358,35 @@ struct BackdropPlayer {
 }
 
 impl BackdropPlayer {
-    fn new(weak: Weak<AppWindow>, assets: &Path) -> Self {
+    fn new(weak: Weak<AppWindow>, assets: &Path, tone: theme::Tone) -> Self {
         let deliver_to = weak.clone();
-        let player = crate::backdrop::Player::start(assets, move |frame| {
+        let player = crate::backdrop::Player::start(assets, tone, move |frame| {
             // A closed window is a normal lifecycle end
-            let _ = deliver_to
-                .upgrade_in_event_loop(move |ui| ui.set_backdrop(Image::from_rgb8(frame)));
+            let _ = deliver_to.upgrade_in_event_loop(move |ui| {
+                ui.set_backdrop(Image::from_rgba8_premultiplied(frame))
+            });
         });
         Self {
             weak,
             player,
             timer: slint::Timer::default(),
             still: std::cell::Cell::new(false),
+        }
+    }
+
+    /// Recolours the loop and the still frame for `tone`; the frame on screen changes with the next one decoded, or at
+    /// once when the still frame shows
+    fn set_tone(&self, tone: theme::Tone) {
+        if let Some(player) = &self.player {
+            player.set_tone(tone);
+        }
+        let Some(ui) = self.weak.upgrade() else {
+            return;
+        };
+        let still = crate::assets::still(&crate::assets::locate(), tone);
+        ui.global::<crate::ui::Assets>().set_still(still.clone());
+        if self.still.get() || self.player.is_none() || !self.timer.running() {
+            ui.set_backdrop(still);
         }
     }
 
@@ -1326,46 +1427,91 @@ impl BackdropPlayer {
     }
 }
 
-fn apply_theme(ui: &AppWindow) {
+fn apply_motion(ui: &AppWindow, tokens: motion::Tokens) {
+    let ms = |d: std::time::Duration| d.as_millis().min(i64::MAX as u128) as i64;
+    let global = ui.global::<crate::ui::Motion>();
+    global.set_hover_in(ms(tokens.hover_in));
+    global.set_hover_out(ms(tokens.hover_out));
+    global.set_release(ms(tokens.release));
+    global.set_glide(ms(tokens.glide));
+    global.set_trail(ms(tokens.trail));
+    global.set_fade(ms(tokens.fade));
+    global.set_panel(ms(tokens.panel));
+    global.set_tip_wait(ms(tokens.tip_wait));
+    global.set_press_scale(tokens.press_scale);
+}
+
+/// Sets the theme's colours (docs/features/themes.md): at start and whenever Settings changes the theme or the accent;
+/// the window repaints once
+fn apply_theme(ui: &AppWindow, colours: &theme::Colours) {
     let theme = ui.global::<Theme>();
-    theme.set_ground(color(theme::GROUND));
-    theme.set_ground_top(color(theme::GROUND_TOP));
-    theme.set_panel(color(theme::PANEL));
-    theme.set_raised(color(theme::RAISED));
-    theme.set_field(color(theme::FIELD));
-    theme.set_line(color(theme::LINE));
-    theme.set_line_strong(color(theme::LINE_STRONG));
-    theme.set_text(color(theme::TEXT));
-    theme.set_muted(color(theme::MUTED));
-    theme.set_subtle(color(theme::SUBTLE));
-    theme.set_accent(color(theme::ACCENT));
-    theme.set_activity(color(theme::ACTIVITY));
-    theme.set_warning(color(theme::WARNING));
-    theme.set_beta(color(theme::BETA));
-    theme.set_danger(color(theme::DANGER));
-    theme.set_success(color(theme::SUCCESS));
+    theme.set_chrome(color(colours.chrome));
+    theme.set_canvas(color(colours.canvas));
+    theme.set_canvas_deep(color(colours.canvas_deep));
+    theme.set_control(color(colours.control));
+    theme.set_control_hover(color(colours.control_hover));
+    theme.set_control_active(color(colours.control_active));
+    theme.set_line(color(colours.line));
+    theme.set_line_strong(color(colours.line_strong));
+    theme.set_line_hover(color(colours.line_hover));
+    theme.set_text(color(colours.text));
+    theme.set_muted(color(colours.muted));
+    theme.set_subtle(color(colours.subtle));
+    theme.set_accent(color(colours.accent));
+    theme.set_activity(color(colours.activity));
+    theme.set_warning(color(colours.warning));
+    theme.set_beta(color(colours.beta));
+    theme.set_danger(color(colours.danger));
+    theme.set_success(color(colours.success));
+    theme.set_raised(color(colours.raised));
+    theme.set_raised_press(color(colours.raised_press));
+    theme.set_well(color(colours.well));
+    theme.set_bubble(color(colours.bubble));
+    theme.set_popover(color(colours.popover));
+    theme.set_key(color(colours.key));
+    theme.set_primary_press(color(colours.primary_press));
+}
+
+/// Applies the saved theme and accent to the window and Home's backdrop
+fn retheme(ui: &AppWindow, s: &Services) {
+    let (tone, hue) = theme_of(s.settings.current());
+    apply_theme(ui, &theme::colours(tone, hue));
+    s.backdrop.set_tone(tone);
+}
+
+/// The theme and accent of the settings
+fn theme_of(settings: &Settings) -> (theme::Tone, Option<u16>) {
+    let hue = (settings.accent_hue < crate::settings::THEME_ACCENT).then_some(settings.accent_hue);
+    (theme::Tone::from_setting(settings.theme), hue)
 }
 
 fn color(value: theme::Rgb) -> slint::Color {
     slint::Color::from_rgb_u8(value.0, value.1, value.2)
 }
 
-/// Diagnostic renderer selection (`HALATION_RENDERER`, default `skia`). A renderer that is not
-/// compiled in or cannot start is an error; there is no fallback to another renderer.
+/// Renderer selection (`HALATION_RENDERER`): `skia-opengl` (desktop OpenGL) by default when the shipping
+/// feature is compiled, `skia` otherwise. A renderer that is not compiled in or cannot start is an error;
+/// there is no fallback to another renderer.
 fn select_renderer() -> Result<String, Box<dyn std::error::Error>> {
-    let requested = std::env::var("HALATION_RENDERER").unwrap_or_else(|_| "skia".to_owned());
+    let requested = std::env::var("HALATION_RENDERER").unwrap_or_else(|_| {
+        if cfg!(feature = "skia-opengl") {
+            "skia-opengl".to_owned()
+        } else {
+            "skia".to_owned()
+        }
+    });
     let selector = slint::BackendSelector::new().backend_name("winit".into());
     let selector = match requested.as_str() {
         "skia" => selector.renderer_name("skia".into()),
         "skia-d3d" => selector.renderer_name("skia".into()).require_d3d(),
         #[cfg(feature = "diag-skia-vulkan")]
         "skia-vulkan" => selector.renderer_name("skia".into()).require_vulkan(),
-        #[cfg(feature = "diag-skia-opengl")]
+        #[cfg(feature = "skia-opengl")]
         // Desktop OpenGL: Slint's default GLES 3.0 context does not draw stroked paths on some drivers.
         "skia-opengl" => selector
             .renderer_name("skia-opengl".into())
             .require_opengl(),
-        #[cfg(feature = "diag-skia-opengl")]
+        #[cfg(feature = "skia-opengl")]
         "skia-opengl-es" => selector
             .renderer_name("skia-opengl".into())
             .require_opengl_es(),
@@ -1437,5 +1583,79 @@ mod tests {
         assert!(update_recent_model(&library_model, &cache, &model));
         assert_eq!(model.row_count(), 1);
         assert_eq!(model.row_data(0).unwrap().name.as_str(), "Renamed.png");
+    }
+
+    #[test]
+    fn dragging_the_accent_strip_recolours_and_saves_the_hue() {
+        use crate::profile::{LaunchOptions, Profile};
+        use crate::ui::{AppWindow, Theme};
+        use slint::ComponentHandle;
+        use slint::platform::{PointerEventButton, WindowEvent};
+
+        i_slint_backend_testing::init_no_event_loop();
+        let root = std::env::temp_dir().join(format!("halation-accent-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let profile = Profile::at(root.clone());
+        profile.ensure().unwrap();
+        let ui = AppWindow::new().unwrap();
+        ui.show().unwrap();
+        // Short enough that the page scrolls
+        ui.window().set_size(slint::LogicalSize::new(960.0, 420.0));
+        ui.window().dispatch_event(WindowEvent::Resized {
+            size: slint::LogicalSize::new(960.0, 420.0),
+        });
+        let controller =
+            super::Controller::new(ui.as_weak(), profile, LaunchOptions::default()).unwrap();
+        controller.install(false);
+        ui.invoke_navigate(3);
+        ui.set_settings_category(1);
+        i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(1000));
+        slint::platform::update_timers_and_animations();
+        let before = ui.global::<Theme>().get_accent();
+
+        let strip = i_slint_backend_testing::ElementHandle::find_by_accessible_label(&ui, "Accent")
+            .find(|e| e.accessible_role() == Some(i_slint_backend_testing::AccessibleRole::Slider))
+            .expect("the accent strip is on Interface");
+        let (pos, size) = (strip.absolute_position(), strip.size());
+        let at =
+            |f: f32| slint::LogicalPosition::new(pos.x + size.width * f, pos.y + size.height / 2.0);
+        let button = PointerEventButton::Left;
+        ui.window()
+            .dispatch_event(WindowEvent::PointerMoved { position: at(0.2) });
+        let wait = |ms| {
+            i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(ms));
+            slint::platform::update_timers_and_animations();
+        };
+        ui.window().dispatch_event(WindowEvent::PointerPressed {
+            position: at(0.2),
+            button,
+        });
+        wait(16);
+        ui.window()
+            .dispatch_event(WindowEvent::PointerMoved { position: at(0.3) });
+        wait(16);
+        ui.window()
+            .dispatch_event(WindowEvent::PointerMoved { position: at(0.4) });
+        wait(150);
+        assert_ne!(
+            ui.global::<Theme>().get_accent(),
+            before,
+            "dragging previews the hue"
+        );
+        ui.window()
+            .dispatch_event(WindowEvent::PointerMoved { position: at(0.5) });
+        wait(16);
+        ui.window().dispatch_event(WindowEvent::PointerReleased {
+            position: at(0.5),
+            button,
+        });
+        slint::platform::update_timers_and_animations();
+        let hue = controller.services.borrow().settings.current().accent_hue;
+        assert!(
+            (160..=200).contains(&hue),
+            "the middle of the strip saves about 180°, got {hue}"
+        );
+        assert_ne!(ui.global::<Theme>().get_accent(), before);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

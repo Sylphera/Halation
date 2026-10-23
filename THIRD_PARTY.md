@@ -18,6 +18,9 @@ Bundled in `app/dist/fonts` as WOFF2 subsets (Latin), taken from the Fontsource 
 | UnifrakturCook | Copyright (c) 2010 j. 'mach' wust with Reserved Font Name UnifrakturCook. Copyright (c) 2009 Peter Wiegel. |
 | JetBrains Mono | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
 | Inter | Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) |
+| Schibsted Grotesk (the native beta's interface) | Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk) |
+| Italiana (the native beta's page titles) | Copyright (c) 2011, Santiago Orozco (hi@typemade.mx), with Reserved Font Name "Italiana". |
+| Bodoni Moda (the native beta's HALATION wordmark, converted to outlines) | Copyright 2020 The Bodoni Moda Project Authors (https://github.com/indestructible-type/Bodoni) |
 | Archivo (variable, width and weight) | Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) |
 | Figtree | Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree) |
 | Roboto | Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic) |
@@ -75,6 +78,16 @@ Halation does not ship these programs. When a feature needs them, it uses an exi
 | covertest.jpg | Noah Buscher on Unsplash ([photo](https://unsplash.com/photos/man-in-black-jacket-standing-in-tunnel-3WZkMfh8zsE)) |
 
 ## Rust crates
+
+### Native media Converter
+
+The native workspace uses `image` 0.25.10 (MIT OR Apache-2.0), `tiff` 0.11.3 (MIT), `webp` 0.3.1
+(MIT OR Apache-2.0, with BSD-3-Clause libwebp through `libwebp-sys`), `ureq` 3.5.0
+and `native-tls` (MIT OR Apache-2.0), and `zip` 8.6.0 (MIT). These are compatible
+with Halation's GPL-3.0-or-later license. The libwebp notice below applies to the native app too.
+FFmpeg remains an external GPL build downloaded from yt-dlp/FFmpeg-Builds, never linked or bundled.
+The native beta installs it only on request under its isolated profile's `tools/ffmpeg` directory;
+it does not read the published Tauri app's component directory or settings.
 
 Direct dependencies of `app/src-tauri`:
 

@@ -5,10 +5,10 @@
 //! - `drape-tint.bin`: the frames' colour for each luma (256 x RGB).
 //!
 //! Windows' own decoder (Media Foundation) reads the video on a thread of its own, one frame per request; on that thread
-//! the frame is scaled to the window's size, turned back into colour and handed to the window. Only the frame on
-//! screen is held decoded. Plan and costs: docs/SLINT_VISUAL_SYSTEM.md.
+//! the frame is scaled to the window's size, turned back into colour and handed to the window. Two frames are kept and
+//! written in turn. Plan and costs: docs/SLINT_VISUAL_SYSTEM.md.
 
-use slint::{Rgb8Pixel, Rgba8Pixel, SharedPixelBuffer};
+use slint::{Rgba8Pixel, SharedPixelBuffer};
 use std::path::Path;
 
 /// Frames per second of the loop; the player asks for one frame per tick of this rate
@@ -47,6 +47,11 @@ impl Palette {
     }
 
     pub fn from_tint(tint: &[u8]) -> Result<Self, String> {
+        Self::toned(tint, crate::theme::Tone::Silver)
+    }
+
+    /// The colour table in a theme's colours (`Tone::drape`)
+    pub fn toned(tint: &[u8], tone: crate::theme::Tone) -> Result<Self, String> {
         if tint.len() != 256 * 3 {
             return Err(format!(
                 "the backdrop tint holds {} bytes, not 768",
@@ -64,8 +69,9 @@ impl Palette {
                 let (low, t) = (l.floor() as usize, l.fract());
                 let high = (low + 1).min(255);
                 let at = |index: usize, channel: usize| f32::from(tint[index * 3 + channel]);
-                [0, 1, 2]
-                    .map(|c| ((at(low, c) * (1.0 - t) + at(high, c) * t) * 256.0).round() as i32)
+                let [r, g, b] = [0, 1, 2].map(|c| at(low, c) * (1.0 - t) + at(high, c) * t);
+                tone.drape(r, g, b)
+                    .map(|v| (v.min(255.0) * 256.0).round() as i32)
             })
             .collect();
         let dither = (0..DITHER * DITHER)
@@ -87,34 +93,60 @@ impl Palette {
         &self,
         plane: &[u8],
         pitch: usize,
-        (width, height): (u32, u32),
+        size: (u32, u32),
         (out_w, out_h): (u32, u32),
-    ) -> SharedPixelBuffer<Rgb8Pixel> {
-        let (w, h, ow, oh) = (
-            width as usize,
-            height as usize,
-            out_w.max(1) as usize,
-            out_h.max(1) as usize,
-        );
-        let scale = (ow as f32 / w as f32).max(oh as f32 / h as f32);
-        let (columns, rows) = (taps(ow, w, scale), taps(oh, h, scale));
+    ) -> SharedPixelBuffer<Rgba8Pixel> {
+        let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(out_w.max(1), out_h.max(1));
+        self.frame_into(plane, pitch, size, &mut Scratch::default(), &mut buffer);
+        buffer
+    }
+
+    /// `frame` into `buffer`, at its size, with the working memory of `scratch`: once both have the window's size a
+    /// frame allocates nothing. The pixels are opaque RGBA, the layout Skia uploads as it is (RGB would be converted
+    /// on the UI thread, about 30 ms a frame at 1080p).
+    pub fn frame_into(
+        &self,
+        plane: &[u8],
+        pitch: usize,
+        (width, height): (u32, u32),
+        scratch: &mut Scratch,
+        buffer: &mut SharedPixelBuffer<Rgba8Pixel>,
+    ) {
+        let (w, h) = (width.max(1) as usize, height.max(1) as usize);
+        let (ow, oh) = (buffer.width() as usize, buffer.height() as usize);
+        if scratch.key != (w, h, ow, oh) {
+            let scale = (ow as f32 / w as f32).max(oh as f32 / h as f32);
+            scratch.columns = taps(ow, w, scale);
+            scratch.rows = taps(oh, h, scale);
+            scratch.across.resize(h * ow, 0.0);
+            scratch.line.resize(ow, 0.0);
+            scratch.source.resize(w, 0.0);
+            scratch.key = (w, h, ow, oh);
+        }
+        let Scratch {
+            columns,
+            rows,
+            across,
+            line,
+            source,
+            ..
+        } = scratch;
         // Each source row scaled across, in luma
-        let mut across = vec![0_f32; h * ow];
         for y in 0..h {
-            let source = &plane[y * pitch..y * pitch + w];
+            for (value, &code) in source.iter_mut().zip(&plane[y * pitch..y * pitch + w]) {
+                *value = self.luma[usize::from(code)];
+            }
             let out = &mut across[y * ow..(y + 1) * ow];
-            for (value, tap) in out.iter_mut().zip(&columns) {
-                *value = tap
-                    .iter()
-                    .map(|&(x, weight)| self.luma[usize::from(source[x])] * weight)
-                    .sum();
+            for (value, tap) in out.iter_mut().zip(columns.iter()) {
+                *value = source[tap[0].0] * tap[0].1
+                    + source[tap[1].0] * tap[1].1
+                    + source[tap[2].0] * tap[2].1
+                    + source[tap[3].0] * tap[3].1;
             }
         }
-        let mut buffer = SharedPixelBuffer::<Rgb8Pixel>::new(ow as u32, oh as u32);
         let pixels = buffer.make_mut_slice();
         let to_index = (COLOURS - 1) as f32 / LIFT;
         // One output row in luma, as a table index, summed from four scaled rows a whole row at a time
-        let mut line = vec![0_f32; ow];
         for (oy, tap) in rows.iter().enumerate() {
             line.fill(0.0);
             for &(y, weight) in tap {
@@ -125,21 +157,32 @@ impl Palette {
             }
             let dither_row = &self.dither[(oy % DITHER) * DITHER..(oy % DITHER + 1) * DITHER];
             let out = &mut pixels[oy * ow..(oy + 1) * ow];
-            for (pixels, (line, dither)) in out
-                .chunks_mut(DITHER)
-                .zip(line.chunks(DITHER))
-                .map(|(pixels, line)| (pixels, (line, &dither_row[..line.len()])))
-            {
-                for ((pixel, &index), noise) in pixels.iter_mut().zip(line).zip(dither) {
+            for (pixels, line) in out.chunks_mut(DITHER).zip(line.chunks(DITHER)) {
+                for ((pixel, &index), noise) in pixels.iter_mut().zip(line).zip(dither_row) {
                     let colour = self.colour[((index + 0.5) as usize).min(COLOURS - 1)];
-                    let [r, g, b] =
-                        [0, 1, 2].map(|c| ((colour[c] + noise[c]) >> 8).clamp(0, 255) as u8);
-                    *pixel = Rgb8Pixel { r, g, b };
+                    let level = |c: usize| ((colour[c] + noise[c]) >> 8).clamp(0, 255) as u8;
+                    *pixel = Rgba8Pixel {
+                        r: level(0),
+                        g: level(1),
+                        b: level(2),
+                        a: 255,
+                    };
                 }
             }
         }
-        buffer
     }
+}
+
+/// The working memory of `Palette::frame_into`, kept between frames of the same size
+#[derive(Default)]
+pub struct Scratch {
+    /// Source width and height, output width and height
+    key: (usize, usize, usize, usize),
+    columns: Vec<[(usize, f32); 4]>,
+    rows: Vec<[(usize, f32); 4]>,
+    across: Vec<f32>,
+    line: Vec<f32>,
+    source: Vec<f32>,
 }
 
 /// The frame size for a window of `width` x `height` pixels: the same, at most `MAX_FRAME`, keeping its shape
@@ -239,26 +282,37 @@ fn gaussian(x: u32, y: u32) -> f32 {
 /// Plays the loop on a decoding thread: `request` asks for the next frame at a size, `deliver` gets it on that thread
 pub struct Player {
     requests: std::sync::mpsc::SyncSender<(u32, u32)>,
+    /// The theme the frames are coloured in (0 Silver, 1 Gold); the thread rebuilds its table when it changes
+    tone: std::sync::Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl Player {
     /// Starts the decoding thread for the loop in `assets`; `None` when the loop cannot play (missing files), and Home
     /// keeps its still frame
-    pub fn start<F>(assets: &Path, deliver: F) -> Option<Self>
+    pub fn start<F>(assets: &Path, tone: crate::theme::Tone, deliver: F) -> Option<Self>
     where
-        F: Fn(SharedPixelBuffer<Rgb8Pixel>) + Send + 'static,
+        F: Fn(SharedPixelBuffer<Rgba8Pixel>) + Send + 'static,
     {
-        let palette = Palette::load(&assets.join("drape-tint.bin")).ok()?;
+        let tint = std::fs::read(assets.join("drape-tint.bin")).ok()?;
+        Palette::from_tint(&tint).ok()?;
         let video = assets.join("drape-loop.mp4");
         if !video.is_file() {
             return None;
         }
         let (requests, wanted) = std::sync::mpsc::sync_channel::<(u32, u32)>(1);
+        let tone = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(tone as u8));
+        let seen = tone.clone();
         std::thread::Builder::new()
             .name("backdrop".into())
-            .spawn(move || decode_loop(&video, &palette, &wanted, &deliver))
+            .spawn(move || decode_loop(&video, &tint, &seen, &wanted, &deliver))
             .ok()?;
-        Some(Self { requests })
+        Some(Self { requests, tone })
+    }
+
+    /// Colours the next frames in `tone`
+    pub fn set_tone(&self, tone: crate::theme::Tone) {
+        self.tone
+            .store(tone as u8, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Asks for the next frame for a window of `width` x `height` pixels; skipped while the previous request is still
@@ -271,20 +325,53 @@ impl Player {
 /// The decoding thread: one frame per request until the player is dropped or the decoder fails
 fn decode_loop<F>(
     video: &Path,
-    palette: &Palette,
+    tint: &[u8],
+    tone: &std::sync::atomic::AtomicU8,
     wanted: &std::sync::mpsc::Receiver<(u32, u32)>,
     deliver: &F,
 ) where
-    F: Fn(SharedPixelBuffer<Rgb8Pixel>),
+    F: Fn(SharedPixelBuffer<Rgba8Pixel>),
 {
+    let toned = |value: u8| {
+        let tone = if value == crate::theme::Tone::Gold as u8 {
+            crate::theme::Tone::Gold
+        } else {
+            crate::theme::Tone::Silver
+        };
+        Palette::toned(tint, tone)
+    };
+    let mut current = tone.load(std::sync::atomic::Ordering::Relaxed);
+    let Ok(mut palette) = toned(current) else {
+        return;
+    };
     let Ok(mut decoder) = mf::Decoder::open(video) else {
         return;
     };
     let mut plane = Vec::new();
-    while let Ok(size) = wanted.recv() {
+    let mut scratch = Scratch::default();
+    // Two frames in turn: one on screen, one being made. By the time a frame comes round again the window has let go
+    // of it, so it is written in place; if it still holds it, writing makes a copy and nothing is lost.
+    let mut frames: [Option<SharedPixelBuffer<Rgba8Pixel>>; 2] = [None, None];
+    let mut turn = 0;
+    while let Ok((out_w, out_h)) = wanted.recv() {
+        // The theme changed: one new colour table (256 entries), then on as before
+        let now = tone.load(std::sync::atomic::Ordering::Relaxed);
+        if now != current
+            && let Ok(next) = toned(now)
+        {
+            palette = next;
+            current = now;
+        }
         match decoder.next(&mut plane) {
             Ok((width, height, pitch)) => {
-                deliver(palette.frame(&plane, pitch, (width, height), size))
+                let mut frame = match frames[turn].take() {
+                    Some(frame) if (frame.width(), frame.height()) == (out_w, out_h) => frame,
+                    _ => SharedPixelBuffer::new(out_w, out_h),
+                };
+                palette.frame_into(&plane, pitch, (width, height), &mut scratch, &mut frame);
+                deliver(frame.clone());
+                frames[turn] = Some(frame);
+                turn ^= 1;
             }
             Err(_) => return,
         }
@@ -469,6 +556,22 @@ mod tests {
     }
 
     #[test]
+    fn the_gold_theme_turns_the_drape_warm_at_the_same_brightness() {
+        let tint = std::fs::read(shipped().join("drape-tint.bin")).unwrap();
+        let silver = Palette::toned(&tint, crate::theme::Tone::Silver).unwrap();
+        let gold = Palette::toned(&tint, crate::theme::Tone::Gold).unwrap();
+        let mid = (30.0 * (COLOURS - 1) as f32 / LIFT) as usize;
+        let [r, g, b] = gold.colour[mid];
+        assert!(r > b, "lighter parts lean gold");
+        let luma = |[r, g, b]: [i32; 3]| 0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32;
+        let (before, after) = (luma(silver.colour[mid]), luma([r, g, b]));
+        assert!(
+            (before - after).abs() <= before * 0.02 + 256.0,
+            "{before} vs {after}"
+        );
+    }
+
+    #[test]
     fn a_frame_covers_the_window_with_a_one_level_dither() {
         // A flat grey of luma 40 (tint: colour equals luma) stays within one level of it, and the dither reaches both
         // sides
@@ -480,8 +583,25 @@ mod tests {
         assert_eq!((frame.width(), frame.height()), (100, 75));
         let level = LIFT * (f32::from(code) / 255.0).powi(2);
         let values: Vec<f32> = frame.as_slice().iter().map(|p| f32::from(p.g)).collect();
+        assert!(frame.as_slice().iter().all(|p| p.a == 255), "opaque");
         assert!(values.iter().all(|&v| (v - level).abs() <= 1.5));
         assert!(values.iter().any(|&v| v > level) && values.iter().any(|&v| v < level));
+    }
+
+    #[test]
+    fn a_frame_of_the_same_size_is_made_in_place() {
+        let tint: Vec<u8> = (0..=255_u8).flat_map(|v| [v, v, v]).collect();
+        let palette = Palette::from_tint(&tint).unwrap();
+        let plane: Vec<u8> = (0..16 * 9).map(|i| (i * 7) as u8).collect();
+        let (mut scratch, mut frame) = (Scratch::default(), SharedPixelBuffer::new(64, 36));
+        palette.frame_into(&plane, 16, (16, 9), &mut scratch, &mut frame);
+        let at = frame.as_bytes().as_ptr();
+        palette.frame_into(&plane, 16, (16, 9), &mut scratch, &mut frame);
+        assert_eq!(frame.as_bytes().as_ptr(), at, "no new buffer");
+        assert_eq!(
+            frame.as_slice(),
+            palette.frame(&plane, 16, (16, 9), (64, 36)).as_slice()
+        );
     }
 
     #[test]

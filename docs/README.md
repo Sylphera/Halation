@@ -34,7 +34,7 @@ exists, not that it was verified; verification is a test, a measurement or Java'
 | [motion.md](features/motion.md) | Implemented, approved (2026-10-22) |
 | [material.md](features/material.md) | Implemented, approved (2026-10-22) |
 | [themes.md](features/themes.md) | Implemented, approved (2026-10-22) |
-| [converter.md](features/converter.md) | Partial, native page approved (Send to and sessions remain) |
+| [converter.md](features/converter.md) | Partial, native Converter approved (Send to and sessions remain) |
 | [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
 | [downloader.md](features/downloader.md), [audio-visualizer.md](features/audio-visualizer.md), [upscale.md](features/upscale.md), [frame-capture.md](features/frame-capture.md) | Planned (Tauri only) |
 | [TOOLS_STATUS.md](TOOLS_STATUS.md) — status, spec, Tauri origin and shared UI contract of every media tool | Inventory (FASE 0) |

@@ -1,8 +1,9 @@
 //! The app's files beside the executable, in `assets\` (Java, 2026-10-21: assets ship apart from the exe, installer
-//! only): the mark and wordmark, the icons, the Inter typeface, and Home's backdrop loop. `build.rs` copies
+//! only): the mark and wordmark, the icons, the typefaces (Schibsted Grotesk, Italiana), and Home's backdrop loop. `build.rs` copies
 //! the crate's `assets/` there for development builds. A missing file is reported to the user and logged; the app still
 //! runs without it.
 
+use crate::theme::Tone;
 use crate::ui::{AppWindow, Assets};
 use slint::{ComponentHandle, Image};
 use std::path::{Path, PathBuf};
@@ -90,12 +91,15 @@ fn set_icon(assets: &Assets<'_>, name: &str, image: Image) {
 pub fn required() -> Vec<String> {
     let mut files: Vec<String> = [
         "halation-mark.png",
+        "halation-app-icon.png",
         "halation-wordmark.svg",
+        "halation-wordmark-glow.png",
         "drop-outline.svg",
         "drape-still.jpg",
         "drape-loop.mp4",
         "drape-tint.bin",
-        "fonts/Inter.ttf",
+        "fonts/SchibstedGrotesk.ttf",
+        "fonts/Italiana.ttf",
     ]
     .iter()
     .map(|file| (*file).to_owned())
@@ -112,31 +116,63 @@ pub fn missing(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Registers the Inter typeface with Slint's font collection; it must run before the window is created
+/// The typefaces the interface uses, in `fonts/`
+pub const FONTS: [&str; 2] = ["SchibstedGrotesk.ttf", "Italiana.ttf"];
+
+/// Registers the typefaces with Slint's font collection; it must run before the window is created
 pub fn register_fonts(dir: &Path) -> Result<(), String> {
-    let path = dir.join("fonts").join("Inter.ttf");
-    let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let blob = slint::fontique_011::fontique::Blob::new(std::sync::Arc::new(bytes));
     let mut collection = slint::fontique_011::shared_collection();
-    if collection.register_fonts(blob, None).is_empty() {
-        return Err(format!("{}: not a usable font", path.display()));
+    for file in FONTS {
+        let path = dir.join("fonts").join(file);
+        let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+        let blob = slint::fontique_011::fontique::Blob::new(std::sync::Arc::new(bytes));
+        if collection.register_fonts(blob, None).is_empty() {
+            return Err(format!("{}: not a usable font", path.display()));
+        }
     }
     Ok(())
 }
 
 /// Loads the images into the interface's `Assets` global; files that are missing or unreadable stay empty
-pub fn apply(ui: &AppWindow, dir: &Path) {
+pub fn apply(ui: &AppWindow, dir: &Path, tone: Tone) {
     let assets = ui.global::<Assets>();
     let load = |file: &str| Image::load_from_path(&dir.join(file)).unwrap_or_default();
     assets.set_mark(load("halation-mark.png"));
+    assets.set_app_icon(load("halation-app-icon.png"));
     assets.set_wordmark(load("halation-wordmark.svg"));
+    assets.set_wordmark_glow(load("halation-wordmark-glow.png"));
     assets.set_drop_outline(load("drop-outline.svg"));
     // Generated, not a file: a standard static grain
     assets.set_grain(Image::from_rgba8(crate::backdrop::grain_tile()));
-    assets.set_still(load("drape-still.jpg"));
+    assets.set_still(still(dir, tone));
     for name in ICONS {
         set_icon(&assets, name, load(&format!("icons/{name}.svg")));
     }
+}
+
+/// Home's still frame in the theme's colour (docs/features/themes.md): the recorded file in Silver, recoloured like
+/// the loop in Gold; empty when the file is missing or unreadable
+pub fn still(dir: &Path, tone: Tone) -> Image {
+    let image = Image::load_from_path(&dir.join("drape-still.jpg")).unwrap_or_default();
+    if tone == Tone::Silver {
+        return image;
+    }
+    let byte = |value: f32| value.round().clamp(0.0, 255.0) as u8;
+    if let Some(mut pixels) = image.to_rgb8() {
+        for pixel in pixels.make_mut_slice() {
+            let [r, g, b] = tone.drape(f32::from(pixel.r), f32::from(pixel.g), f32::from(pixel.b));
+            (pixel.r, pixel.g, pixel.b) = (byte(r), byte(g), byte(b));
+        }
+        return Image::from_rgb8(pixels);
+    }
+    if let Some(mut pixels) = image.to_rgba8() {
+        for pixel in pixels.make_mut_slice() {
+            let [r, g, b] = tone.drape(f32::from(pixel.r), f32::from(pixel.g), f32::from(pixel.b));
+            (pixel.r, pixel.g, pixel.b) = (byte(r), byte(g), byte(b));
+        }
+        return Image::from_rgba8(pixels);
+    }
+    image
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use halation_app::library::{
 use halation_app::motion;
 use halation_app::navigation::{Navigation, Page};
 use halation_app::profile::{DiagnosticScene, Profile, ProfileError, parse_args, resolve_root};
-use halation_app::theme::{self, TEXT_PAIRS};
+use halation_app::theme::{self, TEXT_PAIRS, Tone};
 use halation_core::atomic_file::write_atomic_new;
 use halation_core::jobs::{JobRequest, JobsError, JobsService};
 use halation_core::settings::{
@@ -358,9 +358,10 @@ fn oversized_settings_are_rejected_and_values_are_bounded() {
 }
 
 #[test]
-fn catalog_has_eleven_entries_and_only_library_is_available() {
+fn catalog_has_eleven_entries_and_library_and_converter_are_available() {
     assert_eq!(TOOLS.len(), 11);
-    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 1);
+    assert_eq!(TOOLS.iter().filter(|tool| tool.available).count(), 2);
+    assert!(catalog::tool("converter").unwrap().available);
     assert!(catalog::tool("library").unwrap().available);
     assert!(!catalog::tool("downloader").unwrap().available);
     assert!(catalog::activation_notice("downloader").contains("not available"));
@@ -391,8 +392,105 @@ fn navigation_same_target_is_a_noop_and_all_pages_round_trip() {
 
 #[test]
 fn reduced_motion_resolves_deterministically_to_zero_duration() {
-    assert_eq!(motion::duration_ms(false), 160);
-    assert_eq!(motion::duration_ms(true), 0);
+    use std::time::Duration;
+    let normal = motion::tokens(false);
+    let reduced = motion::tokens(true);
+    // Short motion, about as fast as the pointer: nothing over 120 ms (a spring settles later, in about 1.5 times its
+    // period)
+    for d in [
+        normal.hover_in,
+        normal.hover_out,
+        normal.release,
+        normal.glide,
+        normal.trail,
+        normal.fade,
+        normal.panel,
+    ] {
+        assert!(d > Duration::ZERO && d <= Duration::from_millis(120));
+    }
+    assert!(normal.hover_in < normal.hover_out, "fast in, soft out");
+    assert!(normal.glide < normal.trail, "a moving pill stretches");
+    assert!(normal.press_scale < 100.0);
+    for d in [
+        reduced.hover_in,
+        reduced.hover_out,
+        reduced.release,
+        reduced.glide,
+        reduced.trail,
+        reduced.fade,
+        reduced.panel,
+    ] {
+        assert_eq!(d, Duration::ZERO);
+    }
+    assert_eq!(reduced.press_scale, 100.0, "nothing scales");
+    assert_eq!(
+        reduced.tip_wait, normal.tip_wait,
+        "a tooltip's wait is not motion"
+    );
+}
+
+/// The cost rules of docs/features/motion.md §2, read from the UI's sources: every animation takes its duration from
+/// the `Motion` tokens (or is instant), none waits with `delay` or repeats, none fades a container's `opacity`, and only
+/// the sidebar animates a size
+#[test]
+fn every_animation_follows_the_motion_cost_rules() {
+    fn files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                files(&path, out);
+            } else if path.extension().is_some_and(|e| e == "slint") {
+                out.push(path);
+            }
+        }
+    }
+    let mut paths = Vec::new();
+    files(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ui"),
+        &mut paths,
+    );
+    assert!(!paths.is_empty());
+    let mut broken = Vec::new();
+    for path in paths {
+        let source = std::fs::read_to_string(&path).unwrap();
+        for (n, line) in source.lines().enumerate() {
+            let line = line.trim();
+            if line.starts_with("//") {
+                continue;
+            }
+            let at = format!("{}:{}", path.file_name().unwrap().to_string_lossy(), n + 1);
+            if line.contains("delay:") || line.contains("iteration-count") {
+                broken.push(format!("{at}: waits or repeats"));
+            }
+            // Slint 1.18: the shorthand with animated axes binds neither axis, so the element scales to 0 under Skia
+            if line.starts_with("transform-scale:") {
+                broken.push(format!("{at}: transform-scale shorthand, set -x and -y"));
+            }
+            let Some(rest) = line.strip_prefix("animate ") else {
+                continue;
+            };
+            let properties = rest.split('{').next().unwrap_or_default();
+            let body = rest.split('{').nth(1).unwrap_or_default();
+            // `hover-lead` is the hover pill's glide, set from `Motion.glide` and the pointer's pace
+            if !body.contains("Motion.") && !body.contains("root.hover-lead") {
+                broken.push(format!("{at}: duration not from Motion"));
+            }
+            if !body.contains("Curve.ease") && !body.contains("spring(0)") {
+                broken.push(format!("{at}: curve not Curve.ease or spring(0)"));
+            }
+            if properties.contains("opacity") {
+                broken.push(format!("{at}: animates opacity"));
+            }
+            let sizes = properties
+                .split(',')
+                .map(str::trim)
+                .any(|p| p == "width" || p == "height");
+            if sizes || (properties.trim() != "side" && properties.contains("side")) {
+                broken.push(format!("{at}: animates a size"));
+            }
+        }
+    }
+    assert!(broken.is_empty(), "{broken:#?}");
 }
 
 #[test]
@@ -403,6 +501,24 @@ fn applied_theme_text_pairs_meet_wcag_contrast_threshold() {
             "{name} contrast was {}",
             theme::contrast_ratio(foreground, background)
         );
+    }
+}
+
+#[test]
+fn every_theme_and_accent_hue_meets_wcag_contrast() {
+    assert_eq!(theme::colours(Tone::Silver, None), theme::SILVER);
+    for tone in [Tone::Silver, Tone::Gold] {
+        let hues = std::iter::once(None).chain((0..360).step_by(5).map(Some));
+        for hue in hues {
+            let colours = theme::colours(tone, hue);
+            for (name, foreground, background) in theme::text_pairs(&colours) {
+                let ratio = theme::contrast_ratio(foreground, background);
+                assert!(
+                    ratio >= 4.5,
+                    "{tone:?} {hue:?}: {name} contrast was {ratio}"
+                );
+            }
+        }
     }
 }
 
@@ -702,6 +818,15 @@ fn settings_page_values_change_one_at_a_time_and_stay_bounded() {
     assert!(base.with_pref("show-dock", "maybe").is_err());
     assert!(base.with_pref("no-such-setting", "1").is_err());
     assert!(base.with_pref("artist", &"a".repeat(301)).is_err());
+    // Themes: Silver by default, Gold, an accent hue or the theme's own (360)
+    assert_eq!((base.theme, base.accent_hue), (0, 360));
+    assert_eq!(base.with_pref("theme", "1").unwrap().theme, 1);
+    assert!(base.with_pref("theme", "2").is_err(), "no third theme");
+    let hued = base.with_pref("accent-hue", "150").unwrap();
+    assert_eq!(hued.accent_hue, 150);
+    assert_eq!(hued.with_pref("accent-hue", "360").unwrap().accent_hue, 360);
+    assert!(base.with_pref("accent-hue", "361").is_err());
+    assert!(base.with_pref("accent-hue", "-5").is_err());
 
     let off = base.with_tool("grade", false).unwrap();
     assert!(!off.tool_enabled("grade"));
@@ -735,7 +860,18 @@ fn settings_search_finds_the_section_that_holds_the_words() {
     assert_eq!(catalog::settings_section("Dock"), Some(0));
     assert_eq!(catalog::settings_section("open window"), Some(1));
     assert_eq!(catalog::settings_section("ffmpeg"), Some(5));
+    assert_eq!(catalog::settings_section("accent colour"), Some(1));
     assert_eq!(catalog::settings_section("changelog"), Some(7));
     assert_eq!(catalog::settings_section("   "), None);
     assert_eq!(catalog::settings_section("zzz"), None);
+}
+
+#[test]
+fn media_kind_names_files_by_extension() {
+    use halation_app::library::media_kind;
+    assert_eq!(media_kind("C:/Music/Night Drive.FLAC"), "Audio");
+    assert_eq!(media_kind("cover-final.png"), "Image");
+    assert_eq!(media_kind("teaser.mp4"), "Video");
+    assert_eq!(media_kind("notes.txt"), "File");
+    assert_eq!(media_kind("no-extension"), "File");
 }

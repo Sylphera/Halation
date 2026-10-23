@@ -1,10 +1,9 @@
 # Converter — Especificación v1 y v2
 
-Status: Partial — native media Converter implemented and approved by Java in the native window on `slint/native`
-(2026-10-22): tool frame, plans, jobs, FFmpeg installation, audio and video preview. Send to and sessions remain.
-Implemented in the Tauri app on `main`.
+Status: Partial — native media Converter implemented and approved by Java in the native window (2026-10-22): tool frame, plans, jobs, FFmpeg installation, audio and video preview. Send to and sessions remain. Implemented in the Tauri app on `main`.
 
-Native layout follows the approved tool frame, not the historical Tauri layout below; documents remain out of scope.
+Native progress and remaining validation: [converter-native plan](../../planning/active/converter-native.md).
+The native layout follows the approved tool frame, not the historical Tauri layout below. Documents remain out of scope.
 
 UI contract: this page is the canonical template for the [shared tool-page contract](../TOOLS_STATUS.md#visual-contract-all-ten-tools); the other nine pages copy its frame, components, tokens, surfaces, typography and motion. No tool-specific visual style.
 

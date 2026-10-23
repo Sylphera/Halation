@@ -12,11 +12,39 @@ export struct ToolItem {
     reason: string,
 }
 
+export struct ConvertRow {
+    index: int,
+    name: string,
+    detail: string,
+    state: string,
+    target: string,
+    selected: bool,
+    failed: bool,
+    // It can leave the list: not converting or queued right now
+    removable: bool,
+}
+
+export struct FormatRow {
+    id: string,
+    name: string,
+    detail: string,
+    selected: bool,
+    audio: bool,
+    // The first of video's audio-only outputs: shows the "Audio only" caption above it
+    header: bool,
+    // The suggested output (the first of the curated list)
+    recommended: bool,
+    // The consequence line (§4.5 of the spec): empty when there is nothing to say
+    note: string,
+}
+
 export struct LibraryRow {
     id: string,
     name: string,
     path: string,
     missing: bool,
+    // "Image", "Audio", "Video" or "File", from the extension
+    kind: string,
 }
 
 export struct JobRow {
@@ -80,6 +108,8 @@ export struct Prefs {
     budget: int,
     updates: int,
     whats-new: bool,
+    theme: int,
+    accent-hue: int,
 }
 
 // A downloadable component as Settings > Tools lists it

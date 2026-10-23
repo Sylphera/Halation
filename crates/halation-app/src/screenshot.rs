@@ -14,7 +14,7 @@ use slint::platform::{
     EventLoopProxy, Platform, PlatformError, WindowAdapter,
     software_renderer::{MinimalSoftwareWindow, RepaintBufferType},
 };
-use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel, SharedString};
+use slint::{ComponentHandle, PhysicalSize, Rgb8Pixel};
 use std::{
     collections::VecDeque,
     fs,
@@ -184,14 +184,27 @@ fn write_png(path: &Path, width: u32, height: u32, pixels: &[Rgb8Pixel]) -> std:
     fs::write(path, png)
 }
 
+fn profile_tools(out_dir: &Path, page: &str) -> PathBuf {
+    out_dir
+        .join(format!("fixtures-{page}"))
+        .join("profile")
+        .join("tools")
+}
+
 pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
-    // home, home-open (rail open), library, sections, settings, settings-<0..7> (a section)
+    // home, home-open (sidebar open), settings, settings-<0..7> (a section)
     let (page, mode, section) = match spec.page.as_str() {
         "home" => (0, 0, -1),
         "home-open" => (0, 2, -1),
-        "library" | "references" => (1, 0, -1),
-        "sections" => (1, 1, -1),
+        "motion-home" => (0, 6, -1),
+        "motion-settings" => (3, 7, -1),
+        "motion-sidebar" => (0, 8, -1),
         "settings" => (3, 0, -1),
+        "converter" => (4, 0, -1),
+        "converter-open" => (4, 2, -1),
+        "converter-ready" => (4, 3, -1),
+        "converter-audio" => (4, 4, -1),
+        "converter-video" => (4, 5, -1),
         other => match other
             .strip_prefix("settings-")
             .and_then(|n| n.parse::<i32>().ok())
@@ -199,16 +212,21 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, library, sections, settings or settings-<0..7>"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, motion-home, motion-settings or motion-sidebar"
                 )
                 .into());
             }
         },
     };
-    let out_dir = spec
-        .out
-        .parent()
-        .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
+    if (6..=8).contains(&mode) && (spec.width != 1440 || spec.height != 900) {
+        return Err("motion sequences use 1440x900 fixed pointer fixtures".into());
+    }
+    // Absolute, like a real profile: FFmpeg runs in its own folder
+    let out_dir = std::path::absolute(
+        spec.out
+            .parent()
+            .map_or_else(|| PathBuf::from("."), Path::to_path_buf),
+    )?;
     let profile = fixtures(&out_dir.join(format!("fixtures-{}", spec.page)))?;
 
     let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
@@ -237,13 +255,77 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
     if mode == 2 {
         ui.set_rail_open(true);
     }
-    if mode == 1 {
-        ui.set_library_mode(1);
-        ui.invoke_sections_opened();
-        pump(&queue, Duration::from_millis(600));
-        ui.invoke_select_section(SharedString::from("own:Covers"));
-    }
     pump(&queue, Duration::from_millis(800));
+    if mode == 3 {
+        let fixture = out_dir.join("generated-converter-preview.png");
+        let pixels: Vec<_> = (0..200)
+            .flat_map(|y| {
+                (0..320)
+                    .map(move |x| Rgb8Pixel::new((x * 255 / 320) as u8, (y * 255 / 200) as u8, 96))
+            })
+            .collect();
+        write_png(&fixture, 320, 200, &pixels)?;
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(1000));
+    }
+    if mode == 4 {
+        // Generated audio (FFmpeg from the profile's tools or PATH): a pulsing tone with a quiet start
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-audio needs FFmpeg on PATH to generate its fixture")?;
+        // Absolute: FFmpeg runs from its own folder
+        let fixture = out_dir.join("generated-converter-tone.flac");
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args(["-hide_banner", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i"])
+            .arg("aevalsrc=min(1\\,t/6)*(0.25+0.75*abs(sin(2*PI*0.21*t)))*(0.6+0.4*sin(2*PI*2.1*t))*sin(2*PI*330*t):s=44100:d=94")
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the audio fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        // A paused head part-way through, so the heard part and the head show without real-time playback
+        ui.invoke_converter_seek(0.38);
+        pump(&queue, Duration::from_millis(200));
+    }
+    if mode == 5 {
+        let ffmpeg = halation_core::components::Ffmpeg::find(&profile_tools(&out_dir, &spec.page))
+            .ok_or("converter-video needs FFmpeg on PATH to generate its fixture")?;
+        let fixture = out_dir.join("generated-converter-clip.mkv");
+        let status = std::process::Command::new(&ffmpeg.ffmpeg)
+            .args([
+                "-hide_banner",
+                "-nostdin",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+            ])
+            .arg("testsrc2=size=1920x800:rate=24:duration=12")
+            .args([
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=330:duration=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+            ])
+            .arg(&fixture)
+            .status()?;
+        if !status.success() {
+            return Err("could not generate the video fixture".into());
+        }
+        controller.add_converter_files(vec![fixture]);
+        pump(&queue, Duration::from_millis(2500));
+        ui.set_convert_left_open(true);
+        // Paused at 40 %: the still at the head and the seek bar
+        ui.invoke_converter_seek(0.4);
+        pump(&queue, Duration::from_millis(2000));
+    }
     if section >= 0 {
         // After the page has laid out, so the section tops are known
         ui.set_settings_jump(section);
@@ -254,8 +336,77 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         pump(&queue, Duration::from_millis(300));
     }
 
+    if (6..=8).contains(&mode) {
+        // Real headless pointer events; never set UI hover properties and never touch the desktop. Capture departure,
+        // detachment, rest, reversal, and exit, not just an attractive final frame. Times are wall-clock approximations.
+        // Hold the same decoded Drape frame in every capture: otherwise the ambient movie changes the pixels we
+        // compare for hover-only changes. This changes the diagnostic render only, not the production player.
+        let backdrop = ui.get_backdrop();
+        let capture = |name: &str| -> Result<(), Box<dyn std::error::Error>> {
+            ui.set_backdrop(backdrop.clone());
+            let mut pixels = vec![Rgb8Pixel::new(0, 0, 0); (spec.width * spec.height) as usize];
+            window.request_redraw();
+            window.draw_if_needed(|renderer| {
+                renderer.render(&mut pixels, spec.width as usize);
+            });
+            let stem = spec.out.file_stem().unwrap_or_default().to_string_lossy();
+            write_png(
+                &spec.out.with_file_name(format!("{stem}-{name}.png")),
+                spec.width,
+                spec.height,
+                &pixels,
+            )?;
+            Ok(())
+        };
+        let point = |x, y| {
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                    position: slint::LogicalPosition::new(x, y),
+                })
+        };
+        capture("idle")?;
+        let (first, second) = match mode {
+            6 => ((500.0, 390.0), (860.0, 390.0)),
+            7 => ((195.0, 78.0), (300.0, 78.0)),
+            _ => ((30.0, 82.0), (30.0, 166.0)),
+        };
+        point(first.0, first.1);
+        pump(&queue, Duration::from_millis(400));
+        capture("entered")?;
+        point(second.0, second.1);
+        for (name, wait) in [
+            ("move-016", 16),
+            ("move-048", 32),
+            ("move-096", 48),
+            ("move-160", 64),
+            ("settled", 300),
+        ] {
+            pump(&queue, Duration::from_millis(wait));
+            capture(name)?;
+        }
+        point(first.0, first.1);
+        pump(&queue, Duration::from_millis(32));
+        capture("reverse-032")?;
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerExited);
+        pump(&queue, Duration::from_millis(400));
+        capture("exit")?;
+        if mode == 6 {
+            point(746.0, 680.0);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-hover")?;
+            point(450.0, 680.0);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-hover-left")?;
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::PointerExited);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-exit")?;
+        }
+    }
     let (w, h) = (spec.width as usize, spec.height as usize);
     let mut buffer = vec![Rgb8Pixel::new(0, 0, 0); w * h];
+    window.request_redraw();
     let drawn = window.draw_if_needed(|renderer| {
         renderer.render(&mut buffer, w);
     });

@@ -1,7 +1,11 @@
 // Images of the assets folder next to the executable (assets.rs loads them at start; a missing file stays empty).
 export global Assets {
     in-out property <image> mark;
+    // The window and taskbar icon: the mark on a #111111 rounded square (tools/render-brand.js)
+    in-out property <image> app-icon;
     in-out property <image> wordmark;
+    // The wordmark's halation glow, drawn beneath it (tools/render-wordmark-glow.js)
+    in-out property <image> wordmark-glow;
     in-out property <image> drop-outline;
     in-out property <image> grain;
     in-out property <image> still;
