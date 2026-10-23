@@ -2368,17 +2368,6 @@ impl FrameCapture {
                     )
                     .into(),
             );
-            ui.set_frame_time(
-                strings
-                    .fill(
-                        "time_of",
-                        &[
-                            ("time", info.time_label(state.n)),
-                            ("duration", framegrab::time_label(info.duration)),
-                        ],
-                    )
-                    .into(),
-            );
             ui.set_frame_clock(
                 format!(
                     "{} / {}",
@@ -2397,7 +2386,6 @@ impl FrameCapture {
             ui.set_frame_position(position.clamp(0.0, 1.0));
         } else {
             ui.set_frame_frame_label(Default::default());
-            ui.set_frame_time(Default::default());
             ui.set_frame_clock(Default::default());
             ui.set_frame_position(0.0);
         }
@@ -2422,17 +2410,6 @@ impl FrameCapture {
                     &[
                         ("n", (state.n + 1).to_string()),
                         ("total", info.frames.to_string()),
-                    ],
-                )
-                .into(),
-        );
-        ui.set_frame_time(
-            self.strings
-                .fill(
-                    "time_of",
-                    &[
-                        ("time", info.time_label(state.n)),
-                        ("duration", framegrab::time_label(info.duration)),
                     ],
                 )
                 .into(),

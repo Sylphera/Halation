@@ -384,14 +384,6 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
                 .fill("frame_of", &[("n", "40".into()), ("total", "240".into())])
                 .into(),
         );
-        ui.set_frame_time(
-            strings
-                .fill(
-                    "time_of",
-                    &[("time", "00:01.63".into()), ("duration", "00:10.00".into())],
-                )
-                .into(),
-        );
         ui.set_frame_clock("00:01.63 / 00:10.00".into());
         ui.set_frame_position(39.0 / 239.0);
         ui.set_frame_queue(ModelRc::new(VecModel::from(vec![

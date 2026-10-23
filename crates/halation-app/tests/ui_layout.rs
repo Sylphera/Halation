@@ -262,6 +262,13 @@ fn frame_strings() -> FrameStrings {
     FrameStrings {
         title: "Frame Capture".into(),
         queue: "Queue".into(),
+        browse: "Browse video".into(),
+        open: "Open video".into(),
+        browse_short: "Browse".into(),
+        open_short: "Open".into(),
+        replace_video: "Replace video".into(),
+        replace_short: "Replace".into(),
+        inspector_short: "Inspector".into(),
         inspector: "Frame Capture inspector".into(),
         inspector_tabs: "Frame Capture inspector tabs".into(),
         inspector_capture: "Capture".into(),
@@ -285,6 +292,9 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
     ui.set_page(5);
     ui.set_frame_strings(frame_strings());
     ui.set_frame_has_video(true);
+    ui.set_frame_needs_ffmpeg(false);
+    ui.set_frame_action_label("Capture 2".into());
+    ui.set_frame_can_capture(true);
     ui.set_frame_has_preview(true);
     ui.set_frame_has_strip(true);
     ui.set_frame_video_width(1920);
@@ -292,7 +302,6 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
     ui.set_frame_frames(300);
     ui.set_frame_current(150);
     ui.set_frame_frame_label("Frame 151 of 300".into());
-    ui.set_frame_time("0:05.00 of 0:10.00".into());
     ui.set_frame_clock("0:05.00 / 0:10.00".into());
     ui.set_frame_sharp_note("Sharpest frame near here: frame 149".into());
     ui.set_frame_selected_label("2 selected".into());
@@ -303,6 +312,8 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
     ui.set_frame_crop_h(0.5);
     ui.set_frame_can_capture(true);
     ui.set_frame_needs_ffmpeg(false);
+    ui.set_frame_left_open(true);
+    ui.set_frame_inspector_open(true);
     ui.set_frame_busy(true);
     ui.set_frame_message(
         "A deliberately long status line that has to wrap inside the canvas instead of leaving it."
@@ -372,6 +383,42 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
         resize(&ui, width, height);
         for rail in [false, true] {
             ui.set_rail_open(rail);
+            let visible_button = |labels: [&str; 2]| -> String {
+                labels
+                    .into_iter()
+                    .find(|label| {
+                        ElementHandle::find_by_accessible_label(&ui, label)
+                            .find(|element| {
+                                element.accessible_role() == Some(AccessibleRole::Button)
+                            })
+                            .is_some()
+                    })
+                    .expect("one state of each top-bar panel toggle is visible")
+                    .to_owned()
+            };
+            let controls = [
+                "Replace video".to_owned(),
+                visible_button(["Hide queue", "Show queue"]),
+                visible_button(["Hide inspector", "Show inspector"]),
+                "Capture 2".to_owned(),
+            ]
+            .map(|label| {
+                let element = ElementHandle::find_by_accessible_label(&ui, &label)
+                    .find(|element| element.accessible_role() == Some(AccessibleRole::Button))
+                    .unwrap_or_else(|| panic!("top bar action {label} is available"));
+                let position = element.absolute_position();
+                let size = element.size();
+                assert!(position.y >= 0.0 && position.y + size.height <= 44.0);
+                assert!(position.x >= 0.0 && position.x + size.width <= width);
+                (position.x, size.width)
+            });
+            let mut actions = controls;
+            actions.sort_by(|a, b| a.0.total_cmp(&b.0));
+            assert!(
+                actions
+                    .windows(2)
+                    .all(|pair| pair[0].0 + pair[0].1 <= pair[1].0 + 0.5)
+            );
             for left in [false, true] {
                 ui.set_frame_left_open(left);
                 for inspector in [false, true] {
@@ -397,6 +444,13 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                         inspector && sheet_width >= 680.0 && (!left || sheet_width >= 900.0);
                     let canvas = panel("Frame Capture", AccessibleRole::Groupbox);
                     let canvas_x = canvas.absolute_position().x;
+                    let timeline = ElementHandle::find_by_accessible_label(&ui, "Timeline")
+                        .find(|element| element.accessible_role() == Some(AccessibleRole::Slider))
+                        .expect("the active video timeline is present");
+                    assert!(
+                        timeline.size().height >= 56.0,
+                        "the timeline has enough pointer height at {width}x{height}"
+                    );
                     assert!(
                         (canvas_x - sheet_x - if queue_shown { 220.0 } else { 0.0 }).abs() < 1.0,
                         "canvas starts after the queue at {width}x{height}, rail={rail}, queue={left}: actual {canvas_x}, expected {}",
@@ -414,6 +468,10 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                                 .abs()
                                 < 1.0,
                             "the inspector is anchored right at {width}x{height}, rail={rail}"
+                        );
+                        assert!(
+                            output.size().height < height - 44.0,
+                            "the compact Capture inspector returns unused lower space to the canvas at {width}x{height}"
                         );
                     } else {
                         assert!(

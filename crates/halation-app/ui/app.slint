@@ -149,7 +149,6 @@ export component AppWindow inherits Window {
     in property <int> frame-video-height: 0;
     in property <string> frame-frame-label;
     in property <string> frame-clock;
-    in property <string> frame-time;
     in property <string> frame-sharp-note;
     in property <string> frame-selected-label;
     in property <float> frame-crop-x: 0;
@@ -215,6 +214,10 @@ export component AppWindow inherits Window {
     property <length> side: root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: Motion.panel; easing: Curve.ease; }
     property <length> page-x: root.side;
+    property <length> frame-page-width: root.width - root.side;
+    property <bool> frame-queue-visible: root.frame-left-open && root.frame-page-width >= 620px;
+    property <bool> frame-inspector-visible: root.frame-inspector-open && root.frame-page-width >= 680px
+        && (!root.frame-left-open || root.frame-page-width >= 900px);
     // The top bar's global action under the pointer, and its shortcut (`BarHint`)
     property <string> bar-hint: "";
     property <string> bar-hint-key: "";
@@ -319,7 +322,7 @@ export component AppWindow inherits Window {
                 playing: root.frame-playing; position: root.frame-position; volume: root.frame-volume;
                 frame: root.frame-current; frames: root.frame-frames;
                 video-width: root.frame-video-width; video-height: root.frame-video-height;
-                frame-label: root.frame-frame-label; clock: root.frame-clock; time: root.frame-time;
+                frame-label: root.frame-frame-label; clock: root.frame-clock;
                 sharp-note: root.frame-sharp-note; selected-label: root.frame-selected-label;
                 crop-x: root.frame-crop-x; crop-y: root.frame-crop-y;
                 crop-w: root.frame-crop-w; crop-h: root.frame-crop-h;
@@ -437,7 +440,37 @@ export component AppWindow inherits Window {
                     alignment: center;
                     horizontal-stretch: 0;
                     HorizontalLayout {
-                        spacing: 8px;
+                        spacing: 6px;
+                        AppButton {
+                            text: root.frame-has-video
+                                ? (root.frame-page-width < 900px ? root.frame-strings.replace_short : root.frame-strings.replace_video)
+                                : (root.frame-page-width < 900px ? root.frame-strings.browse_short : root.frame-strings.browse);
+                            name: root.frame-has-video ? root.frame-strings.replace_video : root.frame-strings.browse;
+                            icon: "folder-open";
+                            small: true;
+                            quiet: true;
+                            enabled: !root.frame-busy && !root.frame-needs-ffmpeg;
+                            clicked => { root.frame-action("open"); }
+                        }
+                        AppButton {
+                            text: root.frame-page-width < 900px
+                                ? root.frame-strings.queue
+                                : root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
+                            name: root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
+                            icon: root.frame-queue-visible ? "panel-left-close" : "panel-left-open";
+                            small: true;
+                            quiet: !root.frame-queue-visible;
+                            clicked => { root.frame-action("toggle-queue"); }
+                        }
+                        AppButton {
+                            text: root.frame-page-width < 900px
+                                ? root.frame-strings.inspector_short
+                                : root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
+                            name: root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
+                            small: true;
+                            quiet: !root.frame-inspector-visible;
+                            clicked => { root.frame-action("toggle-inspector"); }
+                        }
                         AppButton {
                             text: root.frame-action-label;
                             small: true;
