@@ -138,7 +138,9 @@ a new visual approval.
   `cargo run -p halation-core --example verify_converter -- <isolated-directory>` passed with generated media:
   content detection, packet-preserving MP4 remux, six audio outputs, WebM/MOV/GIF, audio extraction, real progress and
   cancellation with no output or `.part` file. It reused the FFmpeg pair already installed in the app profile, so this
-  pass did not repeat the component download/install.
+  pass did not repeat the component download/install. `cargo fmt --check`, strict Clippy
+  (`cargo clippy --workspace --all-targets -- -D warnings`), `python tools/check-docs.py` and `git diff --check`
+  also passed.
 - **Still unverified here:** no new native-window review was run (the approval is the upstream one); the WASAPI path
   was not heard on a real device; Windows timings were not re-measured (the performance note is from the Linux
   container).
@@ -275,9 +277,11 @@ a new visual approval.
 
 ## Sources
 
-- Native on `slint/native`: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`;
+- Native on this branch: `crates/halation-app/src/catalog.rs`, `app.rs`, `navigation.rs`, `converter.rs`;
   `crates/halation-app/ui/app.slint`, `ui/pages/converter.slint`, `ui/pages/home.slint`,
-  `ui/pages/settings.slint`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`.
+  `ui/pages/settings.slint`; `crates/halation-app/tests/services.rs`, `tests/ui_layout.rs`;
+  `crates/halation-core/src/{convert,components,playback}.rs` and `crates/halation-core/tests/{converter,playback}.rs`;
+  `crates/halation-core/examples/verify_converter.rs`.
 - Design: [planning/active/ui-redesign.md](../planning/active/ui-redesign.md),
   [features/material.md](features/material.md), [features/themes.md](features/themes.md),
   [features/motion.md](features/motion.md). `docs/MOTION.md` is the Tauri document.
