@@ -208,11 +208,24 @@ export component HomePage inherits Rectangle {
         // Taller and wider, recent files lower (Java, 2026-10-22)
         width: min(780px, parent.width - 48px);
         height: 196px;
-        // Border-only feedback. Neither hovering nor dragging paints light or a veil over the interior.
+        // Keep the card's base fill fixed. Pointer light is local, never a veil over the complete interior.
         Surface {
             level: Level.bubble;
             glass: true;
             radius: Theme.radius;
+        }
+        drop-light := Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            border-radius: Theme.radius;
+            property <length> reach: drop-area.has-drag ? 420px : 160px;
+            property <length> at-x: drop-touch.has-hover ? drop-touch.mouse-x : self.width / 2;
+            property <length> at-y: drop-touch.has-hover ? drop-touch.mouse-y : self.height / 2;
+            property <color> light: Theme.text.transparentize(drop-touch.has-hover || drop-area.has-drag ? 92% : 100%);
+            animate light { duration: Motion.hover(drop-touch.has-hover || drop-area.has-drag); easing: Curve.ease; }
+            background: @radial-gradient(circle self.reach at self.at-x self.at-y, self.light 0%, transparent 72%);
         }
         Rectangle {
             border-radius: Theme.radius;
@@ -230,7 +243,7 @@ export component HomePage inherits Rectangle {
 
         Rectangle {
             x: (parent.width - self.width) / 2;
-            // Hover changes the outer border only; keep the interior, including the icon, unchanged.
+            // The restored pointer light does not move the icon; only drag feedback raises it.
             y: drop-area.has-drag ? 46px : 48px;
             width: 48px;
             height: 48px;

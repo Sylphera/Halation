@@ -6,15 +6,19 @@ does not cover them. Resting layout, spacing and material remain unchanged.
 
 ### Hover corrections (2026-10-23, supersede the drop-zone light and two-piece neck descriptions below)
 
-- **Drop zone:** identical interior before/during hover. Only the outer border responds; dragging/focus use the accent
-  edge, without a veil or radial light. Existing press/drag scale and drag icon movement stay, not hover icon movement.
+- **Drop zone (latest feedback):** restore the local pointer-following radial light (160 px, white 8%, transparent
+  at 72%; 420 px while dragging). Keep the base material unchanged: no uniform hover veil over the whole card.
+  Hover still highlights its border; dragging/focus use the accent edge. Existing press/drag scale and drag icon
+  movement stay, not hover icon movement. Light fades via `Motion.hover` and is instant with reduced motion.
 - **Home tool dock:** a horizontal pointer light (90 px / 8% fill and 80 px / 42% edge, fading out at 72% / 70% of the
   radii). A parent TouchArea observes the complete strip, including padding, without taking clicks from its tools.
   Coordinates are local to the dock, with no extra inset or per-item exit flicker. Reveal/exit use native
   `Motion.hover` tokens (instant with reduced motion); pointer position follows directly. No idle animation is added.
-- **Fusion:** a transient union, never a redesign of resting cards/tabs. During departure/arrival the two fills are
-  replaced by one closed opaque silhouette with a pinching waist (18 px reach), not a neck patched between two bordered
-  rectangles. Borders/contact shadows are suppressed while joined and recover in `Motion.fade` after detachment.
+- **Fusion (latest feedback):** a transient union, never a redesign of resting cards/tabs. During departure/arrival
+  the two pieces are replaced by one closed opaque silhouette with one continuous stroked perimeter and a pinching
+  waist (18 px reach), not a neck patched between two bordered rectangles. The border never fades out: it follows the
+  shared contour through fusion and splitting, returning directly to the two individual perimeters on detachment.
+  Only internal piece borders/contact shadows are suppressed while the shared perimeter is drawn.
   Overlap cannot accumulate alpha or retain internal rounded edges. The same `PillList` serves horizontal tabs,
   segmented controls and vertical sidebar rows; selection motion participates too. Reversal retargets existing native
   springs; reduced motion skips transient fusion. No blur, layer, per-pixel work, or custom animation clock.

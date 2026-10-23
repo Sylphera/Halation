@@ -395,6 +395,13 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             point(746.0, 680.0);
             pump(&queue, Duration::from_millis(400));
             capture("drop-hover")?;
+            point(450.0, 680.0);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-hover-left")?;
+            ui.window()
+                .dispatch_event(slint::platform::WindowEvent::PointerExited);
+            pump(&queue, Duration::from_millis(400));
+            capture("drop-exit")?;
         }
     }
     let (w, h) = (spec.width as usize, spec.height as usize);

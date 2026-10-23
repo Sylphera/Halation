@@ -154,12 +154,10 @@ export component PillList inherits Rectangle {
     property <bool> fusing: root.hover-on && root.select-on && root.has-selection && root.touches-selection;
     // 0 apart, 1 joined into one surface
     property <float> closeness: !root.fusing || Motion.glide <= 0ms ? 0 : root.overlap > 0px ? 1 : max(0, 1 + root.overlap / root.reach) * root.join;
-    // One silhouette, not two stroked rectangles and a patch between them. Borders and contact shadows return only
-    // after the neck has broken. Appearance is animated, suppression is immediate (no internal seam on departure).
+    // Transfer the border to one stroked outer contour while joined, then back to the separate pieces on detachment.
+    // Only internal piece edges/contact shadows are hidden: the visible perimeter never fades away.
     property <bool> united: root.closeness > 0.02 && (root.join > 0.02 || root.hover-moving || root.select-moving);
-    property <float> recovered-edge: root.united ? 0 : 1;
-    animate recovered-edge { duration: root.united ? 0ms : Motion.fade; easing: Curve.ease; }
-    property <float> edge-reveal: root.united ? 0 : root.recovered-edge;
+    property <float> edge-reveal: root.united ? 0 : 1;
     // A sidebar separator must not draw a cut through the moving union. Its resting geometry stays unchanged.
     public pure function fusion-covers(window-y: length) -> bool {
         return !root.horizontal && root.united
@@ -180,11 +178,14 @@ export component PillList inherits Rectangle {
 
     // Along-axis extent and rounded ends of the union. A cubic waist pinches as the pieces pull apart; overlapping
     // pieces have no waist. One closed, opaque fill avoids alpha accumulation and all internal rounded edges.
-    property <length> union-a: min(root.select-start, root.hover-start);
-    property <length> union-b: max(root.select-end, root.hover-end);
-    property <length> union-cross-a: root.horizontal ? 0px : root.inset-left;
-    property <length> union-cross-b: root.horizontal ? root.height : root.width - root.inset-right;
-    property <length> union-radius: min(root.radius, (root.union-cross-b - root.union-cross-a) / 2, (root.union-b - root.union-a) / 2);
+    property <length> union-stroke: root.raised-select || root.raised-hover ? 1px : 0px;
+    // Path strokes are centred; Rectangle borders are inside. Inset half a stroke to keep the same outer bounds.
+    property <length> union-inset: root.union-stroke / 2;
+    property <length> union-a: min(root.select-start, root.hover-start) + root.union-inset;
+    property <length> union-b: max(root.select-end, root.hover-end) - root.union-inset;
+    property <length> union-cross-a: (root.horizontal ? 0px : root.inset-left) + root.union-inset;
+    property <length> union-cross-b: (root.horizontal ? root.height : root.width - root.inset-right) - root.union-inset;
+    property <length> union-radius: min(max(0px, root.radius - root.union-inset), (root.union-cross-b - root.union-cross-a) / 2, (root.union-b - root.union-a) / 2);
     // Circular quarter-arc approximation. Putting both control points on the corner makes a superellipse that reads
     // square during stretching, even with the same nominal radius as the resting Rectangle.
     property <length> corner-inset: root.union-radius * 0.44771525;
@@ -197,11 +198,17 @@ export component PillList inherits Rectangle {
         y: 0px;
         width: root.width;
         height: root.height;
+        // Coordinates already are logical pixels with a half-stroke inset. Default fitting reserves stroke space
+        // again and shrinks/centres the complete shape, especially in a long, shallow horizontal tab strip.
+        fit: preserve;
         viewbox-x: 0;
         viewbox-y: 0;
         viewbox-width: root.width / 1px;
         viewbox-height: root.height / 1px;
         fill: root.raised-select || root.raised-hover ? Theme.raised-flat : root.select-fill;
+        stroke: Theme.raised-edge;
+        stroke-width: root.union-stroke;
+        stroke-line-join: round;
         MoveTo {
             x: root.px(root.union-a + root.union-radius, root.union-cross-a);
             y: root.py(root.union-a + root.union-radius, root.union-cross-a);
