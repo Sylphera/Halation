@@ -264,7 +264,10 @@ export component PillList inherits Rectangle {
 
     // Raised: the hover pill carries the raised edges; over or joined to a raised selection it takes them as it
     // becomes the selection, so hovering the selected row keeps its relief
-    property <float> hover-strength: root.soft-hover ? 0.45 + 0.55 * root.closeness : 1;
+    // The shared contour uses the full material. Hand its intensity back to the softer resting hover gradually,
+    // instead of snapping from 100% to 45% on the frame that the neck detaches. Geometry/stroke handoff stays exact.
+    property <float> hover-strength: root.united ? 1 : root.soft-hover ? 0.45 + 0.55 * root.closeness : 1;
+    animate hover-strength { duration: root.united ? 0ms : Motion.fade; easing: Curve.ease; }
     property <float> hover-clear: 1 - (1 - root.hover-alpha) * root.hover-strength;
     property <float> edge-clear: root.raised-hover ? root.hover-clear : 1 - root.closeness * (1 - root.hover-alpha);
     if root.raised-hover || root.raised-select : Rectangle {
