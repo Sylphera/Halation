@@ -1,8 +1,10 @@
 # Tools status — native line
 
-Status: FASE 0 inventory and shared UI contract (2026-10-23). On the current `slint/native` line, Converter has a
-native page and engine path and is approved; the other nine media tools are catalog entries only, with no native page,
-controller or connected engine, and none is available in the beta.
+Status: FASE 0 inventory and shared UI contract (2026-10-23); the native base was integrated and Converter re-checked
+on 2026-10-23. This branch (`slint/tools-all`) now carries `origin/slint/native` at `ac16162` (merge `222a9f5`),
+including the redesign, Converter and the motion/material/themes work. Converter has a native page and engine path; the
+other nine media tools are catalog entries only, with no native page, controller or connected engine, and none is
+available in the beta.
 
 This document says what each of the ten media tools has in the native app today, which spec owns its behaviour and
 where the Tauri app on `main` implements it. It is an inventory, not a promise: a tool is not "ported" because it
@@ -21,8 +23,9 @@ Converter, under the shared contract below.
 
 Nine tools are **`UI falsa`**; Converter is **`parcial`** and is the template. The catalog is honest about the nine:
 the activation notice says the tool is not available in the beta and that the processing engines are not connected
-(`crates/halation-app/src/catalog.rs:148-157`). Converter's native page and approval are recorded in
-[converter.md](features/converter.md).
+(`crates/halation-app/src/catalog.rs:148-157`). Converter's native page and the approval recorded upstream are in
+[converter.md](features/converter.md). The FASE 0 audit began before Converter existed; this branch now contains the
+native Converter, and the rows below describe that integrated code.
 
 ## Visual contract (all ten tools)
 
@@ -51,16 +54,15 @@ Where the redesign's §9 names Vocal Remover as the reference tool, this instruc
 
 ## Native baseline
 
-On the current `slint/native` line, the catalog has eleven entries: the ten media tools plus Library
-(`slint/native:crates/halation-app/src/catalog.rs:20-142`). Converter is available and opens its page
+On this integrated line, the catalog has eleven entries: the ten media tools plus Library
+(`crates/halation-app/src/catalog.rs:20-142`). Converter is available and opens its page
 (`catalog.rs:33-40`, `navigation.rs:2-35`, `ui/app.slint:222`); the nine other media tools are declared
 `available: false`, and Library is also available. The rail, Home strip and Settings > Tools all render that catalog.
-Activating an unavailable tool only sets a notice; it does not navigate or create a page. The audit base predates the
-native Converter; the rows below follow the current `slint/native` line because that is where the tool work lands.
-Tests lock the unavailable nine: Downloader produces the notice (`crates/halation-app/tests/services.rs:365-366`),
-while the rail still lists its name (`crates/halation-app/tests/ui_layout.rs:202-203`).
+Activating an unavailable tool only sets a notice; it does not navigate or create a page.
+Tests lock the unavailable nine: Downloader produces the notice (`crates/halation-app/tests/services.rs:366-367`),
+while the rail still lists its name (`crates/halation-app/tests/ui_layout.rs:284-285`).
 
-The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs:159-175`). Converter has
+The same catalog lists thirteen downloadable components with approximate sizes (`catalog.rs:161-175`). Converter has
 an FFmpeg installation path and submits real jobs; the other nine cannot install a component or submit work. There is
 no engine status, per-tool settings, preview, export or session state for those nine. The core queue, process and
 engine contract exist ([jobs.md](features/jobs.md)); the global destination rules are used by Converter
@@ -110,13 +112,16 @@ page, preview, queue or download path exists.
 
 ### Converter
 
-**Status: `parcial`.** The native Converter page is implemented and approved by Java on `slint/native` (2026-10-22):
+**Status: `parcial`.** The native Converter page was implemented and approved by Java on `slint/native` (2026-10-22):
 tool frame, plans, jobs, FFmpeg installation, audio and video preview. Send to and sessions remain. It is the
-canonical template for the other tool pages.
+canonical template for the other tool pages. The approval is the one recorded upstream; this integration does not add
+a new visual approval.
 
 - **Spec:** [converter.md](features/converter.md).
-- **Native evidence:** `slint/native:crates/halation-app/src/converter.rs` (controller and jobs),
-  `ui/pages/converter.slint` (page), `catalog.rs:33-40` (available) and `navigation.rs:2-35` (page).
+- **Native evidence:** `crates/halation-app/src/converter.rs` (controller and jobs),
+  `ui/pages/converter.slint` (page), `catalog.rs:33-40` (available) and `navigation.rs:2-35` (page). Core media logic
+  and its tests are in `crates/halation-core/src/convert.rs`, `components.rs`, `playback.rs` and
+  `crates/halation-core/tests/`.
 - **Tauri origin:** `main:app/dist/convert.js`, `convert.html`, `convert.css`; backend
   `main:app/src-tauri/src/convert.rs` (probe, planning, image/PDF paths) and `encode.rs` (FFmpeg plans), component
   install in `tools.rs`.
@@ -124,8 +129,19 @@ canonical template for the other tool pages.
   registry, with images usable without FFmpeg (`modules.js:23`).
 - **Reference behaviour:** content-based detection, curated input → output table, copy-before-re-encode, fixed
   defaults per format, batch groups, document/PDF v2 paths, `.part` files and cancellation.
-- **Gaps:** Send to, sessions and the document/PDF v2 paths; the media conversion, preview and FFmpeg install are
-  native. Documents remain out of scope for this pass.
+- **Gaps:** Send to and sessions; the document/PDF v2 paths (Pandoc, LibreOffice, PDFium); HEIC input. The media
+  conversion, previews and FFmpeg installation are native. Documents remain out of scope for this pass.
+- **Verified 2026-10-23 on this branch:** `cargo test --workspace` passed 136 tests with the already-installed FFmpeg
+  pair on `PATH`, including the 12 media planner/encoder tests in `crates/halation-core/tests/converter.rs`, the six
+  real-FFmpeg playback tests in `crates/halation-core/tests/playback.rs`, the controller batch test and the Converter
+  bounds test in `crates/halation-app/tests/ui_layout.rs`. The explicit example
+  `cargo run -p halation-core --example verify_converter -- <isolated-directory>` passed with generated media:
+  content detection, packet-preserving MP4 remux, six audio outputs, WebM/MOV/GIF, audio extraction, real progress and
+  cancellation with no output or `.part` file. It reused the FFmpeg pair already installed in the app profile, so this
+  pass did not repeat the component download/install.
+- **Still unverified here:** no new native-window review was run (the approval is the upstream one); the WASAPI path
+  was not heard on a real device; Windows timings were not re-measured (the performance note is from the Linux
+  container).
 
 ### Vocal Remover
 
