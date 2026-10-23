@@ -371,6 +371,154 @@ fn advance(ms: u64) {
     slint::platform::update_timers_and_animations();
 }
 
+#[test]
+fn home_dock_hover_is_aligned_and_clicks_still_reach_the_tool() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    let activated = Rc::new(std::cell::RefCell::new(String::new()));
+    let result = activated.clone();
+    ui.on_tool_activated(move |id| *result.borrow_mut() = id.to_string());
+    for (w, h) in SIZES {
+        resize(&ui, w, h);
+        let tool = |label: &str| {
+            ElementHandle::find_by_accessible_label(&ui, label)
+                .find(|e| e.absolute_position().x > 62.0 && e.size().height > 0.0)
+                .expect("tool is on Home, not the sidebar")
+        };
+        let first = tool("Converter");
+        let second = tool("Grade");
+        let at = |e: &ElementHandle| {
+            let (p, s) = (e.absolute_position(), e.size());
+            slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0)
+        };
+        ui.window().dispatch_event(WindowEvent::PointerMoved {
+            position: at(&first),
+        });
+        advance(1000);
+        let pill = || {
+            ElementHandle::find_by_element_id(&ui, "PillList::hover-pill")
+                .find(|e| e.absolute_position().x > 62.0)
+                .unwrap()
+        };
+        let p = pill();
+        assert!((p.absolute_position().x - first.absolute_position().x).abs() < 0.5);
+        assert!((p.size().width - first.size().width).abs() < 0.5);
+        assert!((p.absolute_position().y - first.absolute_position().y).abs() < 0.5);
+        ui.window().dispatch_event(WindowEvent::PointerMoved {
+            position: at(&second),
+        });
+        advance(1);
+        advance(24);
+        assert!(pill().absolute_position().x > first.absolute_position().x);
+        assert!(pill().absolute_position().x < second.absolute_position().x);
+        advance(1000);
+        assert!((pill().absolute_position().x - second.absolute_position().x).abs() < 0.5);
+        let button = slint::platform::PointerEventButton::Left;
+        ui.window().dispatch_event(WindowEvent::PointerPressed {
+            position: at(&second),
+            button,
+        });
+        ui.window().dispatch_event(WindowEvent::PointerReleased {
+            position: at(&second),
+            button,
+        });
+        assert_eq!(&*activated.borrow(), "grade");
+    }
+}
+
+#[test]
+fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1280.0, 800.0);
+    // Drive frames, not one time jump: the edge recovery starts when the position spring settles.
+    let settle = || {
+        for _ in 0..64 {
+            advance(16);
+        }
+    };
+    // Vertical sidebar and horizontal Settings categories share the same fusion renderer.
+    for horizontal in [false, true] {
+        if horizontal {
+            ui.set_page(3);
+            advance(1000);
+        }
+        let point = |label: &str| {
+            let e = ElementHandle::find_by_accessible_label(&ui, label)
+                .find(|e| {
+                    if horizontal {
+                        e.absolute_position().x > 62.0 && e.absolute_position().y < 100.0
+                    } else {
+                        e.absolute_position().x < 40.0
+                    }
+                })
+                .unwrap();
+            let (p, s) = (e.absolute_position(), e.size());
+            ui.window().dispatch_event(WindowEvent::PointerMoved {
+                position: slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0),
+            });
+        };
+        let joined = || {
+            ElementHandle::find_by_element_id(&ui, "PillList::united-shape").any(|e| {
+                if horizontal {
+                    e.absolute_position().x > 62.0
+                } else {
+                    e.absolute_position().x < 40.0
+                }
+            })
+        };
+        let (selected, adjacent) = if horizontal {
+            ("General", "Interface")
+        } else {
+            ("Home", "Downloader")
+        };
+        point(selected);
+        settle();
+        assert!(!joined(), "rest retains the original pieces");
+        point(adjacent);
+        advance(1);
+        advance(16);
+        assert!(
+            joined(),
+            "departure must be one filled silhouette, horizontal={horizontal}"
+        );
+        point(if horizontal { "You" } else { "Converter" });
+        advance(1);
+        assert!(
+            joined(),
+            "retargeting a still-connected shape must not expose two inner borders"
+        );
+        settle();
+        assert!(!joined(), "neck breaks; original resting borders return");
+        point(selected);
+        advance(1);
+        advance(16);
+        assert!(joined(), "arrival must also join without an inner border");
+        settle();
+        ui.window().dispatch_event(WindowEvent::PointerExited);
+        settle();
+        assert!(!joined());
+    }
+    let motion = ui.global::<halation_app::ui::Motion>();
+    motion.set_glide(0);
+    motion.set_trail(0);
+    motion.set_fade(0);
+    point_at(&ui, "Settings");
+    advance(1);
+    point_at(&ui, "Home");
+    advance(1);
+    assert!(
+        ElementHandle::find_by_element_id(&ui, "PillList::united-shape")
+            .next()
+            .is_none(),
+        "reduced motion skips all transient fusion geometry"
+    );
+}
+
 fn point_at(ui: &AppWindow, label: &str) -> (f32, f32) {
     // The sidebar's row (Home's strip and the top bar may hold the same name)
     let row = ElementHandle::find_by_accessible_label(ui, label)

@@ -1,6 +1,35 @@
 # Movimiento nativo (Slint)
 
 Status: Implemented and approved by Java in the native window, 2026-10-22 (native beta build 42cb9ca).
+The contour, dock and restored local drop light at `cd79425` were approved by Java on 2026-10-23. The subsequent
+material-intensity handoff at `5ee05c3` was also approved by Java on 2026-10-23, with explicit authorization to merge
+into `slint/native`. Resting layout, spacing and material remain unchanged.
+
+### Hover corrections (2026-10-23, supersede the drop-zone light and two-piece neck descriptions below)
+
+- **Drop zone (latest feedback):** restore the local pointer-following radial light (160 px, white 8%, transparent
+  at 72%; 420 px while dragging). Keep the base material unchanged: no uniform hover veil over the whole card.
+  Hover still highlights its border; dragging/focus use the accent edge. Existing press/drag scale and drag icon
+  movement stay, not hover icon movement. Light fades via `Motion.hover` and is instant with reduced motion.
+- **Home tool dock:** a horizontal pointer light (90 px / 8% fill and 80 px / 42% edge, fading out at 72% / 70% of the
+  radii). A parent TouchArea observes the complete strip, including padding, without taking clicks from its tools.
+  Coordinates are local to the dock, with no extra inset or per-item exit flicker. Reveal/exit use native
+  `Motion.hover` tokens (instant with reduced motion); pointer position follows directly. No idle animation is added.
+- **Fusion (latest feedback):** a transient union, never a redesign of resting cards/tabs. During departure/arrival
+  the two pieces are replaced by one closed opaque silhouette with one continuous stroked perimeter and a pinching
+  waist (18 px reach), not a neck patched between two bordered rectangles. The border never fades out: it follows the
+  shared contour through fusion and splitting, returning directly to the two individual perimeters on detachment.
+  Only internal piece borders/contact shadows are suppressed while the shared perimeter is drawn.
+  On detachment, material intensity blends from the full shared surface to the softer resting hover in `Motion.fade`
+  (80 ms), rather than jumping from 100% to 45%. This changes neither the approved contour nor resting appearance;
+  reduced motion remains immediate. This follow-up was approved by Java at `5ee05c3` on 2026-10-23.
+  Overlap cannot accumulate alpha or retain internal rounded edges. The same `PillList` serves horizontal tabs,
+  segmented controls and vertical sidebar rows; selection motion participates too. Reversal retargets existing native
+  springs; reduced motion skips transient fusion. No blur, layer, per-pixel work, or custom animation clock.
+- **Evidence:** `ui_layout.rs` exercises departure, arrival, rest, reduced motion, dock alignment at all supported sizes,
+  and tool clicks through the parent hover observer. `--screenshot motion-home|motion-settings|motion-sidebar 1440x900
+  <out.png>` writes intermediate frames alongside the final image using real headless pointer events. Wall-clock capture
+  times are approximate, and software-renderer images do not replace native Skia visual approval.
 Código: `motion.rs`, `ui/motion.slint`, `ui/components/{pills,tooltip}.slint`; tests en `tests/services.rs` (reglas de
 coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimiento reducido).
 

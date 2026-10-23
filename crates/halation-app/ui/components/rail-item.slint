@@ -153,6 +153,7 @@ export component SidebarItem inherits FocusScope {
 export component SidebarGroup inherits Rectangle {
     in property <string> label;
     in property <bool> open: true;
+    in property <bool> covered-by-fusion: false;
     // A fixed gap, the same for every group and open or collapsed, so opening the sidebar moves no row
     height: 24px;
     // The line and the name cross-fade (Java, 2026-10-22); both always there, so each fade has a start
@@ -161,8 +162,8 @@ export component SidebarGroup inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: root.label == "" ? parent.width - 20px : Theme.sidebar-closed - 17px - 20px;
         height: 1px;
-        background: Theme.line-strong.transparentize(root.open && root.label != "" ? 1 : 0);
-        animate background { duration: Motion.fade; easing: Curve.ease; }
+        background: Theme.line-strong.transparentize(root.covered-by-fusion || (root.open && root.label != "") ? 1 : 0);
+        animate background { duration: root.covered-by-fusion ? 0ms : Motion.fade; easing: Curve.ease; }
     }
     Text {
         x: 8px;
