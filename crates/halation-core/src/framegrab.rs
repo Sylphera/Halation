@@ -1773,6 +1773,100 @@ mod tests {
                     "MF/FFmpeg mean RGBA difference {difference:.2}"
                 );
             }
+
+            // A wide scene surrounded by real black letterbox bars catches a spurious green first-row stripe in the
+            // NV12-to-RGBA path; the interior red field proves the decoder is not simply returning a black surface.
+            let letterbox = dir.join("mf-letterbox-1080p.mp4");
+            let status = std::process::Command::new(&ffmpeg.ffmpeg)
+                .args([
+                    "-hide_banner",
+                    "-nostdin",
+                    "-y",
+                    "-v",
+                    "error",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=c=black:s=1920x1080:r=10:d=1",
+                    "-vf",
+                    "drawbox=x=0:y=40:w=1920:h=1000:color=red:t=fill",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-profile:v",
+                    "baseline",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-movflags",
+                    "+faststart",
+                ])
+                .arg(&letterbox)
+                .status()
+                .expect("FFmpeg should encode the synthetic letterbox fixture");
+            assert!(
+                status.success(),
+                "the letterbox MP4 fixture should be created"
+            );
+            let letterbox_info = probe(&ffmpeg.ffprobe, &letterbox).unwrap();
+            let letterbox_frame =
+                crate::frame_decoder::decode_window(&letterbox, &letterbox_info, 0, 1, 0, &|| {
+                    false
+                })
+                .expect("Media Foundation should decode the synthetic letterbox fixture");
+            assert_eq!(letterbox_frame.len(), 1);
+            let frame = &letterbox_frame[0];
+            assert_eq!((frame.width, frame.height), (1920, 1080));
+            let ffmpeg_raw = dir.join("mf-letterbox-reference.rgba");
+            with_context({
+                let raw = ffmpeg_raw.clone();
+                let input = letterbox.clone();
+                let ffmpeg = ffmpeg.clone();
+                let info = letterbox_info.clone();
+                move |context| {
+                    run_decode(
+                        &DecodeSource {
+                            context: &context,
+                            ffmpeg: &ffmpeg.ffmpeg,
+                            input: &input,
+                            info: &info,
+                        },
+                        0,
+                        1,
+                        None,
+                        &raw,
+                    )
+                }
+            })
+            .unwrap();
+            let ffmpeg_reference = fs::read(ffmpeg_raw).unwrap();
+            for y in (0..24_u32).chain(1056..1080) {
+                for x in 0..frame.width {
+                    let offset = (y as usize * frame.width as usize + x as usize) * 4;
+                    assert!(
+                        frame.rgba[offset] <= 12
+                            && frame.rgba[offset + 1] <= 12
+                            && frame.rgba[offset + 2] <= 12,
+                        "letterbox pixel ({x},{y}) should stay black, got RGB({}, {}, {})",
+                        frame.rgba[offset],
+                        frame.rgba[offset + 1],
+                        frame.rgba[offset + 2]
+                    );
+                    assert!(
+                        ffmpeg_reference[offset] <= 12
+                            && ffmpeg_reference[offset + 1] <= 12
+                            && ffmpeg_reference[offset + 2] <= 12,
+                        "FFmpeg reference letterbox pixel ({x},{y}) should stay black"
+                    );
+                }
+            }
+            let center = (540_usize * frame.width as usize + 960) * 4;
+            assert!(
+                frame.rgba[center] > 200
+                    && frame.rgba[center + 1] < 30
+                    && frame.rgba[center + 2] < 30,
+                "synthetic red picture field should survive the letterbox decode"
+            );
         }
 
         let raw = dir.join("window.rgba");

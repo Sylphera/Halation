@@ -232,13 +232,30 @@ mod platform {
                         );
                     }
                     let stride = pitch as usize;
-                    let source_rows = self.height as usize + (self.height as usize).div_ceil(2);
+                    // Media Foundation's NV12 2D surface aligns each plane to 16 scanlines. GetContiguousLength
+                    // includes that padding; the UV plane therefore starts after the padded Y plane, not at
+                    // `stride * height` (which reads the zero-filled padding as chroma and tints the top rows green).
+                    const PLANE_ROW_ALIGNMENT: usize = 16;
+                    let align_rows = |rows: usize| {
+                        rows.checked_add(PLANE_ROW_ALIGNMENT - 1)
+                            .map(|padded| padded & !(PLANE_ROW_ALIGNMENT - 1))
+                    };
+                    let y_rows = align_rows(self.height as usize)
+                        .ok_or("Media Foundation NV12 Y-plane size overflow")?;
+                    let uv_rows = align_rows((self.height as usize).div_ceil(2))
+                        .ok_or("Media Foundation NV12 UV-plane size overflow")?;
+                    let source_rows = y_rows
+                        .checked_add(uv_rows)
+                        .ok_or("Media Foundation NV12 surface row count overflow")?;
                     let source_bytes = stride
                         .checked_mul(source_rows)
                         .ok_or("Media Foundation frame size overflow")?;
                     if buffer_length < source_bytes {
                         return Err("Media Foundation returned a short NV12 surface".into());
                     }
+                    let uv_offset = stride
+                        .checked_mul(y_rows)
+                        .ok_or("Media Foundation NV12 UV-plane offset overflow")?;
                     let pixel_count = self.output_width as usize * self.output_height as usize;
                     let mut rgba = vec![0; pixel_count * 4];
                     // Resolve conversion coefficients once per frame, not once per pixel.
@@ -254,9 +271,7 @@ mod platform {
                             / u64::from(self.output_height))
                             as usize;
                         let y_row = unsafe { pointer.add(sy * stride) };
-                        let uv_row = unsafe {
-                            pointer.add(stride * self.height as usize + (sy / 2) * stride)
-                        };
+                        let uv_row = unsafe { pointer.add(uv_offset + (sy / 2) * stride) };
                         for x in 0..self.output_width {
                             let sx = (u64::from(x) * u64::from(self.width)
                                 / u64::from(self.output_width))

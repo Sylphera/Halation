@@ -215,6 +215,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         "framegrab-output" => (5, 2, -1),
         "framegrab-loading" => (5, 10, -1),
         "framegrab-error" => (5, 11, -1),
+        "framegrab-letterbox" => (5, 13, -1),
         "framegrab-crop" => (5, 12, -1),
         other => match other
             .strip_prefix("settings-")
@@ -223,7 +224,7 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
             Some(section) if (0..8).contains(&section) => (3, 0, section),
             _ => {
                 return Err(format!(
-                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, framegrab, framegrab-ready, framegrab-output, framegrab-loading, framegrab-error, framegrab-crop, motion-home, motion-settings or motion-sidebar"
+                    "unknown page '{other}'; expected home, home-open, settings, settings-<0..7>, converter, converter-open, converter-ready, converter-audio, converter-video, framegrab, framegrab-ready, framegrab-output, framegrab-loading, framegrab-error, framegrab-crop, framegrab-letterbox, motion-home, motion-settings or motion-sidebar"
                 )
                 .into());
             }
@@ -343,19 +344,23 @@ pub fn run(spec: ScreenshotSpec) -> Result<(), Box<dyn std::error::Error>> {
         ui.invoke_converter_seek(0.4);
         pump(&queue, Duration::from_millis(2000));
     }
-    if [1, 2, 10, 11, 12].contains(&mode) {
+    if [1, 2, 10, 11, 12, 13].contains(&mode) {
         // Deterministic, synthetic loaded workspace for layout review; no video decoder or real media is used.
         let (width, height) = (480_u32, 270_u32);
         let pixels: Vec<_> = (0..height)
             .flat_map(|y| {
                 (0..width).map(move |x| {
                     let band = ((x / 40 + y / 30) % 2) as u8;
-                    [
-                        (x * 180 / width) as u8,
-                        (y * 180 / height) as u8,
-                        42 + band * 48,
-                        255,
-                    ]
+                    if mode == 13 && (y < 10 || y >= height - 10) {
+                        [0, 0, 0, 255]
+                    } else {
+                        [
+                            (x * 180 / width) as u8,
+                            (y * 180 / height) as u8,
+                            42 + band * 48,
+                            255,
+                        ]
+                    }
                 })
             })
             .flatten()

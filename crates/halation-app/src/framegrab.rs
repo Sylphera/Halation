@@ -2767,6 +2767,7 @@ impl SavePicker for NativePicker {
 mod tests {
     use super::*;
     use halation_core::framegrab::QueuedFrame;
+    use i_slint_backend_testing::{AccessibleRole, ElementHandle};
     use std::{
         fs,
         process::Command,
@@ -2882,6 +2883,16 @@ mod tests {
             assert!(Instant::now() < deadline, "timed out waiting for {what}");
             std::thread::sleep(Duration::from_millis(10));
         }
+    }
+
+    fn click(ui: &AppWindow, position: slint::LogicalPosition) {
+        let button = slint::platform::PointerEventButton::Left;
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerMoved { position });
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerPressed { position, button });
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerReleased { position, button });
     }
 
     fn png_size(path: &Path) -> (u32, u32) {
@@ -3044,6 +3055,106 @@ mod tests {
         assert_eq!(ui.get_frame_queue_count_label().as_str(), "2 / 8");
         assert_eq!(ui.get_frame_action_label().as_str(), "Capture 2");
         assert!(ui.get_frame_can_capture());
+
+        // Exercise the real queue child hit targets: the row surface must not eat check/X presses.
+        let second = controller.queue_model.row_data(1).unwrap();
+        let check =
+            ElementHandle::find_by_accessible_label(&ui, &format!("Deselect {}", second.label))
+                .find(|element| element.accessible_role() == Some(AccessibleRole::Checkbox))
+                .expect("selected queue row exposes its deselect checkbox");
+        let check_position = check.absolute_position();
+        let check_size = check.size();
+        click(
+            &ui,
+            slint::LogicalPosition::new(
+                check_position.x + check_size.width / 2.0,
+                check_position.y + check_size.height / 2.0,
+            ),
+        );
+        assert_eq!(controller.state.borrow().queue.selected(), vec![3]);
+        assert_eq!(ui.get_frame_action_label().as_str(), "Capture 1");
+
+        let button = |label: &str| {
+            ElementHandle::find_by_accessible_label(&ui, label)
+                .find(|element| element.accessible_role() == Some(AccessibleRole::Button))
+                .expect("queue footer action is present")
+        };
+        let all = button("All");
+        let all_position = all.absolute_position();
+        let all_size = all.size();
+        click(
+            &ui,
+            slint::LogicalPosition::new(
+                all_position.x + all_size.width / 2.0,
+                all_position.y + all_size.height / 2.0,
+            ),
+        );
+        assert_eq!(controller.state.borrow().queue.selected(), vec![3, 17]);
+        let none = button("None");
+        let none_position = none.absolute_position();
+        let none_size = none.size();
+        click(
+            &ui,
+            slint::LogicalPosition::new(
+                none_position.x + none_size.width / 2.0,
+                none_position.y + none_size.height / 2.0,
+            ),
+        );
+        assert!(controller.state.borrow().queue.selected().is_empty());
+        assert_eq!(ui.get_frame_action_label().as_str(), "Capture 0");
+        let row = ElementHandle::find_by_accessible_label(
+            &ui,
+            &format!("{}, {}", second.label, second.time),
+        )
+        .find(|element| element.accessible_role() == Some(AccessibleRole::Button))
+        .expect("queued frame row is accessible");
+        let row_position = row.absolute_position();
+        let row_size = row.size();
+        let close_position = slint::LogicalPosition::new(
+            row_position.x + row_size.width - 27.0,
+            row_position.y + row_size.height / 2.0,
+        );
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::PointerMoved {
+                position: close_position,
+            });
+        let row = ElementHandle::find_by_accessible_label(
+            &ui,
+            &format!("{}, {}", second.label, second.time),
+        )
+        .find(|element| element.accessible_role() == Some(AccessibleRole::Button))
+        .expect("queue row remains accessible");
+        let row_position = row.absolute_position();
+        let row_size = row.size();
+        let remove =
+            ElementHandle::find_by_accessible_label(&ui, &format!("Remove {}", second.label))
+                .find(|element| element.accessible_role() == Some(AccessibleRole::Button))
+                .expect("hovered queue row exposes its remove button");
+        let remove_position = remove.absolute_position();
+        let remove_size = remove.size();
+        assert!(
+            remove_position.x > row_position.x + row_size.width - 40.0,
+            "remove hit target must lie at the row's right edge: row=({row_position:?}, {row_size:?}), remove=({remove_position:?}, {remove_size:?})"
+        );
+        click(
+            &ui,
+            slint::LogicalPosition::new(
+                remove_position.x + remove_size.width / 2.0,
+                remove_position.y + remove_size.height / 2.0,
+            ),
+        );
+        assert_eq!(
+            controller.state.borrow().queue.items().len(),
+            1,
+            "X click at {remove_position:?} size {remove_size:?} in row {row_position:?} size {row_size:?} did not remove"
+        );
+        assert_eq!(controller.state.borrow().queue.items()[0].n, 3);
+        controller.go_to(17);
+        controller.action("add");
+        assert_eq!(controller.queue_model.row_count(), 2);
+        controller.set_all(true);
+        assert_eq!(controller.state.borrow().queue.selected(), vec![3, 17]);
+        controller.go_to(3);
 
         // A crop per layout: the square crop is not full, moving it changes only that layout's crop.
         controller.set_layout("1:1");

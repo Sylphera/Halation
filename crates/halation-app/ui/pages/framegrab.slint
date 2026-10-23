@@ -130,6 +130,8 @@ export component FrameCapturePage inherits Rectangle {
                     key-pressed(event) => {
                         if (event.text == Key.Return || event.text == Key.Space) { root.select(row.index); accept } else { reject }
                     }
+                    // Keep the row's jump target below the checkbox and remove controls so they retain hit priority.
+                    row-touch := TouchArea { clicked => { root.select(row.index); } }
                     Rectangle { background: row.selected ? Theme.control-active : row-touch.has-hover ? Theme.control-hover : transparent; }
                     Rectangle {
                         x: 10px; y: 10px; width: 64px; height: 40px;
@@ -161,8 +163,8 @@ export component FrameCapturePage inherits Rectangle {
                         }
                         toggle-touch := TouchArea { mouse-cursor: pointer; clicked => { root.toggle(row.index); } }
                     }
-                    // Remove, shown on hover or when selected
-                    if row-touch.has-hover || row.selected : Rectangle {
+                    // Keep the hit target mounted; reveal its glyph when the row or target is hovered/selected.
+                    Rectangle {
                         x: parent.width - 38px; y: (parent.height - 22px) / 2; width: 22px; height: 22px;
                         border-radius: 11px;
                         background: close-touch.pressed ? Theme.press-fill : close-touch.has-hover ? Theme.hover-fill : transparent;
@@ -173,10 +175,15 @@ export component FrameCapturePage inherits Rectangle {
                             x: 6px; y: 6px; width: 10px; height: 10px;
                             viewbox-width: 10; viewbox-height: 10;
                             commands: "M1 1 L9 9 M9 1 L1 9"; stroke: Theme.muted; stroke-width: 1.5px; fill: transparent;
+                            opacity: row.selected || row-touch.has-hover || close-touch.has-hover ? 1 : 0;
                         }
-                        close-touch := TouchArea { mouse-cursor: pointer; clicked => { root.remove(row.index); } }
+                        close-touch := TouchArea {
+                            width: parent.width;
+                            height: parent.height;
+                            mouse-cursor: pointer;
+                            clicked => { root.remove(row.index); }
+                        }
                     }
-                    row-touch := TouchArea { clicked => { root.select(row.index); } }
                 }
             }
             Rectangle {
