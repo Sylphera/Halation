@@ -60,6 +60,8 @@ diag-skia-vulkan = ["slint/renderer-skia-vulkan"]
 
 [build-dependencies]
 slint-build = { version = "=1.18.1", default-features = false, features = ["compat-1-18"] }
+# The Windows executable's icon and version resources (build.rs); it finds rc.exe in the Windows SDK
+embed-resource = "=3.0.11"
 
 [dev-dependencies]
 # Headless UI tests (layout bounds at small window sizes); test builds only, never part of the shipped binary.
