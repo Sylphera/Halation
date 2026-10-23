@@ -15,7 +15,7 @@ being changed and why is in [planning/](../planning/STATUS.md); measurements are
 | Jobs, processes, engines | [features/jobs.md](features/jobs.md) | `crates/halation-core/src/` (`queue`, `process`, `engine`) |
 | Library and sections | [features/library.md](features/library.md) | `crates/halation-app/src/library.rs`, `halation-core` `sections` |
 | Settings | [features/settings.md](features/settings.md), [features/save-location.md](features/save-location.md) | `crates/halation-app/src/settings.rs`, `ui/pages/settings.slint` |
-| A media tool (not ported yet) | its spec in [features/](features/), and the Tauri app on `main` as the behaviour reference | |
+| A media tool (not ported yet) | its spec in [features/](features/), [TOOLS_STATUS.md](TOOLS_STATUS.md), and the Tauri app on `main` as the behaviour reference | |
 | Assets beside the executable | [SLINT_VISUAL_SYSTEM.md](SLINT_VISUAL_SYSTEM.md#assets-beside-the-executable) | `assets/`, `crates/halation-app/src/assets.rs` |
 
 ## Specs by feature
@@ -32,5 +32,7 @@ exists, not that it was verified; verification is a test, a measurement or Java'
 | [backgrounds.md](features/backgrounds.md) | Partial (Drape) |
 | [process-menu.md](features/process-menu.md) | Planned |
 | [converter.md](features/converter.md), [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
+| [downloader.md](features/downloader.md), [audio-visualizer.md](features/audio-visualizer.md), [upscale.md](features/upscale.md), [frame-capture.md](features/frame-capture.md) | Planned (Tauri only) |
+| [TOOLS_STATUS.md](TOOLS_STATUS.md) — status, spec and Tauri origin of every media tool | Inventory (FASE 0) |
 
 `python tools/check-docs.py` checks that every link here resolves and every spec has its `Status:` line.
