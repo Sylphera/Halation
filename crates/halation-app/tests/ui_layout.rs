@@ -255,7 +255,7 @@ fn every_page_has_no_global_bar_and_keeps_its_frame_inset() {
 }
 
 #[test]
-fn sidebar_header_has_adjacent_icon_buttons_and_home_is_not_a_navigation_row() {
+fn sidebar_header_keeps_home_left_and_toggle_at_the_right_edge() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
@@ -277,11 +277,27 @@ fn sidebar_header_has_adjacent_icon_buttons_and_home_is_not_a_navigation_row() {
         let (t, ts) = (toggle.absolute_position(), toggle.size());
         let (h, hs) = (home.absolute_position(), home.size());
         assert_eq!(t.y, h.y);
-        assert_eq!(t.x + ts.width, h.x);
-        assert!(
-            h.x + hs.width <= 62.0,
-            "both buttons fit the collapsed header"
+        assert!(h.x + hs.width <= t.x, "Home is left of the toggle");
+        let sidebar_width = if open { 224.0 } else { 62.0 };
+        assert_eq!(
+            t.x + ts.width,
+            sidebar_width - 1.0,
+            "toggle is at the far right"
         );
+        if open {
+            assert_eq!(
+                h.x + (hs.width - 17.0) / 2.0,
+                16.0,
+                "Home glyph aligns with Get"
+            );
+        } else {
+            assert_eq!(h.x, 1.0);
+        }
+        let group = ElementHandle::find_by_element_id(&ui, "AppWindow::group-heading")
+            .next()
+            .unwrap();
+        assert_eq!(group.size().height, if open { 24.0 } else { 8.0 });
+        assert_eq!(group.absolute_position().y, if open { 52.0 } else { 44.0 });
         assert!(h.y + hs.height <= 44.0);
         assert_eq!(
             ElementHandle::find_by_accessible_label(&ui, "Home").count(),

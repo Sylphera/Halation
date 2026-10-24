@@ -217,6 +217,7 @@ export component AppWindow inherits Window {
     // The sidebar's width; the page and the top bar start where it ends
     property <length> side: root.page == 0 ? 0px : root.rail-open ? Theme.sidebar-open : Theme.sidebar-closed;
     animate side { duration: Motion.panel; easing: Curve.ease; }
+    property <float> rail-expansion: clamp((root.side - Theme.sidebar-closed) / (Theme.sidebar-open - Theme.sidebar-closed), 0, 1);
     property <length> page-x: max(Theme.sheet-inset, root.side);
     property <length> frame-page-width: root.width - root.side;
     property <bool> frame-queue-visible: root.frame-left-open && root.frame-page-width >= 620px;
@@ -412,16 +413,23 @@ export component AppWindow inherits Window {
             }
 
             // Home and the sidebar toggle are icon-only neighbours, not navigation rows. No hover text in either state.
-            HorizontalLayout {
+            Rectangle {
                 y: 6px;
+                width: parent.width;
                 height: Theme.bar;
-                padding-top: 2px;
-                padding-bottom: 2px;
-                padding-left: 1px;
-                padding-right: 1px;
-                spacing: 0px;
-                alignment: start;
+                clip: true;
+                home-button := BarButton {
+                    x: 1px + 8.5px * root.rail-expansion;
+                    y: (parent.height - self.height) / 2;
+                    width: 30px;
+                    icon: "house";
+                    label: "Home";
+                    bubble: false;
+                    activated => { root.navigate(0); }
+                }
                 sidebar-toggle := BarButton {
+                    x: max(31px, parent.width - 31px);
+                    y: (parent.height - self.height) / 2;
                     width: 30px;
                     icon: root.rail-open ? "panel-left-close" : "panel-left-open";
                     label: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
@@ -429,19 +437,13 @@ export component AppWindow inherits Window {
                     bubble: false;
                     activated => { root.rail-open = !root.rail-open; }
                 }
-                home-button := BarButton {
-                    width: 30px;
-                    icon: "house";
-                    label: "Home";
-                    bubble: false;
-                    activated => { root.navigate(0); }
-                }
             }
 
             VerticalLayout {
                 y: Theme.bar;
                 height: parent.height - Theme.bar;
                 padding: 8px;
+                padding-top: 8px * root.rail-expansion;
                 padding-right: 9px;
                 spacing: 0px;
                 // Every row takes an equal share of the height and every group the same fixed gap, so the list is
@@ -450,7 +452,8 @@ export component AppWindow inherits Window {
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;
                     vertical-stretch: 1;
-                    if index == 0 || tool.group != root.active-tools[index - 1].group : SidebarGroup {
+                    if index == 0 || tool.group != root.active-tools[index - 1].group : group-heading := SidebarGroup {
+                        height: index == 0 ? 8px + 16px * root.rail-expansion : 24px;
                         label: root.group-name(tool.group);
                         open: root.rail-open;
                         covered-by-fusion: rail-pills.fusion-covers(self.absolute-position.y + self.height / 2);
