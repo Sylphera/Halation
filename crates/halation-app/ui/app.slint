@@ -19,6 +19,7 @@ import { AppButton } from "components/button.slint";
 import { SidebarItem, SidebarGroup, PillList } from "components/rail-item.slint";
 import { ShellStrings } from "models.slint";
 export { ShellStrings } from "models.slint";
+import { BarButton } from "components/top-dock.slint";
 
 export component AppWindow inherits Window {
     title: "Halation";
@@ -410,25 +411,30 @@ export component AppWindow inherits Window {
                 height: parent.height;
             }
 
-            // Header, as tall as the top bar: the sidebar's toggle, where the mark and name were (Java, 2026-10-22); a row
-            // laid like the others but a plain button: no pill, no transition (Java, 2026-10-22)
+            // Home and the sidebar toggle are icon-only neighbours, not navigation rows. No hover text in either state.
             HorizontalLayout {
-                // Centred on the top bar's title
                 y: 0px;
                 height: Theme.bar;
                 padding-top: 2px;
                 padding-bottom: 2px;
-                padding-left: 8px;
-                padding-right: 9px;
-                SidebarItem {
+                padding-left: 1px;
+                padding-right: 1px;
+                spacing: 0px;
+                alignment: start;
+                sidebar-toggle := BarButton {
+                    width: 30px;
                     icon: root.rail-open ? "panel-left-close" : "panel-left-open";
-                    // The label stays as the sidebar closes and fades; the tooltip names what a click does
-                    label: "Collapse";
-                    tip: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
+                    label: root.rail-open ? "Collapse the sidebar" : "Expand the sidebar";
                     key: "Ctrl+B";
-                    open: root.rail-open;
-                    plain: true;
+                    bubble: false;
                     activated => { root.rail-open = !root.rail-open; }
+                }
+                home-button := BarButton {
+                    width: 30px;
+                    icon: "house";
+                    label: "Home";
+                    bubble: false;
+                    activated => { root.navigate(0); }
                 }
             }
 
@@ -441,15 +447,6 @@ export component AppWindow inherits Window {
                 // Every row takes an equal share of the height and every group the same fixed gap, so the list is
                 // justified top to bottom with one rhythm
 
-                SidebarItem {
-                    icon: "house";
-                    label: "Home";
-                    open: root.rail-open;
-                    active: root.page == 0;
-                    activated => { root.navigate(0); }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
-                    selected(at, size, snap) => { rail-pills.select(at, size, snap); }
-                }
                 for tool[index] in root.active-tools : VerticalLayout {
                     spacing: 0px;
                     vertical-stretch: 1;

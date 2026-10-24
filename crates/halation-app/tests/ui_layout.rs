@@ -255,6 +255,65 @@ fn every_page_has_no_global_bar_and_keeps_its_frame_inset() {
 }
 
 #[test]
+fn sidebar_header_has_adjacent_icon_buttons_and_home_is_not_a_navigation_row() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    ui.set_page(3);
+    resize(&ui, 960.0, 600.0);
+    let navigated = Rc::new(std::cell::RefCell::new(Vec::new()));
+    let events = navigated.clone();
+    ui.on_navigate(move |page| events.borrow_mut().push(page));
+    for open in [false, true] {
+        ui.set_rail_open(open);
+        advance(1000);
+        let toggle = ElementHandle::find_by_element_id(&ui, "AppWindow::sidebar-toggle")
+            .next()
+            .unwrap();
+        let home = ElementHandle::find_by_element_id(&ui, "AppWindow::home-button")
+            .next()
+            .unwrap();
+        let (t, ts) = (toggle.absolute_position(), toggle.size());
+        let (h, hs) = (home.absolute_position(), home.size());
+        assert_eq!(t.y, h.y);
+        assert_eq!(t.x + ts.width, h.x);
+        assert!(
+            h.x + hs.width <= 62.0,
+            "both buttons fit the collapsed header"
+        );
+        assert!(h.y + hs.height <= 44.0);
+        assert_eq!(
+            ElementHandle::find_by_accessible_label(&ui, "Home").count(),
+            1
+        );
+        assert_eq!(
+            ElementHandle::find_by_accessible_label(&ui, "Collapse").count(),
+            0
+        );
+        for button in [&toggle, &home] {
+            let p = button.absolute_position();
+            let s = button.size();
+            let position = slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0);
+            ui.window()
+                .dispatch_event(WindowEvent::PointerMoved { position });
+            advance(600);
+            let pointer = slint::platform::PointerEventButton::Left;
+            ui.window().dispatch_event(WindowEvent::PointerPressed {
+                position,
+                button: pointer,
+            });
+            ui.window().dispatch_event(WindowEvent::PointerReleased {
+                position,
+                button: pointer,
+            });
+        }
+        assert_eq!(ui.get_rail_open(), !open);
+        assert_eq!(navigated.borrow_mut().pop(), Some(0));
+    }
+}
+
+#[test]
 fn application_actions_are_clickable_inside_settings() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
