@@ -73,6 +73,7 @@ fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String>
 
 /// What the controller installs for Home and the rail: every tool turned on, and three recent files
 fn fill_home(ui: &AppWindow) {
+    ui.set_settings_label("Settings".into());
     let tools: Vec<ToolItem> = TOOLS
         .iter()
         .map(|tool| ToolItem {
@@ -133,6 +134,81 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
             assert!(stray.is_empty(), "page {page} at {w}x{h}: {stray:?}");
         }
     }
+}
+
+#[test]
+fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    let mut prefs = ui.get_prefs();
+    prefs.show_dock = true;
+    ui.set_prefs(prefs);
+    let navigated = Rc::new(std::cell::RefCell::new(Vec::new()));
+    let events = navigated.clone();
+    ui.on_navigate(move |page| events.borrow_mut().push(page));
+
+    for (width, height) in [(960.0, 600.0), (1440.0, 900.0), (1860.0, 960.0)] {
+        resize(&ui, width, height);
+        for rail in [false, true] {
+            ui.set_rail_open(rail);
+            for page in [0, 3, 4, 5] {
+                ui.set_page(page);
+                advance(1000);
+                let tool = page == 4 || page == 5;
+                let sheet = ElementHandle::find_by_element_id(&ui, "AppWindow::page-sheet")
+                    .next()
+                    .expect("the rounded page frame exists");
+                let position = sheet.absolute_position();
+                let size = sheet.size();
+                assert_eq!(position.y, if tool { 8.0 } else { 44.0 });
+                assert_eq!(position.x, if rail { 224.0 } else { 62.0 });
+                assert_eq!(position.y + size.height, height - 8.0);
+                assert_eq!(position.x + size.width, width - 8.0);
+                assert_eq!(
+                    ElementHandle::find_by_element_id(&ui, "AppWindow::global-bar").count(),
+                    usize::from(!tool),
+                    "global bar visibility on page {page}"
+                );
+                assert_eq!(
+                    ElementHandle::find_by_accessible_label(&ui, "Halation folder").count(),
+                    usize::from(!tool),
+                    "global actions must not leak into a tool"
+                );
+                let settings = ElementHandle::find_by_accessible_label(&ui, "Settings")
+                    .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
+                    .collect::<Vec<_>>();
+                assert_eq!(settings.len(), usize::from(page == 0));
+                if let Some(button) = settings.first() {
+                    let p = button.absolute_position();
+                    let s = button.size();
+                    assert!(p.x > width - 60.0 && p.y + s.height <= 44.0);
+                    let at = slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0);
+                    let pointer = slint::platform::PointerEventButton::Left;
+                    ui.window().dispatch_event(WindowEvent::PointerPressed {
+                        position: at,
+                        button: pointer,
+                    });
+                    ui.window().dispatch_event(WindowEvent::PointerReleased {
+                        position: at,
+                        button: pointer,
+                    });
+                    assert_eq!(navigated.borrow_mut().pop(), Some(3));
+                }
+            }
+        }
+    }
+    // Settings remains reachable even if the user disables the optional global action group.
+    ui.set_page(0);
+    let mut prefs = ui.get_prefs();
+    prefs.show_dock = false;
+    ui.set_prefs(prefs);
+    advance(1000);
+    assert!(
+        ElementHandle::find_by_accessible_label(&ui, "Settings")
+            .any(|e| e.accessible_role() == Some(AccessibleRole::Button))
+    );
 }
 
 #[test]
@@ -408,7 +484,13 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                     .unwrap_or_else(|| panic!("top bar action {label} is available"));
                 let position = element.absolute_position();
                 let size = element.size();
-                assert!(position.y >= 0.0 && position.y + size.height <= 44.0);
+                assert!(
+                    position.y >= 8.0 && position.y + size.height <= 52.0,
+                    "{label} at y={} height={} must stay inside the tool header",
+                    position.y,
+                    size.height
+                );
+                assert!((position.y + size.height / 2.0 - 30.0).abs() < 1.0);
                 assert!(position.x >= 0.0 && position.x + size.width <= width);
                 (position.x, size.width)
             });
@@ -511,8 +593,8 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Pages and the sidebar entry that marks each: Home and Settings
-    let places = [(0, "Home"), (3, "Settings")];
+    // Settings moved to Home's bar; the rail marks Home and tool pages only.
+    let places = [(0, "Home"), (4, "Converter"), (5, "Frame Capture")];
     for (page, _) in places {
         ui.set_page(page);
         slint::platform::update_timers_and_animations();
@@ -756,7 +838,7 @@ fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
     motion.set_glide(0);
     motion.set_trail(0);
     motion.set_fade(0);
-    point_at(&ui, "Settings");
+    point_at(&ui, "Frame Capture");
     advance(1);
     point_at(&ui, "Home");
     advance(1);
@@ -815,7 +897,7 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
     );
     let rest = pill_height(&ui, "PillList::hover-pill");
     // To another row: on its way after a few frames, there once settled
-    let (_, second) = point_at(&ui, "Settings");
+    let (_, second) = point_at(&ui, "Frame Capture");
     advance(32);
     let moving = pill_y(&ui, "PillList::hover-pill");
     assert!(
@@ -902,23 +984,23 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
             .unwrap();
         e.absolute_position().y + e.size().height / 2.0
     };
-    let (home, settings) = (row("Home"), row("Settings"));
+    let (home, tool) = (row("Home"), row("Frame Capture"));
     let pill = || pill_y(&ui, "PillList::selection");
     assert!(
         (pill() - home).abs() < 1.0,
         "on Home from the start: {} vs {home}",
         pill()
     );
-    ui.set_page(3);
+    ui.set_page(5);
     // The row learns it is active on the next frame; the pill sets off from there
     advance(1);
     advance(32);
     assert!(
-        pill() > home + 1.0 && pill() < settings - 1.0,
-        "glides to Settings"
+        pill() > home + 1.0 && pill() < tool - 1.0,
+        "glides to the active tool"
     );
     advance(1000);
-    assert!((pill() - settings).abs() < 1.0, "lands on Settings");
+    assert!((pill() - tool).abs() < 1.0, "lands on the active tool");
 
     // Reduced motion: the end state on the next frame, for both pills
     let tokens = halation_app::motion::tokens(true);
@@ -934,7 +1016,7 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     assert!((pill() - home).abs() < 1.0, "selection at once");
     point_at(&ui, "Downloader");
     advance(1);
-    let (_, to) = point_at(&ui, "Settings");
+    let (_, to) = point_at(&ui, "Frame Capture");
     advance(1);
     advance(1);
     assert!(

@@ -1,4 +1,7 @@
 {
+  "shell": {
+    "settings": "Settings"
+  },
   "frame-capture": {
     "title": "Frame Capture",
     "summary": "Open a video, find the exact frame and capture it at native size.",

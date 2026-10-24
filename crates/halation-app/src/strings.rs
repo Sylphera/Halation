@@ -10,9 +10,17 @@ pub(crate) struct Strings {
 
 impl Strings {
     pub(crate) fn frame_capture() -> Self {
+        Self::section("frame-capture")
+    }
+
+    pub(crate) fn shell() -> Self {
+        Self::section("shell")
+    }
+
+    fn section(name: &str) -> Self {
         let root: serde_json::Value = serde_json::from_str(include_str!("../locales/en.json"))
             .expect("en.json is valid JSON");
-        let map = root["frame-capture"]
+        let map = root[name]
             .as_object()
             .map(|entries| {
                 entries

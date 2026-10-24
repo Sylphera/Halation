@@ -37,6 +37,9 @@ export component AppWindow inherits Window {
 
     // Pages: 0 Home, 3 Settings (Java, 2026-10-22: the Workspace and the Library are gone for now; 1 and 2 are unused)
     in property <int> page: 0;
+    property <bool> tool-page: root.page == 4 || root.page == 5;
+    property <length> sheet-top: root.tool-page ? Theme.sheet-inset : Theme.bar;
+    in property <string> settings-label;
     in property <bool> reduced-motion: false;
     in property <int> diagnostic-scene: 1;
     in property <string> build-label: "";
@@ -245,18 +248,90 @@ export component AppWindow inherits Window {
             reject
         }
 
-        // The page: a rounded sheet set into the chrome, right of the sidebar and under the top bar. Its corners are
+        // Tool pages keep the small frame inset, not the global bar. Home and Settings stay below that bar. The corners are
         // the frame's inverted curves; no lines separate it from the sidebar or the top bar.
-        if root.diagnostic-scene != 0 : Rectangle {
+        if root.diagnostic-scene != 0 : page-sheet := Rectangle {
             x: root.page-x;
-            y: Theme.bar;
+            y: root.sheet-top;
             width: parent.width - root.page-x - Theme.sheet-inset;
-            height: parent.height - Theme.bar - Theme.sheet-inset;
+            height: parent.height - root.sheet-top - Theme.sheet-inset;
             border-radius: Theme.radius-sheet;
             background: Theme.canvas;
             border-width: 1px;
             border-color: Theme.sheet-edge;
             clip: true;
+
+            // The existing tool actions belong inside the framed page, never in the global chrome.
+            if root.tool-page : tool-header := Rectangle {
+                x: 0px; y: 0px;
+                width: parent.width;
+                height: Theme.bar;
+                background: Theme.chrome;
+                Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
+                HorizontalLayout {
+                    x: 0px; y: 0px;
+                    width: parent.width; height: Theme.bar;
+                    padding-left: 16px; padding-right: 12px; spacing: 12px;
+                    Text {
+                        text: root.page == 4 ? "Converter" : root.frame-strings.title;
+                        color: Theme.text;
+                        font-family: Theme.display;
+                        font-size: Theme.font-bar-title;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    if root.page == 5 : HorizontalLayout {
+                        y: (Theme.bar - self.height) / 2;
+                        height: 28px;
+                        horizontal-stretch: 0;
+                        spacing: 6px;
+                        AppButton {
+                            text: root.frame-has-video
+                                ? (root.frame-page-width < 900px ? root.frame-strings.replace_short : root.frame-strings.replace_video)
+                                : (root.frame-page-width < 900px ? root.frame-strings.browse_short : root.frame-strings.browse);
+                            name: root.frame-has-video ? root.frame-strings.replace_video : root.frame-strings.browse;
+                            icon: "folder-open";
+                            small: true; quiet: true;
+                            enabled: !root.frame-busy && !root.frame-needs-ffmpeg;
+                            clicked => { root.frame-action("open"); }
+                        }
+                        AppButton {
+                            text: root.frame-page-width < 900px ? root.frame-strings.queue
+                                : root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
+                            name: root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
+                            icon: root.frame-queue-visible ? "panel-left-close" : "panel-left-open";
+                            small: true; quiet: !root.frame-queue-visible;
+                            clicked => { root.frame-action("toggle-queue"); }
+                        }
+                        AppButton {
+                            text: root.frame-page-width < 900px ? root.frame-strings.inspector_short
+                                : root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
+                            name: root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
+                            small: true; quiet: !root.frame-inspector-visible;
+                            clicked => { root.frame-action("toggle-inspector"); }
+                        }
+                        if root.frame-busy : AppButton {
+                            text: root.frame-strings.cancel; small: true; quiet: true;
+                            clicked => { root.frame-action("cancel"); }
+                        }
+                        AppButton {
+                            text: root.frame-action-label; small: true; primary: true;
+                            enabled: root.frame-can-capture && !root.frame-busy;
+                            clicked => { root.frame-action("capture"); }
+                        }
+                    }
+                    if root.page == 4 : HorizontalLayout {
+                        y: (Theme.bar - self.height) / 2;
+                        height: 28px;
+                        horizontal-stretch: 0;
+                        spacing: 8px;
+                        AppButton { text: "Files"; small: true; quiet: true; clicked => { root.converter-action("toggle-files"); } }
+                        AppButton { text: "Output"; small: true; quiet: true; clicked => { root.converter-action("toggle-output"); } }
+                        if root.convert-busy : AppButton { text: "Cancel"; small: true; clicked => { root.converter-action("cancel"); } }
+                        AppButton { text: root.convert-rows.length > 1 ? "Convert all" : "Convert"; small: true; primary: true; enabled: root.convert-can-run; clicked => { root.converter-action("run"); } }
+                    }
+                }
+            }
 
             // Home's backdrop: the recorded Drape and a fixed film grain, only inside its content (§8)
             if root.page == 0 : Image {
@@ -288,7 +363,8 @@ export component AppWindow inherits Window {
             }
 
             if root.page == 4 : ConverterPage {
-                width: parent.width; height: parent.height;
+                y: Theme.bar;
+                width: parent.width; height: parent.height - Theme.bar;
                 items: root.convert-rows; formats: root.convert-formats;
                 title: root.convert-title; summary: root.convert-summary;
                 message: root.convert-message; output: root.convert-output;
@@ -308,7 +384,8 @@ export component AppWindow inherits Window {
                 file-dropped(data) => { root.converter-dropped(data); }
             }
             if root.page == 5 : FrameCapturePage {
-                width: parent.width; height: parent.height;
+                y: Theme.bar;
+                width: parent.width; height: parent.height - Theme.bar;
                 strings: root.frame-strings;
                 queue: root.frame-queue; queue-count-label: root.frame-queue-count-label; action-label: root.frame-action-label;
                 inspector-tab: root.frame-inspector-tab; layouts: root.frame-layouts;
@@ -372,9 +449,9 @@ export component AppWindow inherits Window {
             }
         }
 
-        // Top bar: title, notice, the page's actions, the global actions (§7). Drawn after the page so its
+        // Global bar: Home and Settings only. Drawn after the page so its
         // tooltips sit above it.
-        if root.diagnostic-scene != 0 : Rectangle {
+        if root.diagnostic-scene != 0 && !root.tool-page : global-bar := Rectangle {
             x: root.page-x;
             y: 0px;
             width: parent.width - root.page-x;
@@ -436,67 +513,6 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                if root.page == 5 : VerticalLayout {
-                    alignment: center;
-                    horizontal-stretch: 0;
-                    HorizontalLayout {
-                        spacing: 6px;
-                        AppButton {
-                            text: root.frame-has-video
-                                ? (root.frame-page-width < 900px ? root.frame-strings.replace_short : root.frame-strings.replace_video)
-                                : (root.frame-page-width < 900px ? root.frame-strings.browse_short : root.frame-strings.browse);
-                            name: root.frame-has-video ? root.frame-strings.replace_video : root.frame-strings.browse;
-                            icon: "folder-open";
-                            small: true;
-                            quiet: true;
-                            enabled: !root.frame-busy && !root.frame-needs-ffmpeg;
-                            clicked => { root.frame-action("open"); }
-                        }
-                        AppButton {
-                            text: root.frame-page-width < 900px
-                                ? root.frame-strings.queue
-                                : root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
-                            name: root.frame-queue-visible ? root.frame-strings.hide_queue : root.frame-strings.show_queue;
-                            icon: root.frame-queue-visible ? "panel-left-close" : "panel-left-open";
-                            small: true;
-                            quiet: !root.frame-queue-visible;
-                            clicked => { root.frame-action("toggle-queue"); }
-                        }
-                        AppButton {
-                            text: root.frame-page-width < 900px
-                                ? root.frame-strings.inspector_short
-                                : root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
-                            name: root.frame-inspector-visible ? root.frame-strings.hide_inspector : root.frame-strings.show_inspector;
-                            small: true;
-                            quiet: !root.frame-inspector-visible;
-                            clicked => { root.frame-action("toggle-inspector"); }
-                        }
-                        AppButton {
-                            text: root.frame-action-label;
-                            small: true;
-                            primary: true;
-                            enabled: root.frame-can-capture && !root.frame-busy;
-                            clicked => { root.frame-action("capture"); }
-                        }
-                        if root.frame-busy : AppButton {
-                            text: root.frame-strings.cancel;
-                            small: true;
-                            quiet: true;
-                            clicked => { root.frame-action("cancel"); }
-                        }
-                    }
-                }
-                if root.page == 4 : VerticalLayout {
-                    alignment: center;
-                    horizontal-stretch: 0;
-                    HorizontalLayout {
-                        spacing: 8px;
-                        AppButton { text: "Files"; small: true; quiet: true; clicked => { root.converter-action("toggle-files"); } }
-                        AppButton { text: "Output"; small: true; quiet: true; clicked => { root.converter-action("toggle-output"); } }
-                        if root.convert-busy : AppButton { text: "Cancel"; small: true; clicked => { root.converter-action("cancel"); } }
-                        AppButton { text: root.convert-rows.length > 1 ? "Convert all" : "Convert"; small: true; primary: true; enabled: root.convert-can-run; clicked => { root.converter-action("run"); } }
-                    }
-                }
                 if root.prefs.show-dock : VerticalLayout {
                     alignment: center;
                     horizontal-stretch: root.page == 4 || root.page == 5 ? 0 : 1;
@@ -509,6 +525,15 @@ export component AppWindow inherits Window {
                         open-folder => { root.dock-action("folder"); }
                         language => { root.dock-action("language"); }
                         save-session => { root.dock-action("session"); }
+                    }
+                }
+                if root.page == 0 : VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 0;
+                    BarButton {
+                        icon: "settings";
+                        label: root.settings-label;
+                        activated => { root.navigate(3); }
                     }
                 }
             }
@@ -533,7 +558,7 @@ export component AppWindow inherits Window {
             // The hover and selection pills behind the rows
             rail-pills := PillList {
                 // No sidebar row stands for a tool's page: no selection pill there
-                has-selection: root.page == 0 || root.page == 3 || root.page == 4 || root.page == 5;
+                has-selection: root.page == 0 || root.page == 4 || root.page == 5;
                 bar: true;
                 select-fill: Theme.raised-flat;
                 hover-fill: Theme.raised-flat;
@@ -602,21 +627,6 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Foot: Settings, after a group's gap, in the same layout so its row matches
-                SidebarGroup {
-                    label: "";
-                    open: root.rail-open;
-                    covered-by-fusion: rail-pills.fusion-covers(self.absolute-position.y + self.height / 2);
-                }
-                SidebarItem {
-                    icon: "settings";
-                    label: "Settings";
-                    open: root.rail-open;
-                    active: root.page == 3;
-                    activated => { root.navigate(3); }
-                    hovered(on, at, size) => { rail-pills.hover(on, at, size); }
-                    selected(at, size, snap) => { rail-pills.select(at, size, snap); }
-                }
             }
         }
     }
