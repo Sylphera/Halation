@@ -1,114 +1,23 @@
 import { Theme } from "../theme.slint";
 import { Assets } from "../assets.slint";
 import { ToolIcon } from "../icons.slint";
-import { ToolItem, RecentItem } from "../models.slint";
+import { RecentItem } from "../models.slint";
 import { Motion, Curve } from "../motion.slint";
-import { PillList } from "../components/pills.slint";
 import { Surface, Level } from "../components/surface.slint";
-import { DockLight } from "../components/dock-light.slint";
-
-// One entry of Home's tool strip: icon over its name. Its hover is the strip's sliding pill: it reports where it is.
-component StripItem inherits FocusScope {
-    // The focus ring shows for keyboard focus only, not after a click
-    property <bool> keyboard-focus: false;
-    focus-gained(reason) => {
-        self.keyboard-focus = reason == FocusReason.tab-navigation;
-    }
-    focus-lost => {
-        self.keyboard-focus = false;
-    }
-    in property <string> icon;
-    in property <string> label;
-    callback activated;
-    callback hovered(bool, length, length);
-    changed x => {
-        if (touch.has-hover) {
-            root.hovered(true, root.absolute-position.x, root.width);
-        }
-    }
-    // Every tool the same width (the hover pill keeps one size along the strip); narrow windows shrink them all
-    // alike and the longest labels elide
-    preferred-width: 124px;
-    min-width: 72px;
-    horizontal-stretch: 1;
-    height: 52px;
-    focus-on-tab-navigation: true;
-    accessible-role: button;
-    accessible-label: label;
-    accessible-action-default => { activated(); }
-    key-pressed(event) => {
-        if (event.text == Key.Return || event.text == Key.Space) {
-            activated();
-            accept
-        } else {
-            reject
-        }
-    }
-    Rectangle {
-        border-radius: Theme.radius;
-        background: touch.pressed ? Theme.press-fill : transparent;
-        border-width: root.keyboard-focus ? 2px : 0px;
-        border-color: Theme.accent;
-    }
-    Rectangle {
-        // Sinks at once on press, back on release
-        x: 0px;
-        y: 0px;
-        width: root.width;
-        height: root.height;
-        // Both axes set explicitly: animating them with only the `transform-scale` shorthand set leaves them at 0 (Slint 1.18)
-        transform-scale-x: touch.pressed ? Motion.press-scale : 100%;
-        transform-scale-y: self.transform-scale-x;
-        animate transform-scale-x, transform-scale-y { duration: touch.pressed ? 0ms : Motion.release; easing: Curve.ease; }
-        ToolIcon {
-            x: (parent.width - self.width) / 2;
-            y: 9px;
-            name: root.icon;
-            size: 17px;
-            tint: touch.has-hover ? Theme.text : Theme.muted;
-            animate tint { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
-        }
-        Text {
-            x: 4px;
-            y: 31px;
-            width: parent.width - 8px;
-            horizontal-alignment: center;
-            overflow: elide;
-            text: root.label;
-            color: touch.has-hover ? Theme.text : Theme.muted;
-            animate color { duration: Motion.hover(touch.has-hover); easing: Curve.ease; }
-            font-size: Theme.font-caption;
-            font-weight: 500;
-            accessible-role: none;
-        }
-    }
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.focus();
-            root.activated();
-        }
-        changed has-hover => {
-            root.hovered(self.has-hover, root.absolute-position.x, root.width);
-        }
-    }
-}
 
 // Home as in the original (Java, 2026-10-22: back to it, inside the curved frame): the wordmark (no mark), the
-// tagline, the strip of tools, and the drop zone with recent files anchored to the bottom. Surfaces and corners use
+// tagline and drop zone with recent files anchored to the bottom. Tools are reached from the sidebar. Surfaces and corners use
 // the frame's tokens: the panel fill, a faint line and the one radius.
 export component HomePage inherits Rectangle {
-    in property <[ToolItem]> tools;
     in property <[RecentItem]> recent;
     in property <bool> library-loaded: false;
 
-    callback tool-activated(string);
     callback choose-reference();
     callback file-dropped(data-transfer);
 
     // The hero's top edge follows the window's middle; the drop zone keeps 70 px to the bottom
     property <length> hero-top: max(24px, root.height / 2 - 240px);
-    property <length> drop-top: max(root.hero-top + 222px, root.height - 36px - 72px - 14px - 196px);
+    property <length> drop-top: max(root.hero-top + 138px, root.height - 36px - 72px - 14px - 196px);
 
     // The wordmark's halation glow (docs/features/material.md), a prepared image: no blur runs on Home
     Image {
@@ -140,65 +49,6 @@ export component HomePage inherits Rectangle {
         text: "Take your time. Everything else is instant.";
         color: Theme.muted;
         font-size: Theme.font-title;
-    }
-
-    // Tool strip
-    dock := Rectangle {
-        x: (parent.width - self.width) / 2;
-        y: root.hero-top + 138px;
-        width: min(strip.preferred-width, parent.width - 24px);
-        height: 62px;
-        // A panel over the Drape; the tool under the pointer rises as a raised piece
-        Surface {
-            level: Level.bubble;
-            glass: true;
-            radius: Theme.radius;
-        }
-        // A parent TouchArea observes the complete dock, including its padding, and forwards input to the items.
-        // The light uses these local coordinates directly: no window/strip padding conversion or item-exit flicker.
-        dock-touch := TouchArea {
-            x: 0px;
-            y: 0px;
-            width: dock.width;
-            height: dock.height;
-            DockLight {
-                x: 0px;
-                y: 0px;
-                width: dock.width;
-                height: dock.height;
-                at: dock-touch.mouse-x;
-                on: dock-touch.has-hover;
-                radius: Theme.radius;
-            }
-            strip-pills := PillList {
-                x: 5px;
-                y: 5px;
-                width: parent.width - 10px;
-                height: parent.height - 10px;
-                horizontal: true;
-                has-selection: false;
-                hover-fill: Theme.raised-flat;
-                raised-hover: true;
-                radius: Theme.radius;
-            }
-            strip := HorizontalLayout {
-                x: 0px;
-                y: 0px;
-                width: dock.width;
-                height: dock.height;
-                padding-left: 5px;
-                padding-right: 5px;
-                padding-top: 5px;
-                padding-bottom: 5px;
-                spacing: 0px;
-                for tool in root.tools : StripItem {
-                    icon: tool.icon;
-                    label: tool.name;
-                    activated => { root.tool-activated(tool.id); }
-                    hovered(on, at, size) => { strip-pills.hover(on, at, size); }
-                }
-            }
-        }
     }
 
     // Drop zone

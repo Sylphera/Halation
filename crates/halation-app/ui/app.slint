@@ -354,10 +354,8 @@ export component AppWindow inherits Window {
             if root.page == 0 : HomePage {
                 width: parent.width;
                 height: parent.height;
-                tools: root.active-tools;
                 recent: root.recent;
                 library-loaded: root.library-loaded;
-                tool-activated(id) => { root.tool-activated(id); }
                 choose-reference => { root.choose-reference(); }
                 file-dropped(data) => { root.file-dropped(data); }
             }

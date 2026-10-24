@@ -703,7 +703,7 @@ fn advance(ms: u64) {
 }
 
 #[test]
-fn home_dock_hover_is_aligned_and_clicks_still_reach_the_tool() {
+fn home_has_no_tool_strip_and_the_sidebar_still_opens_tools() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
@@ -713,49 +713,26 @@ fn home_dock_hover_is_aligned_and_clicks_still_reach_the_tool() {
     ui.on_tool_activated(move |id| *result.borrow_mut() = id.to_string());
     for (w, h) in SIZES {
         resize(&ui, w, h);
-        let tool = |label: &str| {
-            ElementHandle::find_by_accessible_label(&ui, label)
-                .find(|e| e.absolute_position().x > 62.0 && e.size().height > 0.0)
-                .expect("tool is on Home, not the sidebar")
-        };
-        let first = tool("Converter");
-        let second = tool("Grade");
-        let at = |e: &ElementHandle| {
-            let (p, s) = (e.absolute_position(), e.size());
-            slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0)
-        };
-        ui.window().dispatch_event(WindowEvent::PointerMoved {
-            position: at(&first),
-        });
-        advance(1000);
-        let pill = || {
-            ElementHandle::find_by_element_id(&ui, "PillList::hover-pill")
-                .find(|e| e.absolute_position().x > 62.0)
-                .unwrap()
-        };
-        let p = pill();
-        assert!((p.absolute_position().x - first.absolute_position().x).abs() < 0.5);
-        assert!((p.size().width - first.size().width).abs() < 0.5);
-        assert!((p.absolute_position().y - first.absolute_position().y).abs() < 0.5);
-        ui.window().dispatch_event(WindowEvent::PointerMoved {
-            position: at(&second),
-        });
-        advance(1);
-        advance(24);
-        assert!(pill().absolute_position().x > first.absolute_position().x);
-        assert!(pill().absolute_position().x < second.absolute_position().x);
-        advance(1000);
-        assert!((pill().absolute_position().x - second.absolute_position().x).abs() < 0.5);
-        let button = slint::platform::PointerEventButton::Left;
-        ui.window().dispatch_event(WindowEvent::PointerPressed {
-            position: at(&second),
-            button,
-        });
-        ui.window().dispatch_event(WindowEvent::PointerReleased {
-            position: at(&second),
-            button,
-        });
-        assert_eq!(&*activated.borrow(), "grade");
+        for rail in [false, true] {
+            ui.set_rail_open(rail);
+            advance(1000);
+            let sidebar_width = if rail { 224.0 } else { 62.0 };
+            for spec in TOOLS.iter().filter(|tool| tool.id != "library") {
+                let entries = ElementHandle::find_by_accessible_label(&ui, spec.name)
+                    .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
+                    .collect::<Vec<_>>();
+                assert_eq!(entries.len(), 1, "{} has no duplicate on Home", spec.name);
+                assert!(entries[0].absolute_position().x < sidebar_width);
+            }
+            let (x, y) = point_at(&ui, "Grade");
+            let position = slint::LogicalPosition::new(x, y);
+            let button = slint::platform::PointerEventButton::Left;
+            ui.window()
+                .dispatch_event(WindowEvent::PointerPressed { position, button });
+            ui.window()
+                .dispatch_event(WindowEvent::PointerReleased { position, button });
+            assert_eq!(&*activated.borrow(), "grade");
+        }
     }
 }
 
