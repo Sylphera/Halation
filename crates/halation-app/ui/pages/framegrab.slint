@@ -8,6 +8,7 @@ import { Segmented, Select } from "../components/controls.slint";
 import { ToolIcon } from "../icons.slint";
 import { RoundButton, Scrubber, Transport } from "../components/media.slint";
 import { Motion, Curve } from "../motion.slint";
+import { BarButton } from "../components/top-dock.slint";
 
 // Frame Capture follows the Figma tool frame: queue, canvas, dock and a tabbed inspector. Rust owns every decoded
 // frame, the queue, the session and the files; this page only presents them.
@@ -195,6 +196,10 @@ export component FrameCapturePage inherits Rectangle {
                     AppButton { text: root.strings.none; small: true; quiet: true; enabled: root.queue.length > 0; clicked => { root.action("none"); } }
                 }
             }
+            HorizontalLayout {
+                height: 40px; padding-left: 8px; padding-right: 8px;
+                AppButton { text: root.strings.hide_queue; small: true; quiet: true; clicked => { root.action("toggle-queue"); } }
+            }
         }
     }
 
@@ -254,6 +259,10 @@ export component FrameCapturePage inherits Rectangle {
                     ToolIcon { x: (parent.width - self.width) / 2; size: 36px; name: "framegrab"; tint: Theme.muted; }
                     Text { text: root.strings.empty_title; color: Theme.text; font-size: Theme.font-heading; horizontal-alignment: center; }
                     Text { text: root.strings.empty_hint; color: Theme.subtle; font-size: Theme.font-body; wrap: word-wrap; horizontal-alignment: center; }
+                    HorizontalLayout {
+                        alignment: center;
+                        AppButton { text: root.strings.browse; small: true; enabled: !root.busy && !root.needs-ffmpeg; clicked => { root.action("open"); } }
+                    }
                 }
                 if root.has-video && !root.has-preview : Rectangle {
                     x: 24px; y: 24px; width: parent.width - 48px; height: parent.height - 48px;
@@ -412,6 +421,18 @@ export component FrameCapturePage inherits Rectangle {
         }
     }
 
+    // Local panel handles, not a header spanning the tool.
+    if root.queue-width == 0px : BarButton {
+        x: 12px; y: parent.height - (root.has-video ? 188px : 44px);
+        icon: "panel-left-open"; label: root.strings.show_queue;
+        activated => { root.action("toggle-queue"); }
+    }
+    if root.inspector-width == 0px : BarButton {
+        x: parent.width - 44px; y: parent.height - (root.has-video ? 188px : 44px);
+        icon: "settings"; label: root.strings.show_inspector;
+        activated => { root.action("toggle-inspector"); }
+    }
+
     /* ===== inspector ===== */
 
     // When the selected inspector tab has little content, give its unused lower-right area back to the canvas.
@@ -428,7 +449,7 @@ export component FrameCapturePage inherits Rectangle {
     }
 
     if root.inspector-width > 0px : Rectangle {
-        property <length> content-height: min(parent.height, 36px + max(120px, pane.preferred-height));
+        property <length> content-height: min(parent.height, 84px + max(120px, pane.preferred-height));
         x: parent.width - root.inspector-width; y: 0px;
         width: root.inspector-width; height: self.content-height;
         changed content-height => { root.inspector-height = self.content-height; }
@@ -442,11 +463,16 @@ export component FrameCapturePage inherits Rectangle {
             Rectangle {
                 height: 36px;
                 Segmented {
-                    x: 8px; y: 2px; width: parent.width - 16px; height: 32px;
+                    x: 8px; y: 2px; width: parent.width - 52px; height: 32px;
                     options: [root.strings.inspector_capture, root.strings.output];
                     current: root.inspector-tab;
                     label: root.strings.inspector_tabs;
                     chosen(index) => { root.inspector-tab-selected(index); }
+                }
+                BarButton {
+                    x: parent.width - 36px; y: 2px;
+                    icon: "panel-left-close"; label: root.strings.hide_inspector;
+                    activated => { root.action("toggle-inspector"); }
                 }
                 Rectangle { y: parent.height - 1px; width: parent.width; height: 1px; background: Theme.line; }
             }
@@ -458,6 +484,16 @@ export component FrameCapturePage inherits Rectangle {
                 pane := VerticalLayout {
                     x: 0px; y: 0px; width: root.inspector-width - 1px; height: self.preferred-height;
                     spacing: 0px;
+            HorizontalLayout {
+                height: 44px; padding: 8px; spacing: 6px;
+                AppButton {
+                    text: root.has-video ? root.strings.replace_video : root.strings.browse;
+                    name: root.has-video ? root.strings.replace_video : root.strings.browse;
+                    icon: "folder-open"; small: true; quiet: true;
+                    enabled: !root.busy && !root.needs-ffmpeg;
+                    clicked => { root.action("open"); }
+                }
+            }
             if root.inspector-tab == 0 && root.needs-ffmpeg : Rectangle {
                 height: 76px;
                 VerticalLayout {
@@ -555,6 +591,15 @@ export component FrameCapturePage inherits Rectangle {
                     result-touch := TouchArea { clicked => { root.reveal(row.index); } }
                 }
             }
+                }
+            }
+            HorizontalLayout {
+                height: 48px; padding: 10px; spacing: 8px;
+                if root.busy : AppButton { text: root.strings.cancel; small: true; quiet: true; clicked => { root.action("cancel"); } }
+                AppButton {
+                    text: root.action-label; small: true; primary: true;
+                    enabled: root.can-capture && !root.busy;
+                    clicked => { root.action("capture"); }
                 }
             }
         }

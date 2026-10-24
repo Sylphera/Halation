@@ -91,7 +91,24 @@ fn fill_home(ui: &AppWindow) {
         .collect();
     let model = ModelRc::from(Rc::new(VecModel::from(tools)));
     ui.set_tools(model.clone());
-    ui.set_active_tools(model);
+    ui.set_active_tools(ModelRc::new(VecModel::from(
+        TOOLS
+            .iter()
+            .filter(|tool| tool.id != "library")
+            .map(|tool| ToolItem {
+                id: tool.id.into(),
+                name: tool.name.into(),
+                icon: tool.icon.into(),
+                summary: tool.summary.into(),
+                group: tool.group,
+                beta: tool.beta,
+                enabled: true,
+                missing: tool.missing.into(),
+                available: tool.available,
+                reason: tool.reason.into(),
+            })
+            .collect::<Vec<_>>(),
+    )));
     let recent: Vec<RecentItem> = [
         "a-rather-long-song-title-for-the-panel.wav",
         "b.png",
@@ -163,7 +180,16 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
                 let position = sheet.absolute_position();
                 let size = sheet.size();
                 assert_eq!(position.y, if tool { 8.0 } else { 44.0 });
-                assert_eq!(position.x, if rail { 224.0 } else { 62.0 });
+                assert_eq!(
+                    position.x,
+                    if page == 0 {
+                        8.0
+                    } else if rail {
+                        224.0
+                    } else {
+                        62.0
+                    }
+                );
                 assert_eq!(position.y + size.height, height - 8.0);
                 assert_eq!(position.x + size.width, width - 8.0);
                 assert_eq!(
@@ -179,11 +205,21 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
                 let settings = ElementHandle::find_by_accessible_label(&ui, "Settings")
                     .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
                     .collect::<Vec<_>>();
-                assert_eq!(settings.len(), usize::from(page == 0));
+                assert_eq!(settings.len(), 1);
                 if let Some(button) = settings.first() {
                     let p = button.absolute_position();
                     let s = button.size();
-                    assert!(p.x > width - 60.0 && p.y + s.height <= 44.0);
+                    if page == 0 {
+                        assert!(
+                            p.x > 8.0 && p.y > 44.0,
+                            "Settings belongs to the central Home dock"
+                        );
+                    } else {
+                        assert!(
+                            p.x < if rail { 224.0 } else { 62.0 },
+                            "Settings belongs to the sidebar"
+                        );
+                    }
                     let at = slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0);
                     let pointer = slint::platform::PointerEventButton::Left;
                     ui.window().dispatch_event(WindowEvent::PointerPressed {
@@ -199,7 +235,7 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
             }
         }
     }
-    // Settings remains reachable even if the user disables the optional global action group.
+    // Dock navigation remains reachable even if the optional global action group is disabled.
     ui.set_page(0);
     let mut prefs = ui.get_prefs();
     prefs.show_dock = false;
@@ -209,6 +245,47 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
         ElementHandle::find_by_accessible_label(&ui, "Settings")
             .any(|e| e.accessible_role() == Some(AccessibleRole::Button))
     );
+}
+
+#[test]
+fn home_navigation_animates_the_sidebar_and_reduced_motion_is_immediate() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    resize(&ui, 1440.0, 900.0);
+    let sheet_x = || {
+        ElementHandle::find_by_element_id(&ui, "AppWindow::page-sheet")
+            .next()
+            .unwrap()
+            .absolute_position()
+            .x
+    };
+    assert_eq!(sheet_x(), 8.0);
+    ui.set_rail_open(true);
+    ui.set_page(3);
+    advance(1);
+    advance(48);
+    let midway = sheet_x();
+    assert!(
+        midway > 8.0 && midway < 224.0,
+        "sidebar reveals smoothly: {midway}"
+    );
+    ui.set_page(0);
+    advance(1);
+    assert!(
+        sheet_x() <= midway + 1.0,
+        "returning Home retargets without a jump"
+    );
+    advance(1000);
+    assert_eq!(sheet_x(), 8.0);
+    ui.global::<halation_app::ui::Motion>().set_panel(0);
+    ui.set_page(3);
+    advance(1);
+    assert_eq!(sheet_x(), 224.0);
+    ui.set_page(0);
+    advance(1);
+    assert_eq!(sheet_x(), 8.0);
 }
 
 #[test]
@@ -472,6 +549,9 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                     .expect("one state of each top-bar panel toggle is visible")
                     .to_owned()
             };
+            ui.set_frame_left_open(false);
+            ui.set_frame_inspector_open(true);
+            advance(1000);
             let controls = [
                 "Replace video".to_owned(),
                 visible_button(["Hide queue", "Show queue"]),
@@ -485,21 +565,18 @@ fn frame_capture_fits_every_sidebar_and_panel_state_and_anchors_its_panels() {
                 let position = element.absolute_position();
                 let size = element.size();
                 assert!(
-                    position.y >= 8.0 && position.y + size.height <= 52.0,
-                    "{label} at y={} height={} must stay inside the tool header",
+                    position.y >= 8.0 && position.y + size.height <= height - 8.0,
+                    "{label} at y={} height={} must stay inside the tool",
                     position.y,
                     size.height
                 );
-                assert!((position.y + size.height / 2.0 - 30.0).abs() < 1.0);
                 assert!(position.x >= 0.0 && position.x + size.width <= width);
                 (position.x, size.width)
             });
-            let mut actions = controls;
-            actions.sort_by(|a, b| a.0.total_cmp(&b.0));
-            assert!(
-                actions
-                    .windows(2)
-                    .all(|pair| pair[0].0 + pair[0].1 <= pair[1].0 + 0.5)
+            assert_eq!(controls.len(), 4);
+            assert_eq!(
+                ElementHandle::find_by_element_id(&ui, "AppWindow::tool-header").count(),
+                0
             );
             for left in [false, true] {
                 ui.set_frame_left_open(left);
@@ -593,11 +670,11 @@ fn the_rail_marks_the_current_page_and_lists_the_tools() {
     ui.show().unwrap();
     fill_home(&ui);
     resize(&ui, 1280.0, 800.0);
-    // Settings moved to Home's bar; the rail marks Home and tool pages only.
-    let places = [(0, "Home"), (4, "Converter"), (5, "Frame Capture")];
+    // Home hides the rail; Settings and tools retain their active navigation rows.
+    let places = [(3, "Settings"), (4, "Converter"), (5, "Frame Capture")];
     for (page, _) in places {
         ui.set_page(page);
-        slint::platform::update_timers_and_animations();
+        advance(1000);
         for (other, place) in places {
             let selected = ElementQuery::from_root(&ui)
                 .match_descendants()
@@ -637,6 +714,7 @@ fn the_sidebar_starts_collapsed_and_ctrl_b_toggles_it() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(3);
     // Collapsed at every width; it never opens by itself
     for (w, h) in SIZES {
         resize(&ui, w, h);
@@ -703,7 +781,7 @@ fn advance(ms: u64) {
 }
 
 #[test]
-fn home_has_no_tool_strip_and_the_sidebar_still_opens_tools() {
+fn home_uses_the_central_dock_and_hides_the_sidebar() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
@@ -716,16 +794,25 @@ fn home_has_no_tool_strip_and_the_sidebar_still_opens_tools() {
         for rail in [false, true] {
             ui.set_rail_open(rail);
             advance(1000);
-            let sidebar_width = if rail { 224.0 } else { 62.0 };
             for spec in TOOLS.iter().filter(|tool| tool.id != "library") {
                 let entries = ElementHandle::find_by_accessible_label(&ui, spec.name)
                     .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
                     .collect::<Vec<_>>();
-                assert_eq!(entries.len(), 1, "{} has no duplicate on Home", spec.name);
-                assert!(entries[0].absolute_position().x < sidebar_width);
+                assert_eq!(
+                    entries.len(),
+                    1,
+                    "{} is present only in the central dock",
+                    spec.name
+                );
+                assert!(entries[0].absolute_position().x > 8.0);
+                assert!(entries[0].absolute_position().y > 44.0);
             }
-            let (x, y) = point_at(&ui, "Grade");
-            let position = slint::LogicalPosition::new(x, y);
+            let grade = ElementHandle::find_by_accessible_label(&ui, "Grade")
+                .next()
+                .unwrap();
+            let p = grade.absolute_position();
+            let s = grade.size();
+            let position = slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0);
             let button = slint::platform::PointerEventButton::Left;
             ui.window()
                 .dispatch_event(WindowEvent::PointerPressed { position, button });
@@ -742,6 +829,7 @@ fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(4);
     resize(&ui, 1280.0, 800.0);
     // Drive frames, not one time jump: the edge recovery starts when the position spring settles.
     let settle = || {
@@ -782,7 +870,7 @@ fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
         let (selected, adjacent) = if horizontal {
             ("General", "Interface")
         } else {
-            ("Home", "Downloader")
+            ("Converter", "Downloader")
         };
         point(selected);
         settle();
@@ -794,7 +882,7 @@ fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
             joined(),
             "departure must be one filled silhouette, horizontal={horizontal}"
         );
-        point(if horizontal { "You" } else { "Converter" });
+        point(if horizontal { "You" } else { "Grade" });
         advance(1);
         assert!(
             joined(),
@@ -804,8 +892,17 @@ fn fusion_uses_one_silhouette_only_during_departure_and_arrival() {
         assert!(!joined(), "neck breaks; original resting borders return");
         point(selected);
         advance(1);
-        advance(16);
-        assert!(joined(), "arrival must also join without an inner border");
+        // A distant row now crosses several sidebar entries. Fusion starts near the selection, not necessarily
+        // on the first frame of that journey; sample the complete arrival rather than a single early instant.
+        let mut joined_on_arrival = false;
+        for _ in 0..32 {
+            advance(16);
+            joined_on_arrival |= joined();
+        }
+        assert!(
+            joined_on_arrival,
+            "arrival must join without an inner border, horizontal={horizontal}"
+        );
         settle();
         ui.window().dispatch_event(WindowEvent::PointerExited);
         settle();
@@ -864,6 +961,7 @@ fn the_sidebar_hover_pill_follows_the_pointer_and_glides() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(3);
     resize(&ui, 1280.0, 800.0);
     let (_, first) = point_at(&ui, "Downloader");
     advance(1000);
@@ -900,6 +998,7 @@ fn a_sweep_over_several_rows_keeps_the_hover_pill_moving() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(3);
     resize(&ui, 1280.0, 800.0);
     point_at(&ui, "Downloader");
     advance(1000);
@@ -924,6 +1023,7 @@ fn a_steady_sweep_never_stops_the_hover_pill_at_a_row() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(3);
     resize(&ui, 1280.0, 800.0);
     point_at(&ui, "Grade");
     advance(1000);
@@ -954,6 +1054,7 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     fill_home(&ui);
+    ui.set_page(4);
     resize(&ui, 1280.0, 800.0);
     let row = |label: &str| {
         let e = ElementHandle::find_by_accessible_label(&ui, label)
@@ -961,7 +1062,7 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
             .unwrap();
         e.absolute_position().y + e.size().height / 2.0
     };
-    let (home, tool) = (row("Home"), row("Frame Capture"));
+    let (home, tool) = (row("Converter"), row("Frame Capture"));
     let pill = || pill_y(&ui, "PillList::selection");
     assert!(
         (pill() - home).abs() < 1.0,
@@ -987,7 +1088,7 @@ fn the_selection_pill_glides_to_the_page_and_reduced_motion_places_pills_at_once
     motion.set_trail(ms(tokens.trail));
     motion.set_hover_in(ms(tokens.hover_in));
     motion.set_hover_out(ms(tokens.hover_out));
-    ui.set_page(0);
+    ui.set_page(4);
     advance(1);
     advance(1);
     assert!((pill() - home).abs() < 1.0, "selection at once");

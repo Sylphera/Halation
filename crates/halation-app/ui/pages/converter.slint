@@ -5,6 +5,7 @@ import { AppButton } from "../components/button.slint";
 import { ToolIcon } from "../icons.slint";
 import { RoundButton, Scrubber, Transport } from "../components/media.slint";
 import { Motion, Curve } from "../motion.slint";
+import { BarButton } from "../components/top-dock.slint";
 
 // The approved tool frame. All media/job state is supplied by the Rust controller.
 export component ConverterPage inherits Rectangle {
@@ -17,6 +18,7 @@ export component ConverterPage inherits Rectangle {
     in property <image> preview;
     in property <bool> has-preview: false;
     in property <bool> busy: false;
+    in property <bool> can-run: false;
     in property <bool> needs-ffmpeg: true;
     in property <bool> completed: false;
     in property <bool> left-open: false;
@@ -260,8 +262,19 @@ export component ConverterPage inherits Rectangle {
                 Rectangle { x: 0px; y: 0px; height: 1px; width: parent.width; background: Theme.line; }
                 HorizontalLayout {
                     padding-left: 16px; padding-right: 16px; spacing: 8px;
-                    Text { text: root.busy ? "Working…" : root.has-preview || root.audio || root.video ? root.summary : root.items.length == 0 ? "No file selected" : root.items.length + " file(s)"; color: Theme.subtle; vertical-alignment: center; overflow: elide; }
-                    Rectangle { horizontal-stretch: 1; }
+                    VerticalLayout {
+                        alignment: center;
+                        BarButton { icon: "panel-left-open"; label: "Files"; activated => { root.action("toggle-files"); } }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        BarButton { icon: "settings"; label: "Output"; activated => { root.action("toggle-output"); } }
+                    }
+                    Text { horizontal-stretch: 1; min-width: 0px; text: root.busy ? "Working…" : root.has-preview || root.audio || root.video ? root.summary : root.items.length == 0 ? "No file selected" : root.items.length + " file(s)"; color: Theme.subtle; vertical-alignment: center; overflow: elide; }
+                    if root.items.length > 0 : VerticalLayout {
+                        alignment: center;
+                        AppButton { text: "Add files"; small: true; quiet: true; enabled: !root.busy; clicked => { root.action("add"); } }
+                    }
                     if root.completed : VerticalLayout {
                         alignment: center;
                         AppButton { text: "Show in folder"; quiet: true; small: true; clicked => { root.action("reveal"); } }
@@ -349,6 +362,15 @@ export component ConverterPage inherits Rectangle {
                     alignment: start;
                     Text { text: "Save location"; color: Theme.muted; font-weight: 600; }
                     Text { text: root.completed ? root.output : "Uses Settings → Files. Originals are never modified."; color: Theme.subtle; wrap: word-wrap; overflow: elide; font-size: Theme.font-caption; }
+                }
+            }
+            HorizontalLayout {
+                height: 48px; padding: 10px; spacing: 8px;
+                if root.busy : AppButton { text: "Cancel"; small: true; quiet: true; clicked => { root.action("cancel"); } }
+                AppButton {
+                    text: root.items.length > 1 ? "Convert all" : "Convert";
+                    small: true; primary: true; enabled: root.can-run;
+                    clicked => { root.action("run"); }
                 }
             }
         }
