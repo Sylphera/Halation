@@ -283,7 +283,9 @@ impl Controller {
             );
         }
         ui.set_build_label(SharedString::from(crate::build_label()));
-        ui.set_settings_label(crate::strings::Strings::shell().get("settings").into());
+        let shell = crate::strings::Strings::shell();
+        ui.set_settings_label(shell.get("settings").into());
+        ui.set_shell_strings(shell.shell_strings());
         ui.set_profile_path(SharedString::from(
             self.services
                 .borrow()

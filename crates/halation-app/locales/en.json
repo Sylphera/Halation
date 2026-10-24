@@ -1,6 +1,12 @@
 {
   "shell": {
-    "settings": "Settings"
+    "settings": "Settings",
+    "actions": "Application actions",
+    "activity": "Activity",
+    "shortcuts": "Keyboard shortcuts",
+    "folder": "Halation folder",
+    "session": "Save Session",
+    "dismiss": "Dismiss"
   },
   "frame-capture": {
     "title": "Frame Capture",

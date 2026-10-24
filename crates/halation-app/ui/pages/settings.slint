@@ -6,7 +6,7 @@ import { Toggle, Select, Segmented, HueStrip, Field, SearchField, Help, Tag, Gro
 import { Motion, Curve } from "../motion.slint";
 import { PillList } from "../components/pills.slint";
 import { Surface, Level } from "../components/surface.slint";
-import { ToolItem, Prefs, ComponentRow, FolderRow } from "../models.slint";
+import { ToolItem, Prefs, ComponentRow, FolderRow, ShellStrings } from "../models.slint";
 
 // One category of the list at the left. Its hover and selection fills are the list's sliding pills: it reports where
 // it is.
@@ -187,6 +187,7 @@ component ListRow inherits Rectangle {
 // left competed with the sidebar), the chosen one below in panels of cells, two per row, up to 1200 px wide. Search and Restore
 // defaults stand at the right of the tabs, on their row (Java, 2026-10-22).
 export component SettingsPage inherits Rectangle {
+    in property <ShellStrings> shell-strings;
     in property <Prefs> prefs;
     in property <[ToolItem]> tools;
     in property <[ComponentRow]> components;
@@ -354,15 +355,6 @@ export component SettingsPage inherits Rectangle {
                     }
                     Pair {
                         Cell {
-                            name: "Show processes dock";
-                            help: "Activity and shortcuts in the top bar.";
-                            Toggle {
-                                label: "Show processes dock";
-                                checked: root.prefs.show-dock;
-                                toggled(v) => { root.set-pref("show-dock", v ? "1" : "0"); }
-                            }
-                        }
-                        Cell {
                             name: "Notify when a job finishes";
                             help: "Only while Halation is not in view.";
                             Toggle {
@@ -370,6 +362,22 @@ export component SettingsPage inherits Rectangle {
                                 checked: root.prefs.notify;
                                 toggled(v) => { root.set-pref("notify", v ? "1" : "0"); }
                             }
+                        }
+                        Rectangle { horizontal-stretch: 1; preferred-width: 0px; }
+                    }
+                }
+                Group {
+                    title: root.shell-strings.actions;
+                    Wide {
+                        HorizontalLayout {
+                            alignment: start; spacing: 12px;
+                            AppButton { text: root.shell-strings.activity; small: true; clicked => { root.action("activity"); } }
+                            AppButton { text: root.shell-strings.shortcuts; icon: "keyboard"; small: true; clicked => { root.action("shortcuts"); } }
+                        }
+                        HorizontalLayout {
+                            alignment: start; spacing: 12px;
+                            AppButton { text: root.shell-strings.folder; icon: "folder-open"; small: true; clicked => { root.action("folder"); } }
+                            AppButton { text: root.shell-strings.session; icon: "save"; small: true; clicked => { root.action("session"); } }
                         }
                     }
                 }

@@ -4,7 +4,7 @@
 use halation_app::catalog::TOOLS;
 use halation_app::ui::{
     AppWindow, ConvertRow, FormatRow, FrameDestinationRow, FrameLayoutRow, FrameQueueRow,
-    FrameResultRow, FrameStrings, JobRow, RecentItem, ToolItem,
+    FrameResultRow, FrameStrings, JobRow, RecentItem, ShellStrings, ToolItem,
 };
 use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementQuery};
 use slint::{
@@ -74,6 +74,14 @@ fn outside_above(ui: &AppWindow, w: f32, h: f32, scroll_top: f32) -> Vec<String>
 /// What the controller installs for Home and the rail: every tool turned on, and three recent files
 fn fill_home(ui: &AppWindow) {
     ui.set_settings_label("Settings".into());
+    ui.set_shell_strings(ShellStrings {
+        actions: "Application actions".into(),
+        activity: "Activity".into(),
+        shortcuts: "Keyboard shortcuts".into(),
+        folder: "Halation folder".into(),
+        session: "Save Session".into(),
+        dismiss: "Dismiss".into(),
+    });
     let tools: Vec<ToolItem> = TOOLS
         .iter()
         .map(|tool| ToolItem {
@@ -154,7 +162,7 @@ fn pages_keep_their_controls_inside_the_window_at_supported_sizes() {
 }
 
 #[test]
-fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
+fn every_page_has_no_global_bar_and_keeps_its_frame_inset() {
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
@@ -173,13 +181,12 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
             for page in [0, 3, 4, 5] {
                 ui.set_page(page);
                 advance(1000);
-                let tool = page == 4 || page == 5;
                 let sheet = ElementHandle::find_by_element_id(&ui, "AppWindow::page-sheet")
                     .next()
                     .expect("the rounded page frame exists");
                 let position = sheet.absolute_position();
                 let size = sheet.size();
-                assert_eq!(position.y, if tool { 8.0 } else { 44.0 });
+                assert_eq!(position.y, 8.0);
                 assert_eq!(
                     position.x,
                     if page == 0 {
@@ -194,13 +201,13 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
                 assert_eq!(position.x + size.width, width - 8.0);
                 assert_eq!(
                     ElementHandle::find_by_element_id(&ui, "AppWindow::global-bar").count(),
-                    usize::from(!tool),
+                    0,
                     "global bar visibility on page {page}"
                 );
                 assert_eq!(
                     ElementHandle::find_by_accessible_label(&ui, "Halation folder").count(),
-                    usize::from(!tool),
-                    "global actions must not leak into a tool"
+                    usize::from(page == 3),
+                    "application actions belong inside Settings only"
                 );
                 let settings = ElementHandle::find_by_accessible_label(&ui, "Settings")
                     .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
@@ -211,7 +218,7 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
                     let s = button.size();
                     if page == 0 {
                         assert!(
-                            p.x > 8.0 && p.y > 44.0,
+                            p.x > 8.0 && p.y > 8.0,
                             "Settings belongs to the central Home dock"
                         );
                     } else {
@@ -243,6 +250,54 @@ fn global_bar_is_home_and_settings_only_and_tool_frame_keeps_its_inset() {
     advance(1000);
     assert!(
         ElementHandle::find_by_accessible_label(&ui, "Settings")
+            .any(|e| e.accessible_role() == Some(AccessibleRole::Button))
+    );
+}
+
+#[test]
+fn application_actions_are_clickable_inside_settings() {
+    i_slint_backend_testing::init_no_event_loop();
+    let ui = AppWindow::new().unwrap();
+    ui.show().unwrap();
+    fill_home(&ui);
+    ui.set_page(3);
+    resize(&ui, 1440.0, 900.0);
+    let actions = Rc::new(std::cell::RefCell::new(Vec::<String>::new()));
+    let events = actions.clone();
+    ui.on_dock_action(move |action| events.borrow_mut().push(action.into()));
+    for (label, command) in [
+        ("Activity", "activity"),
+        ("Keyboard shortcuts", "shortcuts"),
+        ("Halation folder", "folder"),
+        ("Save Session", "session"),
+    ] {
+        let button = ElementHandle::find_by_accessible_label(&ui, label)
+            .find(|e| e.accessible_role() == Some(AccessibleRole::Button))
+            .unwrap();
+        let p = button.absolute_position();
+        let s = button.size();
+        assert!(p.y > 8.0 && p.y + s.height < 892.0);
+        let position = slint::LogicalPosition::new(p.x + s.width / 2.0, p.y + s.height / 2.0);
+        let pointer = slint::platform::PointerEventButton::Left;
+        ui.window().dispatch_event(WindowEvent::PointerPressed {
+            position,
+            button: pointer,
+        });
+        ui.window().dispatch_event(WindowEvent::PointerReleased {
+            position,
+            button: pointer,
+        });
+        assert_eq!(actions.borrow_mut().pop().as_deref(), Some(command));
+    }
+    assert!(
+        ElementHandle::find_by_accessible_label(&ui, "Language")
+            .next()
+            .is_some()
+    );
+    ui.set_notice("Session persistence is not connected in this beta yet.".into());
+    advance(1000);
+    assert!(
+        ElementHandle::find_by_accessible_label(&ui, "Dismiss")
             .any(|e| e.accessible_role() == Some(AccessibleRole::Button))
     );
 }
@@ -294,8 +349,7 @@ fn the_check_does_detect_a_window_that_is_too_small() {
     let ui = AppWindow::new().unwrap();
     ui.show().unwrap();
     resize(&ui, 300.0, 200.0);
-    // Settings: its top bar (title, Activity and the global actions) cannot fit 300 px; the page's own content is
-    // clipped by the sheet and so leaves the accessibility tree
+    // Settings' tabs cannot fit 300 px; this intentionally unsupported size verifies that the bounds check detects it.
     ui.set_page(3);
     slint::platform::update_timers_and_animations();
     assert!(

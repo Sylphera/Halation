@@ -1,7 +1,7 @@
 //! The visible strings of the tools, read from `locales/en.json` at start-up. The beta is English only; there is no
 //! second catalogue yet. Keeping the Frame Capture text here means the page and the controller hold no literals.
 
-use crate::ui::FrameStrings;
+use crate::ui::{FrameStrings, ShellStrings};
 use std::collections::HashMap;
 
 pub(crate) struct Strings {
@@ -15,6 +15,17 @@ impl Strings {
 
     pub(crate) fn shell() -> Self {
         Self::section("shell")
+    }
+
+    pub(crate) fn shell_strings(&self) -> ShellStrings {
+        ShellStrings {
+            actions: self.get("actions").into(),
+            activity: self.get("activity").into(),
+            shortcuts: self.get("shortcuts").into(),
+            folder: self.get("folder").into(),
+            session: self.get("session").into(),
+            dismiss: self.get("dismiss").into(),
+        }
     }
 
     fn section(name: &str) -> Self {
