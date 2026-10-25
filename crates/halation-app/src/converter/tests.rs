@@ -4,6 +4,28 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Use actual FFmpeg for media preview tests; never report success when it is absent.
+fn media_ffmpeg() -> components::Ffmpeg {
+    if let Some(dir) = std::env::var_os("HALATION_FFMPEG")
+        && let Some(found) = components::Ffmpeg::in_directory(Path::new(&dir))
+    {
+        return found;
+    }
+    let installed = std::env::var_os("LOCALAPPDATA").map(|base| {
+        PathBuf::from(base)
+            .join("Halation")
+            .join("slint-beta")
+            .join("tools")
+    });
+    if let Some(found) = installed.and_then(|tools| components::Ffmpeg::find(&tools)) {
+        return found;
+    }
+    components::Ffmpeg::find(Path::new(".")).expect(
+        "Converter's media preview tests need both ffmpeg.exe and ffprobe.exe. \
+         Set HALATION_FFMPEG to their shared directory; the controller also needs them on PATH.",
+    )
+}
+
 fn generated_bmp(path: &Path) {
     let mut bytes = b"BM".to_vec();
     for value in [70_u32, 0, 54, 40, 2, 2] {
@@ -156,14 +178,10 @@ fn ui_thread_work_stays_small_during_the_largest_batch() {
     fs::remove_dir_all(root).unwrap();
 }
 
-/// Audio preview through the controller with generated audio and a real FFmpeg (skipped, saying so, without one).
+/// Audio preview through the controller with generated audio and real FFmpeg; fails without it.
 #[test]
 fn audio_preview_plays_seeks_pauses_and_stops_when_leaving() {
-    let Some(pair) = components::Ffmpeg::find(&std::env::temp_dir().join("halation-no-tools"))
-    else {
-        eprintln!("FFmpeg not found: the audio preview controller test did not run");
-        return;
-    };
+    let pair = media_ffmpeg();
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.set_page(4);
@@ -215,20 +233,28 @@ fn audio_preview_plays_seeks_pauses_and_stops_when_leaving() {
     std::thread::sleep(Duration::from_millis(400));
     controller.tick();
     let position = ui.get_convert_position();
-    if controller.audio.borrow().player.is_some() {
+    let has_audio_sink = controller.audio.borrow().player.is_some();
+    if has_audio_sink {
         assert!(position > 0.5 && position < 0.6, "{position}");
     } else {
-        // No audio device (a CI machine): playback ends with a message instead of hanging
+        // No audio device (a CI machine): playback ends with a message instead of hanging.
         assert!(!ui.get_convert_message().is_empty());
     }
     ui.invoke_converter_action("forward".into());
-    ui.invoke_converter_action("play".into());
-    assert!(!ui.get_convert_playing());
     assert!(
         ui.get_convert_position() >= 0.75,
         "{}",
         ui.get_convert_position()
     );
+    if has_audio_sink {
+        // Seeking while playing continues playback; clicking Play then pauses it.
+        assert!(ui.get_convert_playing());
+        ui.invoke_converter_action("play".into());
+        assert!(!ui.get_convert_playing());
+    } else {
+        // A failed audio sink must remain stopped when seeking, not silently restart.
+        assert!(!ui.get_convert_playing());
+    }
     ui.invoke_converter_action("play".into());
     controller.suspend_preview();
     assert!(
@@ -242,11 +268,7 @@ fn audio_preview_plays_seeks_pauses_and_stops_when_leaving() {
 
 #[test]
 fn video_preview_plays_frames_mutes_and_is_removed_from_the_list() {
-    let Some(pair) = components::Ffmpeg::find(&std::env::temp_dir().join("halation-no-tools"))
-    else {
-        eprintln!("FFmpeg not found: the video preview controller test did not run");
-        return;
-    };
+    let pair = media_ffmpeg();
     i_slint_backend_testing::init_no_event_loop();
     let ui = AppWindow::new().unwrap();
     ui.set_page(4);

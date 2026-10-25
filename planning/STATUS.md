@@ -16,7 +16,7 @@ Updated 2026-10-25. One page at most; if it goes two weeks without an update, de
 - **Done** (2026-10-21, pending Java's review): [repository reorganization](active/repo-reorg.md) milestones 0, A1
   (instructions and documents) and B (Cargo workspace `halation-core` + `halation-app`, `assets/`, `tools/`, CI).
 - **Done**: the [UI redesign](active/ui-redesign.md), implemented and approved by Java on 2026-10-22 (Home and Settings).
-- **Pending merge**: PR #27 (motion), #28 (material and themes) and #29 (logo), stacked, onto `slint/native`.
+- **PR status checked 2026-10-25**: [#27](https://github.com/Sylphera/Halation/pull/27) (motion) merged into `slint/native` on 2026-10-22; [#29](https://github.com/Sylphera/Halation/pull/29) (logo) merged into its stacked base on 2026-10-22; [#30](https://github.com/Sylphera/Halation/pull/30) (Converter) merged into `slint/native` on 2026-10-22. [#28](https://github.com/Sylphera/Halation/pull/28) (material) remains open against a stacked branch; its open PR status is not proof that its code is absent from the native integration branch.
 - **Approved** (Java, 2026-10-22, on 8179b05): the [complete media Converter](active/converter-native.md), with
   audio/video, FFmpeg installation and the audio and video preview. PR #30 also carries the commits of #28 and #29. Library stays removed.
 - **Home memory accepted** (Java, 2026-10-22): no further decoder or lazy-player spike.

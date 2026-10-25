@@ -5,8 +5,9 @@ Bug reports, ideas and pull requests are welcome.
 ## Two lines
 
 - `main` is **Halation Tauri**, the published app (1.x). Fixes to it go to `main`.
-- `slint/native` is **Halation Slint**, the native rebuild in Rust + Slint + Skia. It is not released yet; new work
-  goes here. The rest of this file is about it.
+- `slint/native` is the **Halation Slint** integration branch, the unreleased native rebuild in Rust + Slint + Skia.
+  Make changes on a dedicated branch/worktree (such as `slint/dev-workflow`), then review before integration.
+  The rest of this file is about this native line.
 
 ## Getting started
 
