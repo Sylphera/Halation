@@ -77,7 +77,8 @@ There is no artificial fixed patch, token, or Cargo call limit that justifies sk
 
 ## Common problems
 
-- **`python tools/dev.py map <feature>` lists no source files**: that tool is not implemented on this branch. Read its spec, study the Tauri reference, design a small native vertical slice and add map paths once they exist.
+- **`python tools/dev.py map <feature>` lists no source files**: that feature is not implemented in the current native checkout. Read its spec, study the Tauri reference, design a small native vertical slice and add map paths once they exist.
+- **Frame Capture integration tests cannot find FFmpeg**: install a local pair of `ffmpeg.exe` and `ffprobe.exe` or set `HALATION_FFMPEG` to their shared directory. They intentionally fail rather than skip media coverage. Windows CI provisions a pinned FFmpeg version in `.github/workflows/ci.yml`; no user profile or runtime download is needed there.
 - **Git reports many unrelated modified paths**: you may be on the wrong worktree or a shared checkout. Run `git status --short --branch` and select an isolated branch before editing. Never `git reset --hard` to make tests green.
 - **PowerShell blocks `.ps1`**: `dev.py` works from `python` without changing the execution policy. If a specific owned `.ps1` is needed, follow its documented command; do not change machine-wide security settings.
 - **A Cargo check keeps failing on the same interface**: inspect the constructor/API and all affected callers, resolve the mismatch coherently, then rerun once. Do not format/compile repeatedly while the interface is still changing.

@@ -32,6 +32,24 @@ jobs:
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Provision FFmpeg for media integration tests
+        shell: pwsh
+        run: |
+          # This versioned Chocolatey package includes both ffmpeg.exe and ffprobe.exe.
+          # Keep CI independent of the developer's Halation profile and runner PATH.
+          choco install ffmpeg --version=7.1.1 --yes --no-progress --limit-output
+          if ($LASTEXITCODE -ne 0) { throw "Chocolatey FFmpeg installation failed ($LASTEXITCODE)" }
+          $packageTools = Join-Path $env:ChocolateyInstall 'lib\ffmpeg\tools'
+          $ffmpeg = Get-ChildItem -LiteralPath $packageTools -Filter ffmpeg.exe -File -Recurse |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.DirectoryName 'ffprobe.exe') } |
+            Select-Object -First 1
+          if (-not $ffmpeg) { throw "ffmpeg.exe and ffprobe.exe not found together under $packageTools" }
+          $ffprobe = Join-Path $ffmpeg.DirectoryName 'ffprobe.exe'
+          & $ffmpeg.FullName -version
+          if ($LASTEXITCODE -ne 0) { throw 'ffmpeg.exe -version failed' }
+          & $ffprobe -version
+          if ($LASTEXITCODE -ne 0) { throw 'ffprobe.exe -version failed' }
+          "HALATION_FFMPEG=$($ffmpeg.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Tests
         run: cargo test --workspace --locked
       - name: Runtime renderers (winit + Skia only)

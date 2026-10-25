@@ -10,15 +10,16 @@ Bug reports, ideas and pull requests are welcome.
 
 ## Getting started
 
-Windows 10 or 11, Rust (the version in `rust-toolchain.toml`) with the MSVC toolchain, and Python 3 for the docs
-checker. From the repository root:
+Requirements: Windows 10/11, Git, Python 3.11+ for the read-only developer tools and the Rust/MSVC toolchain pinned by `rust-toolchain.toml` for compilation. Read [AGENTS.md](AGENTS.md) first; it is the only global policy. From the native checkout root:
 
 ```powershell
-cargo run -p halation-app            # the app, with a profile of its own
-cargo test --workspace               # the tests
+python tools/dev.py onboard
+python tools/dev.py map <feature>
+python tools/dev.py symbols <feature> --find <name>
+python tools/dev.py check --mode targeted    # dry run; does not compile
 ```
 
-Start with [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): `python tools/dev.py doctor`, then `python tools/dev.py map <feature>` to find the relevant spec, source and tests. `python tools/dev.py symbols <feature> --find <name>` locates precise Rust/Slint symbols without dumping large modules. Use `python tools/dev.py check` for a **dry-run** test plan. [AGENTS.md](AGENTS.md) lists binding product, safety and workflow rules, while [docs/README.md](docs/README.md) indexes the detailed specs.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) explains working in integrated slices and selecting proportionate checks; [docs/README.md](docs/README.md) indexes active specs. Run targeted Cargo tests only after a coherent change is ready. `cargo run -p halation-app` opens the native window and is not a setup/onboarding command; use it only for an authorized UI review. Do not run `cargo test --workspace` or release builds automatically just to orient yourself.
 
 ## Reporting a bug
 

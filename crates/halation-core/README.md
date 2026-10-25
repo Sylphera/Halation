@@ -17,9 +17,12 @@ lists each module and its source. Specs: [docs/features/](../../docs/features/).
 
 ## What does not
 
-Slint, windows, models for the interface, timers or anything the app's lifecycle owns: that is
-[halation-app](../halation-app/README.md). This crate must never depend on Slint or on Tauri crates; it depends only on
-`serde`, `serde_json` and, on Windows, `windows-sys`.
+Slint page models, window lifecycle and UI timers belong in
+[halation-app](../halation-app/README.md). This crate must not depend on Slint, Tauri or Qt.
+Its real dependencies are defined by [Cargo.toml](Cargo.toml): `serde`/`serde_json` for data,
+`image`/`webp`/`tiff` for media, `ureq` for network operations, `zip` for archives, and
+Windows-only `windows`/`windows-sys` for system integration (including audio and process control).
+The platform bindings do not grant ownership of app windows or UI event loops.
 
 ## Tests
 

@@ -12,8 +12,8 @@ This instruction is the **only** global policy. `CLAUDE.md`, `GEMINI.md` and `.g
 
 ## What this branch is
 
-- **Halation Slint** (this line, branch `slint/native`): the native rebuild in **Rust + Slint 1.18.1 + Skia**, a Cargo
-  workspace under `crates/`. Not released yet.
+- **Halation Slint** (native integration branch `slint/native`; isolated work may use `slint/dev-workflow` or another native branch): the unreleased rebuild in **Rust + Slint 1.18.1 + Skia**, a Cargo
+  workspace under `crates/`. Confirm the actual checkout with `git status --short --branch` before editing.
 - **Halation Tauri** (`main`, tags `v1.2.0` and later `tauri-final`): the published app (Tauri 2, plain HTML/JS/CSS,
   Rust backend in `app/src-tauri`). It is the reference for behaviour and the source of reusable backend code. Its
   code is read from Git (`git show main:app/...`, a checkout of `main`), never copied into this tree wholesale.
