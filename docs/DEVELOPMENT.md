@@ -46,7 +46,7 @@ A successful unit of work should deliver **one coherent behavior end to end**: f
 | Inspect only | `python tools/dev.py check` | Prints targeted-to-diff quick checks; **runs nothing** |
 | Fast | `python tools/dev.py check --mode fast --run` | Changed workflow tooling tests, docs links, Rust formatting only if source changed |
 | Targeted | `python tools/dev.py check --mode targeted --run` | Fast checks plus necessary Cargo check and crate-/suite-scoped tests for changed code |
-| Full | `python tools/dev.py check --mode full --run` | Workspace Clippy and tests after integration, plus scoped checks; no release build |
+| Full | `python tools/dev.py check --mode full --run` | Workspace Clippy and **one** workspace test pass after integration (no duplicate targeted suites), plus Python/docs/format checks; no release build |
 
 The CLI makes no claims about all possible regressions. If your change affects a connected area not detected by filenames, **add its tests explicitly**. Full CI remains the final automated gate. Do not assume that passing a plan means the app is visually correct. All Rust checks can be expensive; `--run` is an explicit choice, and can stop on the first failure.
 

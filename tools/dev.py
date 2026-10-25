@@ -170,14 +170,15 @@ def checks_for_changes(changed: set[str], mode: str) -> list[Check]:
         add(("python", "tools/test_dev.py"), "Workflow tooling self-tests")
     if "docs" in groups or "tooling" in groups:
         add(("python", "tools/check-docs.py"), "Documentation links and feature status")
-    if "rust" in groups:
+    if "rust" in groups or mode == "full":
         add(("cargo", "fmt", "--all", "--check"), "Formatting is fast; never changes source")
-    if mode in ("targeted", "full"):
+    if mode == "targeted":
         if "core" in groups:
             add(("cargo", "check", "-p", "halation-core", "--locked"), "Core crate integration")
             add(("cargo", "test", "-p", "halation-core", "--locked"), "Core regression tests")
         if "app" in groups:
             add(("cargo", "check", "-p", "halation-app", "--locked"), "Native app + Slint integration")
+            add(("cargo", "test", "-p", "halation-app", "--locked", "--lib"), "Native app unit tests")
             if "ui" in groups:
                 add(("cargo", "test", "-p", "halation-app", "--locked", "--test", "ui_layout"), "UI structure and interaction regression tests")
             if "ui" not in groups or any(n.startswith("crates/halation-app/src/") for n in changed):

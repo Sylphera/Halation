@@ -74,8 +74,9 @@ class CheckPlanningTests(unittest.TestCase):
     def test_slimit_ui_never_requests_release_build(self):
         checks = dev.checks_for_changes({"crates/halation-app/ui/app.slint"}, "full")
         cmds = [ch.argv for ch in checks]
-        self.assertIn(("cargo", "test", "-p", "halation-app", "--locked", "--test", "ui_layout"), cmds)
         self.assertIn(("cargo", "test", "--workspace", "--locked"), cmds)
+        self.assertNotIn(("cargo", "test", "-p", "halation-app", "--locked", "--test", "ui_layout"), cmds)
+        self.assertNotIn(("cargo", "check", "-p", "halation-app", "--locked"), cmds)
         self.assertFalse(any("build" in command or "--release" in command for command in cmds))
 
     def test_asset_changes_receive_native_app_tests_without_rebuilding_release(self):
@@ -83,6 +84,17 @@ class CheckPlanningTests(unittest.TestCase):
         self.assertIn(("cargo", "check", "-p", "halation-app", "--locked"), cmds)
         self.assertIn(("cargo", "test", "-p", "halation-app", "--locked", "--test", "ui_layout"), cmds)
         self.assertFalse(any("--release" in argv for argv in cmds))
+
+    def test_targeted_app_also_runs_unit_tests(self):
+        cmds = [ch.argv for ch in dev.checks_for_changes({"crates/halation-app/src/framegrab.rs"}, "targeted")]
+        self.assertIn(("cargo", "test", "-p", "halation-app", "--locked", "--lib"), cmds)
+        self.assertIn(("cargo", "test", "-p", "halation-app", "--locked", "--test", "services"), cmds)
+
+    def test_full_checks_do_not_duplicate_targeted_test_suites(self):
+        cmds = [ch.argv for ch in dev.checks_for_changes({"crates/halation-core/src/lib.rs", "crates/halation-app/src/app.rs"}, "full")]
+        self.assertIn(("cargo", "test", "--workspace", "--locked"), cmds)
+        self.assertEqual(sum(command[:2] == ("cargo", "test") for command in cmds), 1)
+        self.assertEqual(sum(command[:2] == ("cargo", "check") for command in cmds), 0)
 
     def test_shared_cargo_manifest_covers_both_crates(self):
         cmds = [c.argv for c in dev.checks_for_changes({"Cargo.toml"}, "targeted")]
