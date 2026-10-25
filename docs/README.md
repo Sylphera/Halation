@@ -1,5 +1,7 @@
 # Documentation
 
+**New contributor?** Start with [DEVELOPMENT.md](DEVELOPMENT.md) or run `python tools/dev.py map <feature>` from the repository root. The map points to relevant code and existing tests without replacing these specifications.
+
 How Halation (the native app on this branch) works. Rules for contributors are in [AGENTS.md](../AGENTS.md); what is
 being changed and why is in [planning/](../planning/STATUS.md); measurements are in [research/](../research/performance/README.md);
 [archive/](../archive/) holds documents that no longer apply and are never a source of rules.

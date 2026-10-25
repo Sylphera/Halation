@@ -18,8 +18,7 @@ cargo run -p halation-app            # the app, with a profile of its own
 cargo test --workspace               # the tests
 ```
 
-Read [AGENTS.md](AGENTS.md) (the rules, for people and agents alike) and [docs/README.md](docs/README.md) (what to
-read before touching each part).
+Start with [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): `python tools/dev.py doctor`, then `python tools/dev.py map <feature>` to find the relevant spec, source and tests. `python tools/dev.py symbols <feature> --find <name>` locates precise Rust/Slint symbols without dumping large modules. Use `python tools/dev.py check` for a **dry-run** test plan. [AGENTS.md](AGENTS.md) lists binding product, safety and workflow rules, while [docs/README.md](docs/README.md) indexes the detailed specs.
 
 ## Reporting a bug
 
@@ -30,7 +29,7 @@ happened. Do not attach media you are not allowed to share.
 
 - Open an issue first for anything larger than a fix, so the direction can be agreed before the work.
 - Keep a pull request to one change and follow the style of the code you touch.
-- Run the checks listed in `AGENTS.md` (fmt, clippy, tests, release build, docs checker).
+- Run relevant targeted checks during development and full CI checks before integration. `python tools/dev.py check --mode targeted` shows what to run; `--run` executes the plan only when explicitly requested. Release builds are separately authorized, not an everyday PR check.
 - Interface changes need a screenshot in the pull request; they are merged only after the maintainer reviews them in
   the running app.
 - New interface text is English.

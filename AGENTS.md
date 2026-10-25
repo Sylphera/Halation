@@ -16,7 +16,7 @@ user's current instructions disagree with it, the user wins.
 
 ## Where things are
 
-Start at [docs/README.md](docs/README.md): it says what to read for each part of the app. The map:
+Start with [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for a short human/agent workflow and the `python tools/dev.py map <feature>` code/spec/test locator. Use `python tools/dev.py symbols <feature> --find <name>` for a bounded source location, and `python tools/dev.py handoff --base <ref>` to transfer factual progress into a new session without replaying the whole history. [docs/README.md](docs/README.md) indexes active documentation. The map:
 
 | Path | What |
 | --- | --- |
@@ -49,7 +49,7 @@ outside the task. Resolve technical ambiguity from evidence; ask the user only a
   for need no confirmation.
 - Never without Java's explicit approval: merge into `main`, `git push --force`, tags, releases (`gh release`),
   `git reset --hard`, deleting files outside `.tools/`.
-- No builds or releases of this line until Java orders one. Merges carry no `[build]`.
+- No **release/distributable builds** or releases of this line until Java orders one. `cargo check`, targeted `cargo test` and `cargo fmt --check` are developer validations, not release builds. `cargo build --release`, packaging and distribution require explicit approval. Merges carry no `[build]`.
 - Steps the user already authorized are not confirmed again. A step that needs a permission you lack is skipped, the
   rest continues, and the report says so.
 
@@ -100,27 +100,32 @@ lifecycle cancellations are documented as such, not lost as errors.
 **Renderer.** Backend `winit` and renderer `skia` (desktop OpenGL), selected explicitly. No Qt, FemtoVG or software
 renderer at run time (the software renderer only for offscreen screenshots).
 
-## Checks
+## Checks - meaningful gates, not a compile-per-edit loop
 
-From the repository root:
+`python tools/dev.py check` derives a minimal dry-run verification plan from actual changed files (including staged/unstaged/untracked paths). Use `--base <branch>` to include committed changes relative to a shared base, `--mode targeted` for a meaningful integrated unit, and `--run` only when you intend to execute checks. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). This helper is not a replacement for a missing integration or visual check.
+
+
+**During implementation:** first finish a coherent vertical change (required Rust APIs, Slint/controller wiring and focused tests) before invoking Cargo. Do not run `cargo fmt` or a full test suite after each patch or after merely rereading a file. Use `cargo fmt --check` and a narrow `cargo check -p <changed-crate>` / targeted `cargo test -p <changed-crate> <test-filter>` when the change is sufficiently assembled to compile. For UI-only changes, prefer the fast existing layout/static tests at the same milestone. Compile/test sooner only to resolve a genuine API uncertainty that blocks further work.
+
+**Before declaring an integrated task ready:** run the *relevant* checks and the connected-area regressions. If the task impacts most of the workspace, the wider gate is:
 
 ```powershell
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo build --release
-cargo tree -e features -p halation-app   # winit + Skia, no Qt/FemtoVG/software at run time
+cargo tree -e features -p halation-app   # verify winit + Skia
 python tools/check-docs.py              # links and Status: lines
 ```
 
-If a tool cannot run, report the check as pending; never claim it passed. Do not install tools or run scans the task
-does not need.
+`cargo build --release` / packaging is a separate release gate: run it only when explicitly approved. Never silently omit a justified check; if unavailable or deliberately deferred, report it as pending. Do not install tools or run irrelevant scans.
+
+If the same underlying compiler, test, or patch failure persists after **two focused corrections**, stop applying micro-patches. Inspect the full affected interface/callers once, state the root cause, and revise the approach before continuing. Track progress as working behavior and passing tests, not number of edits or commands.
 
 ## How to work
 
 1. Understand before touching: the spec, the code, its tests and recent decisions. Do not edit by intuition.
 2. Say briefly what changes and what must stay the same, and how Rust and Slint split the work.
-3. Work in small parts, each checked on its own; check right away.
+3. Implement in **coherent, integrated slices** (core + controller + Slint + focused tests as needed), not dozens of tiny patches that each trigger a compile. Check at the milestone, not at every edit. Before coding, inspect the original Tauri behavior, existing native interfaces and acceptance tests relevant to the slice; do not invent an underspecified architecture first.
 4. Do not trust existing tests alone: check uncovered behaviour directly or add a test.
 5. Compiling or passing tests does not mean done. Look for regressions in connected areas (Jobs, Library, Settings,
    sessions, processes, export, navigation).
@@ -129,6 +134,10 @@ does not need.
    and what is still unverified.
 8. An interrupted task resumes from the exact point reached; do not redo finished work or assume the last commit
    closed it.
+9. Prefer precise symbols/searches and targeted file ranges to repeated whole-file reads. After an edit, revisit only the changed region or its callers unless a broader audit is justified. Do not reread an unchanged large file merely to recover context.
+10. Keep separate worktrees independent. Before changing shared integration files (`app.rs`, `app.slint`, `Cargo.toml`, models, locales), identify existing WIP and the integration owner; never overwrite another worker's uncommitted work. Deliver a cohesive checkpoint rather than postponing all integration until the end.
+11. For visual verification, generate captures only at UI milestones, then use a **short, dedicated review context** where possible. Keep only the current relevant comparisons in that context. Repeatedly reading the same PNGs into a long-running implementation conversation is costly and can destabilize prompt-cache reuse. Native-window visual approval remains Java's decision.
+12. After repeated tool failures or when a conversation has become very long, write a short handoff with paths, changes, verified tests, exact remaining requirements and known blockers; resume in a fresh session when appropriate. Do not continue until the context limit simply because it is available.
 
 ## Visual review
 

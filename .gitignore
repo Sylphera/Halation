@@ -9,3 +9,7 @@ research/performance/**/*.log
 # Local state: probes, captures, measurements, build trees. Never product, never versioned.
 .tools/
 .serena/
+
+# Python development tooling (stdlib unittest / py_compile)
+__pycache__/
+*.py[cod]

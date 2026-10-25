@@ -118,8 +118,7 @@ cargo test --workspace         # tests
 | `research/` | Measurements and experiments |
 | `archive/` | Documents that no longer apply (the Tauri app, superseded plans) |
 
-[CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes; [AGENTS.md](AGENTS.md) holds the rules every
-contributor follows, people and AI agents alike.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) provides the short developer workflow (`doctor`, feature map, focused checks). [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes; [AGENTS.md](AGENTS.md) holds the rules every contributor follows, people and AI agents alike.
 
 ## Development
 

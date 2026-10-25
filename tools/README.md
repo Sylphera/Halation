@@ -10,6 +10,8 @@ Developer scripts. None of them is part of the app or runs during a build.
 | `record-drape.js` | Records the original Drape as the seamless loop in `assets/` (the only place the original `drape.js` may run; see `AGENTS.md`). Needs a checkout of `main`, Chrome, Playwright and FFmpeg; the header lists the files it writes. |
 | `render-wordmark-glow.js` | Renders the halation glow of Home's wordmark into `assets/halation-wordmark-glow.png` from the settings at its top (Java's values from the glow lab). Needs Chrome and Playwright. |
 | `render-brand.js` | Renders the logo from `docs/media/brand/source/halation-mark.svg` into `assets/` (the mark and the window icon) and `docs/media/brand/`. Needs Chrome and Playwright. |
+| `dev.py` | Dependency-free entrypoint: `doctor`, `map <feature>`, bounded `symbols <feature> --find`, `changes`, `handoff`, and `check`. Test planning is dry-run unless `--run` is passed; Rust test scope is explicit (`--mode targeted` or `full`). See [development guide](../docs/DEVELOPMENT.md). |
+| `test_dev.py` | Fast stdlib-only tests of the developer CLI, Git scope detection and feature-path map. Run `python tools/test_dev.py`. CI runs it. |
 | `check-docs.py` | Checks the Markdown links, images and anchors and the `Status:` lines of `docs/features/`. CI runs it. |
 
 Measurements and their results stay out of the repository (`.tools/` is ignored); a report worth keeping goes to
