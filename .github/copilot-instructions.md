@@ -1,0 +1,3 @@
+# Halation coding-assistant entrypoint
+
+Read the root [AGENTS.md](../AGENTS.md) before modifying this repository. It is the single source of agent instructions. Automatically use `python tools/dev.py onboard` as your first read-only orientation step where command execution is available; `python tools/dev.py map <feature>` and `symbols` locate the relevant native code/spec/tests. Use focused checks after an integrated slice, not after each tiny edit. Never merge to main, build/publish installers or touch real user data without explicit authorization. These lines only point to `AGENTS.md`, they do not add a competing policy.

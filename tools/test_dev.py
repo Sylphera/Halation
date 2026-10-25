@@ -55,13 +55,21 @@ class MapTests(unittest.TestCase):
 
 
 class CheckPlanningTests(unittest.TestCase):
+    def test_agent_entrypoint_change_triggers_documentation_contract_checks(self):
+        for path in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".claude/agents/test-runner.md"):
+            with self.subTest(path=path):
+                argv = [c.argv for c in dev.checks_for_changes({path}, "fast")]
+                self.assertIn(("python", "tools/check-structure.py"), argv)
+                self.assertIn(("python", "tools/check-docs.py"), argv)
+                self.assertFalse(any(c[0] == "cargo" for c in argv))
+
     def test_docs_only_does_not_run_cargo(self):
         checks = dev.checks_for_changes({"docs/features/settings.md"}, "targeted")
-        self.assertEqual([ch.argv for ch in checks], [("python", "tools/check-docs.py")])
+        self.assertEqual([ch.argv for ch in checks], [("python", "tools/check-docs.py"), ("python", "tools/check-structure.py")])
 
     def test_tooling_change_has_fast_self_test(self):
         checks = dev.checks_for_changes({"tools/dev.py"}, "fast")
-        self.assertEqual([ch.argv for ch in checks], [("python", "tools/test_dev.py"), ("python", "tools/check-docs.py")])
+        self.assertEqual([ch.argv for ch in checks], [("python", "tools/test_dev.py"), ("python", "tools/test_structure.py"), ("python", "tools/check-docs.py"), ("python", "tools/check-structure.py")])
 
     def test_core_change_targeted(self):
         checks = dev.checks_for_changes({"crates/halation-core/src/queue.rs"}, "targeted")
@@ -118,6 +126,13 @@ class CheckPlanningTests(unittest.TestCase):
         self.assertIn("UNKNOWN", result["verification"])
         self.assertIn("UNKNOWN", result["completion"])
         self.assertIn("settings", result["possible_feature_areas"])
+
+    def test_onboard_is_short_and_read_only(self):
+        with patch.object(dev, "environment_report", return_value={"branch": "slint/fixture", "dirty_paths": 2}), redirect_stdout(StringIO()) as output:
+            self.assertEqual(dev.main(["onboard"]), 0)
+        self.assertIn("AGENTS.md", output.getvalue())
+        self.assertIn("docs/architecture/overview.md", output.getvalue())
+        self.assertLessEqual(len(output.getvalue().splitlines()), 12)
 
     def test_no_changes_does_not_run_implicit_checks(self):
         self.assertEqual(dev.checks_for_changes(set(), "fast"), [])

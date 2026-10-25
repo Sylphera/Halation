@@ -12,6 +12,8 @@ Developer scripts. None of them is part of the app or runs during a build.
 | `render-brand.js` | Renders the logo from `docs/media/brand/source/halation-mark.svg` into `assets/` (the mark and the window icon) and `docs/media/brand/`. Needs Chrome and Playwright. |
 | `dev.py` | Dependency-free entrypoint: `doctor`, `map <feature>`, bounded `symbols <feature> --find`, `changes`, `handoff`, and `check`. Test planning is dry-run unless `--run` is passed; Rust test scope is explicit (`--mode targeted` or `full`). See [development guide](../docs/DEVELOPMENT.md). |
 | `test_dev.py` | Fast stdlib-only tests of the developer CLI, Git scope detection and feature-path map. Run `python tools/test_dev.py`. CI runs it. |
+| `check-structure.py` | Fast read-only architectural contract: core/app workspace, no Tauri/UI dependencies in core, automatic assistant entrypoints and 19-spec traceability. CI enforces it. |
+| `test_structure.py` | Tests of the structure checker, including negative fixtures and duplicate agent-policy detection. CI runs it. |
 | `check-docs.py` | Checks the Markdown links, images and anchors and the `Status:` lines of `docs/features/`. CI runs it. |
 
 Measurements and their results stay out of the repository (`.tools/` is ignored); a report worth keeping goes to

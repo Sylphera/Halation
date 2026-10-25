@@ -14,11 +14,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: Swatinem/rust-cache@v2
       - name: Developer workflow self-tests
         run: python tools/test_dev.py
       - name: Developer checkout diagnostics
         run: python tools/dev.py doctor
+      - name: Architecture and agent contract self-tests
+        run: python tools/test_structure.py
+      - name: Repository architecture and feature-index gates
+        run: python tools/check-structure.py
+      - name: Documentation links and Status lines
+        run: python tools/check-docs.py
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
@@ -37,5 +46,3 @@ jobs:
           if cargo tree -p halation-core --locked -e normal | grep -E "^.*(slint|tauri)"; then
             echo "::error::halation-core depends on Slint or Tauri"; exit 1
           fi
-      - name: Documentation links and Status lines
-        run: python tools/check-docs.py

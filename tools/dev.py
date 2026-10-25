@@ -139,7 +139,7 @@ def categorize(changed: set[str]) -> set[str]:
             groups.add("rust")
         if name.endswith(".slint"):
             groups.update(("rust", "ui"))
-        if name.endswith(".md") or name.startswith(("docs/", "planning/", "archive/")):
+        if name.endswith(".md") or name.startswith(("docs/", "planning/", "archive/", ".claude/", ".github/ISSUE_TEMPLATE/")) or name in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", "CONTRIBUTING.md", "README.md", ".github/copilot-instructions.md", ".github/pull_request_template.md"):
             groups.add("docs")
         if name.startswith("tools/") or name.startswith(".github/workflows/"):
             groups.add("tooling")
@@ -166,10 +166,12 @@ def checks_for_changes(changed: set[str], mode: str) -> list[Check]:
         if all(existing.argv != check.argv for existing in checks):
             checks.append(check)
 
-    if "tooling" in groups:
-        add(("python", "tools/test_dev.py"), "Workflow tooling self-tests")
-    if "docs" in groups or "tooling" in groups:
+    if "tooling" in groups or mode == "full":
+        add(("python", "tools/test_dev.py"), "Developer CLI unit tests")
+        add(("python", "tools/test_structure.py"), "Architecture/agent contract unit tests")
+    if "docs" in groups or "tooling" in groups or mode == "full":
         add(("python", "tools/check-docs.py"), "Documentation links and feature status")
+        add(("python", "tools/check-structure.py"), "Architecture boundary and feature evidence index")
     if "rust" in groups or mode == "full":
         add(("cargo", "fmt", "--all", "--check"), "Formatting is fast; never changes source")
     if mode == "targeted":
@@ -186,7 +188,6 @@ def checks_for_changes(changed: set[str], mode: str) -> list[Check]:
     if mode == "full":
         add(("cargo", "clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings"), "Workspace lint, required before integration")
         add(("cargo", "test", "--workspace", "--locked"), "Complete workspace tests before integration")
-        add(("python", "tools/check-docs.py"), "Documentation integrity")
     return checks
 
 
@@ -257,6 +258,7 @@ def run_checks(checks: list[Check], do_run: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("onboard", help="Read-only first contact: branch, binding rules, architecture and next commands")
     doctor = sub.add_parser("doctor", help="Read-only toolchain/checkout diagnosis")
     doctor.add_argument("--json", action="store_true")
     mapping = sub.add_parser("map", help="Find specs, source and tests for a feature")
@@ -280,6 +282,19 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--json", action="store_true", help="Emit the dry-run test plan as JSON")
     args = parser.parse_args(argv)
     try:
+        if args.command == "onboard":
+            report = environment_report()
+            print(f"Halation native checkout: {report['branch']} ({report['dirty_paths']} changed/untracked paths)")
+            print("Binding rules: AGENTS.md. Never merge/main/release/migrate real data without explicit approval.")
+            print("Architecture: docs/architecture/overview.md; current visual authority: docs/design/design.md")
+            print("Data/distribution gates: docs/architecture/persistence.md and docs/architecture/distribution.md")
+            print("Real implementation path: docs/development/PROJECT_GUIDE.md")
+            print("Native feature statuses: docs/features/README.md (not inferred from catalog names)")
+            print("Then: python tools/dev.py map <feature>")
+            print("Locate code: python tools/dev.py symbols <feature> --find <name>")
+            print("Check without running: python tools/dev.py check --mode targeted")
+            print("Between tasks: python tools/dev.py handoff --base <integration-ref>")
+            return 0
         if args.command == "doctor":
             report = environment_report()
             if args.json:

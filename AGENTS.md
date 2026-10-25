@@ -4,6 +4,12 @@ The one source of instructions for every agent (Claude Code, Codex or any other)
 follow too. `CLAUDE.md` only points here. Where this file and an older document disagree, this file wins; where the
 user's current instructions disagree with it, the user wins.
 
+## First contact: automatic repository onboarding
+
+On entering this native checkout for a coding task, **without needing the user to request it**, read this `AGENTS.md` and run `python tools/dev.py onboard` once. Then select the relevant `python tools/dev.py map <feature>` and use `symbols <feature> --find <name>` for targeted source. These read-only commands are optional only if Python is unavailable (report that and inspect the same documented paths manually). Do **not** run full Cargo, `cargo run`, releases, installers, screenshot batches, or migrations as onboarding. The architecture is in [docs/architecture/overview.md](docs/architecture/overview.md), current design in [docs/design/design.md](docs/design/design.md), real code paths in [docs/development/PROJECT_GUIDE.md](docs/development/PROJECT_GUIDE.md), evidence in [docs/features/README.md](docs/features/README.md), and release/data gates in [docs/architecture/distribution.md](docs/architecture/distribution.md).
+
+This instruction is the **only** global policy. `CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md` are pointers for their respective clients, not alternative rules. An assistant may need the user's connected workspace/checkout to run commands; never imply that a chat without filesystem access automatically ran anything. CI checks this wiring but cannot force an external AI client to obey instructions.
+
 ## What this branch is
 
 - **Halation Slint** (this line, branch `slint/native`): the native rebuild in **Rust + Slint 1.18.1 + Skia**, a Cargo
