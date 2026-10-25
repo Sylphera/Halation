@@ -1,9 +1,8 @@
-# Plan de reorganización del repositorio
+# Plan de reorganizacion del repositorio
 
-Status: In progress — milestones 0, A1 and B done on 2026-10-21 on `slint/native` (pending Java's review); next: A2, D (data migration) and C (installer and updater).
+Status: In progress. On `slint/dev-workflow` (2026-10-25) milestones 0, A1 and B were completed earlier on the native line; **A2 is now implemented in this isolated branch** as a source-backed architecture/design/development guide, feature traceability index and repository consistency gates. A2 is not merged into `slint/native` or `main` and awaits integration review. **C (NSIS/updater) and D (Tauri data migration) are pending**, not simulated with empty directories.
 
-Estado: propuesta v2, 2026-10-21 (incorpora la propuesta integral de Java y las decisiones del hilo). Nada de esto está ejecutado. Se ejecuta en un solo hilo, junto con la reestructuración en
-crates ya aprobada, después de que Java revise este plan.
+**Historical plan:** the original v2 proposal was drafted 2026-10-21. The inventory and effort estimates below describe *that date*, not current progress. For current state see [STATUS](../STATUS.md), [native architecture](../../docs/architecture/overview.md), [distribution gates](../../docs/architecture/distribution.md) and [feature index](../../docs/features/README.md). No installer execution, destructive migration, public release or merge is authorized by updating this plan.
 
 Fuentes del inventario: `main` (Tauri 1.2.0, 466 ficheros, 75 `.md`), `slint/visual-home` (38 commits por delante) y
 `claude/project-thread-sgjgrl` (47 por delante; contiene a `slint/visual-home` entera más 9 commits de spec de UI).

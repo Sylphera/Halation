@@ -186,7 +186,7 @@ veces.
 
 ## 5. Movimiento
 
-- Todo por `motion.js` y los tokens (`docs/MOTION.md`): el punto cambia de tamaño con `transform: scale` en el
+- Todo por `motion.js` y los tokens (`archive/tauri/motion.md`): el punto cambia de tamaño con `transform: scale` en el
   resorte; la píldora es un fondo que escala en X desde el punto y un texto que entra con opacidad (sin animar
   `width`); la bandeja con `openPopover` / `closePopover`; filas con `list` (entrar, salir en fantasma, reordenar
   con Flip); progreso con `bar`.

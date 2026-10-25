@@ -1,5 +1,7 @@
 # Halation native rebuild — Rust + Slint + Skia canonical specification
 
+> **Current scope note (2026-10-25):** This file preserves the early Slint beta design/provenance. Its old delivery phases, limited pages, release scope and renderer discussion are **not live status**. Read [architecture/overview.md](architecture/overview.md), [architecture/persistence.md](architecture/persistence.md), [architecture/distribution.md](architecture/distribution.md), [design/design.md](design/design.md) and [features/README.md](features/README.md) first. Approved decisions stay in [planning/decisions.md](../planning/decisions.md).
+
 Status: implementation specification for the independent native application. This is the sole canonical native
 specification. It supersedes the abandoned Qt Quick/C++ line and the previous `docs/QT_QUICK_SPEC.md` (renamed here);
 it does not authorize replacing or changing the currently maintained Tauri application. A native build is a technical

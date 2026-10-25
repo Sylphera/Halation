@@ -1,5 +1,7 @@
 # Motion
 
+> **Historical Tauri/GSAP document:** the current native contract is [native motion](../../docs/features/motion.md) and [native design](../../docs/design/design.md). Do not port CSS/JS timing or WebView effects to Slint.
+
 How Halation moves. The code is `app/dist/motion.js` (`window.__motion`), the values are the motion tokens in
 `app/dist/tokens.css`, the CSS pieces are in `ui.css` and `shell.css`. The code map is in `ARCHITECTURE.md → Motion`.
 

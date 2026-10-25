@@ -1,5 +1,7 @@
 # Tools status — native line
 
+> **Branch scope notice:** status here is a historical/integration inventory through 2026-10-23. The branch `slint/dev-workflow` has Converter and Frame Capture connected; other worktrees may be ahead. The former global top bar and the early Figma mockup references are superseded where the [current native design](design/design.md) and `ui/app.slint` disagree. Review [feature traceability](features/README.md) for the per-branch evidence status.
+
 Status: FASE 1, tool 1 of 9 — Frame Capture implemented natively on `slint/tools-all` (2026-10-23), pending Java's
 visual review. Converter and Frame Capture are `parcial`; Frame Capture UI follows the Figma tool frame in §9.
 The viewer, timeline,
@@ -42,7 +44,7 @@ This §9 frame is the layout authority; Converter is not a substitute compositio
   colours and state tokens in [themes.md](features/themes.md). No page-local palette, font, radius, shadow, border or
   spacing scale.
 - **Motion.** Use the current native contract in [motion.md](features/motion.md): native Slint animation only, no idle
-  animation, and 0 ms with reduced motion. [MOTION.md](MOTION.md) documents the Tauri/GSAP app; it is not the
+  animation, and 0 ms with reduced motion. [archived Tauri motion](../archive/tauri/motion.md) documents the Tauri/GSAP app; it is not the
   native reference.
 - **Reference.** The Vocal Remover mockup in §9 of [ui-redesign.md](../planning/active/ui-redesign.md#9-screens) is the
   Figma tool-frame reference. A tool may add only the controls its function requires, built from shared components.
@@ -357,7 +359,7 @@ integration gaps; this page does not simulate them.
   [planning/active/tools-ui.md](../planning/active/tools-ui.md) §Frame Capture (copied unchanged from `slint/native`
   commit `9e5c53f`; Draft),
   [features/material.md](features/material.md), [features/themes.md](features/themes.md),
-  [features/motion.md](features/motion.md). `docs/MOTION.md` is the Tauri document.
+  [features/motion.md](features/motion.md). `archive/tauri/motion.md` is the historical Tauri document.
 - Tauri on `main`: `app/dist/modules.js`, the ten tool pages and modules, `app/src-tauri/src/{tools,download,convert,
   encode,stems,interp,framegrab,cutout,presets}.rs`.
 - Existing specs linked above; new specs written in this change for Downloader, Audio Visualizer, Upscale and Frame

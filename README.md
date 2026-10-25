@@ -66,7 +66,7 @@ Halation is not one giant editor. Each tool is designed to be useful on its own,
 
 ## Installation
 
-Halation supports **Windows 10 and 11** and requires WebView2.
+**The published Tauri 1.x application** supports **Windows 10 and 11** and requires WebView2. **The unreleased native Slint branch does not use WebView2**; its installer/updater are not complete.
 
 Download the latest stable release from **[Releases](https://github.com/Sylphera/Halation/releases/latest)**.
 
@@ -93,7 +93,7 @@ See **[PRIVACY.md](PRIVACY.md)** for the full network and data-handling boundary
 
 ## This branch: the native rebuild
 
-This branch (`slint/native`) holds **Halation Slint**, the native rebuild in Rust, [Slint](https://slint.dev) and
+Native development branches (including `slint/native` and `slint/dev-workflow`) hold **Halation Slint**, the rebuild in Rust, [Slint](https://slint.dev) and
 Skia. It is not released yet: the published app above is **Halation Tauri**, on
 [`main`](https://github.com/Sylphera/Halation/tree/main), which keeps its own build instructions. The native app has
 its own profile and does not read Tauri user data.
@@ -113,12 +113,12 @@ cargo test --workspace         # tests
 | `crates/halation-app/` | The app: lifecycle, Slint interface (`ui/`), navigation, controllers |
 | `assets/` | Files installed beside the executable: icons, fonts, brand, the Drape loop |
 | `tools/` | Developer scripts: launching and measuring the beta, recording the Drape, checking the docs |
-| `docs/` | How Halation works; start at [docs/README.md](docs/README.md) |
+| `docs/` | [Architecture](docs/architecture/overview.md), [design](docs/design/design.md), [distribution gates](docs/architecture/distribution.md), [project guide](docs/development/PROJECT_GUIDE.md), [feature evidence](docs/features/README.md) |
 | `planning/` | Status, roadmap, decisions and active plans |
 | `research/` | Measurements and experiments |
 | `archive/` | Documents that no longer apply (the Tauri app, superseded plans) |
 
-[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) provides the short developer workflow (`doctor`, feature map, focused checks). [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes; [AGENTS.md](AGENTS.md) holds the rules every contributor follows, people and AI agents alike.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) provides the developer workflow (read-only `onboard`, feature map, symbols, focused checks; Python 3.11+). [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes; [AGENTS.md](AGENTS.md) holds the rules every contributor follows, people and AI agents alike.
 
 ## Development
 

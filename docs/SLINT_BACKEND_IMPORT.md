@@ -1,5 +1,7 @@
 # Slint backend import plan
 
+> **Provenance ledger, not an implementation queue:** for current native module ownership and connected tools read [architecture/overview.md](architecture/overview.md) and [features/README.md](features/README.md). Historical checkpoints below may precede newer work; verify current code.
+
 Status: 2026-10-21. Scope of the rule in `docs/SLINT_SPEC.md` (Authority and boundaries): the Rust backend of the Tauri app
 (`app/src-tauri/src`) is kept and reused by the native workspace (`crates/halation-core`); only the visual layer stays clean-room.
 

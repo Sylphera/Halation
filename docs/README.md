@@ -1,44 +1,40 @@
 # Documentation
 
-**New contributor?** Start with [DEVELOPMENT.md](DEVELOPMENT.md) or run `python tools/dev.py map <feature>` from the repository root. The map points to relevant code and existing tests without replacing these specifications.
+**New contributor or agent?** Start with `python tools/dev.py onboard` (read-only overview) or [DEVELOPMENT.md](DEVELOPMENT.md). No special prompt is needed when your coding assistant automatically reads the root `AGENTS.md`. `python tools/dev.py map <feature>` finds relevant source and tests; it does not replace product specifications.
 
 How Halation (the native app on this branch) works. Rules for contributors are in [AGENTS.md](../AGENTS.md); what is
 being changed and why is in [planning/](../planning/STATUS.md); measurements are in [research/](../research/performance/README.md);
 [archive/](../archive/) holds documents that no longer apply and are never a source of rules.
 
-## If you are going to touch…
+## Architecture, design and development
 
-| Area | Read first | Code |
+| Question | Source | Scope |
 | --- | --- | --- |
-| Anything | [SLINT_SPEC.md](SLINT_SPEC.md) (scope, stack, gates), [planning/decisions.md](../planning/decisions.md) | |
-| Look and feel: colours, type, layout, Home, rail, backdrop | [SLINT_VISUAL_SYSTEM.md](SLINT_VISUAL_SYSTEM.md); the approved redesign in [planning/active/ui-redesign.md](../planning/active/ui-redesign.md); current material and type in [features/material.md](features/material.md) and [features/themes.md](features/themes.md); colour background in [COLOR_REWORK_SPEC.md](COLOR_REWORK_SPEC.md) | `crates/halation-app/ui/`, `crates/halation-app/src/theme.rs`, `backdrop.rs` |
-| Animation | [MOTION.md](MOTION.md) for the principles (its web mechanics apply to the Tauri app only); the native plan in [features/motion.md](features/motion.md); native rules in [AGENTS.md](../AGENTS.md) | `crates/halation-app/src/motion.rs`, `ui/` |
-| Backend code taken from the Tauri app | [SLINT_BACKEND_IMPORT.md](SLINT_BACKEND_IMPORT.md) | `crates/halation-core/` |
-| Jobs, processes, engines | [features/jobs.md](features/jobs.md) | `crates/halation-core/src/` (`queue`, `process`, `engine`) |
-| Library and sections | [features/library.md](features/library.md) | `crates/halation-app/src/library.rs`, `halation-core` `sections` |
-| Settings | [features/settings.md](features/settings.md), [features/save-location.md](features/save-location.md) | `crates/halation-app/src/settings.rs`, `ui/pages/settings.slint` |
-| A media tool (Figma tool frame) | its spec in [features/](features/), [TOOLS_STATUS.md](TOOLS_STATUS.md) and its [shared UI contract](TOOLS_STATUS.md#visual-contract-all-ten-tools); the mapping in [tools-ui.md](../planning/active/tools-ui.md); the Tauri app on `main` is the behaviour reference | |
-| Assets beside the executable | [SLINT_VISUAL_SYSTEM.md](SLINT_VISUAL_SYSTEM.md#assets-beside-the-executable) | `assets/`, `crates/halation-app/src/assets.rs` |
+| Which line and module owns this code? | [architecture/overview.md](architecture/overview.md) | Actual native workspace and boundaries |
+| Where is user data stored? | [architecture/persistence.md](architecture/persistence.md) | Current beta vs approved future profile |
+| How is it distributed and updated? | [architecture/distribution.md](architecture/distribution.md) | Milestone C/D target, **not shipped** |
+| What look and motion decisions apply? | [design/design.md](design/design.md) | Current native visual authority |
+| How does a click reach the backend? | [development/PROJECT_GUIDE.md](development/PROJECT_GUIDE.md) | Real paths, callbacks and tests |
+| How to navigate and check changes? | [DEVELOPMENT.md](DEVELOPMENT.md) | Human/agent commands, CI |
+| Which features actually work? | [features/README.md](features/README.md), [TOOLS_STATUS.md](TOOLS_STATUS.md) | Evidence-based native traceability |
+| Approved decisions vs planned work? | [planning/decisions.md](../planning/decisions.md), [planning/STATUS.md](../planning/STATUS.md), [reorganization plan](../planning/active/repo-reorg.md) | Approval, current state and milestone gates |
 
-## Specs by feature
+**Read the narrowest source that answers the task.** `SLINT_SPEC.md` and `SLINT_BACKEND_IMPORT.md` remain as historical/beta contracts and import provenance, not competing global instructions. [Tauri motion archive](../archive/tauri/motion.md) documents Tauri/GSAP, not native Slint motion rules.
 
-Each spec in [features/](features/) opens with a `Status:` line: Planned, Partial or Implemented. A status says what
-exists, not that it was verified; verification is a test, a measurement or Java's visual OK, named where it exists.
+## If you are going to touch
 
-| Spec | Status |
-| --- | --- |
-| [jobs.md](features/jobs.md) | Partial |
-| [library.md](features/library.md) | Partial |
-| [settings.md](features/settings.md) | Partial |
-| [save-location.md](features/save-location.md) | Partial (Converter) |
-| [backgrounds.md](features/backgrounds.md) | Partial (Drape) |
-| [process-menu.md](features/process-menu.md) | Planned |
-| [motion.md](features/motion.md) | Implemented, approved (2026-10-22) |
-| [material.md](features/material.md) | Implemented, approved (2026-10-22) |
-| [themes.md](features/themes.md) | Implemented, approved (2026-10-22) |
-| [converter.md](features/converter.md) | Partial, native Converter approved (Send to and sessions remain) |
-| [cover-test.md](features/cover-test.md), [framerate.md](features/framerate.md), [grade-looks.md](features/grade-looks.md), [remove-background.md](features/remove-background.md), [vocal-remover.md](features/vocal-remover.md) | Planned (Tauri only) |
-| [downloader.md](features/downloader.md), [audio-visualizer.md](features/audio-visualizer.md), [upscale.md](features/upscale.md), [frame-capture.md](features/frame-capture.md) | Planned (Tauri only) |
-| [TOOLS_STATUS.md](TOOLS_STATUS.md) — status, spec, Tauri origin and shared UI contract of every media tool | Inventory (FASE 0) |
+| Area | Read first | Implementation |
+| --- | --- | --- |
+| Rust services and boundaries | [architecture/overview.md](architecture/overview.md), [feature spec](features/README.md) | `crates/halation-core/` |
+| Native presentation and composition | [design/design.md](design/design.md), [feature spec](features/README.md) | `crates/halation-app/ui/` and `src/app.rs` |
+| Motion, themes, material | [features/motion.md](features/motion.md), [features/themes.md](features/themes.md), [features/material.md](features/material.md) | `ui/theme.slint`, `src/theme.rs`, `src/motion.rs` |
+| Jobs and media tools | [development/PROJECT_GUIDE.md](development/PROJECT_GUIDE.md), relevant spec | core queue/engine, app controllers |
+| Settings, navigation and Library | [features/settings.md](features/settings.md), [features/library.md](features/library.md), [architecture/persistence.md](architecture/persistence.md) | app controllers, core schema |
+| Updating/distribution | [architecture/distribution.md](architecture/distribution.md), [reorganization milestone C/D](../planning/active/repo-reorg.md) | Planned; no native updater yet |
+| Earlier Tauri behavior | [SLINT_BACKEND_IMPORT.md](SLINT_BACKEND_IMPORT.md) and `main` via Git | Adapt backend only; never copy old visual source |
 
-`python tools/check-docs.py` checks that every link here resolves and every spec has its `Status:` line.
+## Feature specs and evidence
+
+The **single** 19-spec status/evidence index is [features/README.md](features/README.md). Do not duplicate statuses in several summary tables: they become stale. Tests or an existing catalog name do not establish visual approval.
+
+`python tools/check-docs.py` checks links and feature `Status:` lines. `python tools/check-structure.py` checks required architecture contracts, spec-index coverage and agent instructions.

@@ -1,5 +1,7 @@
 # Settings — Especificación v1
 
+> **Native redesign pending:** Moving Settings categories into the sidebar, integrated search and real `Back to...` history are requested for a later acceptance task. They are **not** implemented by this architecture/documentation milestone. Consult [native code path guide](../development/PROJECT_GUIDE.md) for the current limitations.
+
 Status: Partial — the native Settings page mirrors the Tauri one; most options are saved but have no effect yet.
 
 > Save/export location behavior, mode names, and batch rules are superseded by [save-location.md](save-location.md).

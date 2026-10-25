@@ -1,5 +1,7 @@
 # Native beta visual system (Slint)
 
+> **Current authority (2026-10-25):** the latest native layout and materials are in [design/design.md](design/design.md). Historical replica geometry below is retained as provenance and is not the current UI direction. Drape, identity and recorded measurements remain informative where not superseded.
+
 Status: replica of the original Halation (Java, 2026-10-21: "que la aplicación se vea exactamente igual al halation
 original … mismos settings, se quita jobs, mismo home; desde ahí podremos empezar a iterar"). Implemented, pending
 Java's visual review. Annex of `docs/SLINT_SPEC.md`, which keeps architecture, services and gates. It replaces the

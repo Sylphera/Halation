@@ -1,5 +1,7 @@
 # Color rework spec
 
+> **Historical Tauri palette study:** this document describes Graphite/CSS experiments in the published web UI. The native Silver/Gold/accent choices are described in [design/design.md](design/design.md) and [features/themes.md](features/themes.md). Do not apply the old `tokens.css` palette to Slint.
+
 Status: implemented (#12) with D tokens and the H backgrounds, then darkened to **Graphite** (Java, 2026-10-14, #21; see
 [Graphite](#graphite-java-2026-10-14)): the values in `tokens.css` are Graphite's, D stays below as the step it came
 from. Colour only: layout, type, components, spacing, radii and motion stay as they are.

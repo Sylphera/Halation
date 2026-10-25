@@ -4,11 +4,12 @@ This guide is for human contributors and coding agents. It applies to the **Rust
 
 ## Get oriented in under a minute
 
-Requirements: Windows 10/11, Git, Python 3 (standard library only for developer tooling) and the Rust/MSVC toolchain pinned by [`rust-toolchain.toml`](../rust-toolchain.toml).
+Requirements: Windows 10/11, Git, Python 3.11 or newer (standard library only for developer tooling; CI pins 3.12) and the Rust/MSVC toolchain pinned by [`rust-toolchain.toml`](../rust-toolchain.toml).
 
 From the repository root:
 
 ```powershell
+python tools/dev.py onboard
 python tools/dev.py doctor
 python tools/dev.py map
 python tools/dev.py map settings
@@ -17,7 +18,7 @@ python tools/dev.py changes
 python tools/dev.py check
 ```
 
-These commands do not need dependencies installed beyond Git and Python to inspect the checkout. `doctor` reports missing Rust tooling but never installs it. `map` gives the *smallest useful reading list* for a feature: active specs, relevant code and existing tests. Planned features show **no implementation** rather than fabricated files. `symbols <feature> --find <name>` prints **bounded file:line symbol references** for existing Rust and Slint code, without dumping large files (default 35 entries; use `--limit` to adjust). `changes` lists staged, unstaged and untracked paths. `check` proposes a test plan without running it.
+These commands do not need dependencies installed beyond Git and Python to inspect the checkout. `onboard` provides a short Git-backed and source-backed introduction. Coding agents whose clients read `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` or GitHub Copilot's instructions are directed to run it *without the user asking*. Other tools must be configured to read the root policy; the repository cannot enforce arbitrary external clients. `doctor` reports missing Rust tooling but never installs it. `map` gives the *smallest useful reading list* for a feature: active specs, relevant code and existing tests. Planned features show **no implementation** rather than fabricated files. `symbols <feature> --find <name>` prints **bounded file:line symbol references** for existing Rust and Slint code, without dumping large files (default 35 entries; use `--limit` to adjust). `changes` lists staged, unstaged and untracked paths. `check` proposes a test plan without running it.
 
 For a branch with committed work, compare from its integration base:
 
@@ -46,7 +47,7 @@ A successful unit of work should deliver **one coherent behavior end to end**: f
 | Inspect only | `python tools/dev.py check` | Prints targeted-to-diff quick checks; **runs nothing** |
 | Fast | `python tools/dev.py check --mode fast --run` | Changed workflow tooling tests, docs links, Rust formatting only if source changed |
 | Targeted | `python tools/dev.py check --mode targeted --run` | Fast checks plus necessary Cargo check and crate-/suite-scoped tests for changed code |
-| Full | `python tools/dev.py check --mode full --run` | Workspace Clippy and **one** workspace test pass after integration (no duplicate targeted suites), plus Python/docs/format checks; no release build |
+| Full | `python tools/dev.py check --mode full --run` | Workspace Clippy and **one** workspace test pass after integration (no duplicate targeted suites), plus Python/docs/architecture/format checks; no release build |
 
 The CLI makes no claims about all possible regressions. If your change affects a connected area not detected by filenames, **add its tests explicitly**. Full CI remains the final automated gate. Do not assume that passing a plan means the app is visually correct. All Rust checks can be expensive; `--run` is an explicit choice, and can stop on the first failure.
 

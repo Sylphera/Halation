@@ -1,6 +1,6 @@
 # halation-app
 
-The native app: the executable (`halation-slint.exe`), its lifecycle, the Slint interface and the Rust that drives it.
+The native app: the executable (`halation-slint.exe`), its lifecycle, the Slint interface and the Rust that drives it. See the [architecture](../../docs/architecture/overview.md), [current design](../../docs/design/design.md) and [user-to-backend guide](../../docs/development/PROJECT_GUIDE.md).
 
 ## What goes here
 
@@ -13,7 +13,7 @@ The native app: the executable (`halation-slint.exe`), its lifecycle, the Slint 
   `assets.slint`, `icons.slint`, `models.slint`.
 - `build.rs`: compiles `ui/app.slint`, stamps the Git revision and copies the workspace's `assets/` beside the
   development executable.
-- `tests/`: `ui_layout.rs` (headless layout bounds) and `services.rs` (state of the app's services).
+- `tests/`: `ui_layout.rs` (headless layout bounds) and `services.rs` (state of the app's services). Large controller unit tests are in adjacent `src/<module>/tests.rs` to keep the production modules easier to navigate.
 
 ## What does not
 

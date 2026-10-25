@@ -36,7 +36,7 @@ coste, tokens) y `tests/ui_layout.rs` (píldoras con eventos de puntero, movimie
 Qué se mueve en la app Slint, con qué valores y cuánto cuesta. Diseñada desde cero sobre lo que hace Slint 1.18 con Skia
 (Java, 2026-10-22: no se toma como referencia el código anterior; se buscan las animaciones más baratas posibles; el
 hover es lo más importante). Sustituye, para el movimiento, a la sección *Motion* de [SLINT_SPEC.md](../SLINT_SPEC.md);
-[MOTION.md](../MOTION.md) queda como documento de la app Tauri.
+[archived Tauri motion](../../archive/tauri/motion.md) queda como documento de la app Tauri.
 
 ## 1. Qué cuesta una animación en Slint + Skia
 
