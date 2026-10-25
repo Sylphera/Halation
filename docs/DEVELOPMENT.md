@@ -62,9 +62,9 @@ The CLI makes no claims about all possible regressions. If your change affects a
 | Job/process queue | `crates/halation-core/src/jobs.rs`, `queue.rs`, `process.rs` | A separate busy loop in every page |
 | Feature specification | `docs/features/<feature>.md` and [`docs/README.md`](README.md) | Old `archive/` rules or a stale progress commit |
 | Confirmed decisions | `planning/decisions.md` | Unapproved draft proposals |
-| Integration tests | `crates/halation-app/tests/`, core module tests | Only compiling, without behavior checks |
+| Integration tests | `crates/halation-app/tests/`, `src/<module>/tests.rs` for nearby module unit tests | Only compiling, without behavior checks |
 
-You can navigate by exact feature using `dev.py map`. The map itself has tests that fail if a referenced code/spec path disappears. It is deliberately a **starting point**, not another source of truth for product behavior.
+You can navigate by exact feature using `dev.py map`. The map itself has tests that fail if a referenced code/spec path disappears. It is deliberately a **starting point**, not another source of truth for product behavior. Large production modules keep their `#[cfg(test)] mod tests;` unit tests in a nearby `src/<module>/tests.rs`, retaining the same Rust module namespace and access to private methods. This keeps test scaffolding out of the first production-file read while preserving test coverage.
 
 ## Agents: efficient without cutting corners
 
@@ -81,5 +81,6 @@ There is no artificial fixed patch, token, or Cargo call limit that justifies sk
 - **PowerShell blocks `.ps1`**: `dev.py` works from `python` without changing the execution policy. If a specific owned `.ps1` is needed, follow its documented command; do not change machine-wide security settings.
 - **A Cargo check keeps failing on the same interface**: inspect the constructor/API and all affected callers, resolve the mismatch coherently, then rerun once. Do not format/compile repeatedly while the interface is still changing.
 - **Tests succeed but UI looks wrong**: test the real Slint window. Headless software captures cannot verify every Skia font/rendering difference.
+- **Cargo unit tests report missing SVG or PNG assets**: `build.rs` stages development resources under `target/<profile>/assets`; unit test executables run from `target/<profile>/deps`. The native asset resolver handles both locations, without affecting installed app paths. If this warning returns, check that resources were staged and that the test is using `assets::locate()` instead of composing a path from `current_exe()` manually.
 
 See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for PR and review expectations and [`tools/README.md`](../tools/README.md) for optional measurement tools.

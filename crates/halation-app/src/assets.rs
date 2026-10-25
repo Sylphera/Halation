@@ -15,8 +15,27 @@ pub fn locate() -> PathBuf {
     }
     std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join("assets")))
+        .map(|exe| beside_executable(&exe))
         .unwrap_or_else(|| PathBuf::from("assets"))
+}
+
+/// Cargo runs test binaries from `target/<profile>/deps/`, while `build.rs`
+/// stages assets at `target/<profile>/assets/` for the real app executable.
+/// Find that sibling *only for test-binary locations*, preserving installed
+/// app resolution and the explicit HALATION_ASSETS override.
+fn beside_executable(exe: &Path) -> PathBuf {
+    let Some(dir) = exe.parent() else {
+        return PathBuf::from("assets");
+    };
+    if dir.file_name().is_some_and(|name| name == "deps")
+        && let Some(profile_dir) = dir.parent()
+    {
+        let sibling = profile_dir.join("assets");
+        if sibling.is_dir() {
+            return sibling;
+        }
+    }
+    dir.join("assets")
 }
 
 /// Every icon the interface names, as files `icons/<name>.svg`
@@ -183,6 +202,22 @@ mod tests {
     fn the_crate_ships_every_required_file() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets");
         assert_eq!(missing(&dir), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_test_binary_finds_staged_assets_without_changing_installed_paths() {
+        let root =
+            std::env::temp_dir().join(format!("halation-assets-check-{}", std::process::id()));
+        let profile = root.join("debug");
+        let assets = profile.join("assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        let exe = profile.join("deps").join("unit-tests.exe");
+        assert_eq!(beside_executable(&exe), assets);
+        assert_eq!(
+            beside_executable(&profile.join("halation-slint.exe")),
+            assets
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

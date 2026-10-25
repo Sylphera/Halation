@@ -30,12 +30,13 @@ class Area:
 # Planned features deliberately have a spec but no invented implementation path.
 AREAS: dict[str, Area] = {
     "settings": Area("Global preferences, search and persistence", ("docs/features/settings.md", "docs/features/save-location.md"), ("crates/halation-app/ui/pages/settings.slint", "crates/halation-core/src/settings.rs", "crates/halation-app/src/navigation.rs"), ("crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
-    "navigation": Area("Page history, sidebar and shell", ("planning/active/ui-redesign.md", "docs/SLINT_VISUAL_SYSTEM.md"), ("crates/halation-app/src/navigation.rs", "crates/halation-app/src/app.rs", "crates/halation-app/ui/app.slint"), ("crates/halation-app/tests/ui_layout.rs",)),
-    "frame-capture": Area("Native frame capture and decoding", ("docs/features/frame-capture.md", "docs/SLINT_BACKEND_IMPORT.md"), ("crates/halation-core/src/framegrab.rs", "crates/halation-core/src/frame_decoder.rs", "crates/halation-app/src/framegrab.rs", "crates/halation-app/ui/pages/framegrab.slint"), ("crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
-    "converter": Area("Media conversion, jobs and destinations", ("docs/features/converter.md",), ("crates/halation-core/src/convert.rs", "crates/halation-app/src/converter.rs", "crates/halation-app/ui/pages/converter.slint"), ("crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
+    "navigation": Area("Page history, sidebar and shell", ("planning/active/ui-redesign.md", "docs/SLINT_VISUAL_SYSTEM.md"), ("crates/halation-app/src/navigation.rs", "crates/halation-app/src/app.rs", "crates/halation-app/ui/app.slint"), ("crates/halation-app/src/app/tests.rs", "crates/halation-app/tests/ui_layout.rs")),
+    "frame-capture": Area("Native frame capture and decoding", ("docs/features/frame-capture.md", "docs/SLINT_BACKEND_IMPORT.md"), ("crates/halation-core/src/framegrab.rs", "crates/halation-core/src/frame_decoder.rs", "crates/halation-app/src/framegrab.rs", "crates/halation-app/ui/pages/framegrab.slint"), ("crates/halation-core/src/framegrab/tests.rs", "crates/halation-app/src/framegrab/tests.rs", "crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
+    "converter": Area("Media conversion, jobs and destinations", ("docs/features/converter.md",), ("crates/halation-core/src/convert.rs", "crates/halation-app/src/converter.rs", "crates/halation-app/ui/pages/converter.slint"), ("crates/halation-app/src/converter/tests.rs", "crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
     "jobs": Area("Shared processing, queue and engines", ("docs/features/jobs.md",), ("crates/halation-core/src/jobs.rs", "crates/halation-core/src/queue.rs", "crates/halation-core/src/process.rs", "crates/halation-core/src/engine.rs"), ("crates/halation-app/tests/services.rs",)),
     "library": Area("Media library, sections and folders", ("docs/features/library.md",), ("crates/halation-core/src/library.rs", "crates/halation-core/src/sections.rs", "crates/halation-app/src/library.rs", "crates/halation-app/ui/pages/library.slint"), ("crates/halation-app/tests/services.rs", "crates/halation-app/tests/ui_layout.rs")),
     "home": Area("Home and visual shell", ("docs/SLINT_VISUAL_SYSTEM.md", "planning/active/ui-redesign.md"), ("crates/halation-app/ui/pages/home.slint", "crates/halation-app/ui/app.slint", "crates/halation-app/src/backdrop.rs"), ("crates/halation-app/tests/ui_layout.rs",)),
+    "assets": Area("Staged local icons, fonts and artwork", ("docs/SLINT_VISUAL_SYSTEM.md",), ("crates/halation-app/src/assets.rs", "crates/halation-app/build.rs"), ("crates/halation-app/src/assets.rs",)),
     "cover-test": Area("Planned native cover preview tool", ("docs/features/cover-test.md",), (), ()),
     "downloader": Area("Planned native downloader", ("docs/features/downloader.md",), (), ()),
     "audio-visualizer": Area("Planned native audio visualization", ("docs/features/audio-visualizer.md",), (), ()),
@@ -126,6 +127,8 @@ def status_from_spec(relative: str) -> str:
 def categorize(changed: set[str]) -> set[str]:
     groups = set()
     for name in changed:
+        if name.startswith("assets/"):
+            groups.update(("assets", "app", "ui"))
         if name.startswith("crates/halation-core/"):
             groups.add("core")
         if name.startswith("crates/halation-app/"):

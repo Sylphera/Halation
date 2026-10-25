@@ -78,6 +78,12 @@ class CheckPlanningTests(unittest.TestCase):
         self.assertIn(("cargo", "test", "--workspace", "--locked"), cmds)
         self.assertFalse(any("build" in command or "--release" in command for command in cmds))
 
+    def test_asset_changes_receive_native_app_tests_without_rebuilding_release(self):
+        cmds = [c.argv for c in dev.checks_for_changes({"assets/icons/convert.svg"}, "targeted")]
+        self.assertIn(("cargo", "check", "-p", "halation-app", "--locked"), cmds)
+        self.assertIn(("cargo", "test", "-p", "halation-app", "--locked", "--test", "ui_layout"), cmds)
+        self.assertFalse(any("--release" in argv for argv in cmds))
+
     def test_shared_cargo_manifest_covers_both_crates(self):
         cmds = [c.argv for c in dev.checks_for_changes({"Cargo.toml"}, "targeted")]
         self.assertIn(("cargo", "check", "-p", "halation-core", "--locked"), cmds)
